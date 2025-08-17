@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 44931024,
-    "by": "phtrivier",
-    "timeISO": "2025-08-17T12:06:30.000Z",
-    "textPlain": "Probably a FAQ, but the example about network partition leaves me wondering : if two clients talk to a different leader of subnetwork, the algorithm guarantees that eventually, one of the leader will step down, and both clients will eventually see the same operation log.Does it mean that the client should implicitly wait a bit before \"trusting\" their server, to be sure ? What happens if you take a wrong decision based on an outdated log that is eventually rolled back ?(Or it simply the same thing as with any eventually consistent system - you should _not_ have irreversible side effects that depend on the value of a log in the system, at all ?)",
-    "parent": 44886202,
-    "depth": 1
-  },
-  {
     "id": 44927627,
     "by": "lopatin",
     "timeISO": "2025-08-16T23:15:10.000Z",
     "textPlain": "Here's a recent Raft story from when I was trying to learn how to use it. I'm working on coding a multiplayer io game for fun. One key part was that it needs replication of game state so that live games can fail over if one of the servers crashes or is restarted.I was like, \"wait, that's what raft does, and my game state is already a state machine ... let's do this thing\". I then ended up putting my entire game state into raft, and even abused it as a generic pubsub engine.It was fun, and it worked, and was actually not hard to setup using the Rust implementation.\nThen when I was done, I realized how pathological it was to put literally all game state and every single event into Raft, so decided to stop indulging myself by having fun and trying to hack Raft into an unintended use case, and just used Redis for game state and pubsub.I never load tested the Raft implementation, but once I do have some perf testing tools, I'd be interesting to run the Raft code vs. Redis comparison to see how throughput differs. For this use case, at some point Raft should fall over while Redis would be chugging along.",
+    "parent": 44886202,
+    "depth": 1
+  },
+  {
+    "id": 44931024,
+    "by": "phtrivier",
+    "timeISO": "2025-08-17T12:06:30.000Z",
+    "textPlain": "Probably a FAQ, but the example about network partition leaves me wondering : if two clients talk to a different leader of subnetwork, the algorithm guarantees that eventually, one of the leader will step down, and both clients will eventually see the same operation log.Does it mean that the client should implicitly wait a bit before \"trusting\" their server, to be sure ? What happens if you take a wrong decision based on an outdated log that is eventually rolled back ?(Or it simply the same thing as with any eventually consistent system - you should _not_ have irreversible side effects that depend on the value of a log in the system, at all ?)",
     "parent": 44886202,
     "depth": 1
   },
@@ -112,14 +112,6 @@
     "depth": 1
   },
   {
-    "id": 44931119,
-    "by": "ingloriousB",
-    "timeISO": "2025-08-17T12:25:13.000Z",
-    "textPlain": "There is only one version of the committed log.That's the definition of committed. So you won't get a committed write or read from a partitioned\n\"zombie\" leader.In good (non-buggy) Raft implementations, things\nare set up so there can\nonly ever be at most one leader at a time.That is the point of the election,\nthe pre-vote, the leader-leases, the\nsticky-leader, and the leader-must-step-down\nrules (from chapter 6 of the dissertation).Yes those optimizations are \ndescribed as optional in the Raft dissertation.\nBut really they are not.You have to read the whole dissertation \nto the details and full picture.You should have all of them as a part of a complete and\nsane implementation.Pre-vote and sticky-leader are needed for\nliveness.Leader leases are possible because you \nhave pre-vote and sticky leader on; and they\ngive you fast local-only leader reads.The leader step-down rule prevents client \nliveness and multiple leaders at once.Even if you do have multiple leaders at once,\nonly one will actually be able to commit, so\nits not a problem with safety or consistency,\njust with liveness/not wasting the client's time\ntalking to \"a dead man walking\".",
-    "parent": 44931024,
-    "depth": 2
-  },
-  {
     "id": 44927887,
     "by": "chucky_z",
     "timeISO": "2025-08-17T00:11:56.000Z",
@@ -133,6 +125,14 @@
     "timeISO": "2025-08-17T00:52:00.000Z",
     "textPlain": "> I'm working on coding a multiplayer io game for fun.I know what a multiplayer game is, but what's a multiplayer io game?(not being snarky, i loved your comment)",
     "parent": 44927627,
+    "depth": 2
+  },
+  {
+    "id": 44931119,
+    "by": "ingloriousB",
+    "timeISO": "2025-08-17T12:25:13.000Z",
+    "textPlain": "There is only one version of the committed log.That's the definition of committed. So you won't get a committed write or read from a partitioned\n\"zombie\" leader.In good (non-buggy) Raft implementations, things\nare set up so there can\nonly ever be at most one leader at a time.That is the point of the election,\nthe pre-vote, the leader-leases, the\nsticky-leader, and the leader-must-step-down\nrules (from chapter 6 of the dissertation).Yes those optimizations are \ndescribed as optional in the Raft dissertation.\nBut really they are not.You have to read the whole dissertation \nto the details and full picture.You should have all of them as a part of a complete and\nsane implementation.Pre-vote and sticky-leader are needed for\nliveness.Leader leases are possible because you \nhave pre-vote and sticky leader on; and they\ngive you fast local-only leader reads.The leader step-down rule prevents client \nliveness and multiple leaders at once.Even if you do have multiple leaders at once,\nonly one will actually be able to commit, so\nits not a problem with safety or consistency,\njust with liveness/not wasting the client's time\ntalking to \"a dead man walking\".",
+    "parent": 44931024,
     "depth": 2
   },
   {
