@@ -16,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 44935590,
+    "by": "atombender",
+    "timeISO": "2025-08-17T22:42:43.000Z",
+    "textPlain": "I love ClickHouse and use it heavily. One area where I wish CH could do better was as a primary data store.Basically, every proposed use case for CH is based on event sourcing some data, from Postgres or logs or whatever. The implication is that the data either already exist as a \"source of truth\" in some primary ACID database, or at least there is an archive of raw data files, or maybe (as with logs and metrics) the risk of data loss isn't that big of a deal.But what if you actually want to store the data in a single place? CH doesn't really offer peace of mind here. Its entire architecture is based on best-effort management of data. One of ClickHouse's best features is that it can store the data in cloud storage, to allow separation of data and compute at an incredible price point. But it can lose data.So if you have, say, 30TB of data that is very columnar and cannot be effficiently queried in Postgres, you cannot simply store it in CH alone. You'd have to pay quite a lot of $ to have it safely guarded by (let's say) Postgres, even if it's not being used as the main source of queries. If you have heavy ingest rates, you're going to have to pay for more expensive SSD storage, too.There are columnar databases that are ACID and focus on consistency, like TimescaleDB. But they tend to be cloud databases. For example, you can self-host Timescale, but you don't get access to the tiered cloud storage layer. So when self-hosting, you need to run expensive SSDs again, no separating of compute and data.If CH has a better consistency story, or maybe a clustering story that ensures redundancy, I would be really inclined to use it as a primary store.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
     "id": 44934265,
     "by": "trollied",
     "timeISO": "2025-08-17T19:36:44.000Z",
     "textPlain": "4000 times faster is hardly difficult if you’re not trying to be ACID compliant. I can write to a flat file that doesn’t give a shit about integrity very quickly - it’s not a boast.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
+    "id": 44935660,
+    "by": "adren123",
+    "timeISO": "2025-08-17T22:53:34.000Z",
+    "textPlain": "I wonder how ClickHouse would compare against DuckDB given that the latter usually performs very well on OLAP benchmarks such as TPC-H",
     "parent": 44933452,
     "depth": 1
   },
@@ -56,6 +72,14 @@
     "depth": 2
   },
   {
+    "id": 44935531,
+    "by": "DrBenCarson",
+    "timeISO": "2025-08-17T22:33:08.000Z",
+    "textPlain": "Does “data for application” means the operational db?",
+    "parent": 44933910,
+    "depth": 2
+  },
+  {
     "id": 44934480,
     "by": "oulipo",
     "timeISO": "2025-08-17T20:04:26.000Z",
@@ -64,18 +88,18 @@
     "depth": 2
   },
   {
-    "id": 44935443,
-    "by": "djfobbz",
-    "timeISO": "2025-08-17T22:20:10.000Z",
-    "textPlain": "We've been using ClickHouse ReplacingMergeTree tables for updates without any issues...in fact, they've been more than reliable for our use case. For us, as long as updated data is visible within 15–30 minutes, that's acceptable. What's your ingest vs. update volume per hour and per minute?",
-    "parent": 44934198,
-    "depth": 2
-  },
-  {
     "id": 44934392,
     "by": "saisrirampur",
     "timeISO": "2025-08-17T19:52:13.000Z",
     "textPlain": "Very interesting take — I see where you’re coming from. Yes, there are caveats and differences between ClickHouse and Postgres. Much of this stems from the nature of the workloads they are built for: Postgres for OLTP and ClickHouse for OLAP.We’ve been doing our best to address and clarify these differences, whether through product features like this one or by publishing content to educate users. For example: https://clickhouse.com/blog/postgres-to-clickhouse-data-mode... https://www.youtube.com/watch?v=9ipwqfuBEbc.From what we’ve observed, the learning curve typically ranges from a few weeks for smaller to medium migrations to 1–2 months for larger ones moving real-time OLAP workloads from Postgres to ClickHouse. Still, customers are making the switch and finding value — hundreds (or more) are using both technologies together to scale their real-time applications: Postgres for low-latency, high-throughput transactions and ClickHouse for blazing-fast (100x faster) analytics.We’re actively working to bridge the gap between the two systems, with features like faster UPDATEs, enhanced JOINs and more. That’s why I’m not sure your comment is fully generalizable — the differences largely stem from the distinct workloads they support, and we’re making steady progress in narrowing that gap.- Sai from the ClickHouse team here.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44935443,
+    "by": "djfobbz",
+    "timeISO": "2025-08-17T22:20:10.000Z",
+    "textPlain": "We've been using ClickHouse ReplacingMergeTree tables for updates without any issues...in fact, they've been more than reliable for our use case. For us, as long as updated data is visible within 15–30 minutes, that's acceptable. What's your ingest vs. update volume per hour and per minute?",
     "parent": 44934198,
     "depth": 2
   },
@@ -88,18 +112,18 @@
     "depth": 2
   },
   {
-    "id": 44934398,
-    "by": "YZF",
-    "timeISO": "2025-08-17T19:53:42.000Z",
-    "textPlain": "You might want to think about converting your updates into some sort of event sourcing scheme where you insert new rows and then do aggregation. That pattern would be more appropriate for ClickHouse.If you are needing updates then perhaps ClickHouse isn't the perfect choice. Something like ScyllaDB might be a better compromise if you want performant updates with (some sort of) consistency guarantees. If you need stronger guarantees you will need a \"proper\" database but then you're unlikely to get the performance. AKA tradeoffs or no free lunch.",
-    "parent": 44934198,
-    "depth": 2
-  },
-  {
     "id": 44934338,
     "by": "barrkel",
     "timeISO": "2025-08-17T19:45:44.000Z",
     "textPlain": "CH is better for analytics, where append only is the normal mode of operation, but I've used it in the past as an index. Store a copy of data in Clickhouse and use its vectorized columnar operations for ad hoc queries (the kind where indexes don't help because the user may query by any field they like). This can work well if your data is append-mostly and you do a rebuild yourself avter a while, but the way it sounds, Clickhouse is making it possible to get that to work well with a higher ratio of updates.Either way, CH shouldn't be the store of truth when you need record level fidelity.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44934398,
+    "by": "YZF",
+    "timeISO": "2025-08-17T19:53:42.000Z",
+    "textPlain": "You might want to think about converting your updates into some sort of event sourcing scheme where you insert new rows and then do aggregation. That pattern would be more appropriate for ClickHouse.If you are needing updates then perhaps ClickHouse isn't the perfect choice. Something like ScyllaDB might be a better compromise if you want performant updates with (some sort of) consistency guarantees. If you need stronger guarantees you will need a \"proper\" database but then you're unlikely to get the performance. AKA tradeoffs or no free lunch.",
     "parent": 44934198,
     "depth": 2
   },
@@ -144,18 +168,18 @@
     "depth": 2
   },
   {
-    "id": 44934576,
-    "by": "mdaniel",
-    "timeISO": "2025-08-17T20:17:56.000Z",
-    "textPlain": "I see the Jepsen for Keeper (and, my sincere gratitude for it!); have you considered Jepsen for CH itself?",
-    "parent": 44933917,
-    "depth": 2
-  },
-  {
     "id": 44934336,
     "by": "fiddlerwoaroof",
     "timeISO": "2025-08-17T19:45:26.000Z",
     "textPlain": "I haven’t read that post yet. I assume you merge the updates into the main data files when you merge the segments of the log-structured merge tree?",
+    "parent": 44933917,
+    "depth": 2
+  },
+  {
+    "id": 44934576,
+    "by": "mdaniel",
+    "timeISO": "2025-08-17T20:17:56.000Z",
+    "textPlain": "I see the Jepsen for Keeper (and, my sincere gratitude for it!); have you considered Jepsen for CH itself?",
     "parent": 44933917,
     "depth": 2
   },
