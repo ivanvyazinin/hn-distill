@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 44930768,
-    "by": "bapak",
-    "timeISO": "2025-08-17T11:12:19.000Z",
-    "textPlain": "I seriously dislike this kind of comparisons.We're faster! (please disregard the fact that we're barely more than a demo)Everyone knows about 80:20, the slowdowns will come after you start doing everything your competition does.Look at Biome. We're 15x as fast as ESLint (but disregard the fact that we don't do typeaware linting). Then comes typeaware linting and suddenly they have huge performance issues that kill the project (I'm unable to use Biome 2)This happens over and over and over. The exceptions are very, very few (Bun is one example)",
-    "parent": 44922383,
-    "depth": 1
-  },
-  {
     "id": 44931049,
     "by": "unfunco",
     "timeISO": "2025-08-17T12:12:01.000Z",
@@ -28,6 +20,22 @@
     "by": "tkcranny",
     "timeISO": "2025-08-17T10:53:25.000Z",
     "textPlain": "It’s a TS/JS to wasm to C tool chain, that runs the same JS a dozen times faster than on node. Very cool approach, and lambda cold starts are definitely where it ought to shine.That said I wonder if it could ever go mainstream – JS is not a trivial language anymore. Matching all of its quirks to the point of being stable seems like a monstrous task. And then Node and all of its APIs are the gorilla in the room too. Even Deno had to acquiesce and replicate those with bugs and all, and it’s just based on V8 too.",
+    "parent": 44922383,
+    "depth": 1
+  },
+  {
+    "id": 44930768,
+    "by": "bapak",
+    "timeISO": "2025-08-17T11:12:19.000Z",
+    "textPlain": "I seriously dislike this kind of comparisons.We're faster! (please disregard the fact that we're barely more than a demo)Everyone knows about 80:20, the slowdowns will come after you start doing everything your competition does.Look at Biome. We're 15x as fast as ESLint (but disregard the fact that we don't do typeaware linting). Then comes typeaware linting and suddenly they have huge performance issues that kill the project (I'm unable to use Biome 2)This happens over and over and over. The exceptions are very, very few (Bun is one example)",
+    "parent": 44922383,
+    "depth": 1
+  },
+  {
+    "id": 44931604,
+    "by": "moqizhengz",
+    "timeISO": "2025-08-17T13:59:36.000Z",
+    "textPlain": "Awesome work, but I am genuinely curios about the use cases where the 200ms init time  being a problem?",
     "parent": 44922383,
     "depth": 1
   },
@@ -72,6 +80,22 @@
     "depth": 1
   },
   {
+    "id": 44931577,
+    "by": "bastawhiz",
+    "timeISO": "2025-08-17T13:56:40.000Z",
+    "textPlain": "Tl;drUse an experimental (as in, 60% of ECMA tests passing, \"currently no good I/O or Node compat\") AOT compiler for JS. You remove the cold start by removing the runtime, at the cost of maybe your JavaScript working and not having a garbage collector.",
+    "parent": 44922383,
+    "depth": 1
+  },
+  {
+    "id": 44930835,
+    "by": "tombh",
+    "timeISO": "2025-08-17T11:25:40.000Z",
+    "textPlain": "Hopefully Oliver, the creator of the project, is here to better answer, but something worth bearing in mind is that a significant part of conventional JS engines are all JIT tricks. And Porffor is AOT, so can lean on WASM and the C compiler for compilation optimisations. The author did a quick comparison of lines of code for some of the popular JS engines: https://goose.icu/js-engine-sizes",
+    "parent": 44930657,
+    "depth": 2
+  },
+  {
     "id": 44931280,
     "by": "eliseumds",
     "timeISO": "2025-08-17T13:01:21.000Z",
@@ -88,11 +112,43 @@
     "depth": 2
   },
   {
-    "id": 44930835,
-    "by": "tombh",
-    "timeISO": "2025-08-17T11:25:40.000Z",
-    "textPlain": "Hopefully Oliver, the creator of the project, is here to better answer, but something worth bearing in mind is that a significant part of conventional JS engines are all JIT tricks. And Porffor is AOT, so can lean on WASM and the C compiler for compilation optimisations. The author did a quick comparison of lines of code for some of the popular JS engines: https://goose.icu/js-engine-sizes",
-    "parent": 44930657,
+    "id": 44931632,
+    "by": "ttoinou",
+    "timeISO": "2025-08-17T14:03:52.000Z",
+    "textPlain": "Maybe its a problem when you’re paying 200ms per small request and you have millions of them ?",
+    "parent": 44931604,
+    "depth": 2
+  },
+  {
+    "id": 44931691,
+    "by": "zokier",
+    "timeISO": "2025-08-17T14:12:15.000Z",
+    "textPlain": "Rust/C++ lambda cold starts are in the 15ms ballpark, it is very unlikely that you are going to get anything much faster than that. Spinning up firecracker vm just inherently takes some time no matter what you run inside it.https://maxday.github.io/lambda-perf/",
+    "parent": 44931316,
+    "depth": 2
+  },
+  {
+    "id": 44931468,
+    "by": "hylaride",
+    "timeISO": "2025-08-17T13:37:59.000Z",
+    "textPlain": "Java startup times would almost certainly be worse, depending on what's going on.A previous job I worked at ran Java on AWS Lambda.  We ran our busiest Java lambda in a docker layer as our whole build system was designed around docker and from a compute performance point of view it was just as fast.The main issues were:* Longer init times for the JRE (including before the JIT kicks in).  Our metrics had a noticeable performance hit that lined up to the startup of freshly initialized lambdas.  It was still well within a tolerable range for us, though.* Garbage collection almost never ran cleanly due the code suspension between invocations, which means we had to allocate more memory than we really needed.The native AWS Lambda Java's 'snap start' would have helped, but the startup times were just not a big deal for our use case - we didn't bother with provisioning lambdas either.  Despite the added memory costs, it was also still cheap enough that it was not really worth us investigating Java's parallel GC.So as always, what language one should use depends on your use case.  If you have an app that's sensitive to \"random\" delays, then you probably want something with less startup overhead.",
+    "parent": 44931316,
+    "depth": 2
+  },
+  {
+    "id": 44931430,
+    "by": "syrusakbary",
+    "timeISO": "2025-08-17T13:31:29.000Z",
+    "textPlain": "If you want to run in a WebAssembly runtime, perhaps Wasmer can be a good choice for you.Note: we don't support .NET or Java atm, but we support PHP and Python is about to be fully supported!https://wasmer.io/products/edge",
+    "parent": 44931316,
+    "depth": 2
+  },
+  {
+    "id": 44931684,
+    "by": "jfengel",
+    "timeISO": "2025-08-17T14:11:06.000Z",
+    "textPlain": "It might be reasonable to go without a garbage collector if your whole lifetime is so short. GC by decapitation. Kinda clever.But other than that it's impossible to assess performance with such a tiny toy.",
+    "parent": 44931577,
     "depth": 2
   }
 ]
