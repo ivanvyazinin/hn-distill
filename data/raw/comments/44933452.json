@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 44933624,
-    "by": "AdriaanvRossum",
-    "timeISO": "2025-08-17T18:13:44.000Z",
-    "textPlain": "> TL;DR: PostgreSQL wraps every statement in a fully transactional context; ClickHouse doesn’t. That means these results aren’t a perfect measure of transaction performance. However, they’re still an interesting and relevant look at how each system handles update workloads under its native execution model.",
-    "parent": 44933452,
-    "depth": 1
-  },
-  {
     "id": 44933917,
     "by": "sdairs",
     "timeISO": "2025-08-17T18:51:55.000Z",
     "textPlain": "One of the post authors here; I just want to stress that the goal of the post was not at all to be \"haha we're better than postgres\" - we explicitly call out the caveats behind the results.Prior to July 2025 (ClickHouse v25.7), ClickHouse did not support UPDATE statements. At all. Like most columnar, analytics databases. We spent a lot of effort designing and implementing a way to support high-performance, SQL-standard UPDATE statements. This test was pretty much just trying to see how good of a job we had done, by comparing ourselves to the gold standard, Postgres. (If you're curious, we also wrote about how we built the UPDATE support in depth https://clickhouse.com/blog/updates-in-clickhouse-2-sql-styl...)We have some updates to the post in progress; we originally deliberately used cold runs for both ClickHouse & Postgres, because we wanted to look at the \"raw\" update speed of the engine, vs. the variability of cache hits. But TL;DR when you run a more \"real world\" test where caches are warm and Postgres is getting very high cache-hit ratio, its point updates are consistently ~2ms, while ClickHouse is somewhere ~6ms (bulk updates are still many multiples faster in ClickHouse even with the cache in play).",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
+    "id": 44933624,
+    "by": "AdriaanvRossum",
+    "timeISO": "2025-08-17T18:13:44.000Z",
+    "textPlain": "> TL;DR: PostgreSQL wraps every statement in a fully transactional context; ClickHouse doesn’t. That means these results aren’t a perfect measure of transaction performance. However, they’re still an interesting and relevant look at how each system handles update workloads under its native execution model.",
     "parent": 44933452,
     "depth": 1
   },
@@ -104,11 +104,11 @@
     "depth": 2
   },
   {
-    "id": 44933816,
-    "by": "ndriscoll",
-    "timeISO": "2025-08-17T18:38:14.000Z",
-    "textPlain": "tl;dr Doing a bunch of synchronous writes and full table scans with extremely slow, high latency storage (for a dataset that easily fits in RAM) is slow.",
-    "parent": 44933624,
+    "id": 44934202,
+    "by": "mrlongroots",
+    "timeISO": "2025-08-17T19:29:36.000Z",
+    "textPlain": "Another thought: this is not meant as criticism or anything, just an aspect of performance that I thought was interesting but not covered by the blog.A test that would show PG's strengths over ClickHouse for OLTP would be a stress test with a long-running set of updates.ClickHouse maintains updates as uncompacted patches merged in the background, which is how you would do it with a columnar store. But if you have an update-heavy workload, these patches would accumulate and your query performance would start to suffer. PG on the other hand completes all update work inline, and wouldn't get degrading performance under update-heavy regimes.This is just a fundamental artifact of OLAP vs OLTP, maybe OLAP can be optimized to the point where it doesn't really matter for most workloads, but a theoretical edge remains with row-based stores and updates.",
+    "parent": 44933917,
     "depth": 2
   },
   {
@@ -120,10 +120,10 @@
     "depth": 2
   },
   {
-    "id": 44934202,
-    "by": "mrlongroots",
-    "timeISO": "2025-08-17T19:29:36.000Z",
-    "textPlain": "Another thought: this is not meant as criticism or anything, just an aspect of performance that I thought was interesting but not covered by the blog.A test that would show PG's strengths over ClickHouse for OLTP would be a stress test with a long-running set of updates.ClickHouse maintains updates as uncompacted patches merged in the background, which is how you would do it with a columnar store. But if you have an update-heavy workload, these patches would accumulate and your query performance would start to suffer. PG on the other hand completes all update work inline, and wouldn't get degrading performance under update-heavy regimes.This is just a fundamental artifact of OLAP vs OLTP, maybe OLAP can be optimized to the point where it doesn't really matter for most workloads, but a theoretical edge remains with row-based stores and updates.",
+    "id": 44933961,
+    "by": "samwillis",
+    "timeISO": "2025-08-17T18:57:13.000Z",
+    "textPlain": "Really interesting post, and well done on setting up the Apples to Oranges nature of the benchmark, you're very clear. It's really interesting to see the deference the district architectures make.Did you run any tests with the new transaction system in ClickHouse? It would be super interesting to see how it effected the batch updates.",
     "parent": 44933917,
     "depth": 2
   },
@@ -136,11 +136,11 @@
     "depth": 2
   },
   {
-    "id": 44933961,
-    "by": "samwillis",
-    "timeISO": "2025-08-17T18:57:13.000Z",
-    "textPlain": "Really interesting post, and well done on setting up the Apples to Oranges nature of the benchmark, you're very clear. It's really interesting to see the deference the district architectures make.Did you run any tests with the new transaction system in ClickHouse? It would be super interesting to see how it effected the batch updates.",
-    "parent": 44933917,
+    "id": 44933816,
+    "by": "ndriscoll",
+    "timeISO": "2025-08-17T18:38:14.000Z",
+    "textPlain": "tl;dr Doing a bunch of synchronous writes and full table scans with extremely slow, high latency storage (for a dataset that easily fits in RAM) is slow.",
+    "parent": 44933624,
     "depth": 2
   }
 ]
