@@ -1,10 +1,42 @@
 [
   {
+    "id": 44933910,
+    "by": "jedberg",
+    "timeISO": "2025-08-17T18:50:51.000Z",
+    "textPlain": "> Caveat: PostgreSQL is fully transactional by default; ClickHouse isn’t. Results compare each engine’s native execution model, not identical transaction guarantees.I appreciate that they call this out.  This means that if you're using Postgres primarily for storing data where it's ok if you lose a few (like time series data) then Clickhouse is the clear and obvious choice.But if the transactionality is key for you (like a financial application or the data for an application) then Postgres still makes more sense.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
     "id": 44933624,
     "by": "AdriaanvRossum",
     "timeISO": "2025-08-17T18:13:44.000Z",
     "textPlain": "> TL;DR: PostgreSQL wraps every statement in a fully transactional context; ClickHouse doesn’t. That means these results aren’t a perfect measure of transaction performance. However, they’re still an interesting and relevant look at how each system handles update workloads under its native execution model.",
     "parent": 44933452,
     "depth": 1
+  },
+  {
+    "id": 44933917,
+    "by": "sdairs",
+    "timeISO": "2025-08-17T18:51:55.000Z",
+    "textPlain": "One of the post authors here; I just want to stress that the goal of the post was not at all to be \"haha we're better than postgres\" - we explicitly call out the caveats behind the results.Prior to July 2025 (ClickHouse v25.7), ClickHouse did not support UPDATE statements. At all. Like most columnar, analytics databases. We spent a lot of effort designing and implementing a way to support high-performance, SQL-standard UPDATE statements. This test was pretty much just trying to see how good of a job we had done, by comparing ourselves to the gold standard, Postgres. (If you're curious, we also wrote about how we built the UPDATE support in depth https://clickhouse.com/blog/updates-in-clickhouse-2-sql-styl...)We have some updates to the post in progress; we originally deliberately used cold runs for both ClickHouse & Postgres, because we wanted to look at the \"raw\" update speed of the engine, vs. the variability of cache hits. But TL;DR when you run a more \"real world\" test where caches are warm and Postgres is getting very high cache-hit ratio, its point updates are consistently ~2ms, while ClickHouse is somewhere ~6ms (bulk updates are still many multiples faster in ClickHouse even with the cache in play).",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
+    "id": 44933816,
+    "by": "ndriscoll",
+    "timeISO": "2025-08-17T18:38:14.000Z",
+    "textPlain": "tl;dr Doing a bunch of synchronous writes and full table scans with extremely slow, high latency storage (for a dataset that easily fits in RAM) is slow.",
+    "parent": 44933624,
+    "depth": 2
+  },
+  {
+    "id": 44933961,
+    "by": "samwillis",
+    "timeISO": "2025-08-17T18:57:13.000Z",
+    "textPlain": "Really interesting post, and well done on setting up the Apples to Oranges nature of the benchmark, you're very clear. It's really interesting to see the deference the district architectures make.Did you run any tests with the new transaction system in ClickHouse? It would be super interesting to see how it effected the batch updates.",
+    "parent": 44933917,
+    "depth": 2
   }
 ]
