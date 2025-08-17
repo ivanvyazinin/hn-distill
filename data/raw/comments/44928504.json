@@ -1,0 +1,42 @@
+[
+  {
+    "id": 44928621,
+    "by": "jauntywundrkind",
+    "timeISO": "2025-08-17T03:27:36.000Z",
+    "textPlain": "One of the incredible & fantastic superpowers of systemd. There so much isolation it can give you, rescind so many powers!Alas this article doesn't include even the most rudimentary of examples.Let's look at recent gnome gdm session picker changes. They now use dynamic users, rather than statically allocated ones, helping make sure the picker never gets access to things it shouldn't have (since there's no static user id that an attacker might grant access to). A nice feature from systemd in 2017. So easy to add! DynamicUser=yes and you're good! https://0pointer.net/blog/dynamic-users-with-systemd.htmlThis also gives you a bunch of other security options by default.PrviateTmp=yes. ProtectHome=readonly. ProtectSystem=strict.This is just the tiniest cut of what systemd can do to make your system more secure, how it can help you make use of the kernel to limit your process. There's so so many ways to limit programs. Limit maximum tasks, set Nice= CPUWeight=, IOWeight=, limit CapabilityBoundingSet=, TasksMax=, limit network interfaces, tie a program to certain nftables, just so many. This huge page is but a start: https://www.freedesktop.org/software/systemd/man/latest/syst... !!Systemd makes excellent excellent use of the kernels namespacing feature to radically boost isolation of programs, to reduce their ability to impact the world in unexpected ways. Even better, you can manage multiple competing realms of apps very very effectively with a hierarchy of scopes, limiting not just program by program but putting programming into nested scopes & limiting scopes, which can insure that system critical services can remain running and adequately provisioned, even while other bulk processes might otherwise demolish the system.It's been possible to write amazing smart daemons that do all this stuff. But shifting this up to systemd, making it a system responsibility rather than service by service reimplementing has radically enhanced the accessibility of these amazing security &",
+    "parent": 44928504,
+    "depth": 1
+  },
+  {
+    "id": 44928571,
+    "by": "ryandotsmith",
+    "timeISO": "2025-08-17T03:13:51.000Z",
+    "textPlain": "Are there common patterns or examples of directives that operators should be aware of?I know the post linked to systemd docs, but I’d enjoy seeing some snippets of directives people are using to achieve this kind of hardening.",
+    "parent": 44928504,
+    "depth": 1
+  },
+  {
+    "id": 44928614,
+    "by": "MartinGAugustin",
+    "timeISO": "2025-08-17T03:24:09.000Z",
+    "textPlain": "[dead]",
+    "parent": 44928504,
+    "depth": 1
+  },
+  {
+    "id": 44928639,
+    "by": "neuroelectron",
+    "timeISO": "2025-08-17T03:33:35.000Z",
+    "textPlain": "It kind of undermines the point of systemd if people understand it.",
+    "parent": 44928621,
+    "depth": 2
+  },
+  {
+    "id": 44928602,
+    "by": "bhaney",
+    "timeISO": "2025-08-17T03:21:38.000Z",
+    "textPlain": "I have a dropin called security.conf that I link in to most of my services, and then create an unsecurity.conf to disable/revert any directives not compatible with the service.  [Service]\n  DynamicUser=yes\n  PrivateTmp=true\n  PrivateDevices=true\n  PrivateNetwork=true\n  PrivateUsers=true\n  InaccessiblePaths=-/mnt/\n  ProtectSystem=strict\n  ProtectHome=true\n  ProtectHostname=true\n  ProtectKernelTunables=true\n  ProtectKernelModules=true\n  ProtectKernelLogs=true\n  ProtectControlGroups=true\n  ProtectClock=true\n  ProtectProc=invisible\n  ProcSubset=pid\n  RestrictNamespaces=true\n  RestrictRealtime=true\n  RestrictSUIDSGID=true\n  LockPersonality=true\n  NoNewPrivileges=true\n  RemoveIPC=true\n  IPAddressDeny=any\n  UMask=0077\n  SystemCallArchitectures=native\n  RestrictAddressFamilies=none\n  MemoryDenyWriteExecute=true\n  SystemCallFilter=~@cpu-emulation @debug @module @mount @obsolete @reboot @swap @raw-io @privileged @resources\n  CapabilityBoundingSet=~CAP_SYS_PACCT CAP_KILL CAP_WAKE_ALARM CAP_LINUX_IMMUTABLE CAP_IPC_LOCK CAP_SYS_TTY_CONFIG CAP_SYS_BOOT CAP_SYS_CHROOT CAP_BLOCK_SUSPEND CAP_LEASE CAP_MKNOD CAP_CHOWN CAP_FSETID CAP_SETFCAP CAP_SETUID CAP_SETGID CAP_SETPCAP CAP_SYS_RAWIO CAP_SYS_PTRACE CAP_SYS_NICE CAP_SYS_RESOURCE CAP_NET_ADMIN CAP_SYS_ADMIN CAP_MAC_ADMIN CAP_MAC_OVERRIDE CAP_DAC_OVERRIDE CAP_DAC_READ_SEARCH CAP_FOWNER CAP_IPC_OWNER CAP_AUDIT_CONTROL CAP_AUDIT_READ CAP_AUDIT_WRITE CAP_BPF CAP_NET_BIND_SERVICE CAP_NET_BROADCAST CAP_NET_RAW\n\nMemoryDenyWriteExecute gets set back to \"no\" quite a lot because interpreters like to use it for JITing, but it prevents a whole class of exploits on services where it can stay enabled.I also like to socket-activate services as often as possible so they don't need access to network interfaces. Even if a service doesn't support socket-activation itself, it can usually be shimmed in with systemd-socket-proxyd, which also provides good functionality for stopping services when there are no connections to them (they get started again b",
+    "parent": 44928571,
+    "depth": 2
+  }
+]
