@@ -8,6 +8,30 @@
     "depth": 1
   },
   {
+    "id": 44934198,
+    "by": "joshstrange",
+    "timeISO": "2025-08-17T19:29:21.000Z",
+    "textPlain": "I only use CH for work so I'll read about this more on Monday but I shudder to think of the caveats. We have used cancelling rows and now the one of the merge engines that just needs a version (higher cancels out lower). No database has ever driven me more mad than Clickhouse. If your workload is append-only/insert-only then congrats, it's amazing, you'll have a great time. If you need to update data... Well, strap in.As long as you can get away with Postgres, stay with Postgres. I'm sure this update here is a step forward just like version-merging is much better than cancelling rows but it's always got a ton of downsides.Unrelated to updating data, the CH defaults drive me insane, the null join behavior alone made me reconsider trying to rip CH out of our infrastructure (after wasting too long trying to figure out why my query \"wasn't working\").Lastly I'll say, if CH does what you need and you are comfortable learning all the ends and outs, then it can do some really cool things. But it's important to remember it's NOT a normal RDMS nor can you use it like one. I almost wish they didn't use SQL as the query language, then people would think about it differently, myself included.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
+    "id": 44934265,
+    "by": "trollied",
+    "timeISO": "2025-08-17T19:36:44.000Z",
+    "textPlain": "4000 times faster is hardly difficult if you’re not trying to be ACID compliant. I can write to a flat file that doesn’t give a shit about integrity very quickly - it’s not a boast.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
+    "id": 44934353,
+    "by": "orf",
+    "timeISO": "2025-08-17T19:47:01.000Z",
+    "textPlain": "Interesting read, but I feel like they should have also benchmarked using COPY with Postgres. This should be far faster than a bulk insert, and it’s more in line with what they are benchmarking.The omission feels… odd.",
+    "parent": 44933452,
+    "depth": 1
+  },
+  {
     "id": 44933624,
     "by": "AdriaanvRossum",
     "timeISO": "2025-08-17T18:13:44.000Z",
@@ -24,11 +48,91 @@
     "depth": 1
   },
   {
+    "id": 44934444,
+    "by": "compumike",
+    "timeISO": "2025-08-17T19:59:21.000Z",
+    "textPlain": "PostgreSQL defaults to: \"fsync = ON\" and \"synchronous_commit = ON\".ClickHouse defaults to: \"fsync_after_insert = false\".A more fair comparison might at least do \"SET synchronous_commit TO OFF\" on the PostgreSQL side. (But for this UPDATE benchmark, I think the results would still largely be the same.)",
+    "parent": 44933910,
+    "depth": 2
+  },
+  {
+    "id": 44934480,
+    "by": "oulipo",
+    "timeISO": "2025-08-17T20:04:26.000Z",
+    "textPlain": "Since Postgres is open-source and the kind of database model they use is out there for so long, how come ClickHouse can't have a \"postgres subset\" (or just include a mini-Postgres) so that it gets the best of both worlds out of the box?",
+    "parent": 44933910,
+    "depth": 2
+  },
+  {
+    "id": 44934392,
+    "by": "saisrirampur",
+    "timeISO": "2025-08-17T19:52:13.000Z",
+    "textPlain": "Very interesting take — I see where you’re coming from. Yes, there are caveats and differences between ClickHouse and Postgres. Much of this stems from the nature of the workloads they are built for: Postgres for OLTP and ClickHouse for OLAP.We’ve been doing our best to address and clarify these differences, whether through product features like this one or by publishing content to educate users. For example: https://clickhouse.com/blog/postgres-to-clickhouse-data-mode... https://www.youtube.com/watch?v=9ipwqfuBEbc.From what we’ve observed, the learning curve typically ranges from a few weeks for smaller to medium migrations to 1–2 months for larger ones moving real-time OLAP workloads from Postgres to ClickHouse. Still, customers are making the switch and finding value — hundreds (or more) are using both technologies together to scale their real-time applications: Postgres for low-latency, high-throughput transactions and ClickHouse for blazing-fast (100x faster) analytics.We’re actively working to bridge the gap between the two systems, with features like faster UPDATEs, enhanced JOINs and more. That’s why I’m not sure your comment is fully generalizable — the differences largely stem from the distinct workloads they support, and we’re making steady progress in narrowing that gap.- Sai from the ClickHouse team here.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44934398,
+    "by": "YZF",
+    "timeISO": "2025-08-17T19:53:42.000Z",
+    "textPlain": "You might want to think about converting your updates into some sort of event sourcing scheme where you insert new rows and then do aggregation. That pattern would be more appropriate for ClickHouse.If you are needing updates then perhaps ClickHouse isn't the perfect choice. Something like ScyllaDB might be a better compromise if you want performant updates with (some sort of) consistency guarantees. If you need stronger guarantees you will need a \"proper\" database but then you're unlikely to get the performance. AKA tradeoffs or no free lunch.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44934338,
+    "by": "barrkel",
+    "timeISO": "2025-08-17T19:45:44.000Z",
+    "textPlain": "CH is better for analytics, where append only is the normal mode of operation, but I've used it in the past as an index. Store a copy of data in Clickhouse and use its vectorized columnar operations for ad hoc queries (the kind where indexes don't help because the user may query by any field they like). This can work well if your data is append-mostly and you do a rebuild yourself avter a while, but the way it sounds, Clickhouse is making it possible to get that to work well with a higher ratio of updates.Either way, CH shouldn't be the store of truth when you need record level fidelity.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44934425,
+    "by": "mrits",
+    "timeISO": "2025-08-17T19:56:55.000Z",
+    "textPlain": "I ported an entire analytic solution from SQL Server to clickhouse in a few months. While the workarounds for updates aren't great it didn't come as a surprise since I've used other similar databases. The joining/null behavior is called out in the documentation so that wasn't a surprise either.CH has been my favorite database since I discovered PostgreSQL 20 years ago. My view point is don't use postgres unless you can't use CH.",
+    "parent": 44934198,
+    "depth": 2
+  },
+  {
+    "id": 44934383,
+    "by": "sdairs",
+    "timeISO": "2025-08-17T19:51:19.000Z",
+    "textPlain": "To be honest, I just didn't think of it. But thanks for the suggestion, we'll give it a go!",
+    "parent": 44934353,
+    "depth": 2
+  },
+  {
     "id": 44933816,
     "by": "ndriscoll",
     "timeISO": "2025-08-17T18:38:14.000Z",
     "textPlain": "tl;dr Doing a bunch of synchronous writes and full table scans with extremely slow, high latency storage (for a dataset that easily fits in RAM) is slow.",
     "parent": 44933624,
+    "depth": 2
+  },
+  {
+    "id": 44934576,
+    "by": "mdaniel",
+    "timeISO": "2025-08-17T20:17:56.000Z",
+    "textPlain": "I see the Jepsen for Keeper (and, my sincere gratitude for it!); have you considered Jepsen for CH itself?",
+    "parent": 44933917,
+    "depth": 2
+  },
+  {
+    "id": 44934202,
+    "by": "mrlongroots",
+    "timeISO": "2025-08-17T19:29:36.000Z",
+    "textPlain": "Another thought: this is not meant as criticism or anything, just an aspect of performance that I thought was interesting but not covered by the blog.A test that would show PG's strengths over ClickHouse for OLTP would be a stress test with a long-running set of updates.ClickHouse maintains updates as uncompacted patches merged in the background, which is how you would do it with a columnar store. But if you have an update-heavy workload, these patches would accumulate and your query performance would start to suffer. PG on the other hand completes all update work inline, and wouldn't get degrading performance under update-heavy regimes.This is just a fundamental artifact of OLAP vs OLTP, maybe OLAP can be optimized to the point where it doesn't really matter for most workloads, but a theoretical edge remains with row-based stores and updates.",
+    "parent": 44933917,
+    "depth": 2
+  },
+  {
+    "id": 44934336,
+    "by": "fiddlerwoaroof",
+    "timeISO": "2025-08-17T19:45:26.000Z",
+    "textPlain": "I haven’t read that post yet. I assume you merge the updates into the main data files when you merge the segments of the log-structured merge tree?",
+    "parent": 44933917,
     "depth": 2
   },
   {
