@@ -1,0 +1,8 @@
+{
+  "id": 44892080,
+  "lang": "ru",
+  "summary": "**Пайплайн для миллионов документов на Qwen3**  \nМы внедрили модель **Qwen3-Embedding-0.6B** и добились почти 100 % загрузки GPU при обработке миллионов текстов. Пока писали пост, нашли способ ускорить задачу в 3 раза без максимальной загрузки GPU, но это отдельная история.\n\n### Что делает пайплайн\n1. Читает тексты из S3.  \n2. Разбивает на предложения (spaCy).  \n3. Считает эмбеддинги Qwen3.  \n4. Пишет в turbopuffer.\n\n### Установка\n```bash\npip install \"daft[ray]\" turbopuffer torch sentence-transformers spacy accelerate transformers\npython -m spacy download en_core_web_sm\n```\n\n### Константы\n```python\nNUM_GPU_NODES = 8\nEMBEDDING_MODEL_NAME = \"Qwen/Qwen3-Embedding-0.6B\"\nBATCH_SIZE = 512\nSENTENCE_TRANSFORMER_BATCH_SIZE = 16\n```\n\n### Разбиение на чанки\n- **По предложениям** — универсально.  \n- **По параграфам** — для RAG, где важен контекст.  \n- **Фиксированный размер** — проще, но может разрывать смысл.\n\nUDF для разбиения:\n```python\n@daft.udf(return_dtype=..., concurrency=..., batch_size=...)\nclass ChunkingUDF:\n    def __init__(self):\n        import spacy\n        self.nlp = spacy.load(\"en_core_web_sm\")\n    def __call__(self, text_col):\n        ...\n```\n\nМодель spaCy загружается один раз, обрабатываются батчи, возвращаются предложения с уникальными ID.",
+  "inputHash": "ea7daa6a6f355315a7194c469399b51222257e20b480f661159f55a6c611618a",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-17T16:32:08.799Z"
+}
