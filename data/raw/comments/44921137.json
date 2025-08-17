@@ -1,5 +1,13 @@
 [
   {
+    "id": 44929601,
+    "by": "spectraldrift",
+    "timeISO": "2025-08-17T07:20:16.000Z",
+    "textPlain": "In general, I agree with the author's presumption that simplicity is better in system design. The frequent and tired allergy for managed queues, however, does not follow.> Sometimes you want to roll your own queue system.I have never wanted to do this.> For instance, if you want to enqueue a job to run in a month, you probably shouldn’t put an item on the Redis queue.This specific requirement sounds more like a cron job use case, not a queue case.> In this case, I typically create a database table for the pending operation with columns for each param plus a scheduled_at column. I then use a daily job to check for these items with scheduled_at <= today, and either delete them or mark them as complete once the job has finished.At this point I've decided the author doesn't understand when or why to use a queue. For a strictly scheduled event which must occur on day = (today + N), the proposed approach seems fine. However if you use this for a typical queue use-case you will end up reimplementing a queue in your database (poorly). This is typically far more complex than just using a managed queue service if it's available to you. By more complex, I mean more lines of code and more oncall burden. Furthermore, if you grow, a managed queue is often something that needs very little hand holding. Queues are great because they are simple- both at low and high volume. They are a technology that \"just works\", and often provide a lot of helpful features out of the box.This reads like someone who hops between failed startups and has never had to see the long term consequences of their design choices.",
+    "parent": 44921137,
+    "depth": 1
+  },
+  {
     "id": 44922958,
     "by": "alixanderwang",
     "timeISO": "2025-08-16T12:55:02.000Z",
@@ -24,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 44926681,
-    "by": "alphazard",
-    "timeISO": "2025-08-16T20:32:04.000Z",
-    "textPlain": "An entire post about \"good system design\" that completely fixates on the solution domain, and doesn't talk about the problem domain at all.  The hardest part of system design is the interface that the system presents to users.  That determines how they will use it and what they can use it for.A software system trades problems for different problems.  e.g. We will manage your TODO list, provide consistency, durability, security, better than you could do yourself.  But in order to get these benefits you have to understand our model, we have TODOs, users, lists, permissions, etc.Decisions about the interface (what problems the system presents to the users) are the most consequential, and the most costly to get wrong.  If you aren't spending most of your time arguing about the interface, then you are wasting your time arguing about things that are comparatively easier to change later.  Literally everything else about the system can be changed without bothering the users.",
-    "parent": 44921137,
-    "depth": 1
-  },
-  {
     "id": 44921601,
     "by": "KronisLV",
     "timeISO": "2025-08-16T09:06:18.000Z",
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 44929180,
-    "by": "belZaah",
-    "timeISO": "2025-08-17T05:45:36.000Z",
-    "textPlain": "When systems people talk about system design, they talk about the whole value-generating system and not just software or hardware. This typically involves people and brings in issues like the Conway’s Law. A tightly coupled team with little independence in terms of workstreams will produce a monolith regardless of what the architect dreams of, for example. If you have two sets of users with diverging regulatory and organizational needs (people who maintain the registry of citizens vs people who issue identity documents), you will have two separate data stores regardless of how much sense it makes to have just one.",
+    "id": 44926681,
+    "by": "alphazard",
+    "timeISO": "2025-08-16T20:32:04.000Z",
+    "textPlain": "An entire post about \"good system design\" that completely fixates on the solution domain, and doesn't talk about the problem domain at all.  The hardest part of system design is the interface that the system presents to users.  That determines how they will use it and what they can use it for.A software system trades problems for different problems.  e.g. We will manage your TODO list, provide consistency, durability, security, better than you could do yourself.  But in order to get these benefits you have to understand our model, we have TODOs, users, lists, permissions, etc.Decisions about the interface (what problems the system presents to the users) are the most consequential, and the most costly to get wrong.  If you aren't spending most of your time arguing about the interface, then you are wasting your time arguing about things that are comparatively easier to change later.  Literally everything else about the system can be changed without bothering the users.",
     "parent": 44921137,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "msiyer",
     "timeISO": "2025-08-16T12:48:46.000Z",
     "textPlain": "> Avoid having five different services all write to the same table. Instead, have four of them send API requests (or emit events) to the first service, and keep the writing logic in that one service.The ideal solution: Avoid having five different services all write to the same table.If five different services have to write to the same table, there is a major overlap of logic too. Are the five services really different or one would suffice?Taking practical realities into consideration, we can do what the author says. However, we risk implementing a lot of orchestration logic. We introduce a whole new layer of problems. Is that time not better spent refactoring the services: either give them their own DB tables or merge them into one servic?",
+    "parent": 44921137,
+    "depth": 1
+  },
+  {
+    "id": 44929180,
+    "by": "belZaah",
+    "timeISO": "2025-08-17T05:45:36.000Z",
+    "textPlain": "When systems people talk about system design, they talk about the whole value-generating system and not just software or hardware. This typically involves people and brings in issues like the Conway’s Law. A tightly coupled team with little independence in terms of workstreams will produce a monolith regardless of what the architect dreams of, for example. If you have two sets of users with diverging regulatory and organizational needs (people who maintain the registry of citizens vs people who issue identity documents), you will have two separate data stores regardless of how much sense it makes to have just one.",
     "parent": 44921137,
     "depth": 1
   },
@@ -112,14 +120,6 @@
     "depth": 1
   },
   {
-    "id": 44928557,
-    "by": "branko_d",
-    "timeISO": "2025-08-17T03:09:52.000Z",
-    "textPlain": "> Indexes work like nested dictionariesIf the author meant “dictionary” in a sense of a hash map, that’s not quite correct. In relational databases, indexes are usually B-trees, which are ordered, unlike hash maps. A B-tree can help with range-searches, ORDER BY and even merge joins, not just equality-searches.",
-    "parent": 44921137,
-    "depth": 1
-  },
-  {
     "id": 44923630,
     "by": "feyman_r",
     "timeISO": "2025-08-16T14:13:50.000Z",
@@ -132,6 +132,14 @@
     "by": "rawgabbit",
     "timeISO": "2025-08-16T20:08:24.000Z",
     "textPlain": "I wonder why the author views CQRS negatively and then later gives this classic CQRS advice:      >What this means in practice is having one service that knows about the state - i.e. it talks to a database - and other services that do stateless things. Avoid having five different services all write to the same table. Instead, have four of them send API requests (or emit events) to the first service, and keep the writing logic in that one service.",
+    "parent": 44921137,
+    "depth": 1
+  },
+  {
+    "id": 44928557,
+    "by": "branko_d",
+    "timeISO": "2025-08-17T03:09:52.000Z",
+    "textPlain": "> Indexes work like nested dictionariesIf the author meant “dictionary” in a sense of a hash map, that’s not quite correct. In relational databases, indexes are usually B-trees, which are ordered, unlike hash maps. A B-tree can help with range-searches, ORDER BY and even merge joins, not just equality-searches.",
     "parent": 44921137,
     "depth": 1
   },
@@ -176,18 +184,18 @@
     "depth": 1
   },
   {
-    "id": 44925090,
-    "by": "jpitz",
-    "timeISO": "2025-08-16T16:55:06.000Z",
-    "textPlain": ">You have two options: fail open and let the request through, or fail closed and block the request with a 429.If the metaphor of a software circuit breaker is meant to emulate an electrical circuit breaker, then it seems to me that these two are inverted. Whenever a physical circuit breaker is open, it is not dangerous and not passing current.",
-    "parent": 44921137,
-    "depth": 1
-  },
-  {
     "id": 44921824,
     "by": "pelagicAustral",
     "timeISO": "2025-08-16T09:50:11.000Z",
     "textPlain": "I can definitely feel the \"underwhelming\" factor. I've been working for  +10 years on government software and I really know what an underwhelming codebase looks like, first off, it has my fucking name on it.",
+    "parent": 44921137,
+    "depth": 1
+  },
+  {
+    "id": 44925090,
+    "by": "jpitz",
+    "timeISO": "2025-08-16T16:55:06.000Z",
+    "textPlain": ">You have two options: fail open and let the request through, or fail closed and block the request with a 429.If the metaphor of a software circuit breaker is meant to emulate an electrical circuit breaker, then it seems to me that these two are inverted. Whenever a physical circuit breaker is open, it is not dangerous and not passing current.",
     "parent": 44921137,
     "depth": 1
   },
@@ -320,14 +328,6 @@
     "depth": 1
   },
   {
-    "id": 44923893,
-    "by": "lysecret",
-    "timeISO": "2025-08-16T14:43:51.000Z",
-    "textPlain": "The designing data intensive Applications we actually needed (nothing against the original but this one is definitely more practical)",
-    "parent": 44921137,
-    "depth": 1
-  },
-  {
     "id": 44921663,
     "by": "dennisy",
     "timeISO": "2025-08-16T09:19:10.000Z",
@@ -340,6 +340,14 @@
     "by": "whodidntante",
     "timeISO": "2025-08-16T11:44:16.000Z",
     "textPlain": "Never write an article about good system design.In all seriousness, this is an extraordinary subtle and complex area, and there are few rules.For example, \"if you need data from multiple tables, JOIN them instead of making separate queries and stitching them together in-memory\" may be useful in certain circumstances. For  highly scalable consumer systems, the rule of \"avoid joins as much as possible\" can work a lot better.There is also no mention of how important it is to understand the business - usage patterns, the customers, the data, the scale of data, the scale of usage, security, uptime and reliability requirements, reporting requirements, etc.",
+    "parent": 44921137,
+    "depth": 1
+  },
+  {
+    "id": 44923893,
+    "by": "lysecret",
+    "timeISO": "2025-08-16T14:43:51.000Z",
+    "textPlain": "The designing data intensive Applications we actually needed (nothing against the original but this one is definitely more practical)",
     "parent": 44921137,
     "depth": 1
   },
@@ -388,14 +396,6 @@
     "by": "robsalasco",
     "timeISO": "2025-08-16T14:46:50.000Z",
     "textPlain": "anyone can recommend me a good book about systems design?",
-    "parent": 44921137,
-    "depth": 1
-  },
-  {
-    "id": 44925872,
-    "by": "voidhorse",
-    "timeISO": "2025-08-16T18:39:43.000Z",
-    "textPlain": "Good system design is boring, obvious, and completely uninteresting. This is why a lot of flashy or trendy techniques end up leading to bad systems—they rope people in because of their cleverness or intellectual content, which often is interesting, but stuff that's new/intriguing/intellectually stimulating is often not what you want in a system.A good system needs to be as easy to understand and interpret as possible, A good system design is so mind-numbing my simple that a nincompoop can understand it. The only deviations from this policy should stem from other requirements like storage, performance, etc.",
     "parent": 44921137,
     "depth": 1
   }
