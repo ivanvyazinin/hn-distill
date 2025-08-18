@@ -1,5 +1,13 @@
 [
   {
+    "id": 44939437,
+    "by": "throw0101c",
+    "timeISO": "2025-08-18T11:24:58.000Z",
+    "textPlain": "If you really want to get into it, then could start worrying about your I/O. In the AMD example here:* https://www.thomas-krenn.com/en/wiki/Display_Linux_CPU_topol...you'll see some NUMA nodes with networking I/O attached to them, others with NVMe, and others with no I/O. So if you're really worried about network latency then you'd pin the process to that node, but if you want look at disk numbers (a database?) you'd be potentially looking at that node.In recent years there's also chiplet-level locality that may need to be considered as well.Examining this has been a thing in the HPC space for a decade or two now:* https://www.open-mpi.org/projects/hwloc/lstopo/* https://slurm.schedmd.com/mc_support.html",
+    "parent": 44936575,
+    "depth": 1
+  },
+  {
     "id": 44937789,
     "by": "bboreham",
     "timeISO": "2025-08-18T05:52:23.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 44939264,
-    "by": "ashvardanian",
-    "timeISO": "2025-08-18T10:53:02.000Z",
-    "textPlain": "I've been struggling to find the settings to control NUMA on public cloud instances for a long time. Those are typically configured to present a single socket as a single UMA node, even on huge EPYCs. If someone has a tip on where to find those, I'd appreciate a link!",
+    "id": 44937028,
+    "by": "stego-tech",
+    "timeISO": "2025-08-18T03:11:51.000Z",
+    "textPlain": "Solid writeup of NUMA, scheduling, and the need for pinning for folks who don’t spend a lot of time in the IT side of things (where we, unfortunately, have been wrangling with this for over a decade). The long and short of it is that if you’re building a HPC application, or are sensitive to throughput and latency on your cutting-edge/high-traffic system design, then you need to manually pin your workloads for optimal performance.One thing the writeup didn’t seem to get into is the lack of scalability of this approach (manual pinning). As core counts and chiplets continue to explode, we still need better ways of scaling manual pinning or building more NUMA-aware OSes/applications that can auto-schedule with minimal penalties. Don’t get me wrong, it’s a lot better than ye olden days of dual core, multi-socket servers and stern warnings against fussing with NUMA schedulers from vendors if you wanted to preserve basic functionality, but it’s not a solved problem just yet.",
     "parent": 44936575,
     "depth": 1
   },
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 44937028,
-    "by": "stego-tech",
-    "timeISO": "2025-08-18T03:11:51.000Z",
-    "textPlain": "Solid writeup of NUMA, scheduling, and the need for pinning for folks who don’t spend a lot of time in the IT side of things (where we, unfortunately, have been wrangling with this for over a decade). The long and short of it is that if you’re building a HPC application, or are sensitive to throughput and latency on your cutting-edge/high-traffic system design, then you need to manually pin your workloads for optimal performance.One thing the writeup didn’t seem to get into is the lack of scalability of this approach (manual pinning). As core counts and chiplets continue to explode, we still need better ways of scaling manual pinning or building more NUMA-aware OSes/applications that can auto-schedule with minimal penalties. Don’t get me wrong, it’s a lot better than ye olden days of dual core, multi-socket servers and stern warnings against fussing with NUMA schedulers from vendors if you wanted to preserve basic functionality, but it’s not a solved problem just yet.",
+    "id": 44939264,
+    "by": "ashvardanian",
+    "timeISO": "2025-08-18T10:53:02.000Z",
+    "textPlain": "I've been struggling to find the settings to control NUMA on public cloud instances for a long time. Those are typically configured to present a single socket as a single UMA node, even on huge EPYCs. If someone has a tip on where to find those, I'd appreciate a link!",
     "parent": 44936575,
     "depth": 1
   },
@@ -56,27 +64,19 @@
     "depth": 1
   },
   {
+    "id": 44939683,
+    "by": "sidewndr46",
+    "timeISO": "2025-08-18T12:01:43.000Z",
+    "textPlain": "This \"lstopo\" tool is amazing and something I have been searching for a while.",
+    "parent": 44939437,
+    "depth": 2
+  },
+  {
     "id": 44938139,
     "by": "tuananh",
     "timeISO": "2025-08-18T07:07:25.000Z",
     "textPlain": "> Eg prefer 64-core m8g.16xlarge over 96-core m8g.24xlarge which will span two nodes.It's sad that we have to do this by ourselves",
     "parent": 44937789,
-    "depth": 2
-  },
-  {
-    "id": 44937566,
-    "by": "Aurornis",
-    "timeISO": "2025-08-18T05:02:04.000Z",
-    "textPlain": "Emulating NUMA on a single chip is already a known performance tweak on certain architecture. There are options in place to enable it: https://www.kernel.org/doc/html/v5.8/x86/x86_64/fake-numa-fo...Even the Raspberry Pi 5 benefits from NUMA emulation because it makes memory use patterns better match the memory controller’s parallelization capabilities.",
-    "parent": 44937096,
-    "depth": 2
-  },
-  {
-    "id": 44937630,
-    "by": "positron26",
-    "timeISO": "2025-08-18T05:15:37.000Z",
-    "textPlain": "IMO, matter of time before x86 or RISCV extension will show up to begin the inevitable unification of GPU and SIMD in an ISA.  NUMA work and clustering over CCXs and sockets is paving the way for the software support in the OS.  Question is what makes as much of Vulkan, OpenCL, and CUDA go away as possible?",
-    "parent": 44937096,
     "depth": 2
   },
   {
@@ -117,6 +117,22 @@
     "timeISO": "2025-08-18T03:16:52.000Z",
     "textPlain": "This is one of those way down the road optimizations for folks in fairly rare scale situations in fairly rare tight loops.Most of us are in the realm of the lowest hanging fruit being database queries that could be 100x faster and functions being called a million times a day that only need to be called twice.",
     "parent": 44937028,
+    "depth": 2
+  },
+  {
+    "id": 44937566,
+    "by": "Aurornis",
+    "timeISO": "2025-08-18T05:02:04.000Z",
+    "textPlain": "Emulating NUMA on a single chip is already a known performance tweak on certain architecture. There are options in place to enable it: https://www.kernel.org/doc/html/v5.8/x86/x86_64/fake-numa-fo...Even the Raspberry Pi 5 benefits from NUMA emulation because it makes memory use patterns better match the memory controller’s parallelization capabilities.",
+    "parent": 44937096,
+    "depth": 2
+  },
+  {
+    "id": 44937630,
+    "by": "positron26",
+    "timeISO": "2025-08-18T05:15:37.000Z",
+    "textPlain": "IMO, matter of time before x86 or RISCV extension will show up to begin the inevitable unification of GPU and SIMD in an ISA.  NUMA work and clustering over CCXs and sockets is paving the way for the software support in the OS.  Question is what makes as much of Vulkan, OpenCL, and CUDA go away as possible?",
+    "parent": 44937096,
     "depth": 2
   }
 ]
