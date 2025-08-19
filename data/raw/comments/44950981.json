@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 44951712,
-    "by": "teeray",
-    "timeISO": "2025-08-19T14:05:29.000Z",
-    "textPlain": "Would an effective mitigation be to drop inbound DNS queries that match those special characters using DPI?",
+    "id": 44952430,
+    "by": "rwmj",
+    "timeISO": "2025-08-19T15:07:23.000Z",
+    "textPlain": "A bit surprising that the transaction ID is only 16 bits.  Presumably the source port doesn't even need to be guessed if someone is on the path between dnsmasq and the upstream DNS server.",
     "parent": 44950981,
     "depth": 1
   },
@@ -32,11 +32,75 @@
     "depth": 1
   },
   {
+    "id": 44951712,
+    "by": "teeray",
+    "timeISO": "2025-08-19T14:05:29.000Z",
+    "textPlain": "Would an effective mitigation be to drop inbound DNS queries that match those special characters using DPI?",
+    "parent": 44950981,
+    "depth": 1
+  },
+  {
     "id": 44951031,
     "by": "westurner",
     "timeISO": "2025-08-19T13:02:09.000Z",
     "textPlain": "Many router firmwares have dnsmasq for DNS but may never be upgraded?There are a number of other DNS servers which are not written in C, which support transport-secured DNS like DoH (DNS-over-HTTP), DoT, and DoQ; but do they correctly handle this malformed input?From the mailing list disclosure, which doesn't yet have a CVE FWIU? https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/20... :  Dnsmasq forwards queries with special characters (e.g., ~, !, *, _) to upstream recursive resolvers.\n\n  Some upstream recursive resolvers silently discard such malformed queries (no NXDomain/ServFail response).\n\n  Dnsmasq does not validate or detect this situation, and waits silently, creating a large attack window.\n\n  During this window, attackers can brute-force TxID (16-bit) and source port (16-bit) with a high probability of success (birthday paradox effect).\n\n  Security Impact\n\n  Attackers can poison any cached domain name in Dnsmasq.\n\n[...]  We recommend adding:\n\n  Detection mechanisms when upstream resolvers remain silent.\n\n  Rate limiting and spoof-detection techniques, similar to those in PowerDNS\n\n> PowerDNS Mitigation: https://docs.powerdns.com/recursor/settings.html#spoof-nearm...  spoof-nearmiss-max",
     "parent": 44950981,
     "depth": 1
+  },
+  {
+    "id": 44952147,
+    "by": "Beretta_Vexee",
+    "timeISO": "2025-08-19T14:45:24.000Z",
+    "textPlain": "Dnsmasq forwards invalid requests (containing invalid characters) to the resolver. The resolver silently ignores these requests.However, Dnsmasq continues to wait for a response. The attacker only needs to brute force 32 bits (source port and TxID) to falsify a response and poison the cache.The correct and expected behaviour of Dnsmasq would have been not to forward invalid requests to the resolver.",
+    "parent": 44951659,
+    "depth": 2
+  },
+  {
+    "id": 44952461,
+    "by": "JdeBP",
+    "timeISO": "2025-08-19T15:09:54.000Z",
+    "textPlain": "Yes.  RFC 2181 § 11 explicitly contradicts this report.That said, I should point out that there is nowadays a loophole for special-casing labels that begin with underscore, called out by the SVCB document.  The loophole does not allow for dropping the client requests, though.On the gripping hand, all that this report boils down to is a rediscovery that if the queried server does not answer immediately, there's a window for an attacker with access to the path between client and server (or at least the ability to blindly route packets into that path with forged source addresses) to inject forged responses; that the message ID and random port number system is woefully inadequate for making brute forcing hard at even late 1990s network speeds; and that most of the mitigation techniques for forgery (including the PowerDNS one called out in this report) are useless if the attacker can see the query packet go by in the first place.  The right answer is proper cryptography, not nonsense about punctuation characters that are supposedly \"malformed\".Something we have known since 2002.* https://cr.yp.to/djbdns/forgery.htmlThe DNS protocol is a terrible protocol.  This report is not some novel discovery.",
+    "parent": 44951659,
+    "depth": 2
+  },
+  {
+    "id": 44951985,
+    "by": "beala",
+    "timeISO": "2025-08-19T14:32:22.000Z",
+    "textPlain": "I think the issue is that dnsmasq will happily forward requests that contain characters outside the ASCII subset, but the upstream resolver will silently drop them after correctly determining that they're invalid. So the special characters are a way of reliably triggering the silent drop upstream. This is required because it takes many attempts for the brute force attack to succeed.",
+    "parent": 44951659,
+    "depth": 2
+  },
+  {
+    "id": 44951967,
+    "by": "pixl97",
+    "timeISO": "2025-08-19T14:30:59.000Z",
+    "textPlain": "> are limited by convention to a subset of ASCII,My hostnames with emojis in them might disagree.",
+    "parent": 44951659,
+    "depth": 2
+  },
+  {
+    "id": 44952446,
+    "by": "dc396",
+    "timeISO": "2025-08-19T15:08:47.000Z",
+    "textPlain": "This is why DNSSEC was created.",
+    "parent": 44952430,
+    "depth": 2
+  },
+  {
+    "id": 44952653,
+    "by": "dc396",
+    "timeISO": "2025-08-19T15:24:14.000Z",
+    "textPlain": "No. The special characters thing is a red herring. All resolvers must handle a lack of response via timeout (particularly since DNS mostly uses UDP).The correct mitigation is turning on DNSSEC. This sort of attack, known since 1993, is why DNSSEC was created.",
+    "parent": 44951712,
+    "depth": 2
+  },
+  {
+    "id": 44952376,
+    "by": "recsv-heredoc",
+    "timeISO": "2025-08-19T15:02:11.000Z",
+    "textPlain": "Setting your upstream to 1.1.1.1 or 8.8.8.8 should mitigate this, as these appear to respond with NXDOMAIN to invalid domains rather than fail silently which would close the window for the attack.",
+    "parent": 44951712,
+    "depth": 2
   }
 ]

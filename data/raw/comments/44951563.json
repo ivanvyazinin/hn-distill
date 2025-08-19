@@ -1,1 +1,90 @@
-[]
+[
+  {
+    "id": 44952071,
+    "by": "mmastrac",
+    "timeISO": "2025-08-19T14:39:50.000Z",
+    "textPlain": "I think the coolest part of the futex is that it's a handle-less concept. There's no allocation or deallocation via syscall, just a kernel-based memory watcher that turns out to be incredibly useful as a primitive.Everything goes cleanly away when there are no more waiters, and the kernel never even sees a mutex where there's no contention.I would be interested in a technical deep dive of how the kernel manages these in a performant way, however.EDIT: TIL about futex2 as well: https://docs.kernel.org/userspace-api/futex2.html",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44952229,
+    "by": "Normal_gaussian",
+    "timeISO": "2025-08-19T14:51:51.000Z",
+    "textPlain": "Lets be clear here; the book sets itself up as a way to gain understanding of multiprocessor programming, in a way that promotes skilled reasoning that is applicable across many subdomains. In many places it points out that you should avoid implementing constructs yourself, but instead use a library/language/system provided construct. It specifically calls this out for mutexes.The book is quite clearly about concurrency in general, and not for a specific platform. The author of this article has set up a straw man to facilitate the writing and marketing of an otherwise moderately interesting article on futexes.Personally I find the approach taken by this article more than a little distasteful - presenting from a point of exaggerated conflict is both tiresome and likely to confuse. This article could easily have been written from the perspective \"what TAoMP doesn't tell you\" and in that vein be taken a lot more collaboratively.Of course it doesn't escape me that this blog is new, this article was posted by Phil, and Phil has promoted one of their other articles before.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44951952,
+    "by": "afr0ck",
+    "timeISO": "2025-08-19T14:29:16.000Z",
+    "textPlain": "It's not that deep. The futex was developed just to save you from issuing a special system call to ask the OS to put you on a wait queue.The whole point is that implementing a mutex requires doing things that only the privileged OS kernel can do (e.g. efficiently blocking/unblocking processes). Therefore, for systems like Linux, it made sense to combine the features for a fast implementation.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44952420,
+    "by": "nromiun",
+    "timeISO": "2025-08-19T15:06:40.000Z",
+    "textPlain": "Is it just me or moving things out of kernel space improves performance in general? Like context switching, mutex or entire TCP stack. I wonder what else can be moved into user space.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44952458,
+    "by": "EdSchouten",
+    "timeISO": "2025-08-19T15:09:40.000Z",
+    "textPlain": "Exactly! At the same time you also don't want to call into the kernel's internal malloc() whenever a thread ends up blocking on a lock to allocate the data structures that are needed to keep track of queues of blocked threads for a given lock.To prevent that, many operating systems allocate these 'queue objects' whenever threads are created and will attach a pointer to it from the thread object. Whenever a thread then stumbles upon a contended lock, it will effectively 'donate' this queue object to that lock, meaning that every lock having one or more waiters will have a linked list of 'queue objects' attached to it. When threads are woken up, they will each take one of those objects with them on the way out. But there's no guarantee that they will get their own queue object back; they may get shuffled! So by the time a thread terminates, it will free one of those objects, but that may not necessarily be the one it created.I think the first operating system to use this method was Solaris. There they called these 'queue objects' turnstiles. The BSDs adopted the same approach, and kept the same name.https://www.oreilly.com/library/view/solaristm-internals-cor...https://www.bsdcan.org/2012/schedule/attachments/195_locking...",
+    "parent": 44952071,
+    "depth": 2
+  },
+  {
+    "id": 44952501,
+    "by": "viega",
+    "timeISO": "2025-08-19T15:13:36.000Z",
+    "textPlain": "I wrote the article; it was motivated by reading the book, which to my estimation is not well aimed for either academics or practitioners.  That's a problem across a big chunk of academia right now, and I hear it not just from industry who would like to have people more prepared coming out of college, but from masters students who realize that they're not learning what they want to be good.So in no way was it meant to be a strawman around a \"hey, learn about the futex!\" post (as evidenced by other complaints at the end of things lacking). The fact is, I was disappointed enough with the book, that I put aside another post I was writing for it.But as for Phil, we did work together several years ago, and he reads my stuff. I didn't just start writing, and have never had problems finding an audience in the past, Phil or not.",
+    "parent": 44952229,
+    "depth": 2
+  },
+  {
+    "id": 44952007,
+    "by": "viega",
+    "timeISO": "2025-08-19T14:34:57.000Z",
+    "textPlain": "Also, I should say, in user-land you can efficiently enough save thread state, go off and do something else with that thread, then come back to it, never hitting the kernel while something blocks. That's pretty much async in a nutshell (or green threads).The point of the article anyway is that it's inexcusable to have a modern concurrency textbook and not cover the futex, since it's at the core of any efficient primitive on modern hardware.",
+    "parent": 44951952,
+    "depth": 2
+  },
+  {
+    "id": 44951980,
+    "by": "viega",
+    "timeISO": "2025-08-19T14:31:59.000Z",
+    "textPlain": "You actually issue the `futex` system call to get yourself on the wait queue tied to the memory address. It separates out the waiting from the locking.And that can absolutely save a bunch of system calls, especially vs. polling mixed with `sleep()` or similar.",
+    "parent": 44951952,
+    "depth": 2
+  },
+  {
+    "id": 44952162,
+    "by": "ajross",
+    "timeISO": "2025-08-19T14:47:11.000Z",
+    "textPlain": "Why is this gray!?  This is absolutely correct.  Futex was added as an ad hoc solution to the obvious needs of SMP processes communicating via atomic memory operations who still wanted blocking IPC.  And it had to be updated and reworked repeatedly as it moved out of the original application (locks and semaphores) into stuff like condition variables and priority inheritance where it didn't work nearly as well.In point of fact futex is really not a particularly simple syscall and has a lot of traps, see the man page.  But the core idea is indeed \"not that deep\".",
+    "parent": 44951952,
+    "depth": 2
+  },
+  {
+    "id": 44952643,
+    "by": "viega",
+    "timeISO": "2025-08-19T15:23:39.000Z",
+    "textPlain": "It depends on the relative cost of what you're doing of course, but in general, yes, the cost of entering the kernel can be impactful, if you are making a lot of calls into it, since a lot of work has to happen every time.There are definitely user-land TCP/IP implementations, thread implementations (Go's being particularly notable) and even file systems (FUSE).",
+    "parent": 44952420,
+    "depth": 2
+  },
+  {
+    "id": 44952636,
+    "by": "Jtsummers",
+    "timeISO": "2025-08-19T15:23:01.000Z",
+    "textPlain": "[delayed]",
+    "parent": 44952420,
+    "depth": 2
+  }
+]
