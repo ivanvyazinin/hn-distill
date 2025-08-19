@@ -1,0 +1,8 @@
+{
+  "id": 44927629,
+  "lang": "ru",
+  "summary": "- **Проблема**: WSL хранит дистрибутивы в файле `ext4.vhdx`, который не освобождает место после удаления данных.  \n- **Решение**: вручную или скриптом сжимать VHD через DiskPart.\n\n### Ручное сжатие\n\n1. Проверь версию:  \n   ```powershell\n   wsl -v\n   wsl --status\n   ```\n2. Список дистрибутивов:  \n   ```powershell\n   wsl -l -v\n   ```\n3. Путь к VHD: `%LOCALAPPDATA%\\Packages\\<пакет>\\LocalState\\ext4.vhdx`.\n4. Останови WSL:  \n   ```powershell\n   wsl --shutdown\n   ```\n5. Сжатие в DiskPart:  \n   ```powershell\n   diskpart\n   select vdisk file=\"путь\\ext4.vhdx\"\n   compact vdisk\n   exit\n   ```\n6. Перезапусти WSL: `wsl`.\n\n### Автоматизация PowerShell\n\nСкрипт `compact-wsl.ps1`:\n```powershell\n# Запуск от имени администратора\nif (-NOT ([Security.Principal.WindowsPrincipal]...)) { Start-Process powershell -Verb RunAs -ArgumentList $PSCommandPath; exit }\n\n$dists = wsl -l -q\n$choice = $dists | Out-GridView -PassThru -Title \"Выберите дистрибутив\"\n$pkg = Get-AppxPackage | Where-Object {$_.PackageFamilyName -like \"*$choice*\"}\n$vhd = \"$($pkg.LocalState)\\ext4.vhdx\"\n\nRead-Host \"Сжать $vhd? (Enter для продолжения)\"\nwsl --shutdown\n@\"\nselect vdisk file=\"$vhd\"\ncompact vdisk\n\"@ | diskpart\nWrite-Host \"Готово!\"\n```\n\nЗапускайте скрипт по расписанию через «Планировщик заданий» или вручную.",
+  "inputHash": "9ace0ced88db8b596473b560d2864eb3f34288f1d37665d561bb3fa3992b23b9",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-19T03:15:40.925Z"
+}
