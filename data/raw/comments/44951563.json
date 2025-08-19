@@ -3,15 +3,7 @@
     "id": 44953135,
     "by": "jauntywundrkind",
     "timeISO": "2025-08-19T16:05:14.000Z",
-    "textPlain": "Windows gained a WaitForMultipleObjects, which Linux 5.16 (end 2021) aped with a new Futex2.There's been a nice stream of improvements to futex2 since.NUMA support (finally landing!),\nhttps://www.phoronix.com/news/FUTEX2-NUMA-Small-Futex\nhttps://www.phoronix.com/news/FUTEX2-Improvements-Linux-6.16 (see also this fantastic recent submission on NUMA in general, absolutely critical performance stuff, https://news.ycombinator.com/item?id=44936575)Io_uring support in 6.7 (2024), (with a nice write up on it speeding up postgresql aio),\nhttps://www.phoronix.com/news/IO_uring-FUTEX-Linux-6.7Small requeue and single wait additions in 6.7,\nhttps://www.phoronix.com/news/Linux-6.7-Locking-FUTEX2",
-    "parent": 44951563,
-    "depth": 1
-  },
-  {
-    "id": 44953379,
-    "by": "reinhardt1053",
-    "timeISO": "2025-08-19T16:28:13.000Z",
-    "textPlain": "So what's recommended as a better alternative to The Art of Multiprocessor Programming?",
+    "textPlain": "Windows gained a WaitForMultipleObjects, which Linux 5.16 (end 2021) aped with a new Futex2.\nhttps://www.phoronix.com/news/Linux-5.16-sys_futex_waitvThere's been a nice stream of improvements to futex2 since.NUMA support (finally landing!),\nhttps://www.phoronix.com/news/FUTEX2-NUMA-Small-Futex\nhttps://www.phoronix.com/news/FUTEX2-Improvements-Linux-6.16 (see also this fantastic recent submission on NUMA in general, absolutely critical performance stuff, https://news.ycombinator.com/item?id=44936575)Io_uring support in 6.7 (2024), (with a nice write up on it speeding up postgresql aio),\nhttps://www.phoronix.com/news/IO_uring-FUTEX-Linux-6.7Small requeue and single wait additions in 6.7,\nhttps://www.phoronix.com/news/Linux-6.7-Locking-FUTEX2",
     "parent": 44951563,
     "depth": 1
   },
@@ -32,10 +24,26 @@
     "depth": 1
   },
   {
-    "id": 44953241,
-    "by": "smallstepforman",
-    "timeISO": "2025-08-19T16:15:11.000Z",
-    "textPlain": "I still haven’t seen a good comparison between Futex and Benaphore. Benaphores I understand, it predates Futexes by almost a decade, but what do Futexes add to the equation since hardly anyone talks about Benaphores (or is it a case of not invented here)?",
+    "id": 44952229,
+    "by": "Normal_gaussian",
+    "timeISO": "2025-08-19T14:51:51.000Z",
+    "textPlain": "Lets be clear here; the book sets itself up as a way to gain understanding of multiprocessor programming, in a way that promotes skilled reasoning that is applicable across many subdomains. In many places it points out that you should avoid implementing constructs yourself, but instead use a library/language/system provided construct. It specifically calls this out for mutexes.The book is quite clearly about concurrency in general, and not for a specific platform. The author of this article has set up a straw man to facilitate the writing and marketing of an otherwise moderately interesting article on futexes.Personally I find the approach taken by this article more than a little distasteful - presenting from a point of exaggerated conflict is both tiresome and likely to confuse. This article could easily have been written from the perspective \"what TAoMP doesn't tell you\" and in that vein be taken a lot more collaboratively.Of course it doesn't escape me that this blog is new, this article was posted by Phil, and Phil has promoted one of their other articles before.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953461,
+    "by": "supernetworks",
+    "timeISO": "2025-08-19T16:36:31.000Z",
+    "textPlain": "A particularly tricky exploit in the linux futex implementation from 2014, by Pinkie Pie, https://issues.chromium.org/issues/40079619\"The requeue-once rule is enforced by only allowing requeueing to the futex previously passed to futex_wait_requeue_pi as uaddr2, so it's not possible to requeue from A to B, then from B to C - but it is possible to requeue from B to B.When this happens, if (!q.rt_waiter) passes, so rt_mutex_finish_proxy_lock is never called. (Also, AFAIK, free_pi_state is never called, which is true even without this weird requeue; in the case where futex_requeue calls requeue_pi_wake_futex directly, pi_state will sit around until it gets cleaned up in exit_pi_state_list when the thread exits. This is not a vulnerability.) futex_wait_requeue_pi exits, and various pointers to rt_waiter become dangling.\n\"",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953444,
+    "by": "garaetjjte",
+    "timeISO": "2025-08-19T16:34:51.000Z",
+    "textPlain": "> Many people won’t worry about crashed threads, as they often will crash the whole program. However, you can catch the signal a crash generates and keep the overall process from terminating.That doesn't help if the entire process dies for any reason and you want to clean up the locks. Solution to that is called \"robust\" locks. You can register list of held futexes with the kernel using sys_set_robust_list, and when the thread dies kernel for each entry will set a specific bit and wake waiter if there's one.",
     "parent": 44951563,
     "depth": 1
   },
@@ -48,10 +56,18 @@
     "depth": 1
   },
   {
-    "id": 44952229,
-    "by": "Normal_gaussian",
-    "timeISO": "2025-08-19T14:51:51.000Z",
-    "textPlain": "Lets be clear here; the book sets itself up as a way to gain understanding of multiprocessor programming, in a way that promotes skilled reasoning that is applicable across many subdomains. In many places it points out that you should avoid implementing constructs yourself, but instead use a library/language/system provided construct. It specifically calls this out for mutexes.The book is quite clearly about concurrency in general, and not for a specific platform. The author of this article has set up a straw man to facilitate the writing and marketing of an otherwise moderately interesting article on futexes.Personally I find the approach taken by this article more than a little distasteful - presenting from a point of exaggerated conflict is both tiresome and likely to confuse. This article could easily have been written from the perspective \"what TAoMP doesn't tell you\" and in that vein be taken a lot more collaboratively.Of course it doesn't escape me that this blog is new, this article was posted by Phil, and Phil has promoted one of their other articles before.",
+    "id": 44953379,
+    "by": "reinhardt1053",
+    "timeISO": "2025-08-19T16:28:13.000Z",
+    "textPlain": "So what's recommended as a better alternative to The Art of Multiprocessor Programming?",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953241,
+    "by": "smallstepforman",
+    "timeISO": "2025-08-19T16:15:11.000Z",
+    "textPlain": "I still haven’t seen a good comparison between Futex and Benaphore. Benaphores I understand, it predates Futexes by almost a decade, but what do Futexes add to the equation since hardly anyone talks about Benaphores (or is it a case of not invented here)?",
     "parent": 44951563,
     "depth": 1
   },
@@ -60,6 +76,14 @@
     "by": "afr0ck",
     "timeISO": "2025-08-19T14:29:16.000Z",
     "textPlain": "It's not that deep. The futex was developed just to save you from issuing a special system call to ask the OS to put you on a wait queue.The whole point is that implementing a mutex requires doing things that only the privileged OS kernel can do (e.g. efficiently blocking/unblocking processes). Therefore, for systems like Linux, it made sense to combine the features for a fast implementation.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953448,
+    "by": "avodonosov",
+    "timeISO": "2025-08-19T16:35:14.000Z",
+    "textPlain": "Can anyone suggest a good explanation of memory barriers?",
     "parent": 44951563,
     "depth": 1
   },
@@ -78,6 +102,22 @@
     "textPlain": "Is it just me or moving things out of kernel space improves performance in general? Like context switching, mutex or entire TCP stack. I wonder what else can be moved into user space.",
     "parent": 44951563,
     "depth": 1
+  },
+  {
+    "id": 44953727,
+    "by": "ciconia",
+    "timeISO": "2025-08-19T17:03:21.000Z",
+    "textPlain": "io_uring support for futexes is really nice. I used it to implement mutexes and queues for working with Ruby fibers:https://github.com/digital-fabric/uringmachine/blob/main/ext...",
+    "parent": 44953135,
+    "depth": 2
+  },
+  {
+    "id": 44953441,
+    "by": "gpderetta",
+    "timeISO": "2025-08-19T16:34:07.000Z",
+    "textPlain": "Futex has nothing to do with WFMO. Futex is equivalent to keyed events.The linux equivalent of WFMO is select/poll/epoll.",
+    "parent": 44953135,
+    "depth": 2
   },
   {
     "id": 44952458,
@@ -104,27 +144,67 @@
     "depth": 2
   },
   {
-    "id": 44953365,
-    "by": "the_mitsuhiko",
-    "timeISO": "2025-08-19T16:27:15.000Z",
-    "textPlain": "Other then avoiding a syscall on an uncontended path they are not really similar. A benaphore is just a semaphore with an atomic in user space to count waiters.You can’t really use semaphores to implement things that can’t mutexes or semaphores so the overall utility is limited compare to futexes that you can use for condvars and other primitives too.",
-    "parent": 44953241,
+    "id": 44952501,
+    "by": "viega",
+    "timeISO": "2025-08-19T15:13:36.000Z",
+    "textPlain": "I wrote the article; it was motivated by reading the book, which to my estimation is not well aimed for either academics or practitioners.  That's a problem across a big chunk of academia right now, and I hear it not just from industry who would like to have people more prepared coming out of college, but from masters students who realize that they're not learning what they want to be good.So in no way was it meant to be a strawman around a \"hey, learn about the futex!\" post (as evidenced by other complaints at the end of things lacking). The fact is, I was disappointed enough with the book, that I put aside another post I was writing for it.But as for Phil, we did work together several years ago, and he reads my stuff. I didn't just start writing, and have never had problems finding an audience in the past, Phil or not.",
+    "parent": 44952229,
+    "depth": 2
+  },
+  {
+    "id": 44953599,
+    "by": "chillingeffect",
+    "timeISO": "2025-08-19T16:50:58.000Z",
+    "textPlain": "Yeah the part about not even calling the previous sysv style a dinosaur bc it implies it was once mighty is like standing on the shoulders of giants and pooping on their heads.  A little humility is all that is required.",
+    "parent": 44952229,
+    "depth": 2
+  },
+  {
+    "id": 44953519,
+    "by": "inetknght",
+    "timeISO": "2025-08-19T16:42:56.000Z",
+    "textPlain": "> You can register list of held futexes with the kernel using sys_set_robust_list, and when the thread dies kernel for each entry will set a specific bit and wake waiter if there's one.My biggest worry with that kind of thing is that the lock was guarding something which is now in an inconsistent state.Without thoroughly understanding how/why the particular thread crashed, there's no guarantee that the data is in any sort of valid or recoverable state. In that case, crashing the whole app is absolutely a better thing to do.It's really cool that the capabilities exist to do cleanup/recovery after a single thread crashed. But I think (off-the-cuff guess) that 95% of engineers won't know how to properly utilize robust locks with robust data structures, 4% won't have the time to engineer (including documentation) that kind of solution, and the last 1% are really really well-paid (or, should be) and would find better ways to prevent the crash from happening in the first place.",
+    "parent": 44953444,
     "depth": 2
   },
   {
     "id": 44953202,
     "by": "garaetjjte",
     "timeISO": "2025-08-19T16:12:08.000Z",
-    "textPlain": "Neither CRITICAL_SECTION nor SRWLock enters the kernel when uncontended.",
+    "textPlain": "Neither CRITICAL_SECTION nor SRWLock enters the kernel when uncontended. (SRWLock is based on keyed events, CRITICAL_SECTION nowadays creates kernel object on-demand but falls back to keyed event on failure)",
     "parent": 44952685,
     "depth": 2
   },
   {
-    "id": 44952501,
-    "by": "viega",
-    "timeISO": "2025-08-19T15:13:36.000Z",
-    "textPlain": "I wrote the article; it was motivated by reading the book, which to my estimation is not well aimed for either academics or practitioners.  That's a problem across a big chunk of academia right now, and I hear it not just from industry who would like to have people more prepared coming out of college, but from masters students who realize that they're not learning what they want to be good.So in no way was it meant to be a strawman around a \"hey, learn about the futex!\" post (as evidenced by other complaints at the end of things lacking). The fact is, I was disappointed enough with the book, that I put aside another post I was writing for it.But as for Phil, we did work together several years ago, and he reads my stuff. I didn't just start writing, and have never had problems finding an audience in the past, Phil or not.",
-    "parent": 44952229,
+    "id": 44953648,
+    "by": "Jtsummers",
+    "timeISO": "2025-08-19T16:55:42.000Z",
+    "textPlain": "The Art of Multiprocessor Programming. It does talk about reentrant locks and other things this review says it doesn't. The more interesting parts of it though are the back half, after going through lock implementations and such it actually starts solving problems using both lock-based and lock-free designs.Follow it up with something appropriate to the language you're using, like C++ Concurrency in Action for C++ (much of it transfers to other languages).",
+    "parent": 44953379,
+    "depth": 2
+  },
+  {
+    "id": 44953518,
+    "by": "belter",
+    "timeISO": "2025-08-19T16:42:52.000Z",
+    "textPlain": "These two:https://man7.org/tlpi/https://marabos.nl/atomics/",
+    "parent": 44953379,
+    "depth": 2
+  },
+  {
+    "id": 44953791,
+    "by": "garaetjjte",
+    "timeISO": "2025-08-19T17:09:49.000Z",
+    "textPlain": "Benaphore is a kernel synchronization object behind atomic counter for uncontended path. But the kernel object needs to be always here, initialized and destroyed when appropriate.Futex doesn't need any kernel initialization, and from perspective of kernel it doesn't exist at all when there are no waiters.(see also CRITICAL_SECTION, which originally always had kernel object created with it, but it was later changed to create them on-demand falling back to keyed event on failure. SRWLock only uses keyed events. Keyed event only needs one object per process, and otherwise consumes kernel resources only if there are any waiters.)",
+    "parent": 44953241,
+    "depth": 2
+  },
+  {
+    "id": 44953365,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-08-19T16:27:15.000Z",
+    "textPlain": "Other then avoiding a syscall on an uncontended path they are not really similar. A benaphore is just a semaphore with an extra atomic counter in userspace to count waiters.You can’t really use semaphores to implement things that can’t mutexes or semaphores so the overall utility is limited compare to futexes that you can use for condvars and other primitives too.",
+    "parent": 44953241,
     "depth": 2
   },
   {
@@ -152,11 +232,19 @@
     "depth": 2
   },
   {
-    "id": 44952847,
-    "by": "whstl",
-    "timeISO": "2025-08-19T15:39:39.000Z",
-    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
-    "parent": 44952420,
+    "id": 44953762,
+    "by": "junon",
+    "timeISO": "2025-08-19T17:06:32.000Z",
+    "textPlain": "If you mean memory barriers in terms of concurrency, it's just a primitive for concurrency that counts downward atomically once per participant (e.g. a group of threads) and then each atomically waits until the counter reaches zero before continuing. It's used to synchronize (i.e. put into lockstep) two concurrent processes such that they must all wait at a given point before continuing more or less all at once, often as part of a larger process.If you mean a barrier in terms of a memory \"fence\", that's an event on CPUs whereby any pending memory instructions that have been pipelined and thus not committed are forced to commit and complete before continuing. Usually only relevant for a single core, but they're used to make sure that other cores will see the same memory values and your pending writes would reflect (or, conversely, sometimes making sure your own core sees the reads from other cores as fresh as possible before the actual read op).",
+    "parent": 44953448,
+    "depth": 2
+  },
+  {
+    "id": 44953726,
+    "by": "inetknght",
+    "timeISO": "2025-08-19T17:03:16.000Z",
+    "textPlain": "tl;dr:In a multi-threaded context, memory reads and writes can be reordered by hardware. It gets more complicated with shared cache. Imagine that you have core 1 writing to some address at (nearly) the same time that core 2 reads from that. Does core 2 read the old or the new? Especially if they don't share the same cache -- core 1 might \"write\" to a given address, but it only gets written to core 1's cache and then \"scheduled\" to be written out to main memory. Meanwhile, later core 2 tries to read that address, it's not in its cache, so it pulls from main memory before core 1's cache has flushed. As far as core 2 is concerned, the write happened after it read from the address even though physically the write finished in core 1 before core 2's read instruction might have even started.A memory barrier tells the hardware to ensure that reads-before is also \"happens-before\" (or after) a given writen to the same address. It's often (but not always) a cache and memory synchronization across cores.I found Fedora Pikus's cppcon 2017 presentation [1] to be informative, and Michael Wong's 2015 presentation [0] filled in some of the gaps.C++, being a generic language for many hardware implementations, provides a lot more detailed concepts for memory ordering [2], which is important for hardwares that have more granularity in barrier types that what most people are used to with x86-derived memory models.[0]: https://www.youtube.com/watch?v=DS2m7T6NKZQ[1]: https://www.youtube.com/watch?v=ZQFzMfHIxng[2]: https://en.cppreference.com/w/cpp/atomic/memory_order.html",
+    "parent": 44953448,
     "depth": 2
   },
   {
@@ -164,6 +252,14 @@
     "by": "viega",
     "timeISO": "2025-08-19T15:23:39.000Z",
     "textPlain": "It depends on the relative cost of what you're doing of course, but in general, yes, the cost of entering the kernel can be impactful, if you are making a lot of calls into it, since a lot of work has to happen every time.There are definitely user-land TCP/IP implementations, thread implementations (Go's being particularly notable) and even file systems (FUSE).",
+    "parent": 44952420,
+    "depth": 2
+  },
+  {
+    "id": 44952847,
+    "by": "whstl",
+    "timeISO": "2025-08-19T15:39:39.000Z",
+    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
     "parent": 44952420,
     "depth": 2
   },
