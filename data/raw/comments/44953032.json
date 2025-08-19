@@ -1,5 +1,13 @@
 [
   {
+    "id": 44956931,
+    "by": "morgante",
+    "timeISO": "2025-08-19T22:43:26.000Z",
+    "textPlain": "Yikes, this is a pretty bad vulnerability. It's good that they fixed it, but damning that it was ever a problem in the first place.Rule #1 of building any cloud platform analyzing user code is that you must run analyzers in isolated environments. Even beyond analysis tools frequently allowing direct code injection through plugins, linters/analyzers/compiler are complex software artifacts with large surface areas for bugs. You should ~never assume it's safe to run a tool against arbitrary repos in a shared environment.I also ran a code analysis platform, where we ran our own analyzer[1] against customer repos. Even though we developed the analyzer ourself, and didn't include any access to environment variables or network requests, I still architected it so executions ran in a sandbox. It's the only safe way to analyze code.[1] https://github.com/getgrit/gritql",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
     "id": 44955570,
     "by": "vadepaysa",
     "timeISO": "2025-08-19T19:48:09.000Z",
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 44955721,
-    "by": "codedokode",
-    "timeISO": "2025-08-19T20:04:54.000Z",
-    "textPlain": "One of the problems is that code analyzers, bundlers, compilers (like Rust compiler) allow running arbitrary code without any warning.Imagine following case: an attacker pretending to represent a company sends you a repository as a test task before the interview. You run something like \"npm install\" or run Rust compiler, and your computer is controlled by an attacker now.Or imagine how one coworker's machine gets hacked, the malicious code is written into a repository and whole G, F or A is now owned by foreign hackers. All thanks to npm and Rust compiler.Maybe those tools should explicitly confirm executing every external command (with caching allowed commands list in order to not ask again). And maybe Linux should provide an easy to use and safe sandbox for developers. Currently I have to make sandboxes from scratch myself.Also in maybe cases you don't need the ability to run external code, for example, to install a JS package all you need to do is to download files.Also this is an indication why it is a bad idea to use environment variables for secrets and configuration. Whoever wrote \"12 points app\" doesn't know that there are command-line switches and configuration files for this.",
+    "id": 44956479,
+    "by": "smsm42",
+    "timeISO": "2025-08-19T21:35:41.000Z",
+    "textPlain": "When I read up to \"One can use the Rubocop configuration file to specify the path to an extension Ruby file\" my immediate thought was \"oh no, they didn't allow a user-extendable tool to run in their prod environment...\" - and yes, they did. Not that it'd be properly secure without this glaring hole - I don't think many linters are properly audited and fuzzed against hostile inputs - but this is like opening the front door and hanging a blinking neon sign \"Please Hack Us!\" over it.",
     "parent": 44953032,
     "depth": 1
   },
@@ -64,34 +72,18 @@
     "depth": 1
   },
   {
+    "id": 44955721,
+    "by": "codedokode",
+    "timeISO": "2025-08-19T20:04:54.000Z",
+    "textPlain": "One of the problems is that code analyzers, bundlers, compilers (like Rust compiler) allow running arbitrary code without any warning.Imagine following case: an attacker pretending to represent a company sends you a repository as a test task before the interview. You run something like \"npm install\" or run Rust compiler, and your computer is controlled by an attacker now.Or imagine how one coworker's machine gets hacked, the malicious code is written into a repository and whole G, F or A is now owned by foreign hackers. All thanks to npm and Rust compiler.Maybe those tools should explicitly confirm executing every external command (with caching allowed commands list in order to not ask again). And maybe Linux should provide an easy to use and safe sandbox for developers. Currently I have to make sandboxes from scratch myself.Also in maybe cases you don't need the ability to run external code, for example, to install a JS package all you need to do is to download files.Also this is an indication why it is a bad idea to use environment variables for secrets and configuration. Whoever wrote \"12 points app\" doesn't know that there are command-line switches and configuration files for this.",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
     "id": 44956622,
     "by": "vedmakk",
     "timeISO": "2025-08-19T21:53:22.000Z",
     "textPlain": "if op is reading the comments here: the screenshot where CodeRabbit has discovered the security vulnerability in the PR contains the actual ip address the env vars were sent to. No big deal, just you carefully used 1.2.3.4 in the rest of the article only to leak it in the screenshot. fyi.",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
-    "id": 44956479,
-    "by": "smsm42",
-    "timeISO": "2025-08-19T21:35:41.000Z",
-    "textPlain": "When I read up to \"One can use the Rubocop configuration file to specify the path to an extension Ruby file\" my immediate thought was \"oh no, they didn't allow a user-extendable tool to run in their prod environment...\" - and yes, they did. Not that it'd be properly secure without this glaring hole - I don't think many linters are properly audited and fuzzed against hostile inputs - but this is like opening the front door and hanging a blinking neon sign \"Please Hack Us!\" over it.",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
-    "id": 44953731,
-    "by": "brainless",
-    "timeISO": "2025-08-19T17:03:58.000Z",
-    "textPlain": "I did not understand something: why did CodeRabbit run external tools on external code within its own set of environment variables? Why are these variables needed for this entire tooling?",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
-    "id": 44954502,
-    "by": "nphardon",
-    "timeISO": "2025-08-19T18:12:22.000Z",
-    "textPlain": "Oh, it really makes my day when we get hacker post here on the top.  This is so well written too, no mystique, just a simple sequence of logical steps, with pictures.",
     "parent": 44953032,
     "depth": 1
   },
@@ -104,10 +96,26 @@
     "depth": 1
   },
   {
+    "id": 44953731,
+    "by": "brainless",
+    "timeISO": "2025-08-19T17:03:58.000Z",
+    "textPlain": "I did not understand something: why did CodeRabbit run external tools on external code within its own set of environment variables? Why are these variables needed for this entire tooling?",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
     "id": 44953773,
     "by": "elpakal",
     "timeISO": "2025-08-19T17:07:54.000Z",
     "textPlain": "> After responsibly disclosing this critical vulnerability to the CodeRabbit team, we learned from them that they had an isolation mechanism in place, but Rubocop somehow was not running inside it.Curious what this (isolation mechanism) means if anyone knows.",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
+    "id": 44954502,
+    "by": "nphardon",
+    "timeISO": "2025-08-19T18:12:22.000Z",
+    "textPlain": "Oh, it really makes my day when we get hacker post here on the top.  This is so well written too, no mystique, just a simple sequence of logical steps, with pictures.",
     "parent": 44953032,
     "depth": 1
   },
@@ -128,26 +136,10 @@
     "depth": 1
   },
   {
-    "id": 44955043,
-    "by": "iTokio",
-    "timeISO": "2025-08-19T19:02:12.000Z",
-    "textPlain": "That’s why I’m worried about the growing centralization of things such as Chrome, Gmail, AWS, Cloudflare…It’s very efficient to delegate something to one major actor but we are introducing single points of failure and are less resilient to vulnerabilities.Critical systems should have defenses in depth, decentralized architectures and avoid trusting new providers with too many moving parts.",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
-    "id": 44954328,
-    "by": "edm0nd",
-    "timeISO": "2025-08-19T17:56:33.000Z",
-    "textPlain": "No bounty was paid for this?",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
-    "id": 44953985,
-    "by": "hahn-kev",
-    "timeISO": "2025-08-19T17:26:33.000Z",
-    "textPlain": "Why does CodeRabbit need write access to the git repo? Why doesn't Github let me limit it's access?",
+    "id": 44956232,
+    "by": "socalgal2",
+    "timeISO": "2025-08-19T21:01:58.000Z",
+    "textPlain": "I've ranted about this before and been downvoted, ignored as \"not an issue\" but, IMO, Github is majorly to blame for this. They under-invested in their permission system so 3rd party apps are effectively encouraged to ask for \"root\" permissions.Effectively, many (most?) 3rd party github integrations basically ask you to type in your github ID. Then they use the github API and ask for maximal permissions. This lets them make it easy for you to use their services because they can do all the rest of the setup for you.  But, NO ONE SHOULD EVER GIVE THIS KIND OF PERMISSION.Any 3rd party service that said \"give us root to your servers\" would be laughed out of the market. But, that's what github has encouraged because their default workflow leaves it up to the developer to do the right thing.Instead, github's auth UX should (1) require you to choose repos (2) not allow picking \"all repos\" (3) require to you select each and every permission (4) not have an option for \"all permissions\".As an analogy (though poor). iOS and MacOS don't say \"this app wants all these permissions, yes/no\" (android used to do this). Instead, they ask one at a time (camera? mic? photos? network?) etc...  I'm not suggesting that github ask one at a time. I am suggesting that github provide a default UI that lists all the permissions, per repo, and has no way to auto-populate it so the user is required to choose.Further, I would argue that github should show the integrations and permissions for any repo. The hope being if I see \"lib X uses integration Y with write permission\" then I know lib X is not trustworthy because it's open to supply chain attacks (more than lib Z which has no write integrations)",
     "parent": 44953032,
     "depth": 1
   },
@@ -160,10 +152,26 @@
     "depth": 1
   },
   {
-    "id": 44956232,
-    "by": "socalgal2",
-    "timeISO": "2025-08-19T21:01:58.000Z",
-    "textPlain": "I've ranted about this before and been downvoted, ignored as \"not an issue\" but, IMO, Github is majorly to blame for this. They under-invested in their permission system so 3rd party apps are effectively encouraged to ask for \"root\" permissions.Effectively, many (most?) 3rd party github integrations basically ask you to type in your github ID. Then they use the github API and ask for maximal permissions. This lets them make it easy for you to use their services because they can do all the rest of the setup for you.  But, NO ONE SHOULD EVER GIVE THIS KIND OF PERMISSION.Any 3rd party service that said \"give us root to your servers\" would be laughed out of the market. But, that's what github has encouraged because their default workflow leaves it up to the developer to do the right thing.Instead, github's auth UX should (1) require you to choose repos (2) not allow picking \"all repos\" (3) require to you select each and every permission (4) not have an option for \"all permissions\".As an analogy (though poor). iOS and MacOS don't say \"this app wants all these permissions, yes/no\" (android used to do this). Instead, they ask one at a time (camera? mic? photos? network?) etc...  I'm not suggesting that github ask one at a time. I am suggesting that github provide a default UI that lists all the permissions, per repo, and has no way to auto-populate it so the user is required to choose.Further, I would argue that github should show the integrations and permissions for any repo. The hope being if I see \"lib X uses integration Y with write permission\" then I know lib X is not trustworthy because it's open to supply chain attacks (more than lib Z which has no write integrations)",
+    "id": 44953985,
+    "by": "hahn-kev",
+    "timeISO": "2025-08-19T17:26:33.000Z",
+    "textPlain": "Why does CodeRabbit need write access to the git repo? Why doesn't Github let me limit it's access?",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
+    "id": 44955043,
+    "by": "iTokio",
+    "timeISO": "2025-08-19T19:02:12.000Z",
+    "textPlain": "That’s why I’m worried about the growing centralization of things such as Chrome, Gmail, AWS, Cloudflare…It’s very efficient to delegate something to one major actor but we are introducing single points of failure and are less resilient to vulnerabilities.Critical systems should have defenses in depth, decentralized architectures and avoid trusting new providers with too many moving parts.",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
+    "id": 44954328,
+    "by": "edm0nd",
+    "timeISO": "2025-08-19T17:56:33.000Z",
+    "textPlain": "No bounty was paid for this?",
     "parent": 44953032,
     "depth": 1
   },
@@ -184,14 +192,6 @@
     "depth": 1
   },
   {
-    "id": 44954351,
-    "by": "cleverwebb",
-    "timeISO": "2025-08-19T17:58:45.000Z",
-    "textPlain": "I had a visceral and (quite audible) reaction when I got to the environment variable listing.",
-    "parent": 44953032,
-    "depth": 1
-  },
-  {
     "id": 44956325,
     "by": "_pdp_",
     "timeISO": "2025-08-19T21:14:52.000Z",
@@ -200,10 +200,18 @@
     "depth": 1
   },
   {
-    "id": 44955886,
-    "by": "ianbutler",
-    "timeISO": "2025-08-19T20:21:18.000Z",
-    "textPlain": "If you're a concerned user and you're looking for a solution founded by 2 people with a security background who have sandboxed execution (and network limited) so stuff like this can't happen you should check us out.We even offer a self hosted deployment which sidesteps this entirely. (feel free to reach out).www.bismuth.sh",
+    "id": 44954351,
+    "by": "cleverwebb",
+    "timeISO": "2025-08-19T17:58:45.000Z",
+    "textPlain": "I had a visceral and (quite audible) reaction when I got to the environment variable listing.",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
+    "id": 44953866,
+    "by": "kachapopopow",
+    "timeISO": "2025-08-19T17:16:06.000Z",
+    "textPlain": "Unrelated to the article, but the first time I saw them was in a twitter ad with a completely comically bull** suggestion. I cannot take a company seriously that had something like that inside an ad that is supposed to show the best they're capable of.",
     "parent": 44953032,
     "depth": 1
   },
@@ -216,10 +224,18 @@
     "depth": 1
   },
   {
-    "id": 44953866,
-    "by": "kachapopopow",
-    "timeISO": "2025-08-19T17:16:06.000Z",
-    "textPlain": "Unrelated to the article, but the first time I saw them was in a twitter ad with a completely comically bull** suggestion. I cannot take a company seriously that had something like that inside an ad that is supposed to show the best they're capable of.",
+    "id": 44955886,
+    "by": "ianbutler",
+    "timeISO": "2025-08-19T20:21:18.000Z",
+    "textPlain": "If you're a concerned user and you're looking for a solution founded by 2 people with a security background who have sandboxed execution (and network limited) so stuff like this can't happen you should check us out.We even offer a self hosted deployment which sidesteps this entirely. (feel free to reach out).www.bismuth.sh",
+    "parent": 44953032,
+    "depth": 1
+  },
+  {
+    "id": 44957022,
+    "by": "gregjw",
+    "timeISO": "2025-08-19T22:57:56.000Z",
+    "textPlain": "yikes!",
     "parent": 44953032,
     "depth": 1
   },
@@ -280,18 +296,18 @@
     "depth": 2
   },
   {
-    "id": 44956339,
-    "by": "viraptor",
-    "timeISO": "2025-08-19T21:16:49.000Z",
-    "textPlain": "Most security bugs get fixed without any public notice. Unless there was any breach of customer information (and that can be often verified), there are typically no legal requirements. And there's no real benefit to doing it either. Why would you expect it to happen?",
-    "parent": 44955570,
-    "depth": 2
-  },
-  {
     "id": 44956597,
     "by": "sophacles",
     "timeISO": "2025-08-19T21:51:13.000Z",
     "textPlain": "Both articles were published today. It seems to me that the researchers and coderabbit agreed to publish on the same day. This is a common practice when the company decides to disclose at all (disclosure is not required unless customer data was leaked and there's evidence of that, they are choosing to disclose unnecessarily here).When the security researchers praise the response, it's a good sign tbh.",
+    "parent": 44955570,
+    "depth": 2
+  },
+  {
+    "id": 44956339,
+    "by": "viraptor",
+    "timeISO": "2025-08-19T21:16:49.000Z",
+    "textPlain": "Most security bugs get fixed without any public notice. Unless there was any breach of customer information (and that can be often verified), there are typically no legal requirements. And there's no real benefit to doing it either. Why would you expect it to happen?",
     "parent": 44955570,
     "depth": 2
   },
@@ -320,18 +336,18 @@
     "depth": 2
   },
   {
-    "id": 44956755,
-    "by": "Romario77",
-    "timeISO": "2025-08-19T22:14:50.000Z",
-    "textPlain": "because researchers from Kudelski Security most likely tried different static analysis tools and they didn't work the way Rubocop did.They don't write the details of how they got to this particular tool - you could also see from the article they tried a different approach first.",
-    "parent": 44956402,
-    "depth": 2
-  },
-  {
     "id": 44956546,
     "by": "jdlshore",
     "timeISO": "2025-08-19T21:44:06.000Z",
     "textPlain": "Not sure why it seems like a lie. Oversights like this happen all the time.",
+    "parent": 44956402,
+    "depth": 2
+  },
+  {
+    "id": 44956755,
+    "by": "Romario77",
+    "timeISO": "2025-08-19T22:14:50.000Z",
+    "textPlain": "because researchers from Kudelski Security most likely tried different static analysis tools and they didn't work the way Rubocop did.They don't write the details of how they got to this particular tool - you could also see from the article they tried a different approach first.",
     "parent": 44956402,
     "depth": 2
   },
@@ -376,27 +392,11 @@
     "depth": 2
   },
   {
-    "id": 44956005,
-    "by": "mihaaly",
-    "timeISO": "2025-08-19T20:35:05.000Z",
-    "textPlain": "Agreed.Being a mere user of web or other apps developed using so clever and felxible and powerful services like this accidentally (due to sheer complexity) exposing all and everything I might consider dear makes me reconsider if I want to use any. When I am granted a real choice. Not so much as time progresses, not so much. Apps are there everywhere using other apps, mandated by organizations carrying out services outsourced by banks, governemnts, etc., granted third parties' access by me accepting T&C, probably catching trouble in the details, or probably not, cannot be sure.A reassuring line like this >>This is not meant to shame any particular vendor; it happens to everyone<< may calm providers but scare the shit out of me as a user providing my sensitive data in exchange for something I need, or worst, must do.",
-    "parent": 44954331,
-    "depth": 2
-  },
-  {
-    "id": 44956607,
-    "by": "raggi",
-    "timeISO": "2025-08-19T21:52:01.000Z",
-    "textPlain": "I love this implication that there's some valuable body of code out there that gets reviewed, compiled and never executed.",
-    "parent": 44955721,
-    "depth": 2
-  },
-  {
-    "id": 44956630,
-    "by": "frankfrank13",
-    "timeISO": "2025-08-19T21:54:46.000Z",
-    "textPlain": "Even better when you read the CEO's response:> The researchers identified that Rubocop, one of our tools, was running outside our secure sandbox environmentI don't think that was the main problem lol",
-    "parent": 44956479,
+    "id": 44954924,
+    "by": "doesnt_know",
+    "timeISO": "2025-08-19T18:52:59.000Z",
+    "textPlain": "If it’s not a secret that is used to sign something, then the secret has to get from the vault to the application at some point.What mechanism are you suggesting where access to the production system doesn’t let you also access that secret?Like I get in this specific case where you are running some untrusted code, that environment should have been isolated and these keys not passed in, but running untrusted code isn’t usually a common feature of most applications.",
+    "parent": 44954260,
     "depth": 2
   }
 ]
