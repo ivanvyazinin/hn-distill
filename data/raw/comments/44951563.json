@@ -1,9 +1,49 @@
 [
   {
+    "id": 44953135,
+    "by": "jauntywundrkind",
+    "timeISO": "2025-08-19T16:05:14.000Z",
+    "textPlain": "Windows gained a WaitForMultipleObjects, which Linux 5.16 (end 2021) aped with a new Futex2.There's been a nice stream of improvements to futex2 since.NUMA support (finally landing!),\nhttps://www.phoronix.com/news/FUTEX2-NUMA-Small-Futex\nhttps://www.phoronix.com/news/FUTEX2-Improvements-Linux-6.16 (see also this fantastic recent submission on NUMA in general, absolutely critical performance stuff, https://news.ycombinator.com/item?id=44936575)Io_uring support in 6.7 (2024), (with a nice write up on it speeding up postgresql aio),\nhttps://www.phoronix.com/news/IO_uring-FUTEX-Linux-6.7Small requeue and single wait additions in 6.7,\nhttps://www.phoronix.com/news/Linux-6.7-Locking-FUTEX2",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953379,
+    "by": "reinhardt1053",
+    "timeISO": "2025-08-19T16:28:13.000Z",
+    "textPlain": "So what's recommended as a better alternative to The Art of Multiprocessor Programming?",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
     "id": 44952071,
     "by": "mmastrac",
     "timeISO": "2025-08-19T14:39:50.000Z",
     "textPlain": "I think the coolest part of the futex is that it's a handle-less concept. There's no allocation or deallocation via syscall, just a kernel-based memory watcher that turns out to be incredibly useful as a primitive.Everything goes cleanly away when there are no more waiters, and the kernel never even sees a mutex where there's no contention.I would be interested in a technical deep dive of how the kernel manages these in a performant way, however.EDIT: TIL about futex2 as well: https://docs.kernel.org/userspace-api/futex2.html",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44952901,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-19T15:43:54.000Z",
+    "textPlain": "> And in practice, behavior across common implementations [of recursive locks] is not remotely consistent. There’s a good reason why this was left undefined – it’s kind of hard.This is such a frustrating stance that most standards have, honestly. \"Well, obviously we can't expect the OS/language implementers to be able to reliably implement feature X ― let's just leave it to the application programmer to deal with; they are, after all, are expected to have great skill sets and could easily work around it\". Or rather, \"well, we can't force feature X on the people who will actually implement the standard (they are the members of this very committee, after all), but we can't trivially force the downstream users to cope with the feature's absence because seriously, what can those losers do? Switch the vendors?\".",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953241,
+    "by": "smallstepforman",
+    "timeISO": "2025-08-19T16:15:11.000Z",
+    "textPlain": "I still haven’t seen a good comparison between Futex and Benaphore. Benaphores I understand, it predates Futexes by almost a decade, but what do Futexes add to the equation since hardly anyone talks about Benaphores (or is it a case of not invented here)?",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44952685,
+    "by": "mwcampbell",
+    "timeISO": "2025-08-19T15:26:37.000Z",
+    "textPlain": "As the article mentions, Windows introduced a futex-like thing in Windows 8. I know that the original Win32 critical section is based on a kernel-level semaphore. What about the SRW lock introduced in Vista?",
     "parent": 44951563,
     "depth": 1
   },
@@ -24,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 44952671,
+    "by": "wizerno",
+    "timeISO": "2025-08-19T15:25:42.000Z",
+    "textPlain": "Another great read on futexes is Ulrich Drepper’s paper \"Futexes Are Tricky\" [1].[1] https://cis.temple.edu/~giorgio/cis307/readings/futex.pdf",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
     "id": 44952420,
     "by": "nromiun",
     "timeISO": "2025-08-19T15:06:40.000Z",
@@ -37,6 +85,38 @@
     "timeISO": "2025-08-19T15:09:40.000Z",
     "textPlain": "Exactly! At the same time you also don't want to call into the kernel's internal malloc() whenever a thread ends up blocking on a lock to allocate the data structures that are needed to keep track of queues of blocked threads for a given lock.To prevent that, many operating systems allocate these 'queue objects' whenever threads are created and will attach a pointer to it from the thread object. Whenever a thread then stumbles upon a contended lock, it will effectively 'donate' this queue object to that lock, meaning that every lock having one or more waiters will have a linked list of 'queue objects' attached to it. When threads are woken up, they will each take one of those objects with them on the way out. But there's no guarantee that they will get their own queue object back; they may get shuffled! So by the time a thread terminates, it will free one of those objects, but that may not necessarily be the one it created.I think the first operating system to use this method was Solaris. There they called these 'queue objects' turnstiles. The BSDs adopted the same approach, and kept the same name.https://www.oreilly.com/library/view/solaristm-internals-cor...https://www.bsdcan.org/2012/schedule/attachments/195_locking...",
     "parent": 44952071,
+    "depth": 2
+  },
+  {
+    "id": 44953022,
+    "by": "ori_b",
+    "timeISO": "2025-08-19T15:54:33.000Z",
+    "textPlain": "If you overspecify, you close the door to better implementations. This is why, for example, C++ standard hash tables and regexes are an order of magnitude slower than third party ones.The standard didn't say \"you must implement std::unordered_map as a hash table with chained buckets and extra memory allocations\", but ithe standard specified several guarantees that make it very difficult to implement hash tables with open addressing.Every constraint that you specify potentially locks out a better implementation.For recursive rwlocks, there's a lot of ways to implement them. Do you want to lock out high performance implementations that do less error checking, for example?",
+    "parent": 44952901,
+    "depth": 2
+  },
+  {
+    "id": 44953295,
+    "by": "anonymars",
+    "timeISO": "2025-08-19T16:20:12.000Z",
+    "textPlain": "More on this phenomenon: https://en.wikipedia.org/wiki/Worse_is_betterI hate it, but it's true",
+    "parent": 44952901,
+    "depth": 2
+  },
+  {
+    "id": 44953365,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-08-19T16:27:15.000Z",
+    "textPlain": "Other then avoiding a syscall on an uncontended path they are not really similar. A benaphore is just a semaphore with an atomic in user space to count waiters.You can’t really use semaphores to implement things that can’t mutexes or semaphores so the overall utility is limited compare to futexes that you can use for condvars and other primitives too.",
+    "parent": 44953241,
+    "depth": 2
+  },
+  {
+    "id": 44953202,
+    "by": "garaetjjte",
+    "timeISO": "2025-08-19T16:12:08.000Z",
+    "textPlain": "Neither CRITICAL_SECTION nor SRWLock enters the kernel when uncontended.",
+    "parent": 44952685,
     "depth": 2
   },
   {
@@ -72,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 44952847,
+    "by": "whstl",
+    "timeISO": "2025-08-19T15:39:39.000Z",
+    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
+    "parent": 44952420,
+    "depth": 2
+  },
+  {
     "id": 44952643,
     "by": "viega",
     "timeISO": "2025-08-19T15:23:39.000Z",
@@ -83,7 +171,7 @@
     "id": 44952636,
     "by": "Jtsummers",
     "timeISO": "2025-08-19T15:23:01.000Z",
-    "textPlain": "[delayed]",
+    "textPlain": "Most things can be moved into user space.https://en.wikipedia.org/wiki/Microkernel",
     "parent": 44952420,
     "depth": 2
   }

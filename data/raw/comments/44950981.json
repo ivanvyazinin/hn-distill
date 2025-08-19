@@ -1,13 +1,5 @@
 [
   {
-    "id": 44951659,
-    "by": "dc396",
-    "timeISO": "2025-08-19T14:00:53.000Z",
-    "textPlain": "I'm confused.  There are no \"special characters\" in domain names -- they're length-tagged 8-bit clean.  Hostnames (as opposed to domain names) are limited by convention to a subset of ASCII, but that shouldn't impact resolver logic.What resolvers silently discard (or do anything else weird with) requests with QNAMES that have non-hostname queries (which aren't \"malformed\")?The \"special character\" thing sounds like a red herring: IIUC, dnsmasq isn't dealing with lost responses correctly, creating a window for birthday collision attack?",
-    "parent": 44950981,
-    "depth": 1
-  },
-  {
     "id": 44951604,
     "by": "forkerenok",
     "timeISO": "2025-08-19T13:56:48.000Z",
@@ -16,10 +8,18 @@
     "depth": 1
   },
   {
-    "id": 44952430,
-    "by": "rwmj",
-    "timeISO": "2025-08-19T15:07:23.000Z",
-    "textPlain": "A bit surprising that the transaction ID is only 16 bits.  Presumably the source port doesn't even need to be guessed if someone is on the path between dnsmasq and the upstream DNS server.",
+    "id": 44951659,
+    "by": "dc396",
+    "timeISO": "2025-08-19T14:00:53.000Z",
+    "textPlain": "I'm confused.  There are no \"special characters\" in domain names -- they're length-tagged 8-bit clean.  Hostnames (as opposed to domain names) are limited by convention to a subset of ASCII, but that shouldn't impact resolver logic.What resolvers silently discard (or do anything else weird with) requests with QNAMES that have non-hostname queries (which aren't \"malformed\")?The \"special character\" thing sounds like a red herring: IIUC, dnsmasq isn't dealing with lost responses correctly, creating a window for birthday collision attack?",
+    "parent": 44950981,
+    "depth": 1
+  },
+  {
+    "id": 44953120,
+    "by": "karel-3d",
+    "timeISO": "2025-08-19T16:03:45.000Z",
+    "textPlain": "google's dns resolver 8.8.8.8 correctly resolves the \"special character\" domains btw; so if you have 8.8.8.8 as your recursive resolver in dnsmasq, this doesn't seem to be an issue.",
     "parent": 44950981,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "dzogchen",
     "timeISO": "2025-08-19T13:54:32.000Z",
     "textPlain": "Oops, accidentally posted to public mailing list?",
+    "parent": 44950981,
+    "depth": 1
+  },
+  {
+    "id": 44952430,
+    "by": "rwmj",
+    "timeISO": "2025-08-19T15:07:23.000Z",
+    "textPlain": "A bit surprising that the transaction ID is only 16 bits.  Presumably the source port doesn't even need to be guessed if someone is on the path between dnsmasq and the upstream DNS server.",
     "parent": 44950981,
     "depth": 1
   },
@@ -48,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 44953099,
+    "by": "karel-3d",
+    "timeISO": "2025-08-19T16:01:18.000Z",
+    "textPlain": "dnsmasq has no security contact",
+    "parent": 44951604,
+    "depth": 2
+  },
+  {
     "id": 44952147,
     "by": "Beretta_Vexee",
     "timeISO": "2025-08-19T14:45:24.000Z",
@@ -56,18 +72,18 @@
     "depth": 2
   },
   {
-    "id": 44952461,
-    "by": "JdeBP",
-    "timeISO": "2025-08-19T15:09:54.000Z",
-    "textPlain": "Yes.  RFC 2181 § 11 explicitly contradicts this report.That said, I should point out that there is nowadays a loophole for special-casing labels that begin with underscore, called out by the SVCB document.  The loophole does not allow for dropping the client requests, though.On the gripping hand, all that this report boils down to is a rediscovery that if the queried server does not answer immediately, there's a window for an attacker with access to the path between client and server (or at least the ability to blindly route packets into that path with forged source addresses) to inject forged responses; that the message ID and random port number system is woefully inadequate for making brute forcing hard at even late 1990s network speeds; and that most of the mitigation techniques for forgery (including the PowerDNS one called out in this report) are useless if the attacker can see the query packet go by in the first place.  The right answer is proper cryptography, not nonsense about punctuation characters that are supposedly \"malformed\".Something we have known since 2002.* https://cr.yp.to/djbdns/forgery.htmlThe DNS protocol is a terrible protocol.  This report is not some novel discovery.",
-    "parent": 44951659,
-    "depth": 2
-  },
-  {
     "id": 44951985,
     "by": "beala",
     "timeISO": "2025-08-19T14:32:22.000Z",
     "textPlain": "I think the issue is that dnsmasq will happily forward requests that contain characters outside the ASCII subset, but the upstream resolver will silently drop them after correctly determining that they're invalid. So the special characters are a way of reliably triggering the silent drop upstream. This is required because it takes many attempts for the brute force attack to succeed.",
+    "parent": 44951659,
+    "depth": 2
+  },
+  {
+    "id": 44952461,
+    "by": "JdeBP",
+    "timeISO": "2025-08-19T15:09:54.000Z",
+    "textPlain": "Yes.  RFC 2181 § 11 explicitly contradicts this report.That said, I should point out that there is nowadays a loophole for special-casing labels that begin with underscore, called out by the SVCB document.  The loophole does not allow for dropping the client requests, though.On the gripping hand, all that this report boils down to is a rediscovery that if the queried server does not answer immediately, there's a window for an attacker with access to the path between client and server (or at least the ability to blindly route packets into that path with forged source addresses) to inject forged responses; that the message ID and random port number system is woefully inadequate for making brute forcing hard at even late 1990s network speeds; and that most of the mitigation techniques for forgery (including the PowerDNS one called out in this report) are useless if the attacker can see the query packet go by in the first place.  The right answer is proper cryptography, not nonsense about punctuation characters that are supposedly \"malformed\".Something we have known since 2002.* https://cr.yp.to/djbdns/forgery.htmlThe DNS protocol is a terrible protocol.  This report is not some novel discovery.",
     "parent": 44951659,
     "depth": 2
   },
@@ -88,18 +104,18 @@
     "depth": 2
   },
   {
-    "id": 44952653,
-    "by": "dc396",
-    "timeISO": "2025-08-19T15:24:14.000Z",
-    "textPlain": "No. The special characters thing is a red herring. All resolvers must handle a lack of response via timeout (particularly since DNS mostly uses UDP).The correct mitigation is turning on DNSSEC. This sort of attack, known since 1993, is why DNSSEC was created.",
-    "parent": 44951712,
-    "depth": 2
-  },
-  {
     "id": 44952376,
     "by": "recsv-heredoc",
     "timeISO": "2025-08-19T15:02:11.000Z",
     "textPlain": "Setting your upstream to 1.1.1.1 or 8.8.8.8 should mitigate this, as these appear to respond with NXDOMAIN to invalid domains rather than fail silently which would close the window for the attack.",
+    "parent": 44951712,
+    "depth": 2
+  },
+  {
+    "id": 44952653,
+    "by": "dc396",
+    "timeISO": "2025-08-19T15:24:14.000Z",
+    "textPlain": "No. The special characters thing is a red herring. All resolvers must handle a lack of response via timeout (particularly since DNS mostly uses UDP).The correct mitigation is turning on DNSSEC. This sort of attack, known since 1993, is why DNSSEC was created.",
     "parent": 44951712,
     "depth": 2
   }
