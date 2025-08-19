@@ -1,17 +1,17 @@
 [
   {
-    "id": 44951659,
-    "by": "dc396",
-    "timeISO": "2025-08-19T14:00:53.000Z",
-    "textPlain": "I'm confused.  There are no \"special characters\" in domain names -- they're length-tagged 8-bit clean.  Hostnames (as opposed to domain names) are limited by convention to a subset of ASCII, but that shouldn't impact resolver logic.What resolvers silently discard (or do anything else weird with) requests with QNAMES that have non-hostname queries (which aren't \"malformed\")?The \"special character\" thing sounds like a red herring: IIUC, dnsmasq isn't dealing with lost responses correctly, creating a window for birthday collision attack?",
-    "parent": 44950981,
-    "depth": 1
-  },
-  {
     "id": 44955215,
     "by": "1vuio0pswjnm7",
     "timeISO": "2025-08-19T19:17:11.000Z",
     "textPlain": "Wishful thinking: OpenWRT userland can now replace dnsmasq with two separate programs.  The DHCP server, odhcpd, is already included (for DHCP6).  They just need to write the DNS software.I always disable/remove dnsmasq when I can.  Compared to the alternatives, I have never liked it.  This is at least the second major dnsmasq coding mistake that has been published in recent memory.^1  Pi-Hole was based on dnsmasq which turned me off that as well.1.https://www.jsof-tech.com/wp-content/uploads/2021/01/DNSpooq...https://www.cisa.gov/news-events/ics-advisories/icsa-21-019-...https://www.malwarebytes.com/blog/news/2021/01/dnspooq-the-b...https://web.archive.org/web/20210119133618if_/https://www.js...https://seclists.org/oss-sec/2021/q1/49Anyway, never gonna happen. Just wishful thinking.",
+    "parent": 44950981,
+    "depth": 1
+  },
+  {
+    "id": 44951659,
+    "by": "dc396",
+    "timeISO": "2025-08-19T14:00:53.000Z",
+    "textPlain": "I'm confused.  There are no \"special characters\" in domain names -- they're length-tagged 8-bit clean.  Hostnames (as opposed to domain names) are limited by convention to a subset of ASCII, but that shouldn't impact resolver logic.What resolvers silently discard (or do anything else weird with) requests with QNAMES that have non-hostname queries (which aren't \"malformed\")?The \"special character\" thing sounds like a red herring: IIUC, dnsmasq isn't dealing with lost responses correctly, creating a window for birthday collision attack?",
     "parent": 44950981,
     "depth": 1
   },
@@ -56,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 44951031,
+    "by": "westurner",
+    "timeISO": "2025-08-19T13:02:09.000Z",
+    "textPlain": "Many router firmwares have dnsmasq for DNS but may never be upgraded?There are a number of other DNS servers which are not written in C, which support transport-secured DNS like DoH (DNS-over-HTTP), DoT, and DoQ; but do they correctly handle this malformed input?From the mailing list disclosure, which doesn't yet have a CVE FWIU? https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/20... :  Dnsmasq forwards queries with special characters (e.g., ~, !, *, _) to upstream recursive resolvers.\n\n  Some upstream recursive resolvers silently discard such malformed queries (no NXDomain/ServFail response).\n\n  Dnsmasq does not validate or detect this situation, and waits silently, creating a large attack window.\n\n  During this window, attackers can brute-force TxID (16-bit) and source port (16-bit) with a high probability of success (birthday paradox effect).\n\n  Security Impact\n\n  Attackers can poison any cached domain name in Dnsmasq.\n\n[...]  We recommend adding:\n\n  Detection mechanisms when upstream resolvers remain silent.\n\n  Rate limiting and spoof-detection techniques, similar to those in PowerDNS\n\n> PowerDNS Mitigation: https://docs.powerdns.com/recursor/settings.html#spoof-nearm...  spoof-nearmiss-max",
+    "parent": 44950981,
+    "depth": 1
+  },
+  {
     "id": 44951712,
     "by": "teeray",
     "timeISO": "2025-08-19T14:05:29.000Z",
@@ -64,12 +72,28 @@
     "depth": 1
   },
   {
-    "id": 44951031,
-    "by": "westurner",
-    "timeISO": "2025-08-19T13:02:09.000Z",
-    "textPlain": "Many router firmwares have dnsmasq for DNS but may never be upgraded?There are a number of other DNS servers which are not written in C, which support transport-secured DNS like DoH (DNS-over-HTTP), DoT, and DoQ; but do they correctly handle this malformed input?From the mailing list disclosure, which doesn't yet have a CVE FWIU? https://lists.thekelleys.org.uk/pipermail/dnsmasq-discuss/20... :  Dnsmasq forwards queries with special characters (e.g., ~, !, *, _) to upstream recursive resolvers.\n\n  Some upstream recursive resolvers silently discard such malformed queries (no NXDomain/ServFail response).\n\n  Dnsmasq does not validate or detect this situation, and waits silently, creating a large attack window.\n\n  During this window, attackers can brute-force TxID (16-bit) and source port (16-bit) with a high probability of success (birthday paradox effect).\n\n  Security Impact\n\n  Attackers can poison any cached domain name in Dnsmasq.\n\n[...]  We recommend adding:\n\n  Detection mechanisms when upstream resolvers remain silent.\n\n  Rate limiting and spoof-detection techniques, similar to those in PowerDNS\n\n> PowerDNS Mitigation: https://docs.powerdns.com/recursor/settings.html#spoof-nearm...  spoof-nearmiss-max",
-    "parent": 44950981,
-    "depth": 1
+    "id": 44955513,
+    "by": "cnst",
+    "timeISO": "2025-08-19T19:43:13.000Z",
+    "textPlain": "Would OpenWrt even be vulnerable in the first place?If you're using dnsmasq behind NAT or a stateful firewall, how would an attacker be able to access the service in the first place?",
+    "parent": 44955215,
+    "depth": 2
+  },
+  {
+    "id": 44955588,
+    "by": "dc396",
+    "timeISO": "2025-08-19T19:49:36.000Z",
+    "textPlain": "While the functionality/complexity of dnsmasq makes me nervous and I use it (I don't have a use case for it), it isn't clear to me that dnsmasq is doing anything wrong in this particular case.",
+    "parent": 44955215,
+    "depth": 2
+  },
+  {
+    "id": 44955428,
+    "by": "yjftsjthsd-h",
+    "timeISO": "2025-08-19T19:36:05.000Z",
+    "textPlain": "> This is at least the second major dnsmasq coding mistake that has been published in recent memory.What was the first?",
+    "parent": 44955215,
+    "depth": 2
   },
   {
     "id": 44952147,
@@ -109,30 +133,6 @@
     "timeISO": "2025-08-19T14:30:59.000Z",
     "textPlain": "> are limited by convention to a subset of ASCII,My hostnames with emojis in them might disagree.",
     "parent": 44951659,
-    "depth": 2
-  },
-  {
-    "id": 44955588,
-    "by": "dc396",
-    "timeISO": "2025-08-19T19:49:36.000Z",
-    "textPlain": "While the functionality/complexity of dnsmasq makes me nervous and I use it (I don't have a use case for it), it isn't clear to me that dnsmasq is doing anything wrong in this particular case.",
-    "parent": 44955215,
-    "depth": 2
-  },
-  {
-    "id": 44955513,
-    "by": "cnst",
-    "timeISO": "2025-08-19T19:43:13.000Z",
-    "textPlain": "Would OpenWrt even be vulnerable in the first place?If you're using dnsmasq behind NAT or a stateful firewall, how would an attacker be able to access the service in the first place?",
-    "parent": 44955215,
-    "depth": 2
-  },
-  {
-    "id": 44955428,
-    "by": "yjftsjthsd-h",
-    "timeISO": "2025-08-19T19:36:05.000Z",
-    "textPlain": "> This is at least the second major dnsmasq coding mistake that has been published in recent memory.What was the first?",
-    "parent": 44955215,
     "depth": 2
   },
   {
