@@ -1,0 +1,8 @@
+{
+  "id": 44953575,
+  "lang": "ru",
+  "summary": "### Зачем нужен семантический слой и как собрать его на DuckDB\n\n**Когда не нужен**  \n- Один инструмент аналитики (BI, ноутбук или приложение).  \n- Метрики тривиальны: COUNT, SUM, AVG.  \n- Все агрегаты уже материализованы в таблицах.\n\n**Зачем нужен**  \n1. **Единое место определения метрик** – версионируемые YAML-файлы с бизнес-логикой, которые читают BI, ноутбуки, веб-приложения, AI.  \n2. **Кеш и безопасность** – быстрые ad-hoc-запросы без переноса данных, ролевая безопасность через API.  \n3. **Согласованность** – KPI «Выручка» описан один раз и не дублируется в каждом инструменте.\n\n**Минимальный пример**  \n- `metrics.yaml` – 30 строк: название, SQL-выражение, формат, описание.  \n- `run.py` – 40 строк на Ibis + DuckDB: читает YAML, строит запрос к 20 млн записей NYC Taxi, возвращает DataFrame или SQL.\n\n**Как работает**  \n```python\nimport ibis, yaml, duckdb\nibis.options.interactive = True\ncon = ibis.duckdb.connect(\"nyc_taxi.ddb\")\ntaxi = con.table(\"trips\")\n\nwith open(\"metrics.yaml\") as f:\n    metrics = yaml.safe_load(f)\n\nrevenue = metrics[\"total_revenue\"][\"sql\"]\nresult = con.sql(revenue).to_pandas()\n```\nYAML:\n```yaml\ntotal_revenue:\n  sql: \"SELECT SUM(fare_amount) FROM trips\"\n  format: currency\n  description: \"Общая выручка\"\n```\n\n**Итог**  \nСемантический слой решает проблему дублирования логики и ускоряет аналитику, когда данные и потребители разнообразны. Полный код – в репозитории [semantic-layer-duckdb](https://github.com/sspaeti/semantic-layer-duckdb).",
+  "inputHash": "a3379571770e861e396423d09cb5fa4b898dfbb8263b51113cf4a905cd5593b4",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-19T20:27:06.019Z"
+}
