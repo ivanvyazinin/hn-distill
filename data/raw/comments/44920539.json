@@ -1,1 +1,106 @@
-[]
+[
+  {
+    "id": 44956353,
+    "by": "Izmaki",
+    "timeISO": "2025-08-19T21:18:53.000Z",
+    "textPlain": "My favourite explanation of how Branch Prediction works: https://stackoverflow.com/a/11227902/1150676",
+    "parent": 44920539,
+    "depth": 1
+  },
+  {
+    "id": 44956093,
+    "by": "zenolijo",
+    "timeISO": "2025-08-19T20:44:59.000Z",
+    "textPlain": "I do wonder how branch prediction actually works in the CPU, predicting which branch to take also seems like it should be expensive, but I guess something clever is going on.I've also found G_LIKELY and G_UNLIKELY in glib to be useful when writing some types of performance-critical code. Would be a fun experiment to compare the assembly when using it and not using it.",
+    "parent": 44920539,
+    "depth": 1
+  },
+  {
+    "id": 44956039,
+    "by": "whitten",
+    "timeISO": "2025-08-19T20:38:12.000Z",
+    "textPlain": "I know branch prediction is essential if you have instruction pipelining in actual CPU hardware.It is an interesting thought experiment re instruction pipelining in a virtual machine or interpreter design. \nWhat would you change in a design to allow it ? \nWould an asynchronous architecture be necessary ?\nHow would you merge control flow together efficiently to take advantage of it ?",
+    "parent": 44920539,
+    "depth": 1
+  },
+  {
+    "id": 44956341,
+    "by": "moregrist",
+    "timeISO": "2025-08-19T21:17:01.000Z",
+    "textPlain": "There’s ample information out there. There are quite a few text books, blogs, and YouTube videos covering computer architecture, including branch prediction.For example:\n- Dan Luu has a nice write-up: https://danluu.com/branch-prediction/\n- Wikipedia’s page is decent: https://en.m.wikipedia.org/wiki/Branch_predictor> I've also found G_LIKELY and G_UNLIKELY in glib to be useful when writing some types of performance-critical code.A lot of the time this is a hint to the compiler on what the expected paths are so it can keep those paths linear. IIRC, this mainly helps instruction cache locality.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956376,
+    "by": "atq2119",
+    "timeISO": "2025-08-19T21:21:28.000Z",
+    "textPlain": "[delayed]",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956272,
+    "by": "hansvm",
+    "timeISO": "2025-08-19T21:07:25.000Z",
+    "textPlain": "Semantically it's just a table from instruction location to branch probability. Some nuances exist in:- Table overflow mitigation: multi-leveled tables, not wasting space on 100% predicted branches, etc- Table eviction: Rolling counts are actually impossible without space consumption; do you have space wasted, periodic flushing, exponential moving averages, etc- Table initialization: When do you start caring about a branch (and wasting table space), how conservative are the initial parameters, etc- Table overflow: What do you do when a branch doesn't fit in the table but shouldAs a rule of thumb, no extra information/context is used for branch prediction. If a program over the course of a few thousand instructions hits a branch X% of the time, then X will be the branch prediction. If you have context you want to use to influence the prediction, you need to manifest that context as additional lines of assembly the predictor can use in its lookup table.As another rule of thumb, if the hot path has more than a few thousand branches (on modern architectures, often just a few thousand <100% branches (you want the assembly to generate the jump-if-not-equal in the right direction for that architecture though, else you'll get a 100% misprediction rate instead)) then you'll hit slow paths -- multi-leveled search, mispredicted branches, etc.It's reasonably interesting, and given that it's hardware it's definitely clever, but it's not _that_ clever from a software perspective. Is there anything in particular you're curious about?",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956350,
+    "by": "pkaye",
+    "timeISO": "2025-08-19T21:18:05.000Z",
+    "textPlain": "Here is some examples of the different branch prediction algorithms.https://enesharman.medium.com/branch-prediction-algorithms-a...",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956389,
+    "by": "ip26",
+    "timeISO": "2025-08-19T21:22:24.000Z",
+    "textPlain": "It is expensive, but it’s even more expensive not to.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956335,
+    "by": "bee_rider",
+    "timeISO": "2025-08-19T21:15:54.000Z",
+    "textPlain": "Modern branch predictors are pretty sophisticated. But, it is also worth keeping in mind that you can do pretty good, for a lot of codes, by predicting simple things like “backwards jumps will probably be followed.” Because a backwards jump is probably a loop, and so jumping backwards is by far the most likely thing to do (because most loops go through more than one iteration).And a lot of programmers are willing to conspire with the hardware folks, to make sure their heuristics work out. Poor branches, never had any chances.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956307,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-08-19T21:12:45.000Z",
+    "textPlain": "> I do wonder how branch prediction actually works in the CPU, predicting which branch to take also seems like it should be expensiveThere are a few hardware algorithms that are vendor-dependent. The earliest branch predictors were two-bit saturating counters that moved between four states of 'strongly taken', 'weakly taken', 'weakly not taken', 'strongly not taken', and the state change depended on the eventual computed result of the branch.Newer branch predictors are stuff like two-level adaptive branch predictors that are a hardware `std::unordered_map` of branch instruction addresses to the above-mentioned saturating counters; this remembers the result of the last n (where n is the size of the map) branch instructions.Ryzen CPUs contain perceptron branch predictors that are basically hardware neural networks—not far from LLMs.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956293,
+    "by": "rayiner",
+    "timeISO": "2025-08-19T21:10:40.000Z",
+    "textPlain": "It’s fairly expensive but well suited to pipelined implementations in hardware circuits: https://medium.com/@himanshu0525125/global-history-branch-pr.... Modern CPU branch predictors can deliver multiple predictions per clock cycle.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956273,
+    "by": "dmoy",
+    "timeISO": "2025-08-19T21:07:44.000Z",
+    "textPlain": "There's a bunch of ways it works.  There's a tradeoff between hardware cost and accuracy.  Sometimes it's static, sometimes there's a counter of varying size (1 bit, 2 bit, etc).  It can get a lot more complicated.The basic branch predictors are very cheap, and often good enough (90%+ accuracy).Patterson & Hennessy goes into a bunch of detail.",
+    "parent": 44956093,
+    "depth": 2
+  },
+  {
+    "id": 44956380,
+    "by": "addaon",
+    "timeISO": "2025-08-19T21:21:42.000Z",
+    "textPlain": "> I know branch prediction is essential if you have instruction pipelining in actual CPU hardware.With sufficiently slow memory, relative to the pipeline speed. A microcontroller executing out of TCM doesn’t gain anything from prediction, since instruction fetches can keep up with the pipeline.",
+    "parent": 44956039,
+    "depth": 2
+  }
+]
