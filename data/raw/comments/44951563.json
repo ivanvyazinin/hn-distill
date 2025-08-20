@@ -1,9 +1,9 @@
 [
   {
-    "id": 44960790,
-    "by": "hardwaresofton",
-    "timeISO": "2025-08-20T11:15:35.000Z",
-    "textPlain": "Where does everyone browse the C standard library, posix library, and separately glibc?Is there any really nice listing/walk through these standard libraries/rustdoc like website?Does everyone just dig through header files and man pages all day?",
+    "id": 44961361,
+    "by": "pizlonator",
+    "timeISO": "2025-08-20T12:36:52.000Z",
+    "textPlain": "> Going back to the original futuex paper in 2002, it was immediately clear that the futex was a huge improvement in highly concurrent environments. Just in that original paper, their tests with 1000 parallel tasks ran 20-120 times faster than sysv locks..I think this is a misunderstanding.The baseline isn’t sysv locks. The baseline isn’t even what Linux was doing before futexes (Linux had a very immature lock implementation before futexes).The baseline is all of the ways folks implement locks if they don’t have futexes, which end up having roughly the same properties as a futex based lock:- fast path that doesn’t hit kernel for either lock or unlock- slow path that somehow makes the thread wait until the lock is available using some kernel waiting primitive.The thing futexes improve is the size of the user level data structure that is used for representing the lock in the waiting state. That’s it.And futexes aren’t the only way to get there. Alternatives:- thin locks (what JVMs use)- ParkingLot (a futex-like primitive that works entirely in userland and doesn’t require that the OS have futexes)",
     "parent": 44951563,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "Joker_vD",
     "timeISO": "2025-08-19T15:43:54.000Z",
     "textPlain": "> And in practice, behavior across common implementations [of recursive locks] is not remotely consistent. There’s a good reason why this was left undefined – it’s kind of hard.This is such a frustrating stance that most standards have, honestly. \"Well, obviously we can't expect the OS/language implementers to be able to reliably implement feature X ― let's just leave it to the application programmer to deal with; they are, after all, are expected to have great skill sets and could easily work around it\". Or rather, \"well, we can't force feature X on the people who will actually implement the standard (they are the members of this very committee, after all), but we can't trivially force the downstream users to cope with the feature's absence because seriously, what can those losers do? Switch the vendors?\".",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44960790,
+    "by": "hardwaresofton",
+    "timeISO": "2025-08-20T11:15:35.000Z",
+    "textPlain": "Where does everyone browse the C standard library, posix library, and separately glibc?Is there any really nice listing/walk through these standard libraries/rustdoc like website?Does everyone just dig through header files and man pages all day?",
     "parent": 44951563,
     "depth": 1
   },
@@ -232,6 +240,22 @@
     "depth": 2
   },
   {
+    "id": 44961317,
+    "by": "gpderetta",
+    "timeISO": "2025-08-20T12:31:47.000Z",
+    "textPlain": "cppreference [1] has also entries for the C standard library. POSIX/SuS is directly available from opengroup [2]. glibc is better browsed from local man pages, or for a more organic discussion, info pages. Searching 'man function-name' also usually works.[1] https://en.cppreference.com/w/c.html[2] https://pubs.opengroup.org/onlinepubs/9699919799.2018edition...",
+    "parent": 44960790,
+    "depth": 2
+  },
+  {
+    "id": 44960881,
+    "by": "j_seigh",
+    "timeISO": "2025-08-20T11:33:11.000Z",
+    "textPlain": "Bakery locks are good for spin locks.  They're more cache friendly.  Plus you can do reader/writer spin locks.  They're going to be strictly FIFO though.I guess  you could tack on a futex wait for the spin wait in user space but it's going to be really inefficient.  You are going to get a lot of spurious wake ups.   Not one of the things futex's are designed for.Lock-free with hazard pointers or RCU* is still kind of tricky.  It's going to be data structure specific and you really have to know what you are doing.Fun fact.  You can make hazard pointers wait-free, actual wait free, not the dubious bounded retry loop hack.* Doing copy on write with RCU is fairly straight forward but probably expensive if updates are frequent.",
+    "parent": 44956880,
+    "depth": 2
+  },
+  {
     "id": 44953202,
     "by": "garaetjjte",
     "timeISO": "2025-08-19T16:12:08.000Z",
@@ -373,30 +397,6 @@
     "timeISO": "2025-08-19T23:45:19.000Z",
     "textPlain": "\"Memory Barriers: a Hardware View for Software Hackers\"https://www.researchgate.net/publication/228824849_Memory_Ba...",
     "parent": 44953448,
-    "depth": 2
-  },
-  {
-    "id": 44953726,
-    "by": "inetknght",
-    "timeISO": "2025-08-19T17:03:16.000Z",
-    "textPlain": "tl;dr:In a multi-threaded context, memory reads and writes can be reordered by hardware. It gets more complicated with shared cache. Imagine that you have core 1 writing to some address at (nearly) the same time that core 2 reads from that. Does core 2 read the old or the new? Especially if they don't share the same cache -- core 1 might \"write\" to a given address, but it only gets written to core 1's cache and then \"scheduled\" to be written out to main memory. Meanwhile, later core 2 tries to read that address, it's not in its cache, so it pulls from main memory before core 1's cache has flushed. As far as core 2 is concerned, the write happened after it read from the address even though physically the write finished in core 1 before core 2's read instruction might have even started.A memory barrier tells the hardware to ensure that reads-before is also \"happens-before\" (or after) a given writen to the same address. It's often (but not always) a cache and memory synchronization across cores.I found Fedora Pikus's cppcon 2017 presentation [1] to be informative, and Michael Wong's 2015 presentation [0] filled in some of the gaps.C++, being a generic language for many hardware implementations, provides a lot more detailed concepts for memory ordering [2], which is important for hardwares that have more granularity in barrier types that what most people are used to with x86-derived memory models.[0]: https://www.youtube.com/watch?v=DS2m7T6NKZQ[1]: https://www.youtube.com/watch?v=ZQFzMfHIxng[2]: https://en.cppreference.com/w/cpp/atomic/memory_order.html",
-    "parent": 44953448,
-    "depth": 2
-  },
-  {
-    "id": 44960123,
-    "by": "omgtehlion",
-    "timeISO": "2025-08-20T09:09:13.000Z",
-    "textPlain": "Yes it is. In hft (or any algo trading nowadays) it is commonplace to use usermode networking since like ~2010 or even earlier.The part of NICs address space is mapped to a process (control registers and memory rings), and whole driver just runs in your process without going through the kernel. Of course, it ignores usual stuff like firewalls, iptables, etc, but who cares when all you need is the lowest latency possible )",
-    "parent": 44952420,
-    "depth": 2
-  },
-  {
-    "id": 44954120,
-    "by": "toast0",
-    "timeISO": "2025-08-19T17:38:21.000Z",
-    "textPlain": "Piling on with others; it's avoiding the context switching and copying between user and kernel that improves performance.If you can stay in user space, or stay in kernel space, that is likely to be better performance than going back and forth.This is why sendfile is great; rather than storage -> kernel memory -> user memory  -> kernel memory -> network, you get storage -> kernel memory -> network. That's two less copies, and fewer context switches.",
-    "parent": 44952420,
     "depth": 2
   }
 ]
