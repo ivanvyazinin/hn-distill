@@ -1,6 +1,9 @@
-// utils/date-keys.ts
-export const toDateKeyUTC = (iso: string): string =>
-  typeof iso === "string" && iso.length >= 10 ? iso.slice(0, 10) : "0000-00-00";
+export const toDateKeyUTC = (iso: string): string => {
+  if (typeof iso !== "string" || iso.length < 10) {
+    return "0000-00-00";
+  }
+  return iso.slice(0, 10);
+};
 
 export function addDaysUTC(dateKey: string, days: number): string {
   const parts = dateKey.split("-").map((n) => Number.parseInt(n, 10));
