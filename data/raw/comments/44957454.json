@@ -240,6 +240,14 @@
     "depth": 1
   },
   {
+    "id": 44961606,
+    "by": "awirth",
+    "timeISO": "2025-08-20T13:07:50.000Z",
+    "textPlain": "What you're describing is a specific case of a confused deputy problem: https://en.wikipedia.org/wiki/Confused_deputy_problemThis is captured in the OWASP LLM Top 10 \"LLM02:2025 Sensitive Information Disclosure\" risk: https://genai.owasp.org/llmrisk/llm022025-sensitive-informat... although in some cases the \"LLM06:2025 Excessive Agency\" risk is also applicable.I believe that some enterprise RAG solutions create a per user index to solve this problem when there are lots of complex ACLs involved. How vendors manage this problem is an important question to ask when analyzing RAG solutions.At my current company at least we call this \"権限混同\" in Japanese - Literally \"authorization confusion\" which I think is a more fun name",
+    "parent": 44959726,
+    "depth": 2
+  },
+  {
     "id": 44959948,
     "by": "krisoft",
     "timeISO": "2025-08-20T08:38:45.000Z",
@@ -252,6 +260,14 @@
     "by": "carschno",
     "timeISO": "2025-08-20T08:25:28.000Z",
     "textPlain": "> I am having a really hard time communicating this problem to executivesWhen you hit such a wall, you might not be failing to communicate, nor them failing to understand. In reality, said executives have probably chosen to ignore the issue, but also don't want to take accountability for the eventual leaks. So \"not understanding\" is the easiest way to blame the engineers later.",
+    "parent": 44959726,
+    "depth": 2
+  },
+  {
+    "id": 44961561,
+    "by": "giamma",
+    "timeISO": "2025-08-20T13:02:08.000Z",
+    "textPlain": "I believe most vector databases allow you to annotate vectors with additional metadata. Why not simply add as metadata the list of principals (roles/groups) who have access to the information (e.g. HR, executives) ? Then when a user makes a request to the chatbot, you expand the user identity to his/her principals (e.g. HR) and use those as implicit filtering criteria for finding the closest vectors in the database.In this way you exclude up-front the documents that the current user cannot see.Of course, this requires you to update the vector metadata any time the permissions change at the document level (e.g. a given document originally visible only to HR is now also visibile to executives -> you need to add the principal executives to the metadata of the vector resulting from the document in your vector database)",
     "parent": 44959726,
     "depth": 2
   },
@@ -280,6 +296,14 @@
     "depth": 2
   },
   {
+    "id": 44960966,
+    "by": "smarx007",
+    "timeISO": "2025-08-20T11:44:59.000Z",
+    "textPlain": "Two points/questions:1. Why is tracking access rights \"on a per user basis or [...] along with the content\" is not feasible? A few mentions: Google Zanzibar (+Ory Keto as OSS impl) - makes authz for content othoronal to apps (i.e. possible to have it in one place, s.t. both Jira and a Jira MCP server can use the same API to check authz - possible to have a 100% faithful authz logic in the MCP server), Eclipse Biscuit (as far as I understand, this is a Dassault's attempt to make JWTs on steroids by adding Datalog and attenuation to the tokens, going in the Zanzibar direction but not requiring a network call for every single check), Apache Accumulo (DBMS with a cell-level security) and others. The way I see it, the tech is there but so far, not enough attention has been put on the problem of a high-fidelity authz throughout the enterprise on a granular level.2. What is the scale needed? Enterprises with more than 10000 employees are quite rare, many individual internal IT systems even in large companies have less than 100 regular users. At these levels of scale, a lot more approaches are feasible that would not be considered possible at Google scale (i.e. more expensive algorithms w.r.t. big-O are viable).",
+    "parent": 44959726,
+    "depth": 2
+  },
+  {
     "id": 44959913,
     "by": "gloosx",
     "timeISO": "2025-08-20T08:30:57.000Z",
@@ -292,14 +316,6 @@
     "by": "cryptonym",
     "timeISO": "2025-08-20T08:19:16.000Z",
     "textPlain": "True, per user doesn't scale.Knowledge should be properly grouped and have rights on database, documents, and chatbot managed by groups. For instance specific user can use the Engineering chatbot but not the Finance one. If you fail to define these groups, feels like you don't have a solid strategy. In the end, if that's what they want, let them experience open knowledge.",
-    "parent": 44959726,
-    "depth": 2
-  },
-  {
-    "id": 44960966,
-    "by": "smarx007",
-    "timeISO": "2025-08-20T11:44:59.000Z",
-    "textPlain": "Two points/questions:1. Why is tracking access rights \"on a per user basis or [...] along with the content\" is not feasible? A few mentions: Google Zanzibar (+Ory Keto as OSS impl) - makes authz for content othoronal to apps (i.e. possible to have it in one place, s.t. both Jira and a Jira MCP server can use the same API to check authz - possible to have a 100% faithful authz logic in the MCP server), Eclipse Biscuit (as far as I understand, this is a Dassault's attempt to make JWTs on steroids by adding Datalog and attenuation to the tokens, going in the Zanzibar direction but not requiring a network call for every single check), Apache Accumulo (DBMS with a cell-level security) and others. The way I see it, the tech is there but so far, not enough attention has been put on the problem of a high-fidelity authz throughout the enterprise on a granular level.2. What is the scale needed? Enterprises with more than 10000 employees are quite rare, many individual internal IT systems even in large companies have less than 100 regular users. At these levels of scale, a lot more approaches are feasible that would not be considered possible at Google scale (i.e. more expensive algorithms w.r.t. big-O are viable).",
     "parent": 44959726,
     "depth": 2
   },
@@ -381,22 +397,6 @@
     "timeISO": "2025-08-20T07:32:55.000Z",
     "textPlain": "Even better, _ALL USEFUL_ AI retrival systems are insecure by design, because all those RAG vectors that sells vector-databases? That's basically your documents lossily encoded.",
     "parent": 44957823,
-    "depth": 2
-  },
-  {
-    "id": 44957833,
-    "by": "rst",
-    "timeISO": "2025-08-20T01:22:15.000Z",
-    "textPlain": "It already is fixed -- the complaint is that customers haven't been notified.",
-    "parent": 44957823,
-    "depth": 2
-  },
-  {
-    "id": 44959359,
-    "by": "dathinab",
-    "timeISO": "2025-08-20T06:56:47.000Z",
-    "textPlain": "MicrosoftCVE track security incidents/vulnerabilitiesjust because you can emergency patch it out of band does not make it not an incidentbut it falls under a trend of Microsoft acting increasingly negligent/non trusteable when it comes to security, especially when it comes to clear reporting about incidents.Which when it comes to a provider of fundamental components like an OS or Claude is as important as getting security right.",
-    "parent": 44958490,
     "depth": 2
   }
 ]
