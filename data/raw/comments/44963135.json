@@ -1,9 +1,9 @@
 [
   {
-    "id": 44966587,
-    "by": "fancyfredbot",
-    "timeISO": "2025-08-20T21:18:30.000Z",
-    "textPlain": "This is a good idea. Do you use a cost model for the search or are you actually executing kernels? What kind of heuristics do you use to avoid search space becoming intractabl",
+    "id": 44963735,
+    "by": "Alifatisk",
+    "timeISO": "2025-08-20T17:05:31.000Z",
+    "textPlain": "So wait, am I understanding this correctly?Instead of applying just predetermined optimization rules or patterns, the compiler formulates the problem as searching through many possible configurations or versions of the code. Each possible version can have different arrangements, tiling sizes, thread block configurations, memory access patterns, and instruction sequences, right?And from my understanding, the “search space” is just a collection of all potential versions of the code (kernels) that the compiler can generate from the original input. So for example, the space might include- Different ways to partition workloads among GPU threads and blocks- Varying memory access strategies (using shared memory, global memory)- Various instruction-level optimizations or reordering- Alternative loop unroll factors or vectorization strategiesThe compiler then programmatically produces a large number of candidate kernels by combining different optimizations and configurations. Among these millions of candidates, the compiler tries to find the one that performs best.In that case, can the compiler print out which gpu configuration works the best for that computer? And will that configuration be applicable to all computers with the same setup?This is such an interesting technique.",
     "parent": 44963135,
     "depth": 1
   },
@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 44963735,
-    "by": "Alifatisk",
-    "timeISO": "2025-08-20T17:05:31.000Z",
-    "textPlain": "So wait, am I understanding this correctly?Instead of applying just predetermined optimization rules or patterns, the compiler formulates the problem as searching through many possible configurations or versions of the code. Each possible version can have different arrangements, tiling sizes, thread block configurations, memory access patterns, and instruction sequences, right?And from my understanding, the “search space” is just a collection of all potential versions of the code (kernels) that the compiler can generate from the original input. So for example, the space might include- Different ways to partition workloads among GPU threads and blocks- Varying memory access strategies (using shared memory, global memory)- Various instruction-level optimizations or reordering- Alternative loop unroll factors or vectorization strategiesThe compiler then programmatically produces a large number of candidate kernels by combining different optimizations and configurations. Among these millions of candidates, the compiler tries to find the one that performs best.In that case, can the compiler print out which gpu configuration works the best for that computer? And will that configuration be applicable to all computers with the same setup?This is such an interesting technique.",
+    "id": 44966968,
+    "by": "GregarianChild",
+    "timeISO": "2025-08-20T21:59:43.000Z",
+    "textPlain": "How is this different from superoptimisation?Also, how do you ensure that newly generated kernels are correct w.r.t. the original naive kernel that you use as specification?",
     "parent": 44963135,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "diggan",
     "timeISO": "2025-08-20T17:00:26.000Z",
     "textPlain": "> Luminal can run Q8 Llama 3 8B on M-series Macbooks at 15-25 tokens per second. The goal is to become the fastest ML framework for any model on any device.Great that some numbers are provided, but in isolation, I'm not sure what they provide. It would be helpful to also share what tok/s you'd get with llama.cpp or something else on the same hardware, so we can actually understand if it's faster or not :) Also including the prompt processing would be a bonus!",
+    "parent": 44963135,
+    "depth": 1
+  },
+  {
+    "id": 44966587,
+    "by": "fancyfredbot",
+    "timeISO": "2025-08-20T21:18:30.000Z",
+    "textPlain": "This is a good idea. Do you use a cost model for the search or are you actually executing kernels? What kind of heuristics do you use to avoid search space becoming intractabl",
     "parent": 44963135,
     "depth": 1
   },
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 44964643,
+    "by": "efnx",
+    "timeISO": "2025-08-20T18:23:01.000Z",
+    "textPlain": "Cool! How is this project different from the tuning process in TVM?",
+    "parent": 44963135,
+    "depth": 1
+  },
+  {
     "id": 44964139,
     "by": "dvdplm",
     "timeISO": "2025-08-20T17:40:21.000Z",
@@ -72,20 +88,12 @@
     "depth": 1
   },
   {
-    "id": 44964643,
-    "by": "efnx",
-    "timeISO": "2025-08-20T18:23:01.000Z",
-    "textPlain": "Cool! How is this project different from the tuning process in TVM?",
+    "id": 44966735,
+    "by": "fairestvalue",
+    "timeISO": "2025-08-20T21:34:41.000Z",
+    "textPlain": "how do you differ from tinygrad?",
     "parent": 44963135,
     "depth": 1
-  },
-  {
-    "id": 44966473,
-    "by": "jafioti",
-    "timeISO": "2025-08-20T21:06:19.000Z",
-    "textPlain": "we're just optimizing linear algebra, which is mostly made up of patterns of simple ops. for instance, matmul is just broadcasted multiply -> sum reduce.the search does common subexpression elimination by default. if two patterns are unioned in the search space, it applies that union to every occurrence of that pattern at the same time, so using e-graphs it helps keep the search space smaller.",
-    "parent": 44966443,
-    "depth": 2
   },
   {
     "id": 44964017,
@@ -96,11 +104,43 @@
     "depth": 2
   },
   {
+    "id": 44966473,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T21:06:19.000Z",
+    "textPlain": "we're just optimizing linear algebra, which is mostly made up of patterns of simple ops. for instance, matmul is just broadcasted multiply -> sum reduce.the search does common subexpression elimination by default. if two patterns are unioned in the search space, it applies that union to every occurrence of that pattern at the same time, so using e-graphs it helps keep the search space smaller.",
+    "parent": 44966443,
+    "depth": 2
+  },
+  {
+    "id": 44967104,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T22:15:42.000Z",
+    "textPlain": "very similar to superoptimisation, but most superoptimisers try to tackle turing-complete code. by just doing a very limited space of computation (linear algebra with 12 primitive ops) the search remains tractable.the search space is designed to remain logically equivalent at all times, by virtue of how its built (applying rewrite rules we know dont change the logical equivalence).",
+    "parent": 44966968,
+    "depth": 2
+  },
+  {
     "id": 44964079,
     "by": "jafioti",
     "timeISO": "2025-08-20T17:36:40.000Z",
     "textPlain": "a lot of the search is still being optimized so we don't match super hand-optimized kernels like llama.cpp has, so we def don't match their tps yet, but i want to make a perf tracking page to see improvements over time and prevent regressions",
     "parent": 44963683,
+    "depth": 2
+  },
+  {
+    "id": 44967143,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T22:20:05.000Z",
+    "textPlain": "we're working on techniques like mcts and RL (e.g. AlphaGo) to manage the search space, but you'd be suprised how far you can get if you carefully design the search space to prevent explosions.",
+    "parent": 44966587,
+    "depth": 2
+  },
+  {
+    "id": 44966721,
+    "by": "matthewjgunton",
+    "timeISO": "2025-08-20T21:32:47.000Z",
+    "textPlain": "our cost function right now is just the latency of the kernel. we execute on the hardware as is it really the only accurate way to see how fast the kernel will run",
+    "parent": 44966587,
     "depth": 2
   },
   {
@@ -128,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 44965132,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T19:04:37.000Z",
+    "textPlain": "basically autotuning on steroids. instead of searching single dimensions of optimization (tile sizing, etc.) we search through full algebraic rewrites (like rewriting softmax to online softmax) and various loop / tiling structures in the same unified search space.",
+    "parent": 44964643,
+    "depth": 2
+  },
+  {
     "id": 44964228,
     "by": "jafioti",
     "timeISO": "2025-08-20T17:47:01.000Z",
@@ -141,14 +189,6 @@
     "timeISO": "2025-08-20T19:00:07.000Z",
     "textPlain": "Yup. We are totally hardware agnostic",
     "parent": 44964549,
-    "depth": 2
-  },
-  {
-    "id": 44965132,
-    "by": "jafioti",
-    "timeISO": "2025-08-20T19:04:37.000Z",
-    "textPlain": "basically autotuning on steroids. instead of searching single dimensions of optimization (tile sizing, etc.) we search through full algebraic rewrites (like rewriting softmax to online softmax) and various loop / tiling structures in the same unified search space.",
-    "parent": 44964643,
     "depth": 2
   }
 ]
