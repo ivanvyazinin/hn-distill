@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 44966443,
-    "by": "helltone",
-    "timeISO": "2025-08-20T21:03:18.000Z",
-    "textPlain": "I have a background in program analysis, but I'm less familiar with the kind of kernels you are optimising.- Can you give some more insight on why 12 ops suffice for representing your input program?- With such a small number of ops, isn't your search space full of repeat patterns? I understand the will to have no predefined heuristics, but it seems that learning some heuristics/patterns would massively help reduce the space.",
+    "id": 44967364,
+    "by": "giacomoforte",
+    "timeISO": "2025-08-20T22:54:55.000Z",
+    "textPlain": "Hey, I have been following your project for a while, because I'm kinda interested in progam synthesis. Anyway my question is, how scaleable is the search process itself? Is it a good fit for GPU clusters? I guess benchmarking of candidate kernels takes much longer than generating candidate kernels, or not?",
     "parent": 44963135,
     "depth": 1
   },
   {
-    "id": 44966968,
-    "by": "GregarianChild",
-    "timeISO": "2025-08-20T21:59:43.000Z",
-    "textPlain": "How is this different from superoptimisation?Also, how do you ensure that newly generated kernels are correct w.r.t. the original naive kernel that you use as specification?",
+    "id": 44967293,
+    "by": "cedws",
+    "timeISO": "2025-08-20T22:44:25.000Z",
+    "textPlain": "Around the time DeepSeek R2 released there was chatter about how DeepSeek had had an “undocumented” PTX instruction to squeeze as much performance as possible from their hardware. My understanding is that it wasn’t any kind of secret instruction but just a novel way that they put the instruction together.Would Luminal be capable of rediscovering this trick?",
     "parent": 44963135,
     "depth": 1
   },
@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 44966587,
-    "by": "fancyfredbot",
-    "timeISO": "2025-08-20T21:18:30.000Z",
-    "textPlain": "This is a good idea. Do you use a cost model for the search or are you actually executing kernels? What kind of heuristics do you use to avoid search space becoming intractabl",
+    "id": 44966443,
+    "by": "helltone",
+    "timeISO": "2025-08-20T21:03:18.000Z",
+    "textPlain": "I have a background in program analysis, but I'm less familiar with the kind of kernels you are optimising.- Can you give some more insight on why 12 ops suffice for representing your input program?- With such a small number of ops, isn't your search space full of repeat patterns? I understand the will to have no predefined heuristics, but it seems that learning some heuristics/patterns would massively help reduce the space.",
     "parent": 44963135,
     "depth": 1
   },
@@ -48,6 +48,22 @@
     "depth": 1
   },
   {
+    "id": 44964811,
+    "by": "sakras",
+    "timeISO": "2025-08-20T18:38:13.000Z",
+    "textPlain": "I see you guys are using Egg/Egglog! I've been mildly interested in egraphs for quite a while, glad to see they're gaining traction!",
+    "parent": 44963135,
+    "depth": 1
+  },
+  {
+    "id": 44966587,
+    "by": "fancyfredbot",
+    "timeISO": "2025-08-20T21:18:30.000Z",
+    "textPlain": "This is a good idea. Do you use a cost model for the search or are you actually executing kernels? What kind of heuristics do you use to avoid search space becoming intractabl",
+    "parent": 44963135,
+    "depth": 1
+  },
+  {
     "id": 44963627,
     "by": "AkashKarnatak",
     "timeISO": "2025-08-20T16:55:49.000Z",
@@ -56,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 44964811,
-    "by": "sakras",
-    "timeISO": "2025-08-20T18:38:13.000Z",
-    "textPlain": "I see you guys are using Egg/Egglog! I've been mildly interested in egraphs for quite a while, glad to see they're gaining traction!",
+    "id": 44966968,
+    "by": "GregarianChild",
+    "timeISO": "2025-08-20T21:59:43.000Z",
+    "textPlain": "How is this different from superoptimisation?Also, how do you ensure that newly generated kernels are correct w.r.t. the original naive kernel that you use as specification?",
     "parent": 44963135,
     "depth": 1
   },
@@ -96,11 +112,35 @@
     "depth": 1
   },
   {
+    "id": 44967179,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T22:24:09.000Z",
+    "textPlain": "yup! we build a search space by iteratively applying rewrite rules in every possible order (using e-graphs to do this efficiently). the rewrites alter stuff like looping / tiling structures, as well as algebraic rewrites like softmax to online softmax (and then flash attention).yes optimized kernels for one system will work on other systems with the same hardware. its fine to take a long time compiling if you just compile once and run a lot.",
+    "parent": 44963735,
+    "depth": 2
+  },
+  {
     "id": 44964017,
     "by": "jakestevens2",
     "timeISO": "2025-08-20T17:31:21.000Z",
     "textPlain": "Your description is exactly right. We create a search space of all possible kernels and find the best ones based on runtime. The best heuristic is no heuristic.This obviously creates a combinatorial problem that we mitigate with smarter search.The kernels are run on the computer the compiler is running on. Since runtime is our gold standard it will search for the best configuration for your hardware target. As long as the setup is mostly the same, the optimizations should carry over, yes.",
     "parent": 44963735,
+    "depth": 2
+  },
+  {
+    "id": 44967309,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T22:47:17.000Z",
+    "textPlain": "hopefully! i dont know the exact trick they used, but the idea is to design the search space such that that trick is discoverable.",
+    "parent": 44967293,
+    "depth": 2
+  },
+  {
+    "id": 44964079,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T17:36:40.000Z",
+    "textPlain": "a lot of the search is still being optimized so we don't match super hand-optimized kernels like llama.cpp has, so we def don't match their tps yet, but i want to make a perf tracking page to see improvements over time and prevent regressions",
+    "parent": 44963683,
     "depth": 2
   },
   {
@@ -112,19 +152,19 @@
     "depth": 2
   },
   {
-    "id": 44967104,
+    "id": 44964118,
     "by": "jafioti",
-    "timeISO": "2025-08-20T22:15:42.000Z",
-    "textPlain": "very similar to superoptimisation, but most superoptimisers try to tackle turing-complete code. by just doing a very limited space of computation (linear algebra with 12 primitive ops) the search remains tractable.the search space is designed to remain logically equivalent at all times, by virtue of how its built (applying rewrite rules we know dont change the logical equivalence).",
-    "parent": 44966968,
+    "timeISO": "2025-08-20T17:38:59.000Z",
+    "textPlain": "yep! currently we're emitting cuda / metal but once the search is better, i want to directly emit ptx / low-level asm on other hardwares.",
+    "parent": 44963921,
     "depth": 2
   },
   {
-    "id": 44964079,
-    "by": "jafioti",
-    "timeISO": "2025-08-20T17:36:40.000Z",
-    "textPlain": "a lot of the search is still being optimized so we don't match super hand-optimized kernels like llama.cpp has, so we def don't match their tps yet, but i want to make a perf tracking page to see improvements over time and prevent regressions",
-    "parent": 44963683,
+    "id": 44966479,
+    "by": "PoignardAzur",
+    "timeISO": "2025-08-20T21:06:31.000Z",
+    "textPlain": "Right, my first thought when reading the blurb was \"kinda sounds like e-graphs?\"",
+    "parent": 44964811,
     "depth": 2
   },
   {
@@ -144,14 +184,6 @@
     "depth": 2
   },
   {
-    "id": 44964118,
-    "by": "jafioti",
-    "timeISO": "2025-08-20T17:38:59.000Z",
-    "textPlain": "yep! currently we're emitting cuda / metal but once the search is better, i want to directly emit ptx / low-level asm on other hardwares.",
-    "parent": 44963921,
-    "depth": 2
-  },
-  {
     "id": 44963674,
     "by": "jafioti",
     "timeISO": "2025-08-20T16:59:49.000Z",
@@ -160,11 +192,11 @@
     "depth": 2
   },
   {
-    "id": 44966479,
-    "by": "PoignardAzur",
-    "timeISO": "2025-08-20T21:06:31.000Z",
-    "textPlain": "Right, my first thought when reading the blurb was \"kinda sounds like e-graphs?\"",
-    "parent": 44964811,
+    "id": 44967104,
+    "by": "jafioti",
+    "timeISO": "2025-08-20T22:15:42.000Z",
+    "textPlain": "very similar to superoptimisation, but most superoptimisers try to tackle turing-complete code. by just doing a very limited space of computation (linear algebra with 12 primitive ops) the search remains tractable.the search space is designed to remain logically equivalent at all times, by virtue of how its built (applying rewrite rules we know dont change the logical equivalence).",
+    "parent": 44966968,
     "depth": 2
   },
   {
