@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 44952901,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-19T15:43:54.000Z",
+    "textPlain": "> And in practice, behavior across common implementations [of recursive locks] is not remotely consistent. There’s a good reason why this was left undefined – it’s kind of hard.This is such a frustrating stance that most standards have, honestly. \"Well, obviously we can't expect the OS/language implementers to be able to reliably implement feature X ― let's just leave it to the application programmer to deal with; they are, after all, are expected to have great skill sets and could easily work around it\". Or rather, \"well, we can't force feature X on the people who will actually implement the standard (they are the members of this very committee, after all), but we can't trivially force the downstream users to cope with the feature's absence because seriously, what can those losers do? Switch the vendors?\".",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
     "id": 44956880,
     "by": "senderista",
     "timeISO": "2025-08-19T22:34:24.000Z",
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 44952901,
-    "by": "Joker_vD",
-    "timeISO": "2025-08-19T15:43:54.000Z",
-    "textPlain": "> And in practice, behavior across common implementations [of recursive locks] is not remotely consistent. There’s a good reason why this was left undefined – it’s kind of hard.This is such a frustrating stance that most standards have, honestly. \"Well, obviously we can't expect the OS/language implementers to be able to reliably implement feature X ― let's just leave it to the application programmer to deal with; they are, after all, are expected to have great skill sets and could easily work around it\". Or rather, \"well, we can't force feature X on the people who will actually implement the standard (they are the members of this very committee, after all), but we can't trivially force the downstream users to cope with the feature's absence because seriously, what can those losers do? Switch the vendors?\".",
+    "id": 44957366,
+    "by": "sn9",
+    "timeISO": "2025-08-19T23:59:32.000Z",
+    "textPlain": "Mara Bos' Rust Atomics and Locks has a section on futexes [0].[0] https://marabos.nl/atomics/os-primitives.html#linux",
     "parent": 44951563,
     "depth": 1
   },
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 44953922,
-    "by": "f1shy",
-    "timeISO": "2025-08-19T17:20:58.000Z",
-    "textPlain": "I’m right now working with this topic, so vey happy to find it here. The only problem: I like to read with the phone horizontally. If you do that the 2025 footer takes 45% of screen… I mias plain HTML so much!",
-    "parent": 44951563,
-    "depth": 1
-  },
-  {
     "id": 44952671,
     "by": "wizerno",
     "timeISO": "2025-08-19T15:25:42.000Z",
     "textPlain": "Another great read on futexes is Ulrich Drepper’s paper \"Futexes Are Tricky\" [1].[1] https://cis.temple.edu/~giorgio/cis307/readings/futex.pdf",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44953922,
+    "by": "f1shy",
+    "timeISO": "2025-08-19T17:20:58.000Z",
+    "textPlain": "I’m right now working with this topic, so vey happy to find it here. The only problem: I like to read with the phone horizontally. If you do that the 2025 footer takes 45% of screen… I mias plain HTML so much!",
     "parent": 44951563,
     "depth": 1
   },
@@ -144,18 +152,18 @@
     "depth": 2
   },
   {
-    "id": 44955776,
-    "by": "the8472",
-    "timeISO": "2025-08-19T20:11:37.000Z",
-    "textPlain": "But still no futex_swap[0][1][0] https://lore.kernel.org/all/414e292195d720c780fab2781c749df3...\n[1] https://blog.linuxplumbersconf.org/2013/ocw/system/presentat...",
-    "parent": 44953135,
-    "depth": 2
-  },
-  {
     "id": 44953441,
     "by": "gpderetta",
     "timeISO": "2025-08-19T16:34:07.000Z",
     "textPlain": "Futex has nothing to do with WFMO. Futex is equivalent to keyed events.The linux equivalent of WFMO is select/poll/epoll.",
+    "parent": 44953135,
+    "depth": 2
+  },
+  {
+    "id": 44955776,
+    "by": "the8472",
+    "timeISO": "2025-08-19T20:11:37.000Z",
+    "textPlain": "But still no futex_swap[0][1][0] https://lore.kernel.org/all/414e292195d720c780fab2781c749df3...\n[1] https://blog.linuxplumbersconf.org/2013/ocw/system/presentat...",
     "parent": 44953135,
     "depth": 2
   },
@@ -216,18 +224,18 @@
     "depth": 2
   },
   {
-    "id": 44957112,
-    "by": "senderista",
-    "timeISO": "2025-08-19T23:12:12.000Z",
-    "textPlain": "If you're using futexes across processes (or any other cross-process state), one generic approach is for a watchdog process to keep a SOCK_STREAM or SOCK_SEQPACKET Unix domain socket open for each process so it can reliably detect when a process crashes and clean up its per-process state.",
-    "parent": 44953444,
-    "depth": 2
-  },
-  {
     "id": 44953519,
     "by": "inetknght",
     "timeISO": "2025-08-19T16:42:56.000Z",
     "textPlain": "> You can register list of held futexes with the kernel using sys_set_robust_list, and when the thread dies kernel for each entry will set a specific bit and wake waiter if there's one.My biggest worry with that kind of thing is that the lock was guarding something which is now in an inconsistent state.Without thoroughly understanding how/why the particular thread crashed, there's no guarantee that the data is in any sort of valid or recoverable state. In that case, crashing the whole app is absolutely a better thing to do.It's really cool that the capabilities exist to do cleanup/recovery after a single thread crashed. But I think (off-the-cuff guess) that 95% of engineers won't know how to properly utilize robust locks with robust data structures, 4% won't have the time to engineer (including documentation) that kind of solution, and the last 1% are really really well-paid (or, should be) and would find better ways to prevent the crash from happening in the first place.",
+    "parent": 44953444,
+    "depth": 2
+  },
+  {
+    "id": 44957112,
+    "by": "senderista",
+    "timeISO": "2025-08-19T23:12:12.000Z",
+    "textPlain": "If you're using futexes across processes (or any other cross-process state), one generic approach is for a watchdog process to keep a SOCK_STREAM or SOCK_SEQPACKET Unix domain socket open for each process so it can reliably detect when a process crashes and clean up its per-process state.",
     "parent": 44953444,
     "depth": 2
   },
@@ -328,6 +336,14 @@
     "depth": 2
   },
   {
+    "id": 44956296,
+    "by": "bonzini",
+    "timeISO": "2025-08-19T21:11:31.000Z",
+    "textPlain": "Shameless plug: https://lwn.net/Articles/844224/ is  in my opinion exactly the parts that are missing from the book that the author criticizes. I focus on how threads synchronize, independent of the actual primitives you use, and then explain how that synchronization is usually realized.",
+    "parent": 44953448,
+    "depth": 2
+  },
+  {
     "id": 44953762,
     "by": "junon",
     "timeISO": "2025-08-19T17:06:32.000Z",
@@ -336,10 +352,10 @@
     "depth": 2
   },
   {
-    "id": 44956296,
-    "by": "bonzini",
-    "timeISO": "2025-08-19T21:11:31.000Z",
-    "textPlain": "Shameless plug: https://lwn.net/Articles/844224/ is  in my opinion exactly the parts that are missing from the book that the author criticizes. I focus on how threads synchronize, independent of the actual primitives you use, and then explain how that synchronization is usually realized.",
+    "id": 44957308,
+    "by": "senderista",
+    "timeISO": "2025-08-19T23:45:19.000Z",
+    "textPlain": "\"Memory Barriers: a Hardware View for Software Hackers\"https://www.researchgate.net/publication/228824849_Memory_Ba...",
     "parent": 44953448,
     "depth": 2
   },
@@ -360,14 +376,6 @@
     "depth": 2
   },
   {
-    "id": 44952847,
-    "by": "whstl",
-    "timeISO": "2025-08-19T15:39:39.000Z",
-    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
-    "parent": 44952420,
-    "depth": 2
-  },
-  {
     "id": 44952636,
     "by": "Jtsummers",
     "timeISO": "2025-08-19T15:23:01.000Z",
@@ -376,18 +384,18 @@
     "depth": 2
   },
   {
-    "id": 44952643,
-    "by": "viega",
-    "timeISO": "2025-08-19T15:23:39.000Z",
-    "textPlain": "It depends on the relative cost of what you're doing of course, but in general, yes, the cost of entering the kernel can be impactful, if you are making a lot of calls into it, since a lot of work has to happen every time.There are definitely user-land TCP/IP implementations, thread implementations (Go's being particularly notable) and even file systems (FUSE).",
+    "id": 44957320,
+    "by": "senderista",
+    "timeISO": "2025-08-19T23:46:49.000Z",
+    "textPlain": "Futexes can be moved into user space!https://webkit.org/blog/6161/locking-in-webkit/",
     "parent": 44952420,
     "depth": 2
   },
   {
-    "id": 44955850,
-    "by": "the8472",
-    "timeISO": "2025-08-19T20:17:49.000Z",
-    "textPlain": "io_uring alleviates a lot of those problems by essentially providing a batched, asynchronous syscall API, including futex calls, as mentioned in other comments.",
+    "id": 44952847,
+    "by": "whstl",
+    "timeISO": "2025-08-19T15:39:39.000Z",
+    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
     "parent": 44952420,
     "depth": 2
   }
