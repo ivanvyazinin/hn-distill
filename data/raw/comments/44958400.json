@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 44963758,
+    "by": "bluGill",
+    "timeISO": "2025-08-20T17:07:55.000Z",
+    "textPlain": "I disagree.  CI and build systems have different responsibilities and so should be different systems.  Both are extremely complex because they have to deal with the complex real world.Many people have the idea they can make things simpler.  Which is really easy because the basic problems are not that hard.  Them someone needs \"just one more small feature\" which seems easy enough and it is - but the combination of everyone's small feature is complex.Both systems end up having full programming languages because someone really needs that complexity for something weird - likely someone in your project. However don't abuse that power. 99% of what you need from both should be done in a declarative style that lets the system work and is simple.  Just because you can do CI in the build system, or the build system's job with the CI system doesn't mean you should.  Make sure you separate them.You CI system should be a small set of entry points.  \"./do everything\" should be your default.  But maybe you need a \"build\", then \"test part-a\" and \"test part-b\" as separate.  However those are all entry points that your CI system calls to your build system and they are things you can do locally.  Can do locally doesn't mean you do - most of the time locally you should be an incremental build.  Nothing should be allowed past CI without doing a full build from scratch just to make sure that works (this isn't saying your CI shouldn't do incremental builds for speed - just that it needs to do full rebuilds as well, and if full rebuild breaks you stop everyone until the full rebuild is fixed).",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
     "id": 44961044,
     "by": "sluongng",
     "timeISO": "2025-08-20T11:59:08.000Z",
@@ -24,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 44963285,
-    "by": "jcelerier",
-    "timeISO": "2025-08-20T16:19:19.000Z",
-    "textPlain": "> GitLab Pipelines is a lot better. GitLab Pipelines supports features like parent-child pipelines (dependencies between different pipelines), multi-project pipelines (dependencies between different projects/repos), and dynamic child pipelines (generate YAML files in pipeline job that defines a new pipeline). (I don't believe GitHub Actions supports any of these features.)I believe github actions does all of this? I use the first two features",
-    "parent": 44958400,
-    "depth": 1
-  },
-  {
     "id": 44961978,
     "by": "pointlessone",
     "timeISO": "2025-08-20T13:54:26.000Z",
@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 44960735,
-    "by": "sambuccid",
-    "timeISO": "2025-08-20T11:04:49.000Z",
-    "textPlain": "I'm not sure why no one mentioned it yet, but the CI tool of sourcehut (https://man.sr.ht/builds.sr.ht/) simplifies all of this.\nIt just spins a linux distro of your choice, and executes a very bare bone yml that essentially contains a lot of shell commands, so it's also easy to replicate locally.There are 12 yml keywords in total that cover everything.Other cool things are the ability to ssh in a build if it failed(for debugging), and to run a one-time build with a custom yml without committing it(for testing).I believe it can checkout any repository, not just one in sourcehut that triggers a build, and that has also a GraphQL API",
+    "id": 44963416,
+    "by": "nlawalker",
+    "timeISO": "2025-08-20T16:33:12.000Z",
+    "textPlain": ">CI offerings like GitHub Actions and GitLab Pipelines are more products than platforms because they tightly couple an opinionated configuration mechanism (YAML files) and web UI (and corresponding APIs) on top of a theoretically generic remote execute as a service offering. For me to consider these offerings as platforms, they need to grow the ability to schedule arbitrary compute via an API, without being constrained by the YAML officially supported out of the box.I wish the author gave more concrete examples about what kinds of workflows they want to dynamically construct and remotely execute (and why a separate step of registering the workflow up front with the service before running it is such a dealbreaker), and what a sufficiently generic and unopinionated definition schema for workflows and tasks would look like as opposed to what a service like GitHub Actions defines.Generally, registering a workflow with the service (putting it in your repo, in the case of GHA) makes sense because you're running the same workflows over and over. In terms of task definitions, GHA is workflows -> jobs -> tasks -> actions, where jobs are tied to runners and can have dependencies defined between them. If you want to use those primitives to do something generic like run some scripts, you can do that in a very bare-bones way. When I look at the Taskcluster task definition they linked, I see pretty much the same thing.",
     "parent": 44958400,
     "depth": 1
   },
   {
-    "id": 44962890,
-    "by": "germandiago",
-    "timeISO": "2025-08-20T15:34:57.000Z",
-    "textPlain": "I am running buildbot with a customized matrix style buildbot for years for my side projects.This is because yes, it is very complex. I have tried Jenkins before and Gitlab CI.Something that most build tools and CIs should learn from Meson build system is that sometimes it is better to just keep it simple than adding features on top. If you need them, script them in some way but keep configuration as data-driven (and I mean purely data-driven, not half a language).My build system is literally: a build matrix, where you can specify filters of what to keep or skip. This gets all combined.A series of steps with a name that can be executed or not depending on a filter. Nothing else. Every step calls the build system or whatever.After that it sends mail reports and integrates with Gerrit to send builds and Gerrit csn also csll it.No fsncy plugins or the like. Just this small toml file I have and run normal scripts or command lines without 300 layers on top. There are already enough things that can break so that one keeps adding opaque layers on top. Just use the tools we all know: ssh, bash, Python etc.Everyone knows how to call that. If a step is too complex, just make a script.",
+    "id": 44960735,
+    "by": "sambuccid",
+    "timeISO": "2025-08-20T11:04:49.000Z",
+    "textPlain": "I'm not sure why no one mentioned it yet, but the CI tool of sourcehut (https://man.sr.ht/builds.sr.ht/) simplifies all of this.\nIt just spins a linux distro of your choice, and executes a very bare bone yml that essentially contains a lot of shell commands, so it's also easy to replicate locally.There are 12 yml keywords in total that cover everything.Other cool things are the ability to ssh in a build if it failed(for debugging), and to run a one-time build with a custom yml without committing it(for testing).I believe it can checkout any repository, not just one in sourcehut that triggers a build, and that has also a GraphQL API",
     "parent": 44958400,
     "depth": 1
   },
@@ -72,10 +72,34 @@
     "depth": 1
   },
   {
+    "id": 44962890,
+    "by": "germandiago",
+    "timeISO": "2025-08-20T15:34:57.000Z",
+    "textPlain": "I am running buildbot with a customized matrix style buildbot for years for my side projects.This is because yes, it is very complex. I have tried Jenkins before and Gitlab CI.Something that most build tools and CIs should learn from Meson build system is that sometimes it is better to just keep it simple than adding features on top. If you need them, script them in some way but keep configuration as data-driven (and I mean purely data-driven, not half a language).My build system is literally: a build matrix, where you can specify filters of what to keep or skip. This gets all combined.A series of steps with a name that can be executed or not depending on a filter. Nothing else. Every step calls the build system or whatever.After that it sends mail reports and integrates with Gerrit to send builds and Gerrit csn also csll it.No fsncy plugins or the like. Just this small toml file I have and run normal scripts or command lines without 300 layers on top. There are already enough things that can break so that one keeps adding opaque layers on top. Just use the tools we all know: ssh, bash, Python etc.Everyone knows how to call that. If a step is too complex, just make a script.",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
     "id": 44960842,
     "by": "donatj",
     "timeISO": "2025-08-20T11:26:39.000Z",
     "textPlain": "Drone was absolutely perfect back when it was Free Software. Literally \"run these commands in this docker container on these events\" and basically nothing more. We ran the last fully open source version much longer than we probably should have.When they went commercial, GitHub Actions became the obvious choice, but it's just married to so much weirdness and unpredictability.Whole thing with Drone opened my eyes at least, I'll never sign a CLA again",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
+    "id": 44963285,
+    "by": "jcelerier",
+    "timeISO": "2025-08-20T16:19:19.000Z",
+    "textPlain": "> GitLab Pipelines is a lot better. GitLab Pipelines supports features like parent-child pipelines (dependencies between different pipelines), multi-project pipelines (dependencies between different projects/repos), and dynamic child pipelines (generate YAML files in pipeline job that defines a new pipeline). (I don't believe GitHub Actions supports any of these features.)I believe github actions does all of this? I use the first two features",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
+    "id": 44961494,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-08-20T12:53:26.000Z",
+    "textPlain": "Having two different programs that are almost the same except for one or two differences, is actually better than trying to combine them.Why do you even have a \"build system\"? Why not just a shell script that runs 'cc -o foo foo.c' ? Because there are more complicated things you want to do, and it would be annoying to write out a long shell script to do them all. So you have a program ('build system') that does the complicated things for you. That program then needs a config file so you can tell the program what to do.But you want to run that 'build system' remotely when someone does a git-push. That requires a daemon on a hosted server, authentication/authorization, a git server that triggers the job when it receives a push, it needs to store secrets and pass them to the job, it needs to run it all in a container for reliability, it needs to run the job multiple times at once for parallelism, it needs to cache to speed up the jobs, it needs to store artifacts and let you browse the results or be notified of them. So you take all that complexity, put it in its own little system ('CI system'). And you make a config file so you can tell the 'CI system' how to do all that.Could you shove both separate sets of complex features into one tool? Sure you can. But it would make it harder to develop and maintain them, change them, replace them. Much simpler to use individual smaller components to compose a larger system, than to try to build one big, complex, perfect, all-in-one-system.Don't believe me? There's a reason most living creatures aren't 6-foot-tall amoebas. We're systems-on-systems-on-systems-on-systems (many of which have similar features) and it works pretty well. Our biggest problem is often that our individual parts aren't composeable/replaceable enough.",
     "parent": 44958400,
     "depth": 1
   },
@@ -96,10 +120,10 @@
     "depth": 1
   },
   {
-    "id": 44962770,
-    "by": "esafak",
-    "timeISO": "2025-08-20T15:23:03.000Z",
-    "textPlain": "The code-based CI platform dagger.io used to support CUE lang but dropped it due to lack of interest. Combining that with something like bazel, all in CUE or Skylark sounds interesting, but bazel and dagger are both pretty complex on their own. Their merger would be too much.",
+    "id": 44960673,
+    "by": "eisbaw",
+    "timeISO": "2025-08-20T10:49:19.000Z",
+    "textPlain": "Local-first, CI-second.CI being a framework, is easy to be locked into -- preventing local-first dev.I find justfiles can help unify commands, making it easier to prevent accruement of logic in CI.",
     "parent": 44958400,
     "depth": 1
   },
@@ -120,18 +144,10 @@
     "depth": 1
   },
   {
-    "id": 44960673,
-    "by": "eisbaw",
-    "timeISO": "2025-08-20T10:49:19.000Z",
-    "textPlain": "Local-first, CI-second.CI being a framework, is easy to be locked into -- preventing local-first dev.I find justfiles can help unify commands, making it easier to prevent accruement of logic in CI.",
-    "parent": 44958400,
-    "depth": 1
-  },
-  {
-    "id": 44961494,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-08-20T12:53:26.000Z",
-    "textPlain": "Having two different programs that are almost the same except for one or two differences, is actually better than trying to combine them.Why do you even have a \"build system\"? Why not just a shell script that runs 'cc -o foo foo.c' ? Because there are more complicated things you want to do, and it would be annoying to write out a long shell script to do them all. So you have a program ('build system') that does the complicated things for you. That program then needs a config file so you can tell the program what to do.But you want to run that 'build system' remotely when someone does a git-push. That requires a daemon on a hosted server, authentication/authorization, a git server that triggers the job when it receives a push, it needs to store secrets and pass them to the job, it needs to run it all in a container for reliability, it needs to run the job multiple times at once for parallelism, it needs to cache to speed up the jobs, it needs to store artifacts and let you browse the results or be notified of them. So you take all that complexity, put it in its own little system ('CI system'). And you make a config file so you can tell the 'CI system' how to do all that.Could you shove both separate sets of complex features into one tool? Sure you can. But it would make it harder to develop and maintain them, change them, replace them. Much simpler to use individual smaller components to compose a larger system, than to try to build one big, complex, perfect, all-in-one-system.Don't believe me? There's a reason most living creatures aren't 6-foot-tall amoebas. We're systems-on-systems-on-systems-on-systems (many of which have similar features) and it works pretty well. Our biggest problem is often that our individual parts aren't composeable/replaceable enough.",
+    "id": 44962770,
+    "by": "esafak",
+    "timeISO": "2025-08-20T15:23:03.000Z",
+    "textPlain": "The code-based CI platform dagger.io used to support CUE lang but dropped it due to lack of interest. Combining that with something like bazel, all in CUE or Skylark sounds interesting, but bazel and dagger are both pretty complex on their own. Their merger would be too much.",
     "parent": 44958400,
     "depth": 1
   },
@@ -144,10 +160,10 @@
     "depth": 1
   },
   {
-    "id": 44963147,
-    "by": "jillesvangurp",
-    "timeISO": "2025-08-20T16:02:57.000Z",
-    "textPlain": "Keeping it simple is always a good idea. I've been pretty happy with gh actions lately. I've seen everything from hudson/jenkins, travis ci, git lab, etc. Most of that stuff is fine if you keep it simple. Building your software should be simple if you do it manually. If it is, it's easy to automate with CI.The same goes for other tools:  build tools (ant, maven, gradle, npm, etc.); Configuration systems (puppet, ansible, salt, etc.); Infrastructure provisioning (cloudformation, terraform, etc.);  other containerization and packaging tools (packer, docker, etc.).Stick to what they are good at. Don't overload them with crap outside the scope of what they do (boiling oceans, lots of conditional logic, etc.). And consider whether you need them at all. Write scripts for all the rest. My default is a simple bash script. Replacing a 2 line script with 100+ lines of yaml is a clear sign that something is wrong with what you are doing.A consideration lately is not just automated builds but having agentic coding tools be able to work with your software. I just spent an afternoon nudging codex along to vibe code me a new little library. Mostly it's nailing it and I'm iterating with it on features, tests, documentation etc. It of course needs to be able to run tests to validate what it's doing. And it needs to be able to figure out how. The more complicated that is, the less likely it is to be useful.CI and agentic coding have similar needs: simplicity and uniformity. If you have that, everything gets easier.Anything custom and wonky needs to isolated and removed from the critical path. Or removed completely. Devops work is drudgery that needs to be minimized and automated. If it becomes most of what you do, you're doing it wrong. If an agentic coding system can figure out how to build and run your stuff, getting it to setup CI and deployment scripts is not that much of a leap in complexity.After a few decades with this stuff, I have a low threshold for devops bullshit. I've se",
+    "id": 44960466,
+    "by": "lukaslalinsky",
+    "timeISO": "2025-08-20T10:06:51.000Z",
+    "textPlain": "Any universal build system is complex. You can either make the system simple and delegate the complexity to the user, like the early tools, e.g. buildbot. Or you can hide the complexity to the best of your ability, like GitHub actions. Or you expose all the complexity, like jenkins. I'm personally happy for the complexity being hidden and can deal with a few leaky abstractions if I need something non standard.",
     "parent": 44958400,
     "depth": 1
   },
@@ -160,6 +176,14 @@
     "depth": 1
   },
   {
+    "id": 44960458,
+    "by": "Angostura",
+    "timeISO": "2025-08-20T10:05:45.000Z",
+    "textPlain": "'Continuous Integration' in case anyone is wondering. Not spelled out anywhere in the article.",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
     "id": 44959865,
     "by": "IshKebab",
     "timeISO": "2025-08-20T08:21:30.000Z",
@@ -168,10 +192,10 @@
     "depth": 1
   },
   {
-    "id": 44960466,
-    "by": "lukaslalinsky",
-    "timeISO": "2025-08-20T10:06:51.000Z",
-    "textPlain": "Any universal build system is complex. You can either make the system simple and delegate the complexity to the user, like the early tools, e.g. buildbot. Or you can hide the complexity to the best of your ability, like GitHub actions. Or you expose all the complexity, like jenkins. I'm personally happy for the complexity being hidden and can deal with a few leaky abstractions if I need something non standard.",
+    "id": 44959980,
+    "by": "aa-jv",
+    "timeISO": "2025-08-20T08:43:05.000Z",
+    "textPlain": "I have built many CI/build-servers over the decades for various projects, and after using pretty much everything else out there, I've simply reverted, time and again - and, very productively - to using Plain Old Bash Scripts.(Of course, this is only possible because I can build software in a bash shell.  Basically: if you're using bash already, you don't need a foreign CI service - you just need to replace yourself with a bash script.)I've got one for updating repo's and dealing with issues, I've got one for setting up resources and assets required prior to builds, I've got one for doing the build - then another one for packaging, another for signing and notarization, and finally one more for delivering the signed, packaged, built software to the right places for testing purposes, as well as running automated tests, reporting issues, logging the results, and informing the right folks through the PM system.And this all integrates with our project management software (some projects use Jira, some use Redmine), since CLI interfaces to the PM systems are easily attainable and set up.  If a dev wants to ignore one stage in the build pipeline, they can - all of this can be wrapped up very nicely into a Makefile/CMakeLists.txt rig, or even just a 'build-dev.sh vs. build-prod.sh' mentality.And the build server will always run the build/integration workflow according to the modules, and we can always be sure we'll have the latest and greatest builds available to us whenever a dev goes on vacation or whatever.And all this with cross-platform, multiple-architecture targets - the same bash scripts, incidentally, run on Linux, MacOS and Windows, and all produce the same artefacts for the relevant platform: MacOS=.pkg, Windows=.exe, Linux=.deb(.tar)Its a truly wonderful thing to onboard a developer, and they don't need a Jenkins login or to set up Github accounts to monitor actions, and so on.  They just use the same build scripts, which are a key part of the repo already, and th",
     "parent": 44958400,
     "depth": 1
   },
@@ -184,10 +208,10 @@
     "depth": 1
   },
   {
-    "id": 44959980,
-    "by": "aa-jv",
-    "timeISO": "2025-08-20T08:43:05.000Z",
-    "textPlain": "I have built many CI/build-servers over the decades for various projects, and after using pretty much everything else out there, I've simply reverted, time and again - and, very productively - to using Plain Old Bash Scripts.(Of course, this is only possible because I can build software in a bash shell.  Basically: if you're using bash already, you don't need a foreign CI service - you just need to replace yourself with a bash script.)I've got one for updating repo's and dealing with issues, I've got one for setting up resources and assets required prior to builds, I've got one for doing the build - then another one for packaging, another for signing and notarization, and finally one more for delivering the signed, packaged, built software to the right places for testing purposes, as well as running automated tests, reporting issues, logging the results, and informing the right folks through the PM system.And this all integrates with our project management software (some projects use Jira, some use Redmine), since CLI interfaces to the PM systems are easily attainable and set up.  If a dev wants to ignore one stage in the build pipeline, they can - all of this can be wrapped up very nicely into a Makefile/CMakeLists.txt rig, or even just a 'build-dev.sh vs. build-prod.sh' mentality.And the build server will always run the build/integration workflow according to the modules, and we can always be sure we'll have the latest and greatest builds available to us whenever a dev goes on vacation or whatever.And all this with cross-platform, multiple-architecture targets - the same bash scripts, incidentally, run on Linux, MacOS and Windows, and all produce the same artefacts for the relevant platform: MacOS=.pkg, Windows=.exe, Linux=.deb(.tar)Its a truly wonderful thing to onboard a developer, and they don't need a Jenkins login or to set up Github accounts to monitor actions, and so on.  They just use the same build scripts, which are a key part of the repo already, and th",
+    "id": 44963147,
+    "by": "jillesvangurp",
+    "timeISO": "2025-08-20T16:02:57.000Z",
+    "textPlain": "Keeping it simple is always a good idea. I've been pretty happy with gh actions lately. I've seen everything from hudson/jenkins, travis ci, git lab, etc. Most of that stuff is fine if you keep it simple. Building your software should be simple if you do it manually. If it is, it's easy to automate with CI.The same goes for other tools:  build tools (ant, maven, gradle, npm, etc.); Configuration systems (puppet, ansible, salt, etc.); Infrastructure provisioning (cloudformation, terraform, etc.);  other containerization and packaging tools (packer, docker, etc.).Stick to what they are good at. Don't overload them with crap outside the scope of what they do (boiling oceans, lots of conditional logic, etc.). And consider whether you need them at all. Write scripts for all the rest. My default is a simple bash script. Replacing a 2 line script with 100+ lines of yaml is a clear sign that something is wrong with what you are doing.A consideration lately is not just automated builds but having agentic coding tools be able to work with your software. I just spent an afternoon nudging codex along to vibe code me a new little library. Mostly it's nailing it and I'm iterating with it on features, tests, documentation etc. It of course needs to be able to run tests to validate what it's doing. And it needs to be able to figure out how. The more complicated that is, the less likely it is to be useful.CI and agentic coding have similar needs: simplicity and uniformity. If you have that, everything gets easier.Anything custom and wonky needs to isolated and removed from the critical path. Or removed completely. Devops work is drudgery that needs to be minimized and automated. If it becomes most of what you do, you're doing it wrong. If an agentic coding system can figure out how to build and run your stuff, getting it to setup CI and deployment scripts is not that much of a leap in complexity.After a few decades with this stuff, I have a low threshold for devops bullshit. I've se",
     "parent": 44958400,
     "depth": 1
   },
@@ -216,14 +240,6 @@
     "depth": 1
   },
   {
-    "id": 44960458,
-    "by": "Angostura",
-    "timeISO": "2025-08-20T10:05:45.000Z",
-    "textPlain": "'Continuous Integration' in case anyone is wondering. Not spelled out anywhere in the article.",
-    "parent": 44958400,
-    "depth": 1
-  },
-  {
     "id": 44959836,
     "by": "forrestthewoods",
     "timeISO": "2025-08-20T08:15:52.000Z",
@@ -232,18 +248,18 @@
     "depth": 1
   },
   {
-    "id": 44960807,
-    "by": "iberator",
-    "timeISO": "2025-08-20T11:19:21.000Z",
-    "textPlain": "That's why God created Jenkins. My favourite application ever",
-    "parent": 44958400,
-    "depth": 1
-  },
-  {
     "id": 44959995,
     "by": "j4coh",
     "timeISO": "2025-08-20T08:47:40.000Z",
     "textPlain": "Since the article came out in 2021 did anyone ever build the product of his dreams described in the conclusion?",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
+    "id": 44960807,
+    "by": "iberator",
+    "timeISO": "2025-08-20T11:19:21.000Z",
+    "textPlain": "That's why God created Jenkins. My favourite application ever",
     "parent": 44958400,
     "depth": 1
   },
@@ -288,18 +304,18 @@
     "depth": 1
   },
   {
-    "id": 44961326,
-    "by": "eptcyka",
-    "timeISO": "2025-08-20T12:32:54.000Z",
-    "textPlain": "Ideally, CI would just invoke the build system. With nix, this os trivial.",
-    "parent": 44958400,
-    "depth": 1
-  },
-  {
     "id": 44960852,
     "by": "akoboldfrying",
     "timeISO": "2025-08-20T11:27:59.000Z",
     "textPlain": "You can roll your own barebones DAG engine in any language that has promises/futures and the ability to wait for multiple promises to resolve (like JS's Promise.all()):    For each task t in topological order: \n      Promise.all(all in-edges to t).then(t)\n\nWant to run tasks on remote machines? Simply waves hands make a task that runs ssh.",
+    "parent": 44958400,
+    "depth": 1
+  },
+  {
+    "id": 44961326,
+    "by": "eptcyka",
+    "timeISO": "2025-08-20T12:32:54.000Z",
+    "textPlain": "Ideally, CI would just invoke the build system. With nix, this os trivial.",
     "parent": 44958400,
     "depth": 1
   },
@@ -368,22 +384,6 @@
     "depth": 2
   },
   {
-    "id": 44962951,
-    "by": "layer8",
-    "timeISO": "2025-08-20T15:42:58.000Z",
-    "textPlain": "Yes, the build system should be independent from the platform that hosts it. Having GitHub or GitLab execute your build is fine, but you should as easily be able to execute it locally on your own infrastructure. The definition of the build or integration should be independent from that, and the software that ingests and executes such definitions shouldn’t be a proprietary SaaS.",
-    "parent": 44960010,
-    "depth": 2
-  },
-  {
-    "id": 44960737,
-    "by": "MortyWaves",
-    "timeISO": "2025-08-20T11:05:25.000Z",
-    "textPlain": "It’s why I’ve started making CI simply a script that I can run locally or on GitHub Actions etc.Then the CI just becomes a bit of yaml that runs my script.",
-    "parent": 44960010,
-    "depth": 2
-  },
-  {
     "id": 44960643,
     "by": "dapperdrake",
     "timeISO": "2025-08-20T10:41:51.000Z",
@@ -392,10 +392,10 @@
     "depth": 2
   },
   {
-    "id": 44960308,
-    "by": "AtlasBarfed",
-    "timeISO": "2025-08-20T09:41:59.000Z",
-    "textPlain": "I want my build system to be totally declarativeOh the DSL doesn't support what I need it to do.Can I just have some templating or a little bit of places to put in custom scripts?Congratulations! You now have a turing complete system. And yes, per the article that means you can cryptocurrency mine.Ansible terraform Maven Gradle.Unfortunate fact is that these IT domains (builds and CI) are at a junction of two famous very slippery slopes.1) configuration2) workflowsThese two slippery slopes are famous for their demos of how clean and simple they are and how easy it is to do. Anything you need it to do.In the demo.And sure it might stay like that for a little bit.But inevitably.... Script soup",
+    "id": 44962951,
+    "by": "layer8",
+    "timeISO": "2025-08-20T15:42:58.000Z",
+    "textPlain": "Yes, the build system should be independent from the platform that hosts it. Having GitHub or GitLab execute your build is fine, but you should as easily be able to execute it locally on your own infrastructure. The definition of the build or integration should be independent from that, and the software that ingests and executes such definitions shouldn’t be a proprietary SaaS.",
     "parent": 44960010,
     "depth": 2
   }
