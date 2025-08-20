@@ -1,5 +1,13 @@
 [
   {
+    "id": 44961361,
+    "by": "pizlonator",
+    "timeISO": "2025-08-20T12:36:52.000Z",
+    "textPlain": "> Going back to the original futuex paper in 2002, it was immediately clear that the futex was a huge improvement in highly concurrent environments. Just in that original paper, their tests with 1000 parallel tasks ran 20-120 times faster than sysv locks..I think this is a misunderstanding.The baseline isn’t sysv locks. The baseline isn’t even what Linux was doing before futexes (Linux had a very immature lock implementation before futexes).The baseline is all of the ways folks implement locks if they don’t have futexes, which end up having roughly the same properties as a futex based lock:- fast path that doesn’t hit kernel for either lock or unlock- slow path that somehow makes the thread wait until the lock is available using some kernel waiting primitive.The thing futexes improve is the size of the user level data structure that is used for representing the lock in the waiting state. That’s it.And futexes aren’t the only way to get there. Alternatives:- thin locks (what JVMs use)- ParkingLot (a futex-like primitive that works entirely in userland and doesn’t require that the OS have futexes)",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
     "id": 44953135,
     "by": "jauntywundrkind",
     "timeISO": "2025-08-19T16:05:14.000Z",
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 44961361,
-    "by": "pizlonator",
-    "timeISO": "2025-08-20T12:36:52.000Z",
-    "textPlain": "> Going back to the original futuex paper in 2002, it was immediately clear that the futex was a huge improvement in highly concurrent environments. Just in that original paper, their tests with 1000 parallel tasks ran 20-120 times faster than sysv locks..I think this is a misunderstanding.The baseline isn’t sysv locks. The baseline isn’t even what Linux was doing before futexes (Linux had a very immature lock implementation before futexes).The baseline is all of the ways folks implement locks if they don’t have futexes, which end up having roughly the same properties as a futex based lock:- fast path that doesn’t hit kernel for either lock or unlock- slow path that somehow makes the thread wait until the lock is available using some kernel waiting primitive.The thing futexes improve is the size of the user level data structure that is used for representing the lock in the waiting state. That’s it.And futexes aren’t the only way to get there. Alternatives:- thin locks (what JVMs use)- ParkingLot (a futex-like primitive that works entirely in userland and doesn’t require that the OS have futexes)",
+    "id": 44962313,
+    "by": "thayne",
+    "timeISO": "2025-08-20T14:30:06.000Z",
+    "textPlain": "This led me down a bit of a rabbit-hole involving linux's limitation of only supporting 32 bit integers for futexes, and why that is, and the implementation of semaphores in glibc.In one discussion of supporting 64 bit integers for futexes, Linus suggested that you can just use 64 bit atomics in userspace, but only use 32 bits of that 64 bit integer for the futex, as long as the bits that change on a wakeup are in those 32 bits.However, AFAICT, using mixed-size atomics in c/c++ is undefined behavior, although on most modern hardware it does work. But looking at the implementation of semaphore in glibc, that is exactly what it does. The semaphore uses a 64 bit integer, with the number of waiters in the high 32 bits, and the value of the semaphore in the low 32 bits, with userspace atomic operations on the whole 64 bit integer, but using just the low 32 bits for the futex.Is my question is, does gcc specifically consider this defined behavior, or is it ok because the 32 bit access happens in a separate (kernel) process that isn't part of the same compilation, or is it actually undefined behavior in glibc?",
     "parent": 44951563,
     "depth": 1
   },
@@ -158,6 +166,14 @@
     "textPlain": "[dead]",
     "parent": 44951563,
     "depth": 1
+  },
+  {
+    "id": 44962668,
+    "by": "aktau",
+    "timeISO": "2025-08-20T15:12:24.000Z",
+    "textPlain": "Thanks for that reference. Do you know if the JVM still uses thin locks? Did they migrate to thin locks? I ask because I found a 9 year old reference with a JVM calling futex: https://stackoverflow.com/questions/32262946/java-periodical....",
+    "parent": 44961361,
+    "depth": 2
   },
   {
     "id": 44954266,
@@ -380,22 +396,6 @@
     "by": "junon",
     "timeISO": "2025-08-19T17:06:32.000Z",
     "textPlain": "If you mean memory barriers in terms of concurrency, it's just a primitive for concurrency that counts downward atomically once per participant (e.g. a group of threads) and then each atomically waits until the counter reaches zero before continuing. It's used to synchronize (i.e. put into lockstep) two concurrent processes such that they must all wait at a given point before continuing more or less all at once, often as part of a larger process.If you mean a barrier in terms of a memory \"fence\", that's an event on CPUs whereby any pending memory instructions that have been pipelined and thus not committed are forced to commit and complete before continuing. Usually only relevant for a single core, but they're used to make sure that other cores will see the same memory values and your pending writes would reflect (or, conversely, sometimes making sure your own core sees the reads from other cores as fresh as possible before the actual read op).",
-    "parent": 44953448,
-    "depth": 2
-  },
-  {
-    "id": 44956296,
-    "by": "bonzini",
-    "timeISO": "2025-08-19T21:11:31.000Z",
-    "textPlain": "Shameless plug: https://lwn.net/Articles/844224/ is  in my opinion exactly the parts that are missing from the book that the author criticizes. I focus on how threads synchronize, independent of the actual primitives you use, and then explain how that synchronization is usually realized.",
-    "parent": 44953448,
-    "depth": 2
-  },
-  {
-    "id": 44958954,
-    "by": "ethan_smith",
-    "timeISO": "2025-08-20T05:40:46.000Z",
-    "textPlain": "Paul McKenney's \"Memory Barriers: a Hardware View for Software Hackers\" is excellent, with Preshing's blog (preshing.com) offering more approachable explanations for beginners.",
     "parent": 44953448,
     "depth": 2
   }
