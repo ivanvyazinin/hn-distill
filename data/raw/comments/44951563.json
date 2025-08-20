@@ -40,14 +40,6 @@
     "depth": 1
   },
   {
-    "id": 44953444,
-    "by": "garaetjjte",
-    "timeISO": "2025-08-19T16:34:51.000Z",
-    "textPlain": "> Many people won’t worry about crashed threads, as they often will crash the whole program. However, you can catch the signal a crash generates and keep the overall process from terminating.That doesn't help if the entire process dies for any reason and you want to clean up the locks. Solution to that is called \"robust\" locks. You can register list of held futexes with the kernel using sys_set_robust_list, and when the thread dies kernel for each entry will set a specific bit and wake waiter if there's one.",
-    "parent": 44951563,
-    "depth": 1
-  },
-  {
     "id": 44952685,
     "by": "mwcampbell",
     "timeISO": "2025-08-19T15:26:37.000Z",
@@ -56,10 +48,26 @@
     "depth": 1
   },
   {
+    "id": 44953444,
+    "by": "garaetjjte",
+    "timeISO": "2025-08-19T16:34:51.000Z",
+    "textPlain": "> Many people won’t worry about crashed threads, as they often will crash the whole program. However, you can catch the signal a crash generates and keep the overall process from terminating.That doesn't help if the entire process dies for any reason and you want to clean up the locks. Solution to that is called \"robust\" locks. You can register list of held futexes with the kernel using sys_set_robust_list, and when the thread dies kernel for each entry will set a specific bit and wake waiter if there's one.",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
     "id": 44953461,
     "by": "supernetworks",
     "timeISO": "2025-08-19T16:36:31.000Z",
     "textPlain": "A particularly tricky exploit in the linux futex implementation from 2014, by Pinkie Pie, https://issues.chromium.org/issues/40079619\"The requeue-once rule is enforced by only allowing requeueing to the futex previously passed to futex_wait_requeue_pi as uaddr2, so it's not possible to requeue from A to B, then from B to C - but it is possible to requeue from B to B.When this happens, if (!q.rt_waiter) passes, so rt_mutex_finish_proxy_lock is never called. (Also, AFAIK, free_pi_state is never called, which is true even without this weird requeue; in the case where futex_requeue calls requeue_pi_wake_futex directly, pi_state will sit around until it gets cleaned up in exit_pi_state_list when the thread exits. This is not a vulnerability.) futex_wait_requeue_pi exits, and various pointers to rt_waiter become dangling.\n\"",
+    "parent": 44951563,
+    "depth": 1
+  },
+  {
+    "id": 44951952,
+    "by": "afr0ck",
+    "timeISO": "2025-08-19T14:29:16.000Z",
+    "textPlain": "It's not that deep. The futex was developed just to save you from issuing a special system call to ask the OS to put you on a wait queue.The whole point is that implementing a mutex requires doing things that only the privileged OS kernel can do (e.g. efficiently blocking/unblocking processes). Therefore, for systems like Linux, it made sense to combine the features for a fast implementation.",
     "parent": 44951563,
     "depth": 1
   },
@@ -76,14 +84,6 @@
     "by": "sn9",
     "timeISO": "2025-08-19T23:59:32.000Z",
     "textPlain": "Mara Bos' Rust Atomics and Locks has a section on futexes [0].[0] https://marabos.nl/atomics/os-primitives.html#linux",
-    "parent": 44951563,
-    "depth": 1
-  },
-  {
-    "id": 44951952,
-    "by": "afr0ck",
-    "timeISO": "2025-08-19T14:29:16.000Z",
-    "textPlain": "It's not that deep. The futex was developed just to save you from issuing a special system call to ask the OS to put you on a wait queue.The whole point is that implementing a mutex requires doing things that only the privileged OS kernel can do (e.g. efficiently blocking/unblocking processes). Therefore, for systems like Linux, it made sense to combine the features for a fast implementation.",
     "parent": 44951563,
     "depth": 1
   },
@@ -224,6 +224,14 @@
     "depth": 2
   },
   {
+    "id": 44953202,
+    "by": "garaetjjte",
+    "timeISO": "2025-08-19T16:12:08.000Z",
+    "textPlain": "Neither CRITICAL_SECTION nor SRWLock enters the kernel when uncontended. (SRWLock is based on keyed events, CRITICAL_SECTION nowadays creates kernel object on-demand but falls back to keyed event on failure)",
+    "parent": 44952685,
+    "depth": 2
+  },
+  {
     "id": 44953519,
     "by": "inetknght",
     "timeISO": "2025-08-19T16:42:56.000Z",
@@ -248,30 +256,6 @@
     "depth": 2
   },
   {
-    "id": 44953202,
-    "by": "garaetjjte",
-    "timeISO": "2025-08-19T16:12:08.000Z",
-    "textPlain": "Neither CRITICAL_SECTION nor SRWLock enters the kernel when uncontended. (SRWLock is based on keyed events, CRITICAL_SECTION nowadays creates kernel object on-demand but falls back to keyed event on failure)",
-    "parent": 44952685,
-    "depth": 2
-  },
-  {
-    "id": 44953648,
-    "by": "Jtsummers",
-    "timeISO": "2025-08-19T16:55:42.000Z",
-    "textPlain": "The Art of Multiprocessor Programming. It does talk about reentrant locks and other things this review says it doesn't. The more interesting parts of it though are the back half, after going through lock implementations and such it actually starts solving problems using both lock-based and lock-free designs.Follow it up with something appropriate to the language you're using, like C++ Concurrency in Action for C++ (much of it transfers to other languages).",
-    "parent": 44953379,
-    "depth": 2
-  },
-  {
-    "id": 44953518,
-    "by": "belter",
-    "timeISO": "2025-08-19T16:42:52.000Z",
-    "textPlain": "These two:https://man7.org/tlpi/https://marabos.nl/atomics/",
-    "parent": 44953379,
-    "depth": 2
-  },
-  {
     "id": 44952007,
     "by": "viega",
     "timeISO": "2025-08-19T14:34:57.000Z",
@@ -293,6 +277,22 @@
     "timeISO": "2025-08-19T14:47:11.000Z",
     "textPlain": "Why is this gray!?  This is absolutely correct.  Futex was added as an ad hoc solution to the obvious needs of SMP processes communicating via atomic memory operations who still wanted blocking IPC.  And it had to be updated and reworked repeatedly as it moved out of the original application (locks and semaphores) into stuff like condition variables and priority inheritance where it didn't work nearly as well.In point of fact futex is really not a particularly simple syscall and has a lot of traps, see the man page.  But the core idea is indeed \"not that deep\".",
     "parent": 44951952,
+    "depth": 2
+  },
+  {
+    "id": 44953648,
+    "by": "Jtsummers",
+    "timeISO": "2025-08-19T16:55:42.000Z",
+    "textPlain": "The Art of Multiprocessor Programming. It does talk about reentrant locks and other things this review says it doesn't. The more interesting parts of it though are the back half, after going through lock implementations and such it actually starts solving problems using both lock-based and lock-free designs.Follow it up with something appropriate to the language you're using, like C++ Concurrency in Action for C++ (much of it transfers to other languages).",
+    "parent": 44953379,
+    "depth": 2
+  },
+  {
+    "id": 44953518,
+    "by": "belter",
+    "timeISO": "2025-08-19T16:42:52.000Z",
+    "textPlain": "These two:https://man7.org/tlpi/https://marabos.nl/atomics/",
+    "parent": 44953379,
     "depth": 2
   },
   {
@@ -344,18 +344,18 @@
     "depth": 2
   },
   {
-    "id": 44958954,
-    "by": "ethan_smith",
-    "timeISO": "2025-08-20T05:40:46.000Z",
-    "textPlain": "Paul McKenney's \"Memory Barriers: a Hardware View for Software Hackers\" is excellent, with Preshing's blog (preshing.com) offering more approachable explanations for beginners.",
-    "parent": 44953448,
-    "depth": 2
-  },
-  {
     "id": 44956296,
     "by": "bonzini",
     "timeISO": "2025-08-19T21:11:31.000Z",
     "textPlain": "Shameless plug: https://lwn.net/Articles/844224/ is  in my opinion exactly the parts that are missing from the book that the author criticizes. I focus on how threads synchronize, independent of the actual primitives you use, and then explain how that synchronization is usually realized.",
+    "parent": 44953448,
+    "depth": 2
+  },
+  {
+    "id": 44958954,
+    "by": "ethan_smith",
+    "timeISO": "2025-08-20T05:40:46.000Z",
+    "textPlain": "Paul McKenney's \"Memory Barriers: a Hardware View for Software Hackers\" is excellent, with Preshing's blog (preshing.com) offering more approachable explanations for beginners.",
     "parent": 44953448,
     "depth": 2
   },
@@ -376,6 +376,14 @@
     "depth": 2
   },
   {
+    "id": 44960123,
+    "by": "omgtehlion",
+    "timeISO": "2025-08-20T09:09:13.000Z",
+    "textPlain": "Yes it is. In hft (or any algo trading nowadays) it is commonplace to use usermode networking since like ~2010 or even earlier.The part of NICs address space is mapped to a process (control registers and memory rings), and whole driver just runs in your process without going through the kernel. Of course, it ignores usual stuff like firewalls, iptables, etc, but who cares when all you need is the lowest latency possible )",
+    "parent": 44952420,
+    "depth": 2
+  },
+  {
     "id": 44954120,
     "by": "toast0",
     "timeISO": "2025-08-19T17:38:21.000Z",
@@ -388,14 +396,6 @@
     "by": "Jtsummers",
     "timeISO": "2025-08-19T15:23:01.000Z",
     "textPlain": "Most things can be moved into user space.https://en.wikipedia.org/wiki/Microkernel",
-    "parent": 44952420,
-    "depth": 2
-  },
-  {
-    "id": 44952847,
-    "by": "whstl",
-    "timeISO": "2025-08-19T15:39:39.000Z",
-    "textPlain": "You're right. With the caveat that it's the moving in and out of the kernel that's the expensive part, so putting things inside it also helps with performance... at the expense of security and reliability, of course, so userspace it is!",
     "parent": 44952420,
     "depth": 2
   }
