@@ -6,16 +6,20 @@ import { isoWeekKey } from "@utils/date-keys";
 import { formatDateHuman } from "@utils/date";
 import type { AggregatedItem } from "@config/schemas";
 import { loadAggregated } from "@utils/load-aggregated";
+import { countTags } from "@utils/tag-counts";
 
 const PAGE_SIZE = 10;
 
 const lang = LANG;
 const dataPath = new URL("../../data/aggregated.json", import.meta.url).pathname;
-const { items, updatedISO } = loadAggregated(dataPath);
+const { items: allItems, updatedISO } = loadAggregated(dataPath);
 const updatedPretty = formatDateHuman(updatedISO);
 
-const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
-const pageItems = items.slice(0, PAGE_SIZE);
+const countsMap = countTags(allItems);
+const tagCountsObj = Object.fromEntries(countsMap);
+
+const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
+const pageItems = allItems.slice(0, PAGE_SIZE);
 
 function pageHref(n: number): string {
   const u = new URL(`page/${n}/`, Astro.site ?? "http://localhost/");
@@ -24,7 +28,7 @@ function pageHref(n: number): string {
 }
 
 // Generate date for navigation links based on latest data
-const firstItem = items[0];
+const firstItem = allItems[0];
 const latestDate = firstItem?.timeISO
   ? new Date(firstItem.timeISO).toISOString().slice(0, 10)
   : new Date().toISOString().slice(0, 10);
@@ -60,7 +64,7 @@ const i18n = {
 };
 const t = i18n[lang];
 const pageTitle = `Hacker News Digest — ${t.page} 1/${totalPages}`;
-const description = `${t.stories}: ${items.length}. ${t.updated}: ${updatedPretty}.`;
+const description = `${t.stories}: ${allItems.length}. ${t.updated}: ${updatedPretty}.`;
 ---
 
 <html lang={lang}>
@@ -93,18 +97,18 @@ const description = `${t.stories}: ${items.length}. ${t.updated}: ${updatedPrett
         <button id="theme-toggle" aria-label="Toggle theme">🌓</button>
       </div>
       <p class="meta">{t.updated}: {updatedPretty}</p>
-      <p class="meta">{t.stories}: {items.length} • {t.page} 1/{totalPages}</p>
+      <p class="meta">{t.stories}: {allItems.length} • {t.page} 1/{totalPages}</p>
     </header>
     <main>
       {
-        items.length === 0 ? (
+        allItems.length === 0 ? (
           <p class="meta">{t.noData}</p>
         ) : (
-          pageItems.map((it: AggregatedItem) => <StorySection item={it} />)
+          pageItems.map((it: AggregatedItem) => <StorySection item={it} tagCounts={tagCountsObj} />)
         )
       }
       {
-        items.length > 0 && totalPages > 1 && (
+        allItems.length > 0 && totalPages > 1 && (
           <nav class="pagination" aria-label="Pagination">
             <span>
               {t.page} 1 / {totalPages}

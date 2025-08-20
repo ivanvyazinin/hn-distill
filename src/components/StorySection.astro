@@ -1,17 +1,25 @@
 ---
-import { HOT_SCORE_THRESHOLD, LONG_DISCUSSION_THRESHOLD } from "@config/constants";
+import { HOT_SCORE_THRESHOLD, LONG_DISCUSSION_THRESHOLD, TAG_MIN_COUNT } from "@config/constants";
 import { LANG } from "@config/lang";
 import type { AggregatedItem } from "@config/schemas";
 import { formatDateHuman } from "@utils/date";
 import { mdToHtml } from "@utils/md-to-html";
 
-const { item } = Astro.props as { item: AggregatedItem };
+const { item, tagCounts } = Astro.props as {
+  item: AggregatedItem;
+  tagCounts?: Record<string, number>;
+};
 const lang = LANG;
 const tags = Array.isArray(item.tags) ? item.tags : [];
 
 function storyHref(id: number): string {
   const u = new URL(`item/${id}/`, Astro.site ?? "http://localhost/");
   return u.pathname.endsWith("/") ? u.pathname : `${u.pathname}/`;
+}
+
+function tagHref(tag: string): string {
+  const c = tagCounts?.[tag] ?? 0;
+  return c >= TAG_MIN_COUNT ? `/tag/${tag}/` : `/search/?tags=${encodeURIComponent(tag)}`;
 }
 
 const safeTitle = item.title || "(no title)";
@@ -76,7 +84,7 @@ const commentsHtml = item.commentsSummary ? mdToHtml(item.commentsSummary) : "";
     <p class="meta"><a href={item.url ?? hnUrl} target="_blank" rel="noopener noreferrer nofollow">{t.original}</a> • <a href={hnUrl} target="_blank" rel="noopener noreferrer nofollow">HN</a></p>
     {tags.length > 0 && (
       <p class="meta tags">
-        {tags.map((tag) => <a href={`/tag/${tag}/`} class="tag">#{tag}</a>)}
+        {tags.map((tag) => <a href={tagHref(tag)} class="tag">#{tag}</a>)}
       </p>
     )}
   </div>

@@ -5,21 +5,18 @@ import { LANG } from '@config/lang';
 import { PATHS } from '@config/paths';
 import type { AggregatedItem } from '@config/schemas';
 import { loadAggregated } from '@utils/load-aggregated';
+import { TAG_MIN_COUNT } from '@config/constants';
+import { countTags } from '@utils/tag-counts';
 
 export async function getStaticPaths() {
   const { items: allItems } = loadAggregated(PATHS.aggregated);
-  const allTags = new Set<string>();
-  for (const item of allItems) {
-    if (item.tags) {
-      for (const tag of item.tags) {
-        allTags.add(tag);
-      }
-    }
-  }
+  const counts = countTags(allItems);
 
-  return Array.from(allTags).map((tag) => ({
-    params: { tag },
-  }));
+  const popular = Array.from(counts.entries())
+    .filter(([, c]) => c >= TAG_MIN_COUNT)
+    .map(([tag]) => ({ params: { tag } }));
+
+  return popular;
 }
 
 const lang = LANG;

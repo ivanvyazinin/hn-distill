@@ -1,6 +1,7 @@
 ---
 import "../styles/global.css";
 import { LANG } from "@config/lang";
+import { TAG_MIN_COUNT } from "@config/constants";
 
 const lang = LANG;
 const i18n = {
@@ -63,7 +64,7 @@ const t = i18n[lang as "ru" | "en"];
       </form>
       <ul id="results" class="results"></ul>
     </main>
-    <script type="module" define:vars={{ t }}>
+    <script type="module" define:vars={{ t, TAG_MIN_COUNT }}>
       // i18n data is now available as 't' variable
 
       const els = {
@@ -80,6 +81,15 @@ const t = i18n[lang as "ru" | "en"];
       // Prefer absolute root path (site uses absolute links); swap to base-aware if needed later.
       const data = await fetch("/data/search.json").then((r) => (r.ok ? r.json() : []));
       const rows = Array.isArray(data) ? data : [];
+
+      const tagCounts = new Map();
+      for (const r of rows) {
+        for (const tag of r.tags || []) tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
+      }
+      const tagHref = (tag) =>
+        (tagCounts.get(tag) || 0) >= TAG_MIN_COUNT
+          ? `/tag/${encodeURIComponent(tag)}/`
+          : `/search/?tags=${encodeURIComponent(tag)}`;
 
       const onChange = (() => {
         let t;
@@ -387,7 +397,7 @@ const t = i18n[lang as "ru" | "en"];
             const dom = r.domain ? ` • ${escapeHtml(String(r.domain))}` : "";
             const score = Number.isFinite(r.score) ? ` • ⭐ ${r.score}` : "";
             const tags = (Array.isArray(r.tags) ? r.tags : [])
-              .map((t) => `<a href="/tag/${escapeAttr(String(t))}/" class="tag">#${escapeHtml(String(t))}</a>`)
+              .map((t) => `<a href="${tagHref(String(t))}" class="tag">#${escapeHtml(String(t))}</a>`)
               .join(" ");
             return `<li class="card">
                     <h2 class="title"><a href="/item/${r.id}/">${escapeHtml(String(r.title || ""))}</a>${
@@ -405,14 +415,8 @@ const t = i18n[lang as "ru" | "en"];
       function escapeHtml(s) {
         return s.replace(
           /[&<>"']/g,
-          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]
+          (c) => ({ "&": "&", "<": "<", ">": ">", '"': """, "'": "'" })[c]
         );
-      }
-      function escapeAttr(s) {
-        return s.replace(/[^-_.~a-zA-Z0-9]/g, (c) => {
-          const code = c.charCodeAt(0).toString(16).toUpperCase();
-          return `%${code.length === 1 ? "0" + code : code}`;
-        });
       }
 
       apply();

@@ -9,6 +9,8 @@ import { mdToHtml } from "@utils/md-to-html";
 import type { GetStaticPaths } from "astro";
 import { existsSync, readFileSync } from "node:fs";
 import "../../styles/global.css";
+import { TAG_MIN_COUNT } from "@config/constants";
+import { countTags } from "@utils/tag-counts";
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const { items } = loadAggregated(PATHS.aggregated);
@@ -24,6 +26,12 @@ const item = (items as AggregatedItem[]).find((x) => x.id === id);
 if (!item) throw new Error("Missing item for id " + id);
 
 const tags = Array.isArray(item.tags) ? item.tags : [];
+const countsMap = countTags(items);
+
+function tagHref(tag: string): string {
+  const c = countsMap.get(tag) ?? 0;
+  return c >= TAG_MIN_COUNT ? `/tag/${tag}/` : `/search/?tags=${encodeURIComponent(tag)}`;
+}
 
 function loadSummary(kind: "post" | "comments"): string | undefined {
   const p = new URL(`../../../data/summaries/${id}.${kind}.json`, import.meta.url).pathname;
@@ -79,7 +87,7 @@ const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.comment
       <p class="meta"><a href={item.url ?? hnUrl} rel="noopener noreferrer">Original</a> • <a href={hnUrl}>HN</a></p>
       {tags.length > 0 && (
         <p class="meta tags">
-          {tags.map((tag) => <a href={`/tag/${tag}/`} class="tag">#{tag}</a>)}
+          {tags.map((tag) => <a href={tagHref(tag)} class="tag">#{tag}</a>)}
         </p>
       )}
     </header>

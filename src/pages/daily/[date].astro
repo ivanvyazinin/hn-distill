@@ -7,6 +7,7 @@ import { DailyGroupFileSchema, type AggregatedItem } from '@config/schemas';
 import { formatDateHuman } from '@utils/date';
 import { indexById, loadAggregated, pickByIds } from '@utils/load-aggregated';
 import { readJsonSafeOr } from '@utils/json';
+import { countTags } from '@utils/tag-counts';
 
 export async function getStaticPaths() {
   const dailyGroup = await readJsonSafeOr(PATHS.grouped.daily, DailyGroupFileSchema, {
@@ -23,6 +24,8 @@ const dateParam = Astro.params.date ?? '';
 const dateKey = typeof dateParam === 'string' ? dateParam : '';
 
 const { items: allItems } = loadAggregated(PATHS.aggregated);
+const countsMap = countTags(allItems);
+const tagCountsObj = Object.fromEntries(countsMap);
 const itemsById = indexById(allItems);
 
 const dailyGroup = await readJsonSafeOr(PATHS.grouped.daily, DailyGroupFileSchema, {
@@ -75,7 +78,7 @@ const description = `Hacker News Digest for ${displayDate}. ${dayItems.length} $
       {dayItems.length === 0 ? (
         <p class="meta">{t.noData}</p>
       ) : (
-        dayItems.map((it) => <StorySection item={it} />)
+        dayItems.map((it) => <StorySection item={it} tagCounts={tagCountsObj} />)
       )}
     </main>
     <script is:inline src="/js/keyboard-nav.js"></script>

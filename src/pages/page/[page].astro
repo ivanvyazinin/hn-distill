@@ -6,6 +6,7 @@ import { PATHS } from "@config/paths";
 import { formatDateHuman } from "@utils/date";
 import type { AggregatedItem } from "@config/schemas";
 import { loadAggregated } from "@utils/load-aggregated";
+import { countTags } from "@utils/tag-counts";
 
 export const PAGE_SIZE = 10;
 
@@ -18,6 +19,9 @@ export async function getStaticPaths() {
 const lang = LANG;
 const { items: allItems, updatedISO } = loadAggregated(PATHS.aggregated);
 const updatedPretty = formatDateHuman(updatedISO);
+
+const countsMap = countTags(allItems);
+const tagCountsObj = Object.fromEntries(countsMap);
 
 const totalPages = Math.max(1, Math.ceil(allItems.length / PAGE_SIZE));
 const pStr = Astro.params.page ?? "1";
@@ -113,7 +117,7 @@ const description = `${t.page} ${currentPage}/${totalPages} of Hacker News Diges
         allItems.length === 0 ? (
           <p class="meta">{t.noData}</p>
         ) : (
-          pageItems.map((it: AggregatedItem) => <StorySection item={it} />)
+          pageItems.map((it: AggregatedItem) => <StorySection item={it} tagCounts={tagCountsObj} />)
         )
       }
       {

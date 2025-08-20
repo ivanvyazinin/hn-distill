@@ -6,6 +6,7 @@ import { PATHS } from '@config/paths';
 import { WeeklyGroupFileSchema, type AggregatedItem } from '@config/schemas';
 import { indexById, loadAggregated, pickByIds } from '@utils/load-aggregated';
 import { readJsonSafeOr } from '@utils/json';
+import { countTags } from '@utils/tag-counts';
 
 export async function getStaticPaths() {
   const weeklyGroup = await readJsonSafeOr(PATHS.grouped.weekly, WeeklyGroupFileSchema, {
@@ -22,6 +23,8 @@ const weekParam = Astro.params.week ?? '';
 const weekKey = typeof weekParam === 'string' ? weekParam : '';
 
 const { items: allItems } = loadAggregated(PATHS.aggregated);
+const countsMap = countTags(allItems);
+const tagCountsObj = Object.fromEntries(countsMap);
 const itemsById = indexById(allItems);
 
 const weeklyGroup = await readJsonSafeOr(PATHS.grouped.weekly, WeeklyGroupFileSchema, {
@@ -72,7 +75,7 @@ const description = `Weekly Hacker News Digest for ${displayWeek}. ${weekItems.l
       {weekItems.length === 0 ? (
         <p class="meta">{t.noData}</p>
       ) : (
-        weekItems.map((it) => <StorySection item={it} />)
+        weekItems.map((it) => <StorySection item={it} tagCounts={tagCountsObj} />)
       )}
     </main>
     <script is:inline src="/js/keyboard-nav.js"></script>
