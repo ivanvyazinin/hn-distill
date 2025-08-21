@@ -1,0 +1,8 @@
+{
+  "id": 44970563,
+  "lang": "ru",
+  "summary": "NetHack при сборке с `-DMAIL` и `OPTIONS=mail` может уведомлять о новой почте: демон приносит свиток, при чтении запускается `MAILREADER`.  \nЯ играю в Emacs-версию и не хочу выходить из неё, поэтому настроил связку mu4e ↔ NetHack.\n\nmu хранит письма в maildir, а NetHack ждёт mbox. Проверяем, появились ли письма за последние 5 минут, и «трогаем» файл `/tmp/nh.mbox`:\n\n```python\nimport mailbox, pathlib, os\nfrom datetime import datetime, timedelta\n\nMAILDIR = os.path.expanduser(\"~/Mail/personal/INBOX\")\nMBOX = \"/tmp/nh.mbox\"\n\nmaildir = mailbox.Maildir(MAILDIR)\nfor msg in maildir:\n    if datetime.fromtimestamp(msg.get_date()) > datetime.now() - timedelta(minutes=5):\n        pathlib.Path(MBOX).touch()\n        break\nmaildir.close()\n```\n\nЧитаем почту через mu4e:\n\n```bash\nemacsclient -n --eval \"(progn (require 'mu4e) (mu4e-context-switch nil \\\"Personal\\\") (mu4e-search-bookmark \\\"maildir:/personal/INBOX AND flag:unread\\\"))\"\n```\n\n`emacsclient` запускает уже работающий Emacs, избегая блокировки базы mu.",
+  "inputHash": "54d1fcf9cebe5b720f96ba8f237090ef273a6527398daf3c038306a7f952eb9d",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-21T18:32:43.127Z"
+}
