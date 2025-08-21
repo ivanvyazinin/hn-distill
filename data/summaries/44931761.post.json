@@ -1,0 +1,8 @@
+{
+  "id": 44931761,
+  "lang": "ru",
+  "summary": "### Сокращённый перевод\n\nGPU — мощный параллелизатор, но требует API (CUDA, Vulkan и др.), управления памятью и передач данных. Рассмотрим базовые алгоритмы **reduce** и **scan** на Vulkan 1.1 + GLSL.\n\n#### Подгруппы Vulkan  \n- **Subgroup** — SIMD-группа, выполняющая шейдеры синхронно.  \n- Минимальные возможности можно запросить:  \n```cpp\nauto props = device.getProperties2<...>();\nstd::cout << props.get<vk::PhysicalDeviceSubgroupProperties>().subgroupSize; // 64\n```\n\n#### Reduce  \nСуммирует массив `x₀…xₙ`.  \n- Внутри подгруппы: `subgroupAdd(value)` → сумма 64 элементов.  \n- Между подгруппами: сохраняем частичные суммы в `shared`, затем ещё одна `subgroupAdd` первой подгруппой.  \n- Если данных больше, чем вместит work-group, используем несколько проходов с `atomicAdd` или барьерами.\n\n**Шейдер (упрощённо):**\n```glsl\nshared float sdata[64];\nfloat sum = subgroupAdd(data[id]);\nif (subgroupID == 0) sdata[localID] = sum;\nbarrier();\nif (workGroupID == 0) sum = subgroupAdd(sdata[localID]);\n```\n\nПроизводительность: чуть быстрее `std::reduce`, но код короче и чище, чем полностью shared-memory реализация.\n\n#### Scan (prefix-sum)  \nПреобразует `x₀…xₙ` в `y₀…yₙ`, где `yᵢ = yᵢ₋₁ + xᵢ`.  \n- Поддерживается `subgroupExclusiveAdd`, но для больших массивов нужно комбинировать подгруппы и shared-память, аналогично reduce.",
+  "inputHash": "5238a027edd94b7d60eaf0e9bd5e16a0109175bb9f468a7d345572ce99cfb6d4",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-21T03:12:50.467Z"
+}
