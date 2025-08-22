@@ -24,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 44981199,
-    "by": "sandeep-nambiar",
-    "timeISO": "2025-08-22T05:10:49.000Z",
-    "textPlain": "This is really cool. I've been thinking about something similar for a long time and I'm glad someone has finally done it. GG!I can recommend writing even the BPF side of things with rust using Aya[1].[1] - https://github.com/aya-rs/aya",
+    "id": 44984119,
+    "by": "j-krieger",
+    "timeISO": "2025-08-22T13:01:34.000Z",
+    "textPlain": "I do wonder if this would make for an excellent exfil implant since it doesn‘t register syscalls.",
     "parent": 44980865,
     "depth": 1
   },
   {
-    "id": 44982779,
-    "by": "bullen",
-    "timeISO": "2025-08-22T10:19:37.000Z",
-    "textPlain": "So far everything after epoll that I have compared with falls short.So to reimplement my foundation (with all the bugs) will not be worth it.I will however compare Javas NIO (epoll) with the new Virtual Threads IO (without pinning).http://github.com/tinspin/rupy",
+    "id": 44982712,
+    "by": "phrotoma",
+    "timeISO": "2025-08-22T10:07:56.000Z",
+    "textPlain": "Anybody know what the state of kTLS is? I asked one of the Cilium devs about it a while ago'cause I'd seen Thomas Graf excitedly talking about it and he told me that kernel support in many distros was lacking so they aren't ready to enable it by default.",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
+    "id": 44981199,
+    "by": "sandeep-nambiar",
+    "timeISO": "2025-08-22T05:10:49.000Z",
+    "textPlain": "This is really cool. I've been thinking about something similar for a long time and I'm glad someone has finally done it. GG!I can recommend writing even the BPF side of things with rust using Aya[1].[1] - https://github.com/aya-rs/aya",
     "parent": 44980865,
     "depth": 1
   },
@@ -56,18 +64,10 @@
     "depth": 1
   },
   {
-    "id": 44982712,
-    "by": "phrotoma",
-    "timeISO": "2025-08-22T10:07:56.000Z",
-    "textPlain": "Anybody know what the state of kTLS is? I asked one of the Cilium devs about it a while ago'cause I'd seen Thomas Graf excitedly talking about it and he told me that kernel support in many distros was lacking so they aren't ready to enable it by default.",
-    "parent": 44980865,
-    "depth": 1
-  },
-  {
-    "id": 44983599,
-    "by": "api",
-    "timeISO": "2025-08-22T12:18:37.000Z",
-    "textPlain": "This is impressive but it’s also an amazing amount of complexity and difficult programming to work around the fact that syscalls are so slow.It seems like there’s these fundamental things in OSes that we just can’t improve, or I suppose can’t without breaking too much backward compatibility, so we are forced to do this.",
+    "id": 44982779,
+    "by": "bullen",
+    "timeISO": "2025-08-22T10:19:37.000Z",
+    "textPlain": "So far everything after epoll that I have compared with falls short.So to reimplement my foundation (with all the bugs) will not be worth it.I will however compare Javas NIO (epoll) with the new Virtual Threads IO (without pinning).http://github.com/tinspin/rupy",
     "parent": 44980865,
     "depth": 1
   },
@@ -84,6 +84,14 @@
     "by": "mgaunard",
     "timeISO": "2025-08-22T07:44:15.000Z",
     "textPlain": "\"zero syscall\"> In order to avoid busy looping, both the kernel and the web server will only busy-loop checking the queue for a little bit (configurable, but think milliseconds), and if there’s nothing new, the web server will do a syscall to “go to sleep” until something gets added to the queue.",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
+    "id": 44983599,
+    "by": "api",
+    "timeISO": "2025-08-22T12:18:37.000Z",
+    "textPlain": "This is impressive but it’s also an amazing amount of complexity and difficult programming to work around the fact that syscalls are so slow.It seems like there’s these fundamental things in OSes that we just can’t improve, or I suppose can’t without breaking too much backward compatibility, so we are forced to do this.",
     "parent": 44980865,
     "depth": 1
   },
@@ -120,6 +128,14 @@
     "depth": 1
   },
   {
+    "id": 44982846,
+    "by": "newpavlov",
+    "timeISO": "2025-08-22T10:32:32.000Z",
+    "textPlain": "This actually one of my many gripes about Rust async and why I consider it a bad addition to the language in the long term. The fundamental problem is that rust async was developed when epoll was dominant (and almost no one in the Rust circles cared about IOCP) and it has heavily influenced the async design (sometimes indirectly through other languages).Think about it for a second. Why do we not have this problem with \"synchronous\" syscalls? When you call `read` you also \"pass mutable borrow\" of the buffer to the kernel, but it maps well into the Rust ownership/borrow model since the syscall blocks execution of the thread and there are no ways to prevent it in user code. With poll-based async model you side-step this issues since you use the same \"sync\" syscalls, but which are guaranteed to return without blocking.For a completion-based IO to work properly with the ownership/borrow model we have to guarantee that the task code will not continue execution until it receives a completion event. You simply can not do it with state machines polled in user code. But the threading model fits here perfectly! If we are to replace threads with \"green\" threads, user Rust code will look indistinguishable from \"synchronous\" code. And no, the green threads model can work properly on embedded systems as demonstrated by many RTOSes.There are several ways of how we could've done it without making the async runtime mandatory for all targets (the main reason why green threads were removed from Rust 1.0). My personal favorite is introduction of separate \"async\" targets.Unfortunately, the Rust language developers made a bet on the unproved polling stackless model because of the promised efficiency and we are in the process of finding out whether the bet plays of or not.",
+    "parent": 44981374,
+    "depth": 2
+  },
+  {
     "id": 44983850,
     "by": "aliceryhl",
     "timeISO": "2025-08-22T12:40:05.000Z",
@@ -128,10 +144,10 @@
     "depth": 2
   },
   {
-    "id": 44982846,
-    "by": "newpavlov",
-    "timeISO": "2025-08-22T10:32:32.000Z",
-    "textPlain": "This actually one of my many gripes about Rust async and why I consider it a bad addition to the language in the long term. The fundamental problem is that rust async was developed when epoll was dominant (and almost no one in the Rust circles cared about IOCP) and it has heavily influenced the async design (sometimes indirectly through other languages).Think about it for a second. Why do we not have this problem with \"synchronous\" syscalls? When you call `read` you also \"pass mutable borrow\" of the buffer to the kernel, but it maps well into the Rust ownership/borrow model since the syscall blocks execution of the thread and there are no ways to prevent it in user code. With poll-based async model you side-step this issues since you use the same \"sync\" syscalls, but which are guaranteed to return without blocking.For a completion-based IO to work properly with the ownership/borrow model we have to guarantee that the task code will not continue execution until it receives a completion event. You simply can not do it with state machines polled in user code. But the threading model fits here perfectly! If we are to replace threads with \"green\" threads, user Rust code will look indistinguishable from \"synchronous\" code. And no, the green threads model can work properly on embedded systems as demonstrated by many RTOSes.There are several ways of how we could've done it without making the async runtime mandatory for all targets (the main reason why green threads were removed from Rust 1.0). My personal favorite is introduction of separate \"async\" targets.Unfortunately, the Rust language developers made a bet on the unproved polling stackless model because of the promised efficiency and we are in the process of finding out whether the bet plays of or not.",
+    "id": 44983930,
+    "by": "johncolanduoni",
+    "timeISO": "2025-08-22T12:46:20.000Z",
+    "textPlain": "It’s annoying but possible to do this correctly and not have the API be too bad. The “happy path” of a clean success or error is fine if you accept that buffers can’t just be simple &[u8] slices. Cancellation can be handled safely with something like the following API contract:Have your function signature be async fn read(buffer: &mut Vec<u8>) -> Result<…>’ (you can use something more convenient like ‘&mut BytesMut’ too). If you run the future to completion (success or failure), the argument holds the same buffer passed in, with data filled in appropriately on success. If you cancel/drop the future, the buffer may point at an empty allocation instead (this is usually not an annoying constraint for most IO flows, and footgun potential is low).The way this works is that your library “takes” the underlying allocation before starting the operation out of the variable, replacing it with the default unallocated ‘Vec<u8>’. Once the buffer is no longer used by the IO system, it puts it back before returning. If you cancel, it manages the buffer in the background to release it when safe and the unallocated buffer is left in the passed variable.",
     "parent": 44981374,
     "depth": 2
   },
@@ -165,6 +181,14 @@
     "timeISO": "2025-08-22T05:56:41.000Z",
     "textPlain": "It wasn't just CGI, every HTTP session was commonly a forked copy of the entire server in the CERN and Apache lineage!  Apache gradually had better answers, but their API with common addons made it a bit difficult to transition so webservers like nginx took off which are built closer to the architecture in the article with event driven I/O from the beginning.",
     "parent": 44981313,
+    "depth": 2
+  },
+  {
+    "id": 44984358,
+    "by": "drewg123",
+    "timeISO": "2025-08-22T13:22:28.000Z",
+    "textPlain": "That's a shame.  How hard is it to enable?  Do you need a custom kernel, or can you enable it at runtime?On FreeBSD, its been in the kernel / openssl since 13, and has been one runtime toggle (sysctl kern.ipc.tls.enable=1) away from being enabled.  And its enabled by default in the upcoming FreeBSD-15.We (at Netflix) have run all of our tls encrypted streaming over kTLS for most of a decade.",
+    "parent": 44982712,
     "depth": 2
   },
   {
@@ -220,6 +244,14 @@
     "by": "maeln",
     "timeISO": "2025-08-22T10:07:02.000Z",
     "textPlain": "> but it's horrible devex to have to wait seconds for your server to recompile after a change.What a time to be alived that seconds to recompile is consider horrible devex.",
+    "parent": 44982527,
+    "depth": 2
+  },
+  {
+    "id": 44984093,
+    "by": "j-krieger",
+    "timeISO": "2025-08-22T12:59:03.000Z",
+    "textPlain": "Compile times aren’t glacial and will be much faster with the new trait solver and cranelift.",
     "parent": 44982527,
     "depth": 2
   },
