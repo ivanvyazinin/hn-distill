@@ -1,17 +1,17 @@
 [
   {
-    "id": 44980546,
-    "by": "maxmcd",
-    "timeISO": "2025-08-22T02:48:20.000Z",
-    "textPlain": "This library is wild https://github.com/cvilsmeier/sqinnSqlite over stdin, to a subprocess, and it's fast!",
-    "parent": 44941546,
-    "depth": 1
-  },
-  {
     "id": 44980526,
     "by": "Kimitri",
     "timeISO": "2025-08-22T02:45:13.000Z",
     "textPlain": "This is interesting and very timely for me. Just this week I was building a small Go system that uses SQLite. I needed to cross-compile it for FreeBSD on a Mac and ran into issues with CGO. The easiest fix seemed to be to switch from a CGO based library to a pure Go one.",
+    "parent": 44941546,
+    "depth": 1
+  },
+  {
+    "id": 44980546,
+    "by": "maxmcd",
+    "timeISO": "2025-08-22T02:48:20.000Z",
+    "textPlain": "This library is wild https://github.com/cvilsmeier/sqinnSqlite over stdin, to a subprocess, and it's fast!",
     "parent": 44941546,
     "depth": 1
   },
@@ -22,5 +22,29 @@
     "textPlain": "Excellent evaluation. From reading the code, it appears that the units for the numbers column is usually milliseconds (ms)It also looks like squinn is the clear leader for most but not all of the benchmarks.Even though it's \"not scientific\", is still very useful as a baseline - thanks for taking this effort and publishing your results!Also taking a look at monibot.io , looks cool",
     "parent": 44941546,
     "depth": 1
+  },
+  {
+    "id": 44980895,
+    "by": "jitl",
+    "timeISO": "2025-08-22T04:02:19.000Z",
+    "textPlain": "For a project a while back, I needed to turn many-gigabyte Postgres CSV table dumps into SQLite databases. I turned to Go as its a great language for easy parallelism combined with enough memory layout control to get relatively good performance.I quickly ruled out using database/sql drivers as the indirection through interface types added a bunch of overhead and stymied my attempts for reasonable memory layout. For my use-case, I found the crawshaw driver performed the best, but I ended up forking it as well as the Golang standard library CSV parser as I found defensive copying & allocation was the largest bottleneck. I ended up cycling several very large arenas among a CSV parser thread that filled the arena with column bytes and several threads writing to different temporary sqlite databases. Then at the end I ATTACHED them together and copied them into one big file (idk exactly why this is faster, but my profiles showed most cpu time spent in sqlite doing query binding things so MOAR CORES).One notable optimization was exposing a way to bind borrowed bytes to query parameters without inducing a copy in either Golang caller code, or SQLite library code. The crawshaw driver upstream only exposes sqlite_bind_blob with SQLITE_TRANSIENT mode, which tells SQLite to copy the input to a private allocation before returning from the sqlite_bind* call. I added a version that passes SQLITE_STATIC, which means \"trust me, I won't touch these bytes until the query is done, and I'll free them afterwards\". This is safe in Rust who's \"borrow\" and \"lifetime\" concept models this perfectly, but I guess in Golang its dicey enough to not expose in your public package.Here's the relevant commit in my fork: https://github.com/crawshaw/sqlite/commit/82ad4f03528e8fdc6a...I'm curious how OP's https://github.com/cvilsmeier/sqinn would fare, I'm somewhat sus about copying 200GB to stdin but the benchmark results are pretty good so ¯\\_(ツ)_/¯",
+    "parent": 44941546,
+    "depth": 1
+  },
+  {
+    "id": 44980705,
+    "by": "Twirrim",
+    "timeISO": "2025-08-22T03:19:55.000Z",
+    "textPlain": "It's wild to me that stdin/stdout is apparently significantly faster than using the API in so many cases.That's the kind of result that makes me wonder if there is something odd with the benchmarking.",
+    "parent": 44980546,
+    "depth": 2
+  },
+  {
+    "id": 44980928,
+    "by": "jitl",
+    "timeISO": "2025-08-22T04:12:45.000Z",
+    "textPlain": "There may be an opportunity to switch from TRANSIENT to STATIC in sqinn but I didn't read deeply enough to follow what the current memory approach is.\n https://github.com/cvilsmeier/sqinn/blob/a88b3df6c89f0531e39...",
+    "parent": 44980895,
+    "depth": 2
   }
 ]
