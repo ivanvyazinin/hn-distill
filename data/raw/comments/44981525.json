@@ -1,10 +1,194 @@
 [
   {
+    "id": 44981901,
+    "by": "DavidPiper",
+    "timeISO": "2025-08-22T07:36:38.000Z",
+    "textPlain": "I think that string length is one of those things that people (including me) don't realise they never actually want. In a production system, I have never actually wanted string length. I have wanted:- Number of bytes this will be stored as in the DB- Number of monospaced font character blocks this string will take up on the screen- Number of bytes that are actually being stored in memory\"String length\" is just a proxy for something else, and whenever I'm thinking shallowly enough to want it (small scripts, mostly-ASCII, mostly-English, mostly-obvious failure modes, etc) I like grapheme cluster being the sensible default thing that people probably expect, on average.",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
     "id": 44981808,
     "by": "bstsb",
     "timeISO": "2025-08-22T07:19:34.000Z",
     "textPlain": "ironic that unicode is stripped out the post's title here, making it very much wrong ;)for context, the actual post features an emoji with multiple unicode codepoints in between the quotes",
     "parent": 44981525,
     "depth": 1
+  },
+  {
+    "id": 44981921,
+    "by": "kazinator",
+    "timeISO": "2025-08-22T07:43:06.000Z",
+    "textPlain": "Why would I want this to be 17, if I'm representing strings as array of code points, rather than UTF-8?TXR Lisp:  1> (len \" \")\n  5\n  2> (coded-length \" \")\n  17\n\n(Trust me when I say that the emoji was there when I edited the comment.)The second value takes work; we have to go through the code points and add up their UTF-8 lengths. The coded length is not cached.",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44981858,
+    "by": "Aissen",
+    "timeISO": "2025-08-22T07:29:05.000Z",
+    "textPlain": "I'd disagree the number of unicode scalars is useless (in the case of python3), but it's a very interesting article nonetheless. Too bad unicode.org decided to break all the URLs in the table at the end.",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44982105,
+    "by": "umajho",
+    "timeISO": "2025-08-22T08:19:43.000Z",
+    "textPlain": "If you want to get the grapheme length in JavaScript, JavaScript now has Intl.Segmenter[^1][^2].  > [...(new Intl.Segmenter()).segment(THAT_FACEPALM_EMOJI)].length\n  1\n\n[^1]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Refe...[^2]: https://caniuse.com/mdn-javascript_builtins_intl_segmenter_s...",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44981816,
+    "by": "mrheosuper",
+    "timeISO": "2025-08-22T07:21:50.000Z",
+    "textPlain": ">We’ve seen four different lengths so far:Number of UTF-8 code units (17 in this case)\nNumber of UTF-16 code units (7 in this case)\nNumber of UTF-32 code units or Unicode scalar values (5 in this case)\nNumber of extended grapheme clusters (1 in this case)We would not have this problem if we all agree to return number of bytes instead.",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44981916,
+    "by": "impure",
+    "timeISO": "2025-08-22T07:40:48.000Z",
+    "textPlain": "I learned this recently when I encountered a bug due to cutting an emoji character in two making it unable to render.",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44982041,
+    "by": "spyrja",
+    "timeISO": "2025-08-22T08:10:33.000Z",
+    "textPlain": "I really hate to rant on about this. But the gymnastics required to parse UTF-8 correctly are truly insane. Besides that we now see issues such as invisible glyph injection attacks etc cropping up all over the place due to this crappy so-called \"standard\". Maybe we should just to go back to the simplicity of ASCII until we can come up with with something better?",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44981867,
+    "by": "darkwater",
+    "timeISO": "2025-08-22T07:30:25.000Z",
+    "textPlain": "(2019) updated in (2022)",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44982015,
+    "by": "troupo",
+    "timeISO": "2025-08-22T08:03:52.000Z",
+    "textPlain": "Obligatory, Emoji under the hood https://tonsky.me/blog/emoji/",
+    "parent": 44981525,
+    "depth": 1
+  },
+  {
+    "id": 44981944,
+    "by": "baq",
+    "timeISO": "2025-08-22T07:49:08.000Z",
+    "textPlain": "ASCII is very convenient when it fits in the solution space (it’d better be, it was designed for a reason), but in the global international connected computing world it doesn’t fit at all. The problem is all the tutorials, especially low level ones, assume ASCII so 1) you can print something to the console and 2) to avoid mentioning that strings are hard so folks don’t get discouraged.Notably Rust did the correct thing by defining multiple slightly incompatible string types for different purposes in the standard library and regularly gets flak for it.",
+    "parent": 44981901,
+    "depth": 2
+  },
+  {
+    "id": 44982033,
+    "by": "xg15",
+    "timeISO": "2025-08-22T08:09:04.000Z",
+    "textPlain": "It gets more complicated if you do substring operations.If I do s.charAt(x) or s.codePointAt(x) or s.substring(x, y), I'd like to know which values for x and y are valid and which aren't.",
+    "parent": 44981901,
+    "depth": 2
+  },
+  {
+    "id": 44981953,
+    "by": "sigmoid10",
+    "timeISO": "2025-08-22T07:51:34.000Z",
+    "textPlain": "I have wanted string length many times in production systems for language processing. And it is perfectly fine as long as whatever you are using is consistent. I rarely care how many bytes an emoji actually is unless I'm worried about extreme efficiency in storage or how many monospace characters it uses unless I do very specific UI things. This blog is more of a cautionary tale what can happen if you unconsciously mix standards e.g. by using one in the backend and another in the frontend. But this is not a problem of string lengths per se, they are just one instance where modern implementations are all over the place.",
+    "parent": 44981901,
+    "depth": 2
+  },
+  {
+    "id": 44982065,
+    "by": "guappa",
+    "timeISO": "2025-08-22T08:14:24.000Z",
+    "textPlain": "What if you need to find 5 letter words to play wordle? Why do you care how many bytes they occupy or how large they are on screen?",
+    "parent": 44981901,
+    "depth": 2
+  },
+  {
+    "id": 44981863,
+    "by": "cmeacham98",
+    "timeISO": "2025-08-22T07:29:52.000Z",
+    "textPlain": "Funny enough I clicked on the post wondering how it could possibly be that a single space was length 7.",
+    "parent": 44981808,
+    "depth": 2
+  },
+  {
+    "id": 44981876,
+    "by": "curtisf",
+    "timeISO": "2025-08-22T07:31:19.000Z",
+    "textPlain": "\"number of bytes\" is dependent on the text encoding.UTF-8 code units _are_ bytes, which is one of the things that makes UTF-8 very nice and why it has won",
+    "parent": 44981816,
+    "depth": 2
+  },
+  {
+    "id": 44981883,
+    "by": "minebreaker",
+    "timeISO": "2025-08-22T07:32:23.000Z",
+    "textPlain": "> We would not have this problem if we all agree to return number of bytes instead.I don't understand. It depends on the encoding isn't it?",
+    "parent": 44981816,
+    "depth": 2
+  },
+  {
+    "id": 44981872,
+    "by": "com2kid",
+    "timeISO": "2025-08-22T07:30:38.000Z",
+    "textPlain": "How would that help? UTF-8, 16, and 32 languages would still report different numbers.",
+    "parent": 44981816,
+    "depth": 2
+  },
+  {
+    "id": 44981884,
+    "by": "charcircuit",
+    "timeISO": "2025-08-22T07:32:25.000Z",
+    "textPlain": ">Number of extended grapheme clusters (1 in this case)Only if you are using a new enough version of unicode. If you were using an older version it is more than 1. As new unicode updates come out, the number of grapheme clusters a string has can change.",
+    "parent": 44981816,
+    "depth": 2
+  },
+  {
+    "id": 44982119,
+    "by": "danhau",
+    "timeISO": "2025-08-22T08:23:39.000Z",
+    "textPlain": "Are you referring to Unicode? Because UTF-8 is simple and relatively straight forward to parse.Unicode definitely has its faults, but on the whole it‘s great. I‘ll take Unicode w/ UTF-8 any day over the mess of encodings we had before it.Needless to say, Unicode is not a good fit for every scenario.",
+    "parent": 44982041,
+    "depth": 2
+  },
+  {
+    "id": 44982084,
+    "by": "guappa",
+    "timeISO": "2025-08-22T08:16:29.000Z",
+    "textPlain": "Sure, I'll just write my own language all weird and look like an illiterate so that you are not inconvenienced.",
+    "parent": 44982041,
+    "depth": 2
+  },
+  {
+    "id": 44982087,
+    "by": "eru",
+    "timeISO": "2025-08-22T08:17:00.000Z",
+    "textPlain": "You could use a standard that always uses eg 4 bytes per character, that is much easier to parse than UTF-8.UTF-8 is so complicated, because it wants to be backwards compatible with ASCII.",
+    "parent": 44982041,
+    "depth": 2
+  },
+  {
+    "id": 44982095,
+    "by": "Ekaros",
+    "timeISO": "2025-08-22T08:17:37.000Z",
+    "textPlain": "Should have just gone with 32 bit characters and no combinations. Utter simplicity.",
+    "parent": 44982041,
+    "depth": 2
+  },
+  {
+    "id": 44982061,
+    "by": "Sniffnoy",
+    "timeISO": "2025-08-22T08:13:50.000Z",
+    "textPlain": "Another little thing: The post mentions that tag sequences are only used for the flags of England, Scotland, and Wales.  Those are the only ones that are standard (RGI), but because it's clear how the mechanism would work for other subnational entities, some systems support other ones, such as US state flags!  I don't recommend using these if you want other people to be able to see them, but...",
+    "parent": 44982015,
+    "depth": 2
   }
 ]
