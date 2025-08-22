@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 44984695,
+    "by": "npalli",
+    "timeISO": "2025-08-22T13:51:10.000Z",
+    "textPlain": "So, current status on asyncRust - you need to understand: Futures, Pin, Waker, async runtimes, Send/Sync bounds, async trait objects, etc.C++20, coroutines.Go, goroutines.Java21+, virtual threads",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
     "id": 44981313,
     "by": "bmcahren",
     "timeISO": "2025-08-22T05:35:37.000Z",
     "textPlain": "This was a good read and great work. Can't wait to see the performance tests.Your write up connected some early knowledge from when I was 11 where I was trying to set up a database/backend and was finding lots of cgi-bin online. I realize now those were spinning up new processes with each request https://en.wikipedia.org/wiki/Common_Gateway_InterfaceI remember when sendfile became available for my large gaming forum with dozens of TB of demo downloads. That alone was huge for concurrency.I thought I had swore off this type of engineering but between this, the Netflix case of extra 40ms and the GTA 5 70% load time reduction maybe there is a lot more impactful work to be done.https://netflixtechblog.com/life-of-a-netflix-partner-engine...https://nee.lv/2021/02/28/How-I-cut-GTA-Online-loading-times...",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
+    "id": 44984890,
+    "by": "hnaccountme",
+    "timeISO": "2025-08-22T14:08:09.000Z",
+    "textPlain": "Hey,\nIs there a working HTTP server with all these features?I am working on something like this for work. But with plain old C",
     "parent": 44980865,
     "depth": 1
   },
@@ -24,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 44984119,
-    "by": "j-krieger",
-    "timeISO": "2025-08-22T13:01:34.000Z",
-    "textPlain": "I do wonder if this would make for an excellent exfil implant since it doesn‘t register syscalls.",
+    "id": 44984503,
+    "by": "klaussilveira",
+    "timeISO": "2025-08-22T13:34:28.000Z",
+    "textPlain": "For anyone wanting to learn more about how to create a small server with io_uring: https://unixism.net/2020/04/io-uring-by-example-article-seri...",
     "parent": 44980865,
     "depth": 1
   },
@@ -36,6 +52,14 @@
     "by": "phrotoma",
     "timeISO": "2025-08-22T10:07:56.000Z",
     "textPlain": "Anybody know what the state of kTLS is? I asked one of the Cilium devs about it a while ago'cause I'd seen Thomas Graf excitedly talking about it and he told me that kernel support in many distros was lacking so they aren't ready to enable it by default.",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
+    "id": 44984119,
+    "by": "j-krieger",
+    "timeISO": "2025-08-22T13:01:34.000Z",
+    "textPlain": "I do wonder if this would make for an excellent exfil implant since it doesn‘t register syscalls.",
     "parent": 44980865,
     "depth": 1
   },
@@ -64,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 44981924,
+    "by": "mgaunard",
+    "timeISO": "2025-08-22T07:44:15.000Z",
+    "textPlain": "\"zero syscall\"> In order to avoid busy looping, both the kernel and the web server will only busy-loop checking the queue for a little bit (configurable, but think milliseconds), and if there’s nothing new, the web server will do a syscall to “go to sleep” until something gets added to the queue.",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
     "id": 44982779,
     "by": "bullen",
     "timeISO": "2025-08-22T10:19:37.000Z",
@@ -76,14 +108,6 @@
     "by": "boredatoms",
     "timeISO": "2025-08-22T05:15:41.000Z",
     "textPlain": "Whats the goto instead of strace, if you wanted to see what was going on?",
-    "parent": 44980865,
-    "depth": 1
-  },
-  {
-    "id": 44981924,
-    "by": "mgaunard",
-    "timeISO": "2025-08-22T07:44:15.000Z",
-    "textPlain": "\"zero syscall\"> In order to avoid busy looping, both the kernel and the web server will only busy-loop checking the queue for a little bit (configurable, but think milliseconds), and if there’s nothing new, the web server will do a syscall to “go to sleep” until something gets added to the queue.",
     "parent": 44980865,
     "depth": 1
   },
@@ -144,14 +168,6 @@
     "depth": 2
   },
   {
-    "id": 44983930,
-    "by": "johncolanduoni",
-    "timeISO": "2025-08-22T12:46:20.000Z",
-    "textPlain": "It’s annoying but possible to do this correctly and not have the API be too bad. The “happy path” of a clean success or error is fine if you accept that buffers can’t just be simple &[u8] slices. Cancellation can be handled safely with something like the following API contract:Have your function signature be async fn read(buffer: &mut Vec<u8>) -> Result<…>’ (you can use something more convenient like ‘&mut BytesMut’ too). If you run the future to completion (success or failure), the argument holds the same buffer passed in, with data filled in appropriately on success. If you cancel/drop the future, the buffer may point at an empty allocation instead (this is usually not an annoying constraint for most IO flows, and footgun potential is low).The way this works is that your library “takes” the underlying allocation before starting the operation out of the variable, replacing it with the default unallocated ‘Vec<u8>’. Once the buffer is no longer used by the IO system, it puts it back before returning. If you cancel, it manages the buffer in the background to release it when safe and the unallocated buffer is left in the passed variable.",
-    "parent": 44981374,
-    "depth": 2
-  },
-  {
     "id": 44981469,
     "by": "jcranmer",
     "timeISO": "2025-08-22T06:06:53.000Z",
@@ -168,11 +184,27 @@
     "depth": 2
   },
   {
+    "id": 44983930,
+    "by": "johncolanduoni",
+    "timeISO": "2025-08-22T12:46:20.000Z",
+    "textPlain": "It’s annoying but possible to do this correctly and not have the API be too bad. The “happy path” of a clean success or error is fine if you accept that buffers can’t just be simple &[u8] slices. Cancellation can be handled safely with something like the following API contract:Have your function signature be async fn read(buffer: &mut Vec<u8>) -> Result<…>’ (you can use something more convenient like ‘&mut BytesMut’ too). If you run the future to completion (success or failure), the argument holds the same buffer passed in, with data filled in appropriately on success. If you cancel/drop the future, the buffer may point at an empty allocation instead (this is usually not an annoying constraint for most IO flows, and footgun potential is low).The way this works is that your library “takes” the underlying allocation before starting the operation out of the variable, replacing it with the default unallocated ‘Vec<u8>’. Once the buffer is no longer used by the IO system, it puts it back before returning. If you cancel, it manages the buffer in the background to release it when safe and the unallocated buffer is left in the passed variable.",
+    "parent": 44981374,
+    "depth": 2
+  },
+  {
     "id": 44981966,
     "by": "ozgrakkurt",
     "timeISO": "2025-08-22T07:53:14.000Z",
     "textPlain": "You don’t have to represent everything with borrows. You can just use data structures like Slab to make it cancel safe.As an example this library I wrote before is cancel safe and doesn’t use lifetimes etc. for it.https://github.com/steelcake/io2",
     "parent": 44981374,
+    "depth": 2
+  },
+  {
+    "id": 44984787,
+    "by": "thomashabets2",
+    "timeISO": "2025-08-22T13:59:14.000Z",
+    "textPlain": "Rust: Well yes. Rust does force you to understand the things, or it won't compile. It does have drawbacks.Go: goroutines are not async. And you can't understand goroutines without understanding channels. And channels are weirdly implemented in Go, where the semantics of edge cases, while well defined, are like rolling a D20 die if you try to reason from first principles.Go doesn't force you to understand things. I agree with that. It has pros and cons.I see what you mean but \"cheap threads\" is not the same thing as async. More like \"current status of massive concurrency\". Except that's not right either. tarweb, the subject of the blog post in question, is single threaded and uses io_uring as an event loop. (the idea being to spin up one thread per CPU core, to use full capacity)So it's current status of… what exactly?Cheap threads have a benefit over an async loop. The main one being that they're easier to reason about. It also has drawbacks. E.g. each thread may be light weight, but it does need a stack.",
+    "parent": 44984695,
     "depth": 2
   },
   {
@@ -200,22 +232,6 @@
     "depth": 2
   },
   {
-    "id": 44982814,
-    "by": "fuy",
-    "timeISO": "2025-08-22T10:26:58.000Z",
-    "textPlain": "perf and look at stack traces (or off-cpu events for waits/locks).\nalso, ebpf",
-    "parent": 44981223,
-    "depth": 2
-  },
-  {
-    "id": 44981306,
-    "by": "abrookewood",
-    "timeISO": "2025-08-22T05:33:26.000Z",
-    "textPlain": "I think you have to use eBPF-based tools",
-    "parent": 44981223,
-    "depth": 2
-  },
-  {
     "id": 44982686,
     "by": "thomashabets2",
     "timeISO": "2025-08-22T10:03:17.000Z",
@@ -237,6 +253,22 @@
     "timeISO": "2025-08-22T08:02:48.000Z",
     "textPlain": "Like all polling I/O models (that don't spin) it also means you have to wait milliseconds in the worst case to start servicing a request. That's a long time.For comparison a read/write over a TCP socket on loopback between two process is a few microseconds using BSD sockets API.",
     "parent": 44981924,
+    "depth": 2
+  },
+  {
+    "id": 44982814,
+    "by": "fuy",
+    "timeISO": "2025-08-22T10:26:58.000Z",
+    "textPlain": "perf and look at stack traces (or off-cpu events for waits/locks).\nalso, ebpf",
+    "parent": 44981223,
+    "depth": 2
+  },
+  {
+    "id": 44981306,
+    "by": "abrookewood",
+    "timeISO": "2025-08-22T05:33:26.000Z",
+    "textPlain": "I think you have to use eBPF-based tools",
+    "parent": 44981223,
     "depth": 2
   },
   {
