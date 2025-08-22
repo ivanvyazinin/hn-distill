@@ -1,13 +1,5 @@
 [
   {
-    "id": 44982779,
-    "by": "bullen",
-    "timeISO": "2025-08-22T10:19:37.000Z",
-    "textPlain": "So far everything after epoll that I have compared with falls short.So to reimplement my foundation (with all the bugs) will not be worth it.I will however compare Javas NIO (epoll) with the new Virtual Threads IO (without pinning).http://github.com/tinspin/rupy",
-    "parent": 44980865,
-    "depth": 1
-  },
-  {
     "id": 44981374,
     "by": "Seattle3503",
     "timeISO": "2025-08-22T05:44:49.000Z",
@@ -32,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 44982712,
-    "by": "phrotoma",
-    "timeISO": "2025-08-22T10:07:56.000Z",
-    "textPlain": "Anybody know what the state of kTLS is? I asked one of the Cilium devs about it a while ago'cause I'd seen Thomas Graf excitedly talking about it and he told me that kernel support in many distros was lacking so they aren't ready to enable it by default.",
+    "id": 44982779,
+    "by": "bullen",
+    "timeISO": "2025-08-22T10:19:37.000Z",
+    "textPlain": "So far everything after epoll that I have compared with falls short.So to reimplement my foundation (with all the bugs) will not be worth it.I will however compare Javas NIO (epoll) with the new Virtual Threads IO (without pinning).http://github.com/tinspin/rupy",
     "parent": 44980865,
     "depth": 1
   },
@@ -44,6 +36,14 @@
     "by": "sandeep-nambiar",
     "timeISO": "2025-08-22T05:10:49.000Z",
     "textPlain": "This is really cool. I've been thinking about something similar for a long time and I'm glad someone has finally done it. GG!I can recommend writing even the BPF side of things with rust using Aya[1].[1] - https://github.com/aya-rs/aya",
+    "parent": 44980865,
+    "depth": 1
+  },
+  {
+    "id": 44982712,
+    "by": "phrotoma",
+    "timeISO": "2025-08-22T10:07:56.000Z",
+    "textPlain": "Anybody know what the state of kTLS is? I asked one of the Cilium devs about it a while ago'cause I'd seen Thomas Graf excitedly talking about it and he told me that kernel support in many distros was lacking so they aren't ready to enable it by default.",
     "parent": 44980865,
     "depth": 1
   },
@@ -112,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 44982846,
+    "by": "newpavlov",
+    "timeISO": "2025-08-22T10:32:32.000Z",
+    "textPlain": "This actually one of my many gripes about Rust async and why I consider it a bad addition to the language in the long term. The fundamental problem is that rust async was developed when epoll was dominant (and almost no one in the Rust circles cared about IOCP) and it has heavily influenced the async design (sometimes indirectly through other languages).Think about it for a second. Why do we not have this problem with \"synchronous\" syscalls? When you call `read` you also \"pass mutable borrow\" of the buffer to the kernel, but it maps well into the Rust ownership/borrow model since the syscall blocks execution of the thread and there are no ways to prevent it in user code. With poll-based async model you side-step this issues since you use the same \"sync\" syscalls, but which are guaranteed to return without blocking.For a completion-based IO to work properly with the ownership/borrow model we have to guarantee that the task code will not continue execution until it receives a completion event. You simply can not do it with state machines polled in user code. But the threading model fits here perfectly! If we are to replace threads with \"green\" threads, user Rust code will look indistinguishable from \"synchronous\" code. And no, the green threads model can work properly on embedded systems as demonstrated by many RTOSes.There are several ways of how we could've done it without making the async runtime mandatory for all targets (the main reason why green threads were removed from Rust 1.0). My personal favorite is introduction of separate \"async\" targets.Unfortunately, the Rust language developers made a bet on the unproved polling stackless model because of the promised efficiency and we are in the process of finding out whether the bet plays of or not.",
+    "parent": 44981374,
+    "depth": 2
+  },
+  {
     "id": 44981469,
     "by": "jcranmer",
     "timeISO": "2025-08-22T06:06:53.000Z",
@@ -173,6 +181,14 @@
     "timeISO": "2025-08-22T08:02:48.000Z",
     "textPlain": "Like all polling I/O models (that don't spin) it also means you have to wait milliseconds in the worst case to start servicing a request. That's a long time.For comparison a read/write over a TCP socket on loopback between two process is a few microseconds using BSD sockets API.",
     "parent": 44981924,
+    "depth": 2
+  },
+  {
+    "id": 44982814,
+    "by": "fuy",
+    "timeISO": "2025-08-22T10:26:58.000Z",
+    "textPlain": "perf and look at stack traces (or off-cpu events for waits/locks).\nalso, ebpf",
+    "parent": 44981223,
     "depth": 2
   },
   {
