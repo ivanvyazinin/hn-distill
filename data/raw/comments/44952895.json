@@ -1,9 +1,9 @@
 [
   {
-    "id": 44997286,
-    "by": "dangoodmanUT",
-    "timeISO": "2025-08-23T16:59:55.000Z",
-    "textPlain": "Maybe it's not obvious initially, but in retrospect, this handling of joins feels like the obvious way to handle it.Push down filters to read the least data possible.Or, know your data and be able to tell the query engine which kind of join strategy you would like (hash vs push down)",
+    "id": 44996480,
+    "by": "jamesblonde",
+    "timeISO": "2025-08-23T15:01:21.000Z",
+    "textPlain": "We call these pushdown joins in rondb. They only support an equality condition for the index condition.\nJoins with index condition pushdown is a bit of a mouthful.We also went from like 6 seconds to 50ms. Huge speedup.Referencehttps://docs.rondb.com/rondb_parallel_query/#pushdown-joins",
     "parent": 44952895,
     "depth": 1
   },
@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 44996480,
-    "by": "jamesblonde",
-    "timeISO": "2025-08-23T15:01:21.000Z",
-    "textPlain": "We call these pushdown joins in rondb. They only support an equality condition for the index condition.\nJoins with index condition pushdown is a bit of a mouthful.We also went from like 6 seconds to 50ms. Huge speedup.Referencehttps://docs.rondb.com/rondb_parallel_query/#pushdown-joins",
-    "parent": 44952895,
-    "depth": 1
-  },
-  {
     "id": 44996479,
     "by": "ianks",
     "timeISO": "2025-08-23T15:01:12.000Z",
     "textPlain": "I love this type of practical optimization for DB queries. I’ve always liked how [rom-rb](https://rom-rb.org/learn/core/5.2/combines/) made the combine pattern easy to use when joins are slow. Nice to see this implemented at DB layer",
+    "parent": 44952895,
+    "depth": 1
+  },
+  {
+    "id": 44997286,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-08-23T16:59:55.000Z",
+    "textPlain": "Maybe it's not obvious initially, but in retrospect, this handling of joins feels like the obvious way to handle it.Push down filters to read the least data possible.Or, know your data and be able to tell the query engine which kind of join strategy you would like (hash vs push down)",
     "parent": 44952895,
     "depth": 1
   },
@@ -54,6 +54,22 @@
     "textPlain": "Straddled joins were still a bottleneck in Readyset even after switching to hash joins. By integrating Index Condition Pushdown into the execution path, we eliminated the inefficiency and achieved up to 450× speedups.",
     "parent": 44952895,
     "depth": 1
+  },
+  {
+    "id": 44997972,
+    "by": "aseipp",
+    "timeISO": "2025-08-23T18:21:36.000Z",
+    "textPlain": "ReadySet is basically \"incremental view maintenance\" but applied to arbitrary SQL queries. It acts like a caching proxy for your database, but it simultaneously ingests the replication log from the system in order to see things happen. Then it uses that information to perform \"incremental\" updates of data it has cached, so that if you requery something, it is much faster.Naive example: let's say you had a query that was a table scan and it computed the average age of all users in the users table. If you insert a new row into the users table and then rerun the query, you'd expect another table scan, so it will grow over time. In a traditional setup, you might cache this query and only update it \"every once in a while.\" Instead, ReadySet can decompose this query into an \"incremental program\", run it, cache the result -- and then when it sees the insert into the table it incrementally updates the underlying data cache. That means the second run would actually be fast, and the cost to update the cache is only proportional to the underlying change, not the size of the table.ReadySet is derived from research on Noira, whose paper is here: https://www.usenix.org/conference/osdi18/presentation/gjengs...",
+    "parent": 44997275,
+    "depth": 2
+  },
+  {
+    "id": 44997626,
+    "by": "Sesse__",
+    "timeISO": "2025-08-23T17:36:26.000Z",
+    "textPlain": "It seems to be some sort of read-only reimplementation of MySQL/Postgres that can ingest their replication streams and materialize views (for caching). Complete with a really primitive optimizer, if the article is to be believed.",
+    "parent": 44997275,
+    "depth": 2
   },
   {
     "id": 44997438,

@@ -1,17 +1,17 @@
 [
   {
-    "id": 44997268,
-    "by": "a-poor",
-    "timeISO": "2025-08-23T16:58:25.000Z",
-    "textPlain": "This means you can't pass variables in as function arguments. Even the example in the official go docs doesn't handle the scope correctly:  func main() {\n   var wg sync.WaitGroup\n   var urls = []string{\n    \"http://www.golang.org/\",\n    \"http://www.google.com/\",\n    \"http://www.example.com/\",\n   }\n   for _, url := range urls {\n    // Launch a goroutine to fetch the URL.\n    wg.Go(func() {\n     // Fetch the URL.\n     http.Get(url)\n    })\n   }\n   // Wait for all HTTP fetches to complete.\n   wg.Wait()\n  }\n\nhttps://pkg.go.dev/sync#example-WaitGroupYou need to use this pattern instead:   for _, url := range urls {\n    url := url\n    // ...",
-    "parent": 44996623,
-    "depth": 1
-  },
-  {
     "id": 44996804,
     "by": "stefanos82",
     "timeISO": "2025-08-23T15:48:37.000Z",
     "textPlain": "Personally I wished they had it backported to previous versions too, because it's rather convenient!What is quite sad is that we cannot add it ourselves as it's so simple of what they have done:    func (wg *WaitGroup) Go(f func()) {\n        wg.Add(1)\n        go func() {\n            defer wg.Done()\n           f()\n        }()\n    }",
+    "parent": 44996623,
+    "depth": 1
+  },
+  {
+    "id": 44997658,
+    "by": "danenania",
+    "timeISO": "2025-08-23T17:40:59.000Z",
+    "textPlain": "I like WaitGroup as a concept, but I often end up using a channel instead for clearer error handling. Something like:  errCh := make(chan error)\n  for _, url := range urls {\n    go func(url string){\n      errCh <- http.Get(url)\n    }(url)\n  }\n\n  for range urls {\n    err := <-errCh\n    if err != nil {\n      // handle error\n    }\n  }\n\nShould I be using WaitGroup instead? If I do, don't I still need an error channel anyway—in which case it feels redundant? Or am I thinking about this wrong? I rarely encounter concurrency situations that the above pattern doesn't seem sufficient for.",
     "parent": 44996623,
     "depth": 1
   },
@@ -32,19 +32,19 @@
     "depth": 1
   },
   {
-    "id": 44997301,
-    "by": "jeremyloy_wt",
-    "timeISO": "2025-08-23T17:01:43.000Z",
-    "textPlain": "This isn’t necessary anymore as of Go 1.22https://go.dev/blog/loopvar-preview",
-    "parent": 44997268,
-    "depth": 2
+    "id": 44997268,
+    "by": "a-poor",
+    "timeISO": "2025-08-23T16:58:25.000Z",
+    "textPlain": "This means you can't pass variables in as function arguments. Even the example in the official go docs doesn't handle the scope correctly:  func main() {\n   var wg sync.WaitGroup\n   var urls = []string{\n    \"http://www.golang.org/\",\n    \"http://www.google.com/\",\n    \"http://www.example.com/\",\n   }\n   for _, url := range urls {\n    // Launch a goroutine to fetch the URL.\n    wg.Go(func() {\n     // Fetch the URL.\n     http.Get(url)\n    })\n   }\n   // Wait for all HTTP fetches to complete.\n   wg.Wait()\n  }\n\nhttps://pkg.go.dev/sync#example-WaitGroupYou need to use this pattern instead:   for _, url := range urls {\n    url := url\n    // ...",
+    "parent": 44996623,
+    "depth": 1
   },
   {
-    "id": 44997396,
-    "by": "9rx",
-    "timeISO": "2025-08-23T17:10:03.000Z",
-    "textPlain": "> This means you can't pass variables in as function arguments.Well, you could...    for _, url := range urls {\n        wg.Go(func(u string) func() {\n            return func() {\n                http.Get(u)\n            }\n        }(url))\n    }\n\n> You need to use this pattern insteadWhy? Seems rather redundant. It is not like WaitGroup.Go exists in earlier versions.",
-    "parent": 44997268,
+    "id": 44997980,
+    "by": "CamouflagedKiwi",
+    "timeISO": "2025-08-23T18:23:11.000Z",
+    "textPlain": "They basically don't backport anything for Go, but the quid pro quo for that is that the backwards compatibility is pretty strong so upgrades should be safe. I have seen one serious issue from it, but still it's the language I'm the most confident to do an upgrade and expect things to Just Work afterwards.",
+    "parent": 44996804,
     "depth": 2
   },
   {
@@ -64,10 +64,34 @@
     "depth": 2
   },
   {
+    "id": 44997881,
+    "by": "c0balt",
+    "timeISO": "2025-08-23T18:07:21.000Z",
+    "textPlain": "You would probably benefit from errgroup, https://pkg.go.dev/golang.org/x/sync/errgroupBut channels already do the waiting part for you.",
+    "parent": 44997658,
+    "depth": 2
+  },
+  {
+    "id": 44997752,
+    "by": "javier2",
+    "timeISO": "2025-08-23T17:50:34.000Z",
+    "textPlain": "How you handle err here? If you return, the go routines will leak",
+    "parent": 44997658,
+    "depth": 2
+  },
+  {
     "id": 44997103,
     "by": "fozdenn",
     "timeISO": "2025-08-23T16:36:15.000Z",
     "textPlain": "doesn't this point to a bigger problem that there are two ways of doing the same thing?",
+    "parent": 44996793,
+    "depth": 2
+  },
+  {
+    "id": 44996980,
+    "by": "mr90210",
+    "timeISO": "2025-08-23T16:16:33.000Z",
+    "textPlain": "Oh you are one of those. The nit picker. This is not at a PR review mate.",
     "parent": 44996793,
     "depth": 2
   },
@@ -80,11 +104,19 @@
     "depth": 2
   },
   {
-    "id": 44996980,
-    "by": "mr90210",
-    "timeISO": "2025-08-23T16:16:33.000Z",
-    "textPlain": "Oh you are one of those. The nit picker. This is not at a PR review mate.",
-    "parent": 44996793,
+    "id": 44997301,
+    "by": "jeremyloy_wt",
+    "timeISO": "2025-08-23T17:01:43.000Z",
+    "textPlain": "This isn’t necessary anymore as of Go 1.22https://go.dev/blog/loopvar-preview",
+    "parent": 44997268,
+    "depth": 2
+  },
+  {
+    "id": 44997396,
+    "by": "9rx",
+    "timeISO": "2025-08-23T17:10:03.000Z",
+    "textPlain": "> This means you can't pass variables in as function arguments.Well, you could...    for _, url := range urls {\n        wg.Go(func(u string) func() {\n            return func() {\n                http.Get(u)\n            }\n        }(url))\n    }\n\n> You need to use this pattern insteadWhy? Seems rather redundant. It is not like WaitGroup.Go exists in earlier versions.",
+    "parent": 44997268,
     "depth": 2
   }
 ]
