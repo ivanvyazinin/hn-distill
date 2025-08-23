@@ -1,9 +1,25 @@
 [
   {
-    "id": 44958422,
-    "by": "arvindh-manian",
-    "timeISO": "2025-08-20T03:35:21.000Z",
-    "textPlain": "> The advantage of this approach is that it generalizes efficiently to any number of dimensions.I am unsure about whether this is true. The ratio of a ball’s volume to its enclosing hypercube’s volume should decrease to 0 as dimensionality increases. Thus, the approach should actually generalize very poorly.",
+    "id": 44999567,
+    "by": "DoctorOetker",
+    "timeISO": "2025-08-23T22:18:12.000Z",
+    "textPlain": "I was hoping it generated hyperuniform samples on a sphere.",
+    "parent": 44956297,
+    "depth": 1
+  },
+  {
+    "id": 44999519,
+    "by": "nwallin",
+    "timeISO": "2025-08-23T22:06:57.000Z",
+    "textPlain": "Accept-reject methods are nonstarters when the architecture makes branching excessively expensive, specifically SIMD and GPU, which is one of the domains where generating random points on a sphere is particularly useful.The Box-Muller transform is slow because it requires log, sqrt, sin, and cos. Depending on your needs, you can approximate all of these.log2 can be easily approximated using fast inverse square root tricks:    constexpr float fast_approx_log2(float x) {\n      x = std::bit_cast<int, float>(x);\n      constexpr float a = 1.0f / (1 << 23);\n      x *= a;\n      x -= 127.0f;\n      return x;\n    }\n\n(conveniently, this also negates the need to ensure your input is not zero)sqrt is pretty fast; turn `-ffast-math` on. (this is already the default on GPUs) (remember that you're normalizing the resultant vector, so add this to the mag_sqr before square rooting it)The slow part of sin/cos is precise range reduction. We don't need that. The input to sin/cos Box-Muller is by construction in the range [0,2pi]. Range reduction is a no-op.For my particular niche, these approximations and the resulting biases are justified. YMMV. When I last looked at it, the fast log2 gave a bunch of linearities where you wanted it to be smooth, however across multiple dimensions these linearities seemed to cancel out.",
+    "parent": 44956297,
+    "depth": 1
+  },
+  {
+    "id": 44999371,
+    "by": "sfpotter",
+    "timeISO": "2025-08-23T21:44:47.000Z",
+    "textPlain": "Hmm, I don't buy it. The simplicity of just normalizing some Gaussian random deviates (especially since you generate them two at a time using Box-Muller) seems better than accept-reject. Especially considering that the ratio of the volume of the n-dimensional ball to the volume of [-1, 1]^n tends to zero as n tends to infinity exponentially fast...",
     "parent": 44956297,
     "depth": 1
   },
@@ -40,19 +56,19 @@
     "depth": 1
   },
   {
-    "id": 44959294,
-    "by": "alberto_balsam",
-    "timeISO": "2025-08-20T06:44:10.000Z",
-    "textPlain": "Note that the author is not referring to the accept-reject method here",
-    "parent": 44958422,
-    "depth": 2
+    "id": 44958422,
+    "by": "arvindh-manian",
+    "timeISO": "2025-08-20T03:35:21.000Z",
+    "textPlain": "> The advantage of this approach is that it generalizes efficiently to any number of dimensions.I am unsure about whether this is true. The ratio of a ball’s volume to its enclosing hypercube’s volume should decrease to 0 as dimensionality increases. Thus, the approach should actually generalize very poorly.",
+    "parent": 44956297,
+    "depth": 1
   },
   {
-    "id": 44998914,
-    "by": "scythe",
-    "timeISO": "2025-08-23T20:34:31.000Z",
-    "textPlain": "Let S = {S_i} be any set of cubes that covers a d-sphere. Choose a point in a cube and an integer i in [0, |S|). Now you have a random point in S. With a judicious choice of S you obtain a uniformly random point in the unit sphere with high probability.",
-    "parent": 44958422,
+    "id": 44999483,
+    "by": "Sharlin",
+    "timeISO": "2025-08-23T22:01:45.000Z",
+    "textPlain": "Aymptotic behavior doesn't really matter given that this algorithm is almost exclusively used with n=3.",
+    "parent": 44999371,
     "depth": 2
   },
   {
@@ -60,6 +76,14 @@
     "by": "srean",
     "timeISO": "2025-08-20T09:51:29.000Z",
     "textPlain": "If you want uniformly random on the spherical surface then uniformly at random in polar coordinates will not cut it.To appreciate why, consider strips along two constant latitudes. One along the Equator and the other very close to the pole. The uniformly random polar coordinates method will assign roughly the same number points to both. However the equatorial strip is spread over a large area but the polar strip over a tiny area. So the points will not be uniformly distributed over the surface.What one needs to keep track of is the ratio between the infinitesimal volume in polar coordinates dphi * dtheta to the infinitesimal of the surface area. In other words the amount of dilation or contraction. Then one has apply the reciprocal to even it out.This tracking is done by the determinant of the Jacobian.",
+    "parent": 44960208,
+    "depth": 2
+  },
+  {
+    "id": 44999554,
+    "by": "navane",
+    "timeISO": "2025-08-23T22:15:37.000Z",
+    "textPlain": "i feel somehow three rotations should be able to do it, 3 rands between 0 and 2pi.",
     "parent": 44960208,
     "depth": 2
   },
@@ -88,6 +112,14 @@
     "depth": 2
   },
   {
+    "id": 44956947,
+    "by": "pavel_lishin",
+    "timeISO": "2025-08-19T22:46:08.000Z",
+    "textPlain": "I had some time!It looks reasonably random to my eye: https://editor.p5js.org/fancybone/sketches/DUFhlJvOZ",
+    "parent": 44956594,
+    "depth": 2
+  },
+  {
     "id": 44998884,
     "by": "bob1029",
     "timeISO": "2025-08-23T20:28:09.000Z",
@@ -96,11 +128,11 @@
     "depth": 2
   },
   {
-    "id": 44956947,
-    "by": "pavel_lishin",
-    "timeISO": "2025-08-19T22:46:08.000Z",
-    "textPlain": "I had some time!It looks reasonably random to my eye: https://editor.p5js.org/fancybone/sketches/DUFhlJvOZ",
-    "parent": 44956594,
+    "id": 44999496,
+    "by": "Sharlin",
+    "timeISO": "2025-08-23T22:03:47.000Z",
+    "textPlain": "Mentioned in the article. Surely you read it, didn't you?",
+    "parent": 44998948,
     "depth": 2
   },
   {
@@ -117,6 +149,22 @@
     "timeISO": "2025-08-23T21:13:11.000Z",
     "textPlain": "The only reason I can think of that you’re getting downvoted because this is mentioned in the article. This is a strictly better method than the accept/reject method for this application. The runtime of the accept reject algorithm is exponential in the dimension because the ratio between the volume of the sphere is exponentially smaller than the volume of the hypercube.I’d also point out that the usual way Gaussians are generated (sample uniformly from the unit interval and remap via the Gaussian percentile) can be expressed as sampling from a d-dimensional cube and then post-processing as well, with the advantage that it works in one shot. (Edit: typo)",
     "parent": 44998948,
+    "depth": 2
+  },
+  {
+    "id": 44959294,
+    "by": "alberto_balsam",
+    "timeISO": "2025-08-20T06:44:10.000Z",
+    "textPlain": "Note that the author is not referring to the accept-reject method here",
+    "parent": 44958422,
+    "depth": 2
+  },
+  {
+    "id": 44998914,
+    "by": "scythe",
+    "timeISO": "2025-08-23T20:34:31.000Z",
+    "textPlain": "Let S = {S_i} be any set of cubes that covers a d-sphere. Choose a point in a cube and an integer i in [0, |S|). Now you have a random point in S. With a judicious choice of S you obtain a uniformly random point in the unit sphere with high probability.",
+    "parent": 44958422,
     "depth": 2
   }
 ]
