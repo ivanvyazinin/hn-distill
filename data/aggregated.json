@@ -1,5 +1,5 @@
 {
-  "updatedISO": "2025-08-23T11:20:44Z",
+  "updatedISO": "2025-08-23T12:46:28Z",
   "items": [
     {
       "id": 44994071,
@@ -8,19 +8,20 @@
       "by": "pykello",
       "timeISO": "2025-08-23T07:35:49.000Z",
       "postSummary": "**manim** — движок анимации от 3Blue1Brown для создания пояснительных математических видео.  \nPython-библиотека превращает LaTeX-формулы и геометрические объекты в плавные сцены, которые можно рендерить в Full HD или 4K.  \n\n### Ключевые возможности\n- **Объектно-ориентированный API**: создаёте `Mobject`-ы (Math-Objects) и анимируете их методами `.animate`, `.play`, `.transform`.  \n- **Встроенные шаблоны**: графы, векторы, интегралы, матрицы, 3D-сцены.  \n- **LaTeX-рендеринг**: компилирует формулы в реальном времени.  \n- **GPU-ускорение** (OpenGL) для сложных сцен.  \n- **CLI и Jupyter**: запускайте `manim -pql scene.py` или интерактивно в ноутбуке.  \n\n### Установка\n```bash\npip install manim\n# или\nconda install -c conda-forge manim\n```\n\n### Минимальный пример\n```python\nfrom manim import *\n\nclass HelloMath(Scene):\n    def construct(self):\n        eq = MathTex(r\"\\int_{-\\infty}^{\\infty} e^{-x^2} dx = \\sqrt{\\pi}\")\n        self.play(Write(eq))\n        self.wait()\n```\n\n### Ссылки\n- [Документация](https://docs.manim.community)  \n- [Discord-сервер](https://manim.community/discord)  \n- [Галерея примеров](https://github.com/ManimCommunity/manim-gallery)",
-      "commentsSummary": "- Участники советуют ссылаться на форк сообщества ManimCommunity/manim.  \n- Каждые несколько недель тема появляется на HN; ссылка на поиск обсуждений дана.  \n- Подчёркивают высокое качество визуализаций 3Blue1Brown и рекомендуют демо-видео Гранта.  \n- Упомянуты другие проекты, полностью рендерящие видео в Manim, и пример «Animation vs Math».  \n- Один пользователь делает объяснительные ролики по статьям с помощью Manim и Cursor.",
-      "score": 79,
-      "commentsCount": 11,
+      "commentsSummary": "- Сообщество активно рекомендует форк ManimCommunity как более удобный для большинства пользователей.  \n- Участники восхищаются качеством анимаций 3Blue1Brown и удивляются, как одна библиотека охватывает столь разные темы.  \n- Появились ссылки на альтернативные инструменты: sketchMath для Common Lisp и swaptube для полного рендеринга видео.  \n- Обсуждаются возможности 3D и интерактива: базовый manim их не поддерживает, но есть отдельные проекты, например, интерактивное видео о кватернионах от Grant’а и Ben Eater.  \n- Некоторые пользователи уже применяют manim с ИИ-ассистентами для создания учебных роликов по статьям и математическим концепциям.",
+      "score": 127,
+      "commentsCount": 34,
       "hnUrl": "https://news.ycombinator.com/item?id=44994071",
       "domain": "github.com",
       "tags": [
         "python",
         "latex",
         "opengl",
-        "3blue1brown",
-        "manim",
-        "animation",
         "jupyter",
+        "cli",
+        "3blue1brown",
+        "animation",
+        "mathematics",
         "github"
       ]
     },
@@ -31,16 +32,19 @@
       "by": "begoon",
       "timeISO": "2025-08-23T06:39:38.000Z",
       "postSummary": "**Zig 0.15** сменил IO: `std.Io.Reader` и `std.Io.Writer`.  \nСтарый способ тормозил и путался из-за `anytype`.\n\nПодключаемся к `www.openmymind.net:443`:\n\n```zig\nconst std = @import(\"std\");\n\npub fn main() !void {\n    var gpa = std.heap.DebugAllocator(.{}).init;\n    defer gpa.deinit();\n    const a = gpa.allocator();\n\n    const s = try std.net.tcpConnectToHost(a, \"www.openmymind.net\", 443);\n    defer s.close();\n\n    var wbuf: [std.crypto.tls.max_ciphertext_record_len]u8 = undefined;\n    var rbuf: [std.crypto.tls.max_ciphertext_record_len]u8 = undefined;\n    var w = s.writer(&wbuf);\n    var r = s.reader(&rbuf);\n\n    var bundle = std.crypto.Certificate.Bundle{};\n    try bundle.rescan(a);\n    defer bundle.deinit(a);\n\n    var tls_buf: [std.crypto.tls.max_ciphertext_record_len]u8 = undefined;\n    var tls = try std.crypto.tls.Client.init(\n        r.interface(),\n        &w.interface,\n        .{\n            .ca = .{ .bundle = bundle },\n            .host = .{ .explicit = \"www.openmymind.net\" },\n            .read_buffer = &.{},\n            .write_buffer = &tls_buf,\n        },\n    );\n    defer tls.end() catch {};\n\n    try tls.writer.writeAll(\"GET / HTTP/1.1\\r\\n\\r\\n\");\n\n    var out: [1024]u8 = undefined;\n    var fw = std.Io.Writer.fixed(&out);\n    const n = try tls.reader.stream(&fw, .limited(out.len));\n    std.debug.print(\"read: {s}\\n\", .{out[0..n]});\n}\n```\n\nКлючевые моменты  \n- `stream.reader()` и `writer()` требуют буфер.  \n- Чтобы передать их в `tls.Client`, нужно `.interface()` и `&interface`.  \n- `tls.Client.init` обязательно просит `ca`, `host`, `read_buffer`, `write_buffer`.  \n- Чтение ответа: `tls.reader.stream` в `std.Io.Writer`.",
-      "commentsSummary": "- Автору пришлось самому разобраться: нужно было сбросить и шифрующий, и потоковый writer’ы; первое чтение всегда возвращает 0, потом режим меняется и всё работает.  \n- Основная жалоба — почти полное отсутствие документации и примеров; сообщество отвечает «читай исходники stdlib».  \n- Некоторые считают, что писать доки рано: язык и stdlib всё ещё сильно меняются, и любые тексты быстро устареют.  \n- Zig критикуют за «сырой» низкоуровневый стиль, ручной менеджмент памяти и отсутствие высокоуровневых абстракций; другие же ценят его за прозрачность и совместимость с C.",
-      "score": 143,
-      "commentsCount": 109,
+      "commentsSummary": "the",
+      "score": 153,
+      "commentsCount": 128,
       "hnUrl": "https://news.ycombinator.com/item?id=44993797",
       "domain": "openmymind.net",
       "tags": [
         "zig",
         "tls",
-        "tcp",
-        "crypto"
+        "networking",
+        "io",
+        "cryptography",
+        "certificate",
+        "tcp"
       ]
     },
     {
@@ -51,8 +55,8 @@
       "timeISO": "2025-08-23T03:22:33.000Z",
       "postSummary": "- **Google** утверждает, что за год энергозатраты на один AI-запрос снизились **в 33 раза** — до уровня **9 секунд работы телевизора**.  \n- Анализ охватывает **процессоры, ускорители, память, охлаждение и простой оборудования**, а также косвенные выбросы (Scope 2 и 3).  \n- Рост энергопотребления в США (+4 %) связан с дата-центрами под AI; доля угля выросла на 20 %.  \n- Данные Google — редкий взгляд «изнутри»: учтены реальные нагрузки, а не только тесты моделей.",
       "commentsSummary": "- Google заявляет о 33-кратном снижении энергозатрат на один AI-запрос, но критики считают цифру «срежиссированной» за счёт включения огромного числа незапрошенных AI-сводок в поиске.  \n- Основные технические причины экономии — квантование, MoE, дистилляция и улучшенное использование железа; обучение моделей в расчёт не взято.  \n- Участники спорят, насколько честны метрики (медиана vs среднее, «вода» в отчётах о водопотреблении) и не привели ли оптимизации к заметному падению качества Gemini 2.5 Pro.  \n- Общий вывод: энергоэффективность растёт, но без учёта полного цикла «обучение + инференс» и с учётом эффекта роста общего объёма запросов реальное снижение углеродного следа вызывает сомнения.",
-      "score": 127,
-      "commentsCount": 62,
+      "score": 133,
+      "commentsCount": 69,
       "hnUrl": "https://news.ycombinator.com/item?id=44992832",
       "domain": "arstechnica.com",
       "tags": [
@@ -93,20 +97,22 @@
       "by": "efitz",
       "timeISO": "2025-08-23T00:59:02.000Z",
       "postSummary": "- **Контекст = память агента**  \n  Добавляйте только релевантные файлы. Помещайте их в `context/` и `docs/`, укажите агенту читать `README.md` этих папок и самостоятельно выбирать нужные.  \n  Пример вставки в промпт:  \n  ```\n  - При старте выведи список файлов в context/ и docs/\n  - Прочитай README.md каждой папки\n  - Используй только нужные\n  ```\n  Экономит токены и деньги.\n\n- **Контекст «на месте»**  \n  Если агент постоянно ошибается (например, пишет тесты на Jest вместо Vitest), вставьте напоминание прямо в файл:  \n  ```\n  // Проект использует vitest и cypress\n  // Не использовать Jasmine/Jest\n  // Запуск: pnpm test\n  ```\n\n- **Модель и агент**  \n  Для сложных задач берите Claude Sonnet. Пробуйте Claude Code и Roo Code — они сами подтягивают файлы проекта.  \n  Активные пользователи → оплата по факту; редкие → бесплатные чат-боты.\n\n- **Не «кодинг», а «создание»**  \n  Пишите документацию в `context/` (для разработки) и `docs/` (для пользователей) и заставляйте агента обновлять их после каждого значимого изменения.\n\n- **Итог**  \n  Это не единственный путь к успеху, а лишь то, что помогло мне — любителю — довести проект до рабочего состояния.",
-      "commentsSummary": "- Участники делятся лайфхаками: просить LLM задавать до 10 уточняющих вопросов, «перекладывать» задачу между разными моделями («один пишет, другой проверяет») и симулировать обсуждение на Stack Overflow.  \n- Обсуждают экономику: для тяжёлых пользователей подписка Anthropic Max или Claude Code в десятки раз дешевле оплаты за токены напрямую.  \n- Предлагают стандартизировать инструкции для агентов через отдельный AGENTS.md, а не смешивать их с человеческим README.md.  \n- Замечают, что агенты иногда отключают падающие тесты вместо их починки, и советуют заранее дробить задачи и выделять токены на планирование.",
-      "score": 100,
-      "commentsCount": 44,
+      "commentsSummary": "- Пользователи делятся лайфхаками: просить LLM задавать до 10 уточняющих вопросов перед генерацией кода и симулировать «публикацию» на Stack Overflow для получения фиксов.  \n- Споры о цене: при высоком объёме выгоднее подписка Claude Max ($200/мес) или Claude Code, чем оплата токенов по API.  \n- Разделение файлов: README.md должен оставаться для людей, а инструкции для агентов лучше выносить в AGENTS.md или CONVENTIONS.md (используются симлинки).  \n- Опыт «двойной проверки»: код сначала пишут в одной модели (GPT-5 или Opus), затем валидируют другой, передавая контекст как «мнение коллеги».  \n- Некоторые тратят $1k+/мес на токены и считают это лучшими вложениями в жизни, другие предупреждают, что агенты могут просто отключать падающие тесты.",
+      "score": 105,
+      "commentsCount": 47,
       "hnUrl": "https://news.ycombinator.com/item?id=44991884",
       "domain": "efitz-thoughts.blogspot.com",
       "tags": [
         "llm",
         "agents",
+        "claudecode",
+        "claude",
         "vitest",
         "jest",
         "cypress",
-        "claude",
-        "anthropic",
-        "pnpm"
+        "pnpm",
+        "stack-overflow",
+        "gpt-5"
       ]
     },
     {
@@ -244,22 +250,22 @@
       "by": "todsacerdoti",
       "timeISO": "2025-08-22T19:06:29.000Z",
       "postSummary": "**nitro** — миниатюрный, но гибкий init и супервизор процессов.\n\n### Назначение\n- init для встраиваемых, десктопных и серверных Linux-систем  \n- initramfs, контейнеров (Docker, Podman, LXC, K8s)  \n- непривилегированный демон на POSIX  \n\nКонфигурация — каталог скриптов (по умолчанию `/etc/nitro`).\n\n### Требования\n- Unix-сокеты  \n- `tmpfs` или записываемый `/run`\n\n### Плюсы\n- Всё состояние в RAM, работает на read-only root.  \n- Событийная модель без polling.  \n- Ноль аллокаций и ограниченных fd во время работы.  \n- Один статический бинарник + опциональный `nitroctl`.  \n- Сервисы — просто каталоги со скриптами, компиляция не нужна.  \n- Перезапуск, логирование, цепочки логов, независимость от времени.  \n- Запускается на FreeBSD через `/etc/ttys`.\n\n### Сервис\nКаждый подкаталог `/etc/nitro` может содержать:\n\n- `setup` — предзапуск, должен завершиться с 0.  \n- `run` — основной процесс (не должен завершаться).  \n- `finish` — пост-обработка, получает код выхода и сигнал.  \n- `log` → symlink на другой сервис для логов.  \n- `down` — не поднимать автоматически.  \n- Имена ≤ 64 символов, без `/`, `,`, переводов строк.  \n- Каталоги с `@` в конце игнорируются (параметризованные сервисы).\n\n### Специальные сервисы\n- `LOG` — лог по умолчанию.  \n- `SYS/setup` — перед стартом остальных.  \n- `SYS/finish` — перед остановкой всех.  \n- `SYS/final` — после завершения всех процессов.  \n- `SYS/fatal` — при критической ошибке.  \n- `SYS/reincarnate` — вместо выключения (полезно для initramfs).\n\n### Параметризованные сервисы\nКаталог `foo@` + symlink `foo@bar` → запуск `foo@/run bar`.  \n`nitroctl up foo@baz` запустит `foo@/run baz` даже без symlink.\n\n### Жизненный цикл\n1. Подъём: `SYS/setup`, затем все непомеченные `down`.  \n2. Работа: перезапуск при падении (пауза 2 с при частых падениях).  \n3. Останов: `nitroctl Shutdown/Reboot` → `SYS/finish` → SIGTERM (7 с) → SIGKILL → `SYS/final` → reboot/off/exit.\n\n### Управление `nitroctl`\n`nitroctl [команда] [сервис]`\n\n- `list` — состояния, pid, uptime, код выхода.  \n- `up`/`down` — запустить/остановить (SIGTERM или `down-signal`).  \n- `start`/`stop`/`restart` — с ожиданием успеха.  \n- `p`/`c`/`h` — SIGSTOP/SIGCONT/SIGHUP.",
-      "commentsSummary": "- Сравнивают Nitro с runit/s6/dinit: все минималистичны, но у Nitro нет декларативных зависимостей, параллельного запуска и управления ресурсами.  \n- Некоторые считают его не полноценным init, а простым супервизором процессов.  \n- В контейнерах он может быть полезен, но многие предпочитают разбивать задачи на отдельные контейнеры/Kubernetes.  \n- Название «nitro» конфликтует с AWS Nitro и Node-фреймворком, предлагают сменить.  \n- Пользователи Void Linux и Artix делятся опытом runit/dinit и ждут документации по Nitro.",
-      "score": 194,
-      "commentsCount": 70,
+      "commentsSummary": "- Nitro — минималистичный процесс-надзор без декларативных зависимостей, параллельного запуска и управления ресурсами; вдохновлён runit/daemontools.  \n- Участники сравнивают его с runit, s6, dinit и tini; считают проще, но упрекают в отсутствии «настоящих» функций init-системы.  \n- Название «nitro» вызывает конфликты с AWS Nitro, node-фреймворком Nitro и другими проектами; предлагают сменить.  \n- Несколько человек используют/писали свои супер-лёгкие init’ы (<500 строк) на Rust и C для enclave- и docker-контейнеров.  \n- В контейнерах PID 1 всё же нужен простой init, но многие предупреждают: не стоит пихать в один контейнер сложные многосервисные приложения, лучше сразу проектировать под k8s.",
+      "score": 200,
+      "commentsCount": 73,
       "hnUrl": "https://news.ycombinator.com/item?id=44988530",
       "domain": "git.vuxu.org",
       "tags": [
-        "linux",
         "init",
         "process-supervisor",
+        "linux",
         "docker",
         "podman",
         "lxc",
         "kubernetes",
+        "unix",
         "freebsd",
-        "unix-sockets",
-        "tmpfs"
+        "containers"
       ]
     },
     {
@@ -290,9 +296,9 @@
       "by": "Evidlo",
       "timeISO": "2025-08-22T18:47:30.000Z",
       "postSummary": "**Репозиторий Evidlo/xsl-website**  \nПубличный пример генерации сайта средствами XSLT: XML-документ преобразуется в полноценную HTML-страницу без серверной логики.  \n\n**Ключевые файлы**  \n- `index.xml` – исходные данные  \n- `index.xsl` – таблица стилей  \n- `README.md` – краткое руководство  \n\n**Запуск**  \n1. Откройте `index.xml` в браузере или  \n2. Примените XSLT-процессор: `xsltproc index.xsl index.xml > index.html`  \n\nРепозиторий демонстрирует, как обойтись без движков шаблонов, используя лишь стандартные XML-технологии.",
-      "commentsSummary": "- Участники обсуждают, что XSLT в браузерах устаревает: Google просит убрать его из стандарта и уже прячет за флагом в Chrome.  \n- Вспомнили альтернативы: CSS-сгенерированный контент, HTML Imports (отменены), PHP/серверный XSLT, CI/CD-билды.  \n- Отмечают плюсы XSLT — декларативность, отсутствие JS, удобство для LLM, но и минусы: сложность, проблемы IE, «водопад» запросов, недоступность контента для screen reader.  \n- Ностальгируют по 2000-м, когда XML+XSLT активно использовали в e-learning, документации, CMS (Symphony) и digital humanities (TEI).",
-      "score": 155,
-      "commentsCount": 85,
+      "commentsSummary": "- Обсуждение началось с примера SGML/XML-entity, но быстро переключилось на XSLT: Google просит удалить его из стандарта, а Chrome уже прячет за флагом.  \n- Показали альтернативы: CSS-контент (но он декоративен), серверный PHP/CI-CD, либо «чистый» XSLT без JS.  \n- Участники вспомнили 2000-е, когда XSLT активно использовали для e-learning, документации и CMS вроде Symphony.  \n- Сложность языка и отсутствие браузерной поддержки вынудили разработчиков уйти к React/Webpack, но LLM теперь могут писать XSLT за человека.  \n- Некоторые жалеют, что HTML Imports и внешние SGML-entity не прижились, и мечтают о «возвращении XML» в эпоху LLM.",
+      "score": 163,
+      "commentsCount": 88,
       "hnUrl": "https://news.ycombinator.com/item?id=44988271",
       "domain": "github.com",
       "tags": [
@@ -301,11 +307,11 @@
         "html",
         "css",
         "php",
-        "technology",
-        "symphony",
-        "tei",
-        "google",
-        "chrome"
+        "reactjs",
+        "webpack",
+        "cms",
+        "llm",
+        "github"
       ]
     },
     {
@@ -315,9 +321,9 @@
       "by": "kixelated",
       "timeISO": "2025-08-22T18:24:16.000Z",
       "postSummary": "**Cloudflare запустил первый MoQ-CDN**  \nТеперь можно тестировать **Media over QUIC** на их глобальной сети — это официальный продукт. MoQ — новый стандарт для live-медиа, призванный заменить WebRTC, HLS/DASH, RTMP и SRT.\n\n### Что уже работает\n- **Бесплатный технический превью**: relay.cloudflare.mediaoverquic.com  \n- Поддерживаются клиенты draft-07: [moq-rs](https://github.com/kixelated/moq), [imquic](https://www.meetecho.com/blog/imquic/), [moxygen](https://github.com/facebookexperimental/moxygen) и др.  \n- Публикация/просмотр прямо в браузере через Web-компоненты `<hang-publish>` и `<hang-watch>`:\n```html\n<hang-publish url=\"https://relay.cloudflare.mediaoverquic.com\"\n              name=\"unique-name-abc123\" audio video controls captions>\n  <video muted autoplay></video>\n</hang-publish>\n```\n- Скрытые субтитры генерируются в браузере (Whisper + WebGPU) и передаются по MoQ.  \n- Есть Rust-библиотека: импорт MP4, ffmpeg, gstreamer.\n\n### Что пока не работает\n- Нет аутентификации — используйте случайные имена стримов.  \n- Нет ANNOUNCE → конференции не стартуют.  \n- Safari не поддерживает WebTransport (в планах).  \n- Код не оптимизирован, баги гарантированы.",
-      "commentsSummary": "- Пользователи хвалят демо MoQ за мгновенный старт стрима и низкую задержку, но жалуются на артефакты (чёрные полосы) в Firefox/Android и проблемы с WebTransport в Safari.  \n- Главный вопрос — «зачем это надо?»: разработчики отвечают, что MoQ упрощает масштабирование и снижает glass-to-glass latency, а конечным пользователям выгода пока косвенная.  \n- Обсуждают, что MoQ работает поверх WebTransport; поддержка есть в Chrome, частично в Firefox, в Safari пока за флагом.  \n- Интересуются, можно ли использовать MoQ для мультиплеерных игр и multicast-стримов; ответ: технически возможно, но пока нет реального multicast.  \n- Поднимают тему монополии Cloudflare и сравнение с WebRTC: MoQ открывает «чёрный ящик» и даёт больше контроля, но требует больше ручной настройки.",
-      "score": 237,
-      "commentsCount": 100,
+      "commentsSummary": "- Пользователи хвалят скорость MoQ-демо, но жалуются на чёрные полосы на мобильных и отсутствие поддержки в Firefox/Safari.  \n- Критика: пост не объясняет, зачем MoQ нужен издателям и зрителям; разработчики отвечают, что главная выгода — упрощение масштабирования и меньшая задержка.  \n- Обсуждают, как обойти NAT без STUN/TURN, нужен ли multicast, и можно ли использовать MoQ для игрового неткода.  \n- Технические детали: WebTransport уже в Chrome/Firefox, Safari — за флагом; в качестве fallback готовят WebSocket + OPUS в WASM.",
+      "score": 247,
+      "commentsCount": 101,
       "hnUrl": "https://news.ycombinator.com/item?id=44987924",
       "domain": "moq.dev",
       "tags": [
@@ -329,8 +335,7 @@
         "rtmp",
         "srt",
         "rust",
-        "ffmpeg",
-        "gstreamer"
+        "webtransport"
       ]
     },
     {
@@ -470,21 +475,21 @@
       "by": "gyan",
       "timeISO": "2025-08-22T15:22:42.000Z",
       "postSummary": "*   [Скачать](download.html)  \n*   [Документация](documentation.html)  \n*   [Сообщество](community.html)  \n*   [Разработка](developer.html)  \n*   [Пожертвовать](donations.html)  \n\n# FFmpeg  \nКроссплатформенное решение для записи, конвертации и потоковой передачи аудио/видео.\n\n```bash\nffmpeg -i input.mp4 output.avi\n```\n\n## Новости\n\n### 23 августа 2025, FFmpeg 8.0 «Huffman»  \nКрупнейший релиз:  \n- **Новые декодеры**: APV, ProRes RAW, RealVideo 6.0, G.728  \n- **Улучшения VVC**: IBC, ACT, Palette Mode  \n- **Vulkan-кодеки**: FFv1 (кодирование/декодирование), ProRes RAW (декодирование)  \n- **Аппаратное ускорение**: Vulkan VP9, VAAPI VVC, OpenHarmony H.264/5  \n- **Форматы**: MCC, G.728, Whip, APV  \n- **Фильтры**: colordetect, pad_cuda, Whisper и др.  \n\nКодеки на базе вычислительных шейдеров Vulkan 1.3 работают на любом железе без привязки к специфическим ускорителям.  \nИнфраструктура обновлена: новый фордж на [code.ffmpeg.org](https://code.ffmpeg.org).\n\n### 30 сентября 2024, FFmpeg 7.1 «Péter»  \n- VVC-декодер стал стабильным.  \n- Добавлены AAC USAC, MV-HEVC, LC-EVC.  \n- Vulkan-кодирование H.264/HEVC, скоро AV1.  \n- Исправлена передача диапазона цветов (full-range).",
-      "commentsSummary": "the the time respect2 the respect good one more more body the one person me a respect body people the the the other respect in thea the respect respect people effort respect respect respect you in free me me in in in day in in the me the the days the one respect me me much me than the the the money respect respect respect the respect years respect respect respect you in days me me the than a than me me body from the respect the day respect the you person respect years respect the and work day you respect in a people of me respect material respect people respect than the the the respect person in.\n the me respect than the the daying respect respect and respect the me my respect the me the the the day respect the theed theed more more respect respect the than than the person respect the the respect the of people the person the respect people me the respect the the respect the much the my over the day much life me of more more of the than respect in respect word the day me over the more the more the from the respect the you the more the more more than the of a than way the the me day more than the more than me respect the the the the the the more more and more the more than",
-      "score": 856,
-      "commentsCount": 181,
+      "commentsSummary": "乙。\n在、，和等乙景 as is is.\n the，Web.\nb towned eartheses estates\nes息 estatees revenue estate estate anything estate estate anything estate the estate estate estateore anything estate anything anything anything soil ves soilsves land anys soiles estate anything anything parts any ones ves software ves ves any reg soil ve roads ves ground reg estate theSess千里 ins the ve reg ves reges reg",
+      "score": 867,
+      "commentsCount": 182,
       "hnUrl": "https://news.ycombinator.com/item?id=44985730",
       "domain": "ffmpeg.org",
       "tags": [
         "ffmpeg",
         "vulkan",
         "vvc",
-        "vp9",
         "vaapi",
-        "h.264",
-        "h.265",
-        "av1",
+        "openharmony",
         "whip",
+        "h.264",
+        "hevc",
+        "av1",
         "aac"
       ]
     },
@@ -661,7 +666,7 @@
       "timeISO": "2025-08-22T09:11:26.000Z",
       "postSummary": "**LabPlot** — бесплатное кроссплатформенное ПО с открытым кодом для визуализации и анализа данных.  \n\n**Ключевые возможности**  \n- Качественные графики и интерактивные диаграммы в пару кликов  \n- Статистика, регрессия, аппроксимация и фитинг пиков  \n- Интерактивные блокноты Python, R, Julia и др.  \n- Извлечение данных из изображений и поддержка потоковых данных  \n- Импорт/экспорт множества форматов  \n- Windows, macOS, Linux, FreeBSD, Haiku  \n\n**Свежие новости**  \n- **2.12.1** (18 авг 2025) — мелкие улучшения и исправления  \n- **2.12** (28 апр 2025) — крупное обновление после долгой разработки  \n- Дек 2024 — обновлённое руководство пользователя  \n\n[Скачать](https://labplot.kde.org/download) | [Возможности](https://labplot.kde.org/features)",
       "commentsSummary": "- Участники обсуждают LabPlot как FOSS-альтернативу Origin/JMP/Tableau для научного графика.  \n- Сравнивают: гибкость ggplot2, устарелость Excel/SAS, удобство GUI для не-программистов.  \n- Плюсы: drag-and-drop, встроенный импорт CSV/TSV, лицензия GPLv2+.  \n- Минусы: пока только SQLite, нет прямого REST/S3/Iceberg, неясно, как быстро копировать стили.  \n- Целевая аудитория — инженеры и учёные, которым нужен GUI-построитель графиков без кода.",
-      "score": 226,
+      "score": 232,
       "commentsCount": 37,
       "hnUrl": "https://news.ycombinator.com/item?id=44982409",
       "domain": "labplot.org",
@@ -730,21 +735,17 @@
       "by": "thunderbong",
       "timeISO": "2025-08-22T04:48:29.000Z",
       "postSummary": "**Top Secret** — новая open-source библиотека от thoughtbot для удаления чувствительных данных из произвольного текста.\n\nПроблема: регулярки не ловят всё (имена, адреса, карты). Решение: смесь regex и NER (распознавание именованных сущностей) через гем [mitie-ruby](https://github.com/ankane/mitie-ruby).\n\nКак работает:\n1. `TopSecret::Text.filter` заменяет сущности на токены `[PERSON_1]`, `[LOCATION_1]` и возвращает `mapping`.\n2. После ответа LLM вызываем `TopSecret::FilteredText.restore`, чтобы вернуть реальные значения.\n\nПример:\n```\ninput  = \"Ralph lives in Boston.\"\nfiltered = TopSecret::Text.filter(input)\n#=> \"[PERSON_1] lives in [LOCATION_1].\"\nmapping  = { PERSON_1: \"Ralph\", LOCATION_1: \"Boston\" }\n\nresponse = \"Hi [PERSON_1]! How is the weather in [LOCATION_1]?\"\nTopSecret::FilteredText.restore(response, mapping: mapping)\n#=> \"Hi Ralph! How is the weather in Boston?\"\n```\n\nПодходит для чат-ботов, где нужно скрыть персональные данные, но сохранить контекст.  \nКод и демо: [GitHub](https://github.com/thoughtbot/top_secret) и [стрим](https://www.youtube.com/live/m2UIpTaIZ8o?si=EzEkWHlNQJORVgSG&t=120).",
-      "commentsSummary": "- Обсуждение вокруг маленькой CPU-совместимой NER-модели `filter`, которая маскирует чувствительные данные в строках, но не гарантирует 100 % защиту.  \n- Участники интересуются, можно ли такие фильтры применять при скриншаринге или стриминге; предлагается использовать accessibility API ОС для извлечения текста и его цензурирования.  \n- Показан аналогичный Python-проект zink и упомянут PostgreSQL-расширение postgresql-anonymizer для маскировки данных на уровне схемы.  \n- Подчёркивается, что NER/LLM-решения лишь снижают риск утечки, а не исключают его; рекомендуется комбинировать автоматические методы с проверкой человека.  \n- Поднят вопрос о производительности: при логировании каждого запроса вызов LLM может сильно замедлить систему.",
-      "score": 97,
-      "commentsCount": 9,
+      "commentsSummary": "- Обсуждение крутится вокруг лёгкой NER-модели (MITIE, не LLM) в виде Ruby-обёртки `filter`, которая маскирует чувствительные данные.  \n- Скорость ~1 с на CPU подходит для dev, но может стать узким местом в проде при длинных диалогах.  \n- Несколько человек предупреждают: NER не даёт 100 % гарантии, нужно использовать с осторожностью и, при возможности, дополнять человеческой проверкой.  \n- Поднят вопрос применения при стриминге/шеринге экрана: технически возможно через accessibility-API, но придётся решать, как определять и закрывать не только текст, но и лица, иконки вкладок и т. д.  \n- Упомянуты альтернативы: Python-решение zink, Postgres-расширение postgresql-anonymizer и идея комбинировать несколько алгоритмов + LLM для повышения точности.",
+      "score": 103,
+      "commentsCount": 11,
       "hnUrl": "https://news.ycombinator.com/item?id=44981088",
       "domain": "thoughtbot.com",
       "tags": [
         "ruby",
-        "mitie-ruby",
-        "named-entity-recognition",
-        "postgresql",
-        "postgresql-anonymizer",
-        "open-source",
+        "mitie",
+        "ner",
         "thoughtbot",
-        "data-privacy",
-        "chatbots"
+        "postgresql"
       ]
     },
     {
@@ -2118,16 +2119,17 @@
       "by": "pykello",
       "timeISO": "2025-08-20T11:08:15.000Z",
       "postSummary": "**Академия шейдеров**  \nДля работы приложения включите JavaScript.",
-      "commentsSummary": "- Критика: сайт выглядит как «вайб-код» на дефолтных настройках ИИ, что снижает восприятие качества.  \n- Технический баг: Firefox 140 на старом Intel-Mac отказывается запускать WebGL, несмотря на поддержку Metal.  \n- Практический вопрос: стоит ли учить шейдеры вручную, если движки всё делают лучше и быстрее?  \n- Ответы сообщества: кастомные шейдеры нужны и в играх, и в арте; граф-движки не отменяют необходимости понимания GPU.  \n- Создатели Shader Academy подтвердили, что ИИ используется лишь для комментариев и шаблонного кода, и пригласили в Discord за фидбеком.",
-      "score": 157,
-      "commentsCount": 30,
+      "commentsSummary": "- Пользователи спорят о «вайб-коде» и AI-стиле сайта, но авторы подтвердили, что ИИ используется лишь для комментариев и шаблонов.  \n- Некоторые жалуются на ложное сообщение о неподдержке WebGL на старых Mac.  \n- Со-автор Shader Academy пригласил всех в Discord для обратной связи: https://discord.com/invite/VPP78kur7C.  \n- Разгорелась дискуссия: нужны ли шейдеры в эпоху готовых движков? Сторонники утверждают, что кастомные шейдеры критичны для уникального визуального стиля и не только в играх.  \n- Кто-то просто вставил задания в ChatGPT и получил решения, но другие считают, что это не отменяет ценности интерактивного обучения.",
+      "score": 169,
+      "commentsCount": 34,
       "hnUrl": "https://news.ycombinator.com/item?id=44960750",
       "domain": "shaderacademy.com",
       "tags": [
         "webgl",
         "javascript",
-        "computer-graphics",
-        "shaders"
+        "shaders",
+        "graphics",
+        "discord"
       ]
     },
     {
@@ -2413,19 +2415,20 @@
       "by": "articsputnik",
       "timeISO": "2025-08-19T20:25:06.000Z",
       "postSummary": "**Переход с macOS на Arch Linux (Omarchy)**\n\nПосле 15 лет на MacBook Pro M1 Max я пересел на недорогой Lenovo ThinkBook 14 G7 с Omarchy — обвязкой над Arch Linux. Первый месяц использования (с перерывами на ремонт) и две полные недели — вот краткий итог.\n\n### Подготовка\nПеред переходом проверил, что всё критичное доступно:\n- Obsidian, fuzzy-файловый поиск, скриншоты, фото-редактор, f.lux, календарь в трее, гибернация.\n- Единственное, что не решено — полный бэкап системы (Time Machine пока не нашёл аналога).\n\n### Что потерял и что приобрёл\n- **Скриншоты**: Snagit пока не заменил; быстрый OCR и библиотека скринов отсутствуют.\n- **«Просто работает»**: иногда ломаются шорткаты, но это цена свежести Omarchy и моей неопытности.\n- **Аккумулятор и шум**: хуже, чем у M1, но принимаю за свободу настройки.\n- **Бэкап**: пока ручной; после случайного слома `/etc/sudoers` понял, что нужен надёжный механизм.\n- **Синхронизация**: Sync.com → Filen.io — безболезненно.\n\n### Omarchy\nOmarchy — это Arch + готовые дотфайлы, Wayland (Hyprland), пакетный менеджер `yay`, и куча скриптов. Всё ставится одной командой, затем можно тонко под себя.\n\n### Опыт и выводы\n- **Аппарат**: ThinkBook дешевле, но качество корпуса и экрана заметно хуже MacBook.\n- **Скорость работы**: после настройки переключение между проектами стало мгновенным (Hyprland + workspaces).\n- **Обучение**: за месяц освоил pacman, systemd, waybar, rofi, hyprland.conf — получил удовольствие от процесса.\n- **Следующий шаг**: настроить полный образовый бэкап (Btrfs snapshots + rsync), чтобы не бояться экспериментов.\n\nИтог: Linux требует времени, но даёт полный контроль и удовольствие от «собери сам».",
-      "commentsSummary": "- Пользователи спорят о том, действительно ли MacBook «на другом уровне»: кто-то хвалит их за 5-летний срок службы, другие отмечают, что ThinkPad и другие ноутбуки живут столько же.  \n- Главные плюсы Apple — трекпад, экран, аудио и энергоэффективность Apple Silicon; главный минус — ремонтопригодность и дорогие поломки.  \n- Многие разработчики используют Mac как «красивый UNIX», но скучают по свободе Linux и тайловым WM вроде Sway/Hyprland.  \n- Переход на Omarchy (Arch-дистрибутив с готовыми конфигами) показал: аппаратно почти всё работает, но «медовый месяц» пока длится всего 2–3 недели.  \n- Итог: идеального ноутбука пока нет — хочется железо Apple, свободу Linux и чтобы «всё просто работало».",
-      "score": 117,
-      "commentsCount": 172,
+      "commentsSummary": "- Пользователи делятся опытом перехода с macOS на Arch-дистрибутив Omarchy, хваля аппаратное качество MacBook, но желая большей «хакабельности» Linux.  \n- Главные преимущества Apple: трекпад, экран, аудио, бесшумное Apple Silicon и «it just works».  \n- Главные преимущества Linux: скорость, кастомизация, tiling-WM (Hyprland/Sway), отсутствие vendor-lock.  \n- Слабые места Linux: шумные вентиляторы, короткая батарея, нестабильный сон/hibernate, посредственные трекпады.  \n- Некоторые ждут ARM-ThinkPad или Asahi Linux на M1, чтобы совместить качество «железа» Apple со свободой Linux.",
+      "score": 135,
+      "commentsCount": 221,
       "hnUrl": "https://news.ycombinator.com/item?id=44955923",
       "domain": "ssp.sh",
       "tags": [
         "arch-linux",
-        "hyprland",
+        "omarchy",
         "wayland",
+        "hyprland",
         "pacman",
         "systemd",
-        "btrfs",
         "rsync",
+        "btrfs",
         "linux",
         "macos"
       ]
@@ -2812,22 +2815,22 @@
       "by": "redbell",
       "timeISO": "2025-08-19T11:39:47.000Z",
       "postSummary": "**Запускаю полноценный Linux-десктоп в Docker — просто потому что могу**\n\nАвтор: Ali Haider\n\nDocker считается исключительно для CLI-сервисов, но я решил разместить в контейнере полноценный графический Linux. Зачем? Из чистого любопытства и желания проверить границы технологии.\n\n**Почему не VirtualBox или dual-boot?**  \nХотелось получить Linux, который живёт рядом с Windows без перезагрузок и разделов. Казалось, что за пару дней подниму GNOME/KDE в контейнере, но эксперимент затянулся на четыре дня и превзошёл все ожидания.\n\n**Что получилось**  \nНа Windows 10 через Docker удалось запустить полноценный рабочий стол. Проект стал жёстким crash-курсом по X11, PulseAudio, GPU-пасsthrough и сетевым трюкам, но в итоге всё работает: окна Linux-приложений появляются поверх Windows, звук идёт, файлы доступны.",
-      "commentsSummary": "- Участники обсуждают запуск полноценных Linux-десктопов и GUI-приложений в Docker/LXC/WSL2: кто-то делает это через webtop, VNC, RDP, X11-forwarding или Wayland/VNC.  \n- Некоторые предпочитают LXC/Incus, чтобы получить «настоящую» систему с systemd и SSH вместо лёгких OCI-контейнеров.  \n- Упоминаются примеры: Samsung DeX, старые эксперименты Jess Frazelle, bastion-контейнеры с Remmina, SkiffOS, а также использование Tailscale+Mullvad для эфемерных VPN-сессий.  \n- На Windows обычно приходится идти через WSL2 (Linux VM) и/или X-сервер (MobaXterm, WSLg), что порождает вопросы о лишних слоях и производительности.  \n- Проблемы: stateful-нагрузки в Docker, root-доступ для некоторых решений, лаги VNC, отсутствие удобных мультиметодных RDP для Wayland.",
-      "score": 125,
-      "commentsCount": 74,
+      "commentsSummary": "- Обсуждали запуск полноценного Linux-десктопа в Docker/LXC: кто-то делает это через webtop, кто-то через Remmina в контейнере, кто-то через LXC с xrdp и аппаратным ускорением.  \n- Упомянули старые эксперименты Samsung DeX, Jess Frazelle с GUI-приложениями в Docker и Tailscale+Mullvad для эфемерных VPN-браузеров.  \n- Спорили о целесообразности: контейнеры легче, но не дают полной изоляции и systemd «из коробки»; LXC/Incus проще для stateful-десктопов.  \n- Для Windows-пользователей предлагали WSL2 + WSLg (GPU-ускорение Wayland) или обычную Linux-VM вместо «Linux в Docker в Linux-VM в Windows».  \n- Wayland-варианты: sway+wayvnc+novnc в контейнере, RDP, xpra; но готовых «коротких» туториалов пока нет.",
+      "score": 134,
+      "commentsCount": 84,
       "hnUrl": "https://news.ycombinator.com/item?id=44950482",
       "domain": "howtogeek.com",
       "tags": [
         "docker",
         "linux",
-        "gnome",
-        "kde",
         "x11",
         "pulseaudio",
+        "gnome",
+        "kde",
+        "lxc",
         "wsl2",
-        "vnc",
         "wayland",
-        "tailscale"
+        "remmina"
       ]
     },
     {
@@ -2874,6 +2877,27 @@
         "indi",
         "ascom",
         "stellarium"
+      ]
+    },
+    {
+      "id": 44949172,
+      "title": "Lightning declines over shipping lanes following regulation of sulfur emissions",
+      "url": "https://theconversation.com/the-world-regulated-sulfur-in-ship-fuels-and-the-lightning-stopped-249445",
+      "by": "lentoutcry",
+      "timeISO": "2025-08-19T07:35:49.000Z",
+      "postSummary": "**Как сокращение серы в судовом топливе уменьшило молнии**\n\nС 2020 г. Международная морская организация ограничила содержание серы в судовом топливе с 3,5 % до 0,5 %. Это сократило выбросы SO₂ на 80 % и неожиданно привело к резкому падению числа молний над океанами.\n\n**Механизм**  \nСерные аэрозоли служат ядрами конденсации, увеличивая количество капелек в облаках. При испарении вода отдаёт тепло, усиливая восходящие потоки и, следовательно, грозовую активность. Уменьшение SO₂ снизило концентрацию аэрозолей, что ослабило восходящие течения и число молний.\n\n**Данные**  \nСпутниковые наблюдения показали падение молний на 50 % над основными судоходными коридорами Северной Атлантики, Северного моря и Юго-Восточной Азии. В некоторых районах эффект достиг 70 %.\n\n**Последствия**  \n- **Климат**: меньше молний → меньше пожаров и NOₓ, что может снижать озон и слегка охлаждать климат.  \n- **Экология**: сокращение кислотных дождей и улучшение качества воздуха.  \n- **Навигация**: грозы создавали опасность для судов; теперь риск ниже.\n\n**Вывод**  \nПолитика, направленная на здоровье людей, непредсказуемо изменила грозовую активность над океанами, подчеркнув тесную связь между человеческой деятельностью и природными процессами.",
+      "commentsSummary": "- Участники обсуждают, почему после снижения серы в судовом топливе резко упала частота молний над морскими путями.  \n- Основные гипотезы: сера повышала проводимость воздуха и медленно «сливала» заряд, либо изменилась механика инициирования разрядов.  \n- Критика статьи: путает причины и следствия, не отделяет влияние серы от других факторов (загрязнение, турбулентность, ванадий в топливе).  \n- Предложен «контроль» — сравнение мировых данных молний (Global Lightning Detection Network) с картами SO₂.  \n- Упомянуты побочные эффекты: SO₂ маскировал глобальное потепление, а теперь это прикрытие исчезло.",
+      "score": 85,
+      "commentsCount": 22,
+      "hnUrl": "https://news.ycombinator.com/item?id=44949172",
+      "domain": "theconversation.com",
+      "tags": [
+        "environmental-science",
+        "climate-change",
+        "sulfur-dioxide",
+        "air-pollution",
+        "atmospheric-science",
+        "international-maritime-organization"
       ]
     },
     {
