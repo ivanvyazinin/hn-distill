@@ -8,10 +8,42 @@
     "depth": 1
   },
   {
+    "id": 44996183,
+    "by": "JimDabell",
+    "timeISO": "2025-08-23T14:18:49.000Z",
+    "textPlain": "> PRECISion · You may find yourself wondering why the IETF waited until 2025 to provide help with Bad Unicode. It didn’t; here’s RFC 8264: PRECIS Framework: Preparation, Enforcement, and Comparison of Internationalized Strings in Application Protocols; the first PRECIS predecessor was published in 2002. 8264 is 43 pages long, containing a very thorough discussion of many more potential Bad Unicode issues than 9839 does.I’d also suggest people check out the accompanying RFCs 8265 and 8266:PRECIS Framework: Preparation, Enforcement, and Comparison of Internationalized Strings in Application Protocols:— https://www.rfc-editor.org/rfc/rfc8264Preparation, Enforcement, and Comparison of Internationalized Strings: Representing Usernames and Passwords— https://www.rfc-editor.org/rfc/rfc8265Preparation, Enforcement, and Comparison of Internationalized Strings Representing Nicknames:— https://www.rfc-editor.org/rfc/rfc8266Generally speaking, you don’t want usernames being displayed that can change the text direction, or passwords that have different byte representations depending on the device that was used to type it in. These RFCs have specific profiles to avoid that.I think for these kinds of purposes, failing closed is more secure than failing open. I’d rather disallow whatever the latest emoji to hit the streets is from usernames than potentially allow it to screw up every page that displays usernames.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
     "id": 44996052,
     "by": "Waterluvian",
     "timeISO": "2025-08-23T14:01:23.000Z",
     "textPlain": "I’m frustrated by things like Unicode where it’s “good” except… you need to know to exclude some of them. Unicode feels like a wild jungle of complexity. An understandable consequence of trying to formalize so many ways to write language.  But it really sucks to have to reason about some characters being special compared to others.The only sanity I’ve found is to treat Unicode strings as if they’re some proprietary data unit format.  You can accept them, store them, render them, and compare them with each other for (data, not semantic) equality. But you just don’t ever try to reason about their content. Heck I’m not even comfortable trying to concatenate them or anything like that.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996203,
+    "by": "ks2048",
+    "timeISO": "2025-08-23T14:21:56.000Z",
+    "textPlain": "It's worth noting that Unicode already defines a \"General Category\" for all code points that categorizes some of these types of \"weird\" characters.https://en.wikipedia.org/wiki/Unicode_character_property#Gen...e.g. in Python,   import unicodedata\n   print(unicodedata.category(chr(0)))\n   print(unicodedata.category(chr(0xdead)))\n\nShows \"Cc\" (control) and \"Cs\" (surrogate).",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996189,
+    "by": "weinzierl",
+    "timeISO": "2025-08-23T14:19:30.000Z",
+    "textPlain": "I think there should be a restriction in the standard on how many Unicode scalar values a graphical unit can have.Last time I checked (a couple of years ago admittedly) there was no such restriction in the standard. There was however a recommendation to restrict a graphical unit to 128 bytes for \"streaming applications\".Bringing this or at least a limit on the scalar units into the standard would make implementation and processing so much easier without restricting sensible applications.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996399,
+    "by": "develatio",
+    "timeISO": "2025-08-23T14:49:24.000Z",
+    "textPlain": "I was not able to understand why these code points are bad. The post states that they are bad, but why? Any examples? Any actual situations and PoC that might help me understand how will that break \"my code\"?",
     "parent": 44995640,
     "depth": 1
   },
@@ -48,10 +80,34 @@
     "depth": 1
   },
   {
+    "id": 44996416,
+    "by": "CharlesW",
+    "timeISO": "2025-08-23T14:52:11.000Z",
+    "textPlain": "> I like the idea, just don't buy the argumentation or examples in the blog post.Which ones, and why? Tim and Paul collectively have around 100,000X the experience with this than most people do, so it'd be interesting to read substantive criticism.It seems like you think this standard is JSON-specific?",
+    "parent": 44996118,
+    "depth": 2
+  },
+  {
+    "id": 44996299,
+    "by": "csande17",
+    "timeISO": "2025-08-23T14:32:27.000Z",
+    "textPlain": "Yeah, I feel like the only really defensible choices you can make for string representation in a low-level wire protocol in 2025 are:- \"Unicode Scalars\", aka \"well-formed UTF-16\", aka \"the Python string type\"- \"Potentially ill-formed UTF-16\", aka \"WTF-8\", aka \"the JavaScript string type\"- \"Potentially ill-formed UTF-8\", aka \"an array of bytes\", aka \"the Go string type\"- Any of the above, plus \"no U+0000\", if you have to interface with a language/library that was designed before people knew what buffer overflow exploits were",
+    "parent": 44996118,
+    "depth": 2
+  },
+  {
     "id": 44996151,
     "by": "csande17",
     "timeISO": "2025-08-23T14:15:52.000Z",
-    "textPlain": "[delayed]",
+    "textPlain": "Unicode really is an impossibly bottomless well of trivia and bad decisions. As another example, the article's RFC warns against allowing legacy ASCII control characters on the grounds that they can be confusing to display to humans, but says nothing about the Explicit Directional Overrides characters that https://www.unicode.org/reports/tr9/#Explicit_Directional_Ov... suggests should \"be avoided wherever possible, because of security concerns\".",
+    "parent": 44996052,
+    "depth": 2
+  },
+  {
+    "id": 44996503,
+    "by": "eviks",
+    "timeISO": "2025-08-23T15:03:18.000Z",
+    "textPlain": "Indeed, though a lot of that complexity like surrogates and control codes aren't due to attempts to write language, that's just awful designs preserved for posterity",
     "parent": 44996052,
     "depth": 2
   },
@@ -64,10 +120,50 @@
     "depth": 2
   },
   {
+    "id": 44996602,
+    "by": "orangeboats",
+    "timeISO": "2025-08-23T15:19:15.000Z",
+    "textPlain": "Sometimes it's not just \"your code\". Strings are often interchanged and sent to many other parties.And some of the codepoints, such as the surrogate codepoints (which MUST come in pairs in properly encoded UTF-16), may not break your code but break poorly-written spaghetti-ridden UTF-16-based hellholes that do not expect unpaired surrogates.Something like:1. You send a UTF-8 string containing normal characters and an unpaired surrogate: \"Hello /uDEADworld\" to FooApp.2. FooApp converts the UTF-8 string to UTF-16 and saves it in a file. All without validation, so no crashes will actually occur; worst case scenario, the unpaired surrogate is rendered as \"�\".3. Next time, when it reads the file again, this time expecting normal UTF-16, and it crashes because of the unpaired surrogate.",
+    "parent": 44996399,
+    "depth": 2
+  },
+  {
+    "id": 44996535,
+    "by": "JimDabell",
+    "timeISO": "2025-08-23T15:08:43.000Z",
+    "textPlain": "Suppose, when you were registering your username `develatio`, you decided to put U+202E RIGHT-TO-LEFT OVERRIDE in there as well. Now when somebody is reading this page and their browser gets to your username, it switches the text direction to render it right-to-left.",
+    "parent": 44996399,
+    "depth": 2
+  },
+  {
+    "id": 44996466,
+    "by": "layer8",
+    "timeISO": "2025-08-23T14:59:19.000Z",
+    "textPlain": "No. As the RFC notes: “Silently deleting an ill-formed part of a string is a known security risk. Responding to that risk, Section 3.2 of [UNICODE] recommends dealing with ill-formed byte sequences by signaling an error or replacing problematic code points, ideally with \"�\" (U+FFFD, REPLACEMENT CHARACTER).”I would almost always go for “signaling an error”.",
+    "parent": 44996046,
+    "depth": 2
+  },
+  {
+    "id": 44996333,
+    "by": "CharlesW",
+    "timeISO": "2025-08-23T14:37:19.000Z",
+    "textPlain": "This RFC and Go-language reference library is designed to be used by existing libraries that do serialization/sanitation/validation. This is hot off the press, so I'm sure Tim would appreciate it if you'd let your favorite library know it exists.",
+    "parent": 44996046,
+    "depth": 2
+  },
+  {
     "id": 44996097,
     "by": "Manfred",
     "timeISO": "2025-08-23T14:07:36.000Z",
     "textPlain": "My experience writing Unicode related libraries is that people don't use features when you have to explain why and when to use them. I assume that's why Tim puts the emphasis on \"working on something new\".",
+    "parent": 44996046,
+    "depth": 2
+  },
+  {
+    "id": 44996368,
+    "by": "xdennis",
+    "timeISO": "2025-08-23T14:42:35.000Z",
+    "textPlain": "How is Unicode in any way related to JSON? JSON should just encode whatever dumb data someone wants to transport.Unicode validation/cleanup should be done separately because it's needed in multiple places, not just JSON.",
     "parent": 44996046,
     "depth": 2
   }
