@@ -24,6 +24,30 @@
     "depth": 1
   },
   {
+    "id": 44996801,
+    "by": "ninkendo",
+    "timeISO": "2025-08-23T15:48:04.000Z",
+    "textPlain": "It seems like most of these are handled by just rejecting invalid UTF-8 byte sequences (ideally, erroring out altogether) when interpreting a string as UTF-8. I mean, unpaired surrogates, or any surrogate for that matter, is already illegal as a UTF-8 byte sequence. Any competent language that uses UTF-8 for strings should already be returning errors when given such sequences.The list of code points which are problematic (non-printing, etc) are IMO much more useful and nontrivial. But it’d be useful to treat those as a separate concept from plain-old illegal UTF-8 byte sequences.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996966,
+    "by": "yencabulator",
+    "timeISO": "2025-08-23T16:14:09.000Z",
+    "textPlain": "I am torn on one decision: Whether to control inputs, or to wrap untrusted input in a datatype that displays it safely (web+log+debug).",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996662,
+    "by": "arp242",
+    "timeISO": "2025-08-23T15:26:59.000Z",
+    "textPlain": "Excluding all of \"legacy controls\" not just as literals but also escaped strings (e.g. \"\\u0027\") seems too much. C1 is essentially unused AFAIK and that's okay, but a number of C0 characters do see real-world use (escape, EOF, NUL). IMHO there are valid and reasonable use cases to use some of them.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
     "id": 44996203,
     "by": "ks2048",
     "timeISO": "2025-08-23T14:21:56.000Z",
@@ -40,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 44996399,
-    "by": "develatio",
-    "timeISO": "2025-08-23T14:49:24.000Z",
-    "textPlain": "I was not able to understand why these code points are bad. The post states that they are bad, but why? Any examples? Any actual situations and PoC that might help me understand how will that break \"my code\"?",
+    "id": 44996707,
+    "by": "nikolayasdf123",
+    "timeISO": "2025-08-23T15:33:12.000Z",
+    "textPlain": "how does this compare to Go `unicode.IsPrint(r rune)`? https://pkg.go.dev/unicode#IsPrintwhat does bad/dangerous this code catch that `unicode.IsPrint` is not catching?or other way, what good/useful does `unicode.IsPrint`removing, that this code keeps?",
     "parent": 44995640,
     "depth": 1
   },
@@ -56,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 44996046,
-    "by": "ape4",
-    "timeISO": "2025-08-23T14:00:38.000Z",
-    "textPlain": "Seems like libraries that serialize to JSON should have an option to filter out these bad characters.",
+    "id": 44996399,
+    "by": "develatio",
+    "timeISO": "2025-08-23T14:49:24.000Z",
+    "textPlain": "I was not able to understand why these code points are bad. The post states that they are bad, but why? Any examples? Any actual situations and PoC that might help me understand how will that break \"my code\"?",
     "parent": 44995640,
     "depth": 1
   },
@@ -80,6 +104,22 @@
     "depth": 1
   },
   {
+    "id": 44996046,
+    "by": "ape4",
+    "timeISO": "2025-08-23T14:00:38.000Z",
+    "textPlain": "Seems like libraries that serialize to JSON should have an option to filter out these bad characters.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44996299,
+    "by": "csande17",
+    "timeISO": "2025-08-23T14:32:27.000Z",
+    "textPlain": "Yeah, I feel like the only really defensible choices you can make for string representation in a low-level wire protocol in 2025 are:- \"Unicode Scalars\", aka \"well-formed UTF-16\", aka \"the Python string type\"- \"Potentially ill-formed UTF-16\", aka \"WTF-8\", aka \"the JavaScript string type\"- \"Potentially ill-formed UTF-8\", aka \"an array of bytes\", aka \"the Go string type\"- Any of the above, plus \"no U+0000\", if you have to interface with a language/library that was designed before people knew what buffer overflow exploits were",
+    "parent": 44996118,
+    "depth": 2
+  },
+  {
     "id": 44996416,
     "by": "CharlesW",
     "timeISO": "2025-08-23T14:52:11.000Z",
@@ -88,10 +128,10 @@
     "depth": 2
   },
   {
-    "id": 44996299,
-    "by": "csande17",
-    "timeISO": "2025-08-23T14:32:27.000Z",
-    "textPlain": "Yeah, I feel like the only really defensible choices you can make for string representation in a low-level wire protocol in 2025 are:- \"Unicode Scalars\", aka \"well-formed UTF-16\", aka \"the Python string type\"- \"Potentially ill-formed UTF-16\", aka \"WTF-8\", aka \"the JavaScript string type\"- \"Potentially ill-formed UTF-8\", aka \"an array of bytes\", aka \"the Go string type\"- Any of the above, plus \"no U+0000\", if you have to interface with a language/library that was designed before people knew what buffer overflow exploits were",
+    "id": 44996955,
+    "by": "TheRealPomax",
+    "timeISO": "2025-08-23T16:12:07.000Z",
+    "textPlain": "I think you missed the part where the RFC is about which Unicode is bad for protocols and data formats, and so which Unicode you should avoid when designing those from now on, with an RFC to consult to know which ones those are. It has nothing to do with \"what if I have a file with X\" or \"what if I want Y in usernames\", it's about \"what should I do if I want a normal, well behaved, unicode-text-based protocol or data format\".It's not about JSON, or the web, those are just example vehicles for the discussion. The RFC is completely agnostic about what thing the protocols or data formats are intended for, as long as they're text based, and specifically unicode text based.So it sounds like you like misread the blog post, and what you should be doing is now read the RFC. It's short. You can cruise through https://www.rfc-editor.org/rfc/rfc9839.html in a few minutes and see it's not actually about what you're focussing on.",
     "parent": 44996118,
     "depth": 2
   },
@@ -120,10 +160,26 @@
     "depth": 2
   },
   {
+    "id": 44996881,
+    "by": "doug_durham",
+    "timeISO": "2025-08-23T16:00:27.000Z",
+    "textPlain": "That seems reasonable.  It should be up to the application implementer to make that choice and not a lower level more general purpose library. I haven't run into any JSON parsers for usernames only code.",
+    "parent": 44996801,
+    "depth": 2
+  },
+  {
+    "id": 44996986,
+    "by": "mort96",
+    "timeISO": "2025-08-23T16:17:37.000Z",
+    "textPlain": "I don't know all the details of `unicode.IsPrint` function, but one major issue is: it's Go-specific. If you're defining a protocol, you probably don't want the spec to include text such as, \"the username field must only contain Unicode code points which are conidered printable by the Go programming language's 'unicode.IsPrint' function\". You would rather want to write, \"the username field must not contain Unicode code points which are considered problematic by RFC 9839\".",
+    "parent": 44996707,
+    "depth": 2
+  },
+  {
     "id": 44996602,
     "by": "orangeboats",
     "timeISO": "2025-08-23T15:19:15.000Z",
-    "textPlain": "Sometimes it's not just \"your code\". Strings are often interchanged and sent to many other parties.And some of the codepoints, such as the surrogate codepoints (which MUST come in pairs in properly encoded UTF-16), may not break your code but break poorly-written spaghetti-ridden UTF-16-based hellholes that do not expect unpaired surrogates.Something like:1. You send a UTF-8 string containing normal characters and an unpaired surrogate: \"Hello /uDEADworld\" to FooApp.2. FooApp converts the UTF-8 string to UTF-16 and saves it in a file. All without validation, so no crashes will actually occur; worst case scenario, the unpaired surrogate is rendered as \"�\".3. Next time, when it reads the file again, this time expecting normal UTF-16, and it crashes because of the unpaired surrogate.",
+    "textPlain": "Sometimes it's not just \"your code\". Strings are often interchanged and sent to many other parties.And some of the codepoints, such as the surrogate codepoints (which MUST come in pairs in properly encoded UTF-16), may not break your code but break poorly-written spaghetti-ridden UTF-16-based hellholes that do not expect unpaired surrogates.Something like:1. You send a UTF-8 string containing normal characters and an unpaired surrogate: \"Hello /uDEADworld\" to FooApp.2. FooApp converts the UTF-8 string to UTF-16 and saves it in a file. All without validation, so no crashes will actually occur; worst case scenario, the unpaired surrogate is rendered by the frontend as \"�\".3. Next time, when it reads the file again, this time it is expecting normal UTF-16, and it crashes because of the unpaired surrogate.(A more fatal failure mode of (3) is out-of-bounds memory read if the unpaired surrogate happens at the end of string)",
     "parent": 44996399,
     "depth": 2
   },
