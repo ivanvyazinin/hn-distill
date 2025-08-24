@@ -16,14 +16,6 @@
     "depth": 1
   },
   {
-    "id": 44999865,
-    "by": "RustyRussell",
-    "timeISO": "2025-08-23T23:15:03.000Z",
-    "textPlain": "Did anyone else find the use if ABNF annoying?  unicode-assignable =\n   %x9 / %xA / %xD /               ; useful controls\n   %x20-7E /                       ; exclude C1 controls and DEL\n   %xA0-D7FF /                     ; exclude surrogates\n   %xE000-FDCF /                   ; exclude FDD0 nonchars\n   %xFDF0-FFFD /                   ; exclude FFFE and FFFF nonchars\n   %x10000-1FFFD / %x20000-2FFFD / ; (repeat per plane)\n   %x30000-3FFFD / %x40000-4FFFD /\n   %x50000-5FFFD / %x60000-6FFFD /\n   %x70000-7FFFD / %x80000-8FFFD /\n   %x90000-9FFFD / %xA0000-AFFFD /\n   %xB0000-BFFFD / %xC0000-CFFFD /\n   %xD0000-DFFFD / %xE0000-EFFFD /\n   %xF0000-FFFFD / %x100000-10FFFD\n\nI mean, just define ranges.Also, where are the test vectors? Because when I implement this, that's the first thing I have to write, and you could save me a lot of work here. Bonus points if it's in JSON and UTF-8 already, though the invalid UTF-8 in an RFC might really gum things up: hex encode maybe?",
-    "parent": 44995640,
-    "depth": 1
-  },
-  {
     "id": 44996052,
     "by": "Waterluvian",
     "timeISO": "2025-08-23T14:01:23.000Z",
@@ -36,6 +28,14 @@
     "by": "ninkendo",
     "timeISO": "2025-08-23T15:48:04.000Z",
     "textPlain": "It seems like most of these are handled by just rejecting invalid UTF-8 byte sequences (ideally, erroring out altogether) when interpreting a string as UTF-8. I mean, unpaired surrogates, or any surrogate for that matter, is already illegal as a UTF-8 byte sequence. Any competent language that uses UTF-8 for strings should already be returning errors when given such sequences.The list of code points which are problematic (non-printing, etc) are IMO much more useful and nontrivial. But it’d be useful to treat those as a separate concept from plain-old illegal UTF-8 byte sequences.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44999929,
+    "by": "zzo38computer",
+    "timeISO": "2025-08-23T23:28:06.000Z",
+    "textPlain": "I do not agree that Unicode is good. I think that Unicode is not good.I also think that, regardless of the character set, what to include (control characters, graphic characters, maximum length, etc) will have to depend on the specific application anyways, so trying to include/exclude in JSON doesn't work as well.Giving a name to a specific subset (or sometimes a superset, but usually subset) of Unicode (or any other character sets, such as ASCII or ISO 2022 or TRON code) can be useful, but don't assume it is good for everyone or even is good for most things, because it isn't.RFC 9839 does give names to some subsets of Unicode, which may sometimes be useful, but should not automatically assume that is right for what you will be making. My opinion is to consider to not use or require Unicode.",
     "parent": 44995640,
     "depth": 1
   },
@@ -80,6 +80,14 @@
     "depth": 1
   },
   {
+    "id": 44996399,
+    "by": "develatio",
+    "timeISO": "2025-08-23T14:49:24.000Z",
+    "textPlain": "I was not able to understand why these code points are bad. The post states that they are bad, but why? Any examples? Any actual situations and PoC that might help me understand how will that break \"my code\"?",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
     "id": 44997565,
     "by": "djoldman",
     "timeISO": "2025-08-23T17:29:42.000Z",
@@ -88,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 44996399,
-    "by": "develatio",
-    "timeISO": "2025-08-23T14:49:24.000Z",
-    "textPlain": "I was not able to understand why these code points are bad. The post states that they are bad, but why? Any examples? Any actual situations and PoC that might help me understand how will that break \"my code\"?",
+    "id": 44999865,
+    "by": "RustyRussell",
+    "timeISO": "2025-08-23T23:15:03.000Z",
+    "textPlain": "Did anyone else find the use if ABNF annoying?  unicode-assignable =\n   %x9 / %xA / %xD /               ; useful controls\n   %x20-7E /                       ; exclude C1 controls and DEL\n   %xA0-D7FF /                     ; exclude surrogates\n   %xE000-FDCF /                   ; exclude FDD0 nonchars\n   %xFDF0-FFFD /                   ; exclude FFFE and FFFF nonchars\n   %x10000-1FFFD / %x20000-2FFFD / ; (repeat per plane)\n   %x30000-3FFFD / %x40000-4FFFD /\n   %x50000-5FFFD / %x60000-6FFFD /\n   %x70000-7FFFD / %x80000-8FFFD /\n   %x90000-9FFFD / %xA0000-AFFFD /\n   %xB0000-BFFFD / %xC0000-CFFFD /\n   %xD0000-DFFFD / %xE0000-EFFFD /\n   %xF0000-FFFFD / %x100000-10FFFD\n\nI mean, just define ranges.Also, where are the test vectors? Because when I implement this, that's the first thing I have to write, and you could save me a lot of work here. Bonus points if it's in JSON and UTF-8 already, though the invalid UTF-8 in an RFC might really gum things up: hex encode maybe?",
     "parent": 44995640,
     "depth": 1
   },
@@ -104,18 +112,18 @@
     "depth": 1
   },
   {
-    "id": 44998585,
-    "by": "Grimeton",
-    "timeISO": "2025-08-23T19:46:53.000Z",
-    "textPlain": "Imagine the possibilities:  PS C:\\> mkdir x\n  \n      Directory: C:\\\n  \n  Mode LastWriteTime         Length Name\n  ----                 -------------         ------ ----\n  d----          23.08.2025 21:43                x\n  \n  PS C:\\> cd x\n  PS C:\\x> new-item -ItemType File 'C꞉⧵Windows⧵System32⧵rundll32.exe'\n  \n      Directory: C:\\x\n  \n  Mode LastWriteTime         Length Name\n  ----                 -------------         ------ ----\n  -a---          23.08.2025 21:43              0 C꞉⧵Windows⧵System32⧵rundll32.exe\n  \n  PS C:\\x> $f=gi .\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  PS C:\\x> $f | fl -Property * -Force\n  \n  PSPath              : Microsoft.PowerShell.Core\\FileSystem::C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  PSParentPath        : Microsoft.PowerShell.Core\\FileSystem::C:\\x\n  PSChildName         : C꞉⧵Windows⧵System32⧵rundll32.exe\n  PSDrive             : C\n  PSProvider          : Microsoft.PowerShell.Core\\FileSystem\n  PSIsContainer       : False\n  Mode                : -a---\n  ModeWithoutHardLink : -a---\n  VersionInfo         : File:             C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n                        InternalName:\n                        OriginalFilename:\n                        FileVersion:\n                        FileDescription:\n                        Product:\n                        ProductVersion:\n                        Debug:            False\n                        Patched:          False\n                        PreRelease:       False\n                        PrivateBuild:     False\n                        SpecialBuild:     False\n                        Language:\n  \n  BaseName            : C꞉⧵Windows⧵System32⧵rundll32\n  ResolvedTarget      : C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  Target              :\n  LinkType            :\n  Name                : C꞉⧵Windows⧵System32⧵rundll32.exe\n  Length              : 0\n  DirectoryName       : C:\\x\n  Directory           : C:\\x\n  IsReadOnly          : False\n  Exists              : True\n  FullName            : C:\\x\\C꞉⧵Wind",
-    "parent": 44995640,
-    "depth": 1
-  },
-  {
     "id": 44996046,
     "by": "ape4",
     "timeISO": "2025-08-23T14:00:38.000Z",
     "textPlain": "Seems like libraries that serialize to JSON should have an option to filter out these bad characters.",
+    "parent": 44995640,
+    "depth": 1
+  },
+  {
+    "id": 44998585,
+    "by": "Grimeton",
+    "timeISO": "2025-08-23T19:46:53.000Z",
+    "textPlain": "Imagine the possibilities:  PS C:\\> mkdir x\n  \n      Directory: C:\\\n  \n  Mode LastWriteTime         Length Name\n  ----                 -------------         ------ ----\n  d----          23.08.2025 21:43                x\n  \n  PS C:\\> cd x\n  PS C:\\x> new-item -ItemType File 'C꞉⧵Windows⧵System32⧵rundll32.exe'\n  \n      Directory: C:\\x\n  \n  Mode LastWriteTime         Length Name\n  ----                 -------------         ------ ----\n  -a---          23.08.2025 21:43              0 C꞉⧵Windows⧵System32⧵rundll32.exe\n  \n  PS C:\\x> $f=gi .\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  PS C:\\x> $f | fl -Property * -Force\n  \n  PSPath              : Microsoft.PowerShell.Core\\FileSystem::C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  PSParentPath        : Microsoft.PowerShell.Core\\FileSystem::C:\\x\n  PSChildName         : C꞉⧵Windows⧵System32⧵rundll32.exe\n  PSDrive             : C\n  PSProvider          : Microsoft.PowerShell.Core\\FileSystem\n  PSIsContainer       : False\n  Mode                : -a---\n  ModeWithoutHardLink : -a---\n  VersionInfo         : File:             C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n                        InternalName:\n                        OriginalFilename:\n                        FileVersion:\n                        FileDescription:\n                        Product:\n                        ProductVersion:\n                        Debug:            False\n                        Patched:          False\n                        PreRelease:       False\n                        PrivateBuild:     False\n                        SpecialBuild:     False\n                        Language:\n  \n  BaseName            : C꞉⧵Windows⧵System32⧵rundll32\n  ResolvedTarget      : C:\\x\\C꞉⧵Windows⧵System32⧵rundll32.exe\n  Target              :\n  LinkType            :\n  Name                : C꞉⧵Windows⧵System32⧵rundll32.exe\n  Length              : 0\n  DirectoryName       : C:\\x\n  Directory           : C:\\x\n  IsReadOnly          : False\n  Exists              : True\n  FullName            : C:\\x\\C꞉⧵Wind",
     "parent": 44995640,
     "depth": 1
   },
@@ -216,14 +224,6 @@
     "depth": 2
   },
   {
-    "id": 44999626,
-    "by": "ivanjermakov",
-    "timeISO": "2025-08-23T22:28:49.000Z",
-    "textPlain": "Unicode sucks, but it sucks less than every other encoding standard.",
-    "parent": 44996052,
-    "depth": 2
-  },
-  {
     "id": 44996115,
     "by": "Etheryte",
     "timeISO": "2025-08-23T14:09:46.000Z",
@@ -240,6 +240,14 @@
     "depth": 2
   },
   {
+    "id": 44999626,
+    "by": "ivanjermakov",
+    "timeISO": "2025-08-23T22:28:49.000Z",
+    "textPlain": "Unicode sucks, but it sucks less than every other encoding standard.",
+    "parent": 44996052,
+    "depth": 2
+  },
+  {
     "id": 44996881,
     "by": "doug_durham",
     "timeISO": "2025-08-23T16:00:27.000Z",
@@ -248,19 +256,19 @@
     "depth": 2
   },
   {
+    "id": 44999946,
+    "by": "msgodel",
+    "timeISO": "2025-08-23T23:31:42.000Z",
+    "textPlain": "It's really the combining characters that are the problem. That changed it from a character set to a DSL for describing characters.",
+    "parent": 44999929,
+    "depth": 2
+  },
+  {
     "id": 44998111,
     "by": "NelsonMinar",
     "timeISO": "2025-08-23T18:46:01.000Z",
     "textPlain": "I've made good use of unusual C0 characters like U+001E (Record Separator). I think it makes sense to exclude them from documents but they can be useful in text data streams.",
     "parent": 44996662,
-    "depth": 2
-  },
-  {
-    "id": 44997932,
-    "by": "skybrian",
-    "timeISO": "2025-08-23T18:14:50.000Z",
-    "textPlain": "Yes, that's true. It's for generic, low-level parsing code that doesn't know what a username is. There will also need to be field-specific validation.",
-    "parent": 44997565,
     "depth": 2
   },
   {
@@ -277,6 +285,22 @@
     "timeISO": "2025-08-23T15:08:43.000Z",
     "textPlain": "Suppose, when you were registering your username `develatio`, you decided to put U+202E RIGHT-TO-LEFT OVERRIDE in there as well. Now when somebody is reading this page and their browser gets to your username, it switches the text direction to render it right-to-left.",
     "parent": 44996399,
+    "depth": 2
+  },
+  {
+    "id": 44997932,
+    "by": "skybrian",
+    "timeISO": "2025-08-23T18:14:50.000Z",
+    "textPlain": "Yes, that's true. It's for generic, low-level parsing code that doesn't know what a username is. There will also need to be field-specific validation.",
+    "parent": 44997565,
+    "depth": 2
+  },
+  {
+    "id": 45000095,
+    "by": "timbray",
+    "timeISO": "2025-08-24T00:01:06.000Z",
+    "textPlain": "The tests for the go code at https://github.com/timbray/RFC9839 are in effect test vectors.",
+    "parent": 44999865,
     "depth": 2
   },
   {
@@ -317,6 +341,14 @@
     "timeISO": "2025-08-23T14:42:35.000Z",
     "textPlain": "How is Unicode in any way related to JSON? JSON should just encode whatever dumb data someone wants to transport.Unicode validation/cleanup should be done separately because it's needed in multiple places, not just JSON.",
     "parent": 44996046,
+    "depth": 2
+  },
+  {
+    "id": 45000365,
+    "by": "Dwedit",
+    "timeISO": "2025-08-24T01:03:17.000Z",
+    "textPlain": "But then what would safe Unicode allow and reject?  Carriage Returns?  Horizontal Tabs?  Form Feeds?",
+    "parent": 44998903,
     "depth": 2
   }
 ]
