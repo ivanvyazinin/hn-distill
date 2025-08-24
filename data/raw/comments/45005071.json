@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45006396,
-    "by": "jmull",
-    "timeISO": "2025-08-24T18:18:26.000Z",
-    "textPlain": "The takeaway should be:Don't assume sqlite is doing an fsync on each commit.While that's the \"default default\", you may be using a sqlite3 compiled by someone else or using non-default build options, or using a wrapper that sets its own defaults.More generally, be careful about assuming any of the various levers sqlite3 has are set in a specific way. That is, take control of the ones that are important to your use case (well, and before that, review the levers so you know which ones those are).",
-    "parent": 45005071,
-    "depth": 1
-  },
-  {
     "id": 45005628,
     "by": "dangoodmanUT",
     "timeISO": "2025-08-24T16:38:56.000Z",
@@ -28,6 +20,14 @@
     "by": "conradev",
     "timeISO": "2025-08-24T16:15:59.000Z",
     "textPlain": "One Apple platforms, you also want to use F_FULLFSYNC instead of fsync if you need durability:https://www.sqlite.org/pragma.html#pragma_checkpoint_fullfsy...",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45006396,
+    "by": "jmull",
+    "timeISO": "2025-08-24T18:18:26.000Z",
+    "textPlain": "The takeaway should be:Don't assume sqlite is doing an fsync on each commit.While that's the \"default default\", you may be using a sqlite3 compiled by someone else or using non-default build options, or using a wrapper that sets its own defaults.More generally, be careful about assuming any of the various levers sqlite3 has are set in a specific way. That is, take control of the ones that are important to your use case (well, and before that, review the levers so you know which ones those are).",
     "parent": 45005071,
     "depth": 1
   },
@@ -76,6 +76,14 @@
     "by": "arpinum",
     "timeISO": "2025-08-24T17:21:36.000Z",
     "textPlain": "This is popping up because SurrealDB was found to turn fsync off by default. But there are important differences:- SurrealDB provides poor documentation about this default- SQLite is typically run client side, while SurrealDB is typically run as a remote server- SQLite is actually full sync by default, but distros may package it with other defaults\n- SurrealDB explicitly did this for benchmarking reasons (for comparison fairness) while SQLite distros turn off fsync for typically practical reasons as it's run pure client side.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45007220,
+    "by": "nodesocket",
+    "timeISO": "2025-08-24T19:57:22.000Z",
+    "textPlain": "Related, I use Lightstream and their documentation[1] actually suggested to use synchronous=NORMAL. Any idea if this is a wise change? Should I revert back to the default of FULL using WAL + Lightstream?[1] https://litestream.io/tips/#synchronous-pragma",
     "parent": 45005071,
     "depth": 1
   },
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45008042,
+    "by": "ncruces",
+    "timeISO": "2025-08-24T21:38:59.000Z",
+    "textPlain": "If Apple compiled your SQLite library, not even the fullfsync PRAGMAs will do F_FULLFSYNC. Apple has “secretly” patched their SQLite to do F_BARRIERFSYNC instead.https://bonsaidb.io/blog/acid-on-apple/",
+    "parent": 45005410,
+    "depth": 2
+  },
+  {
     "id": 45005736,
     "by": "baruz",
     "timeISO": "2025-08-24T16:52:37.000Z",
@@ -168,6 +184,14 @@
     "depth": 2
   },
   {
+    "id": 45007367,
+    "by": "duped",
+    "timeISO": "2025-08-24T20:13:28.000Z",
+    "textPlain": "Durability just guarantees that you don't return that a write transaction has completed successfully until after all the layers are done writing to disk. fsync is the high level abstraction that file systems implement to mean \"this data has actually gone to disk\" (although handling errors is a rabbit hole worth reading about). It absolutely has a performance cost which is why applications that can live without durability sometimes get away with it.If your application can tolerate writes silently failing then you can live without it. But a lot of applications can't, so it does matter.",
+    "parent": 45005478,
+    "depth": 2
+  },
+  {
     "id": 45005822,
     "by": "nolist_policy",
     "timeISO": "2025-08-24T17:03:33.000Z",
@@ -189,6 +213,14 @@
     "timeISO": "2025-08-24T17:29:38.000Z",
     "textPlain": "Is D1 a dialect? I thought they actually run SQLite.",
     "parent": 45005636,
+    "depth": 2
+  },
+  {
+    "id": 45007098,
+    "by": "senderista",
+    "timeISO": "2025-08-24T19:44:14.000Z",
+    "textPlain": "You can enqueue fsync as an op in io_uring, using link flag to sequence it after previous ops and drain flag to ensure no new ops are started until it completes.",
+    "parent": 45005664,
     "depth": 2
   },
   {
