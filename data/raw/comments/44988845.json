@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45000776,
+    "by": "pluto_modadic",
+    "timeISO": "2025-08-24T02:26:54.000Z",
+    "textPlain": "lots of people not considering UNPHAT - https://gist.github.com/rponte/67c78e6b3ee349a6e14cb8fb155b7... / https://stevenschwenke.de/pragmaticSoftwareEngineeringUNPHAT - some solutions didn't exist in the past. you evaluate your landscape and your problem, and try to find a good fit.",
+    "parent": 44988845,
+    "depth": 1
+  },
+  {
     "id": 44998615,
     "by": "BiraIgnacio",
     "timeISO": "2025-08-23T19:52:21.000Z",
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 44999079,
-    "by": "bjourne",
-    "timeISO": "2025-08-23T20:57:51.000Z",
-    "textPlain": "I read it and looked at the block diagrams. I still don't get it. You have \"data integration problems\". Many software share data. Use database. Problems solved.",
+    "id": 44999402,
+    "by": "erulabs",
+    "timeISO": "2025-08-23T21:47:55.000Z",
+    "textPlain": "Kafka's ability to ingest the firehose and present it as a throttle-able consumable to many different applications is great. If you're thinking \"just use a database\", it's worth noting that SQL databases are _not well suited_ to drinking from a firehose of writes, and that distributed SQL in 2012 was not a thing. Kafka was one of the first systems that fully embraced the dropping of the C from CAP theorem, which was a big step forward for web applications at scale. If you bristle at that, know that using read-replicas of your postgres database present the same correctness problems.These days though, unless I was at Fortune 100 scale, I'd absolutely turn to Redis Cluster Streams instead. So much simpler to manage and so much cheaper to run.Also I like Kafka because I met two pretty Russian girls in San Francisco a decade back and the group we were in played a game where we described what the company we worked for did in the abstract, and then tried to guess the startup. They said \"we write distributed streaming software\", I guessed \"confluent\" immediately. At the time confluent was quite new and small. Fun night. Fun era.",
     "parent": 44988845,
     "depth": 1
   },
@@ -52,6 +60,14 @@
     "by": "blast",
     "timeISO": "2025-08-23T18:46:15.000Z",
     "textPlain": "(I was wondering if this was some sort of generated ripoff but the author worked on Kafka for 6 years: https://x.com/BdKozlovski.)",
+    "parent": 44988845,
+    "depth": 1
+  },
+  {
+    "id": 44999079,
+    "by": "bjourne",
+    "timeISO": "2025-08-23T20:57:51.000Z",
+    "textPlain": "I read it and looked at the block diagrams. I still don't get it. You have \"data integration problems\". Many software share data. Use database. Problems solved.",
     "parent": 44988845,
     "depth": 1
   },
@@ -96,6 +112,14 @@
     "depth": 2
   },
   {
+    "id": 44999441,
+    "by": "shikhar",
+    "timeISO": "2025-08-23T21:54:01.000Z",
+    "textPlain": "You might like what we are building with https://s2.dev :)",
+    "parent": 44998395,
+    "depth": 2
+  },
+  {
     "id": 44999086,
     "by": "AtlasBarfed",
     "timeISO": "2025-08-23T20:58:38.000Z",
@@ -112,6 +136,14 @@
     "depth": 2
   },
   {
+    "id": 44998810,
+    "by": "dijit",
+    "timeISO": "2025-08-23T20:19:33.000Z",
+    "textPlain": "I got really pissed off with their field CTO for essentially trying to pull the wool over my eyes regarding performance and reliability.Essentially their base product (NATs) has a lot of performance but trades it off for reliability. So they add Jetstream to NATs to get reliability, but use the performance numbers of pure NATs.I got burned by MongoDB for doing this to me, I won’t work with any technology that is marketed in such a disingenuous way again.",
+    "parent": 44998598,
+    "depth": 2
+  },
+  {
     "id": 44998829,
     "by": "sea-gold",
     "timeISO": "2025-08-23T20:22:40.000Z",
@@ -120,11 +152,27 @@
     "depth": 2
   },
   {
-    "id": 44998810,
-    "by": "dijit",
-    "timeISO": "2025-08-23T20:19:33.000Z",
-    "textPlain": "I got really pissed off with their field CTO for essentially trying to pull the wool over my eyes regarding performance and reliability.Essentially their base product (NATs) has a lot of performance but trades it off for reliability. So they add Jetstream to NATs to get reliability, but use the performance numbers of pure NATs.I got burned by MongoDB for doing this to me, I won’t work with any technology that is marketed in such a disingenuous way again.",
+    "id": 44999442,
+    "by": "atombender",
+    "timeISO": "2025-08-23T21:54:16.000Z",
+    "textPlain": "NATS is very good. It's important to distinguish between core NATS and Jetstream, however.Core NATS is an ephemeral message broker. Clients tell the server what subjects they want messages about, producers publish. NATS handles the routing. If nobody is listening, messages go nowhere. It's very nice for situations where lots of clients come and go. It's not reliable; it sheds messages when consumers get slow. No durability, so when a consumer disconnects, it will miss messages sent in its absence. But this means it's very lightweight. Subjects are just wildcard paths, so you can have billions of them, which means RPC is trivial: Send out a message and tell the receiver to post a reply to a randomly generated subject, then listen to that subject for the answer.NATS organizes brokers into clusters, and clusters can form hub/spoke topologies where messages are routed between clusters by interest, so it's very scalable; if your cluster doesn't scale to the number of consumers, you can add another cluster that consumes the first cluster, and now you have two hubs/spokes. In short, NATS is a great \"message router\". You can build all sorts of semantics on top of it: RPC, cache invalidation channels, \"actor\" style processes, traditional pub/sub, logging, the sky is the limit.Jetstream is a different technology that is built on NATS. With Jetstream, you can create streams, which are ordered sequences of messages. A stream is durable and can have settings like maximum retention by age and size. Streams are replicated, with each stream being a Raft group. Consumers follow from a position. In many ways it's like Kafka and Redpanda, but \"on steroids\", superficially similar but just a lot richer.For example, Kafka is very strict about the topic being a sequence of messages that must be consumed exactly sequentially. If the client wants to subscribe to a subset of events, it must either filter client-side, or you have some intermediary that filters and writes to a topic that the c",
     "parent": 44998598,
+    "depth": 2
+  },
+  {
+    "id": 45000100,
+    "by": "dxxvi",
+    "timeISO": "2025-08-24T00:02:08.000Z",
+    "textPlain": "> turn to Redis Cluster Streams instead. So much simpler to manage and so much cheaper to runI don't have any experience with Redis Cluster Streams. Could you please tell us how it is simpler to manage? IMO, installing and managing a Kafka cluster in a non Fortune 100 scale is simple enough: run 1 java command for zookeeper, run another java command for a broker (with recent version of Kafka, zookeeper is not needed anymore). The configuration files are not very simple but not very complicated either. When we have another machine, we can run another broker on it.Redis Cluster Streams is cheaper to run because it's written in C, doesn't need a VN to run? Or because its messages are stored in RAM not SSD?",
+    "parent": 44999402,
+    "depth": 2
+  },
+  {
+    "id": 45000023,
+    "by": "betaby",
+    "timeISO": "2025-08-23T23:45:04.000Z",
+    "textPlain": "> Kafka's ability to ingest the firehose and present it as a throttle-able consumable to many different applications is great.I sue Kafka precisely for that. Redis Cluster Streams have AOF persistence logs as I see from the doc. How stable it is?",
+    "parent": 44999402,
     "depth": 2
   },
   {
@@ -152,18 +200,18 @@
     "depth": 2
   },
   {
-    "id": 44998705,
-    "by": "cortesoft",
-    "timeISO": "2025-08-23T20:05:42.000Z",
-    "textPlain": "It doesn't have to be 'hyper-scaled' to be needed, unless we have widely different definitions of hyper scale. Access logs from a few thousand servers with medium traffic will push you past any single instance service, and Kafka works great for that workload.",
-    "parent": 44998437,
-    "depth": 2
-  },
-  {
     "id": 44998471,
     "by": "oulipo2",
     "timeISO": "2025-08-23T19:29:52.000Z",
     "textPlain": "Have you tried Redpanda?",
+    "parent": 44998437,
+    "depth": 2
+  },
+  {
+    "id": 44998705,
+    "by": "cortesoft",
+    "timeISO": "2025-08-23T20:05:42.000Z",
+    "textPlain": "It doesn't have to be 'hyper-scaled' to be needed, unless we have widely different definitions of hyper scale. Access logs from a few thousand servers with medium traffic will push you past any single instance service, and Kafka works great for that workload.",
     "parent": 44998437,
     "depth": 2
   },
@@ -200,18 +248,18 @@
     "depth": 2
   },
   {
-    "id": 44999214,
-    "by": "theyinwhy",
-    "timeISO": "2025-08-23T21:16:54.000Z",
-    "textPlain": "It is called Kafka because it can write.",
-    "parent": 44998338,
-    "depth": 2
-  },
-  {
     "id": 44998371,
     "by": "isaacremuant",
     "timeISO": "2025-08-23T19:15:43.000Z",
     "textPlain": "> Jay Kreps chose to name the software after the author Franz Kafka because it is \"a system optimized for writing\", and he liked Kafka's work.From Wikipedia.",
+    "parent": 44998338,
+    "depth": 2
+  },
+  {
+    "id": 44999214,
+    "by": "theyinwhy",
+    "timeISO": "2025-08-23T21:16:54.000Z",
+    "textPlain": "It is called Kafka because it can write.",
     "parent": 44998338,
     "depth": 2
   }
