@@ -1,9 +1,9 @@
 [
   {
-    "id": 44998510,
-    "by": "dktalks",
-    "timeISO": "2025-08-23T19:35:06.000Z",
-    "textPlain": "I worked on this while I was at LI and I think the major selling point back then was Replayability of messages but it was something similar to what you would get with Pub/Sub. We could also have multiple clients listening and processing same messages for their own purposes so you could use the same queue and have different clients process them as they wanted.",
+    "id": 45002089,
+    "by": "pss314",
+    "timeISO": "2025-08-24T07:22:27.000Z",
+    "textPlain": "LinkedIn recently announced that it transitioned from Kafka to Northguard.\nIntroducing Northguard and Xinfra: scalable log storage at LinkedIn [1] & LinkedIn: Stream Processing 4.16.25 [2][1]: https://www.linkedin.com/blog/engineering/infrastructure/int...[2]: https://www.youtube.com/watch?v=RDV6-MUVEbQ",
     "parent": 44988845,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "kachapopopow",
     "timeISO": "2025-08-23T19:18:35.000Z",
     "textPlain": "As someone who has made the mistake of using kafka in a non enterprise space - it really seems like the etcd problem where you need more time to run etcd than to run whatever service you're providing.",
+    "parent": 44988845,
+    "depth": 1
+  },
+  {
+    "id": 44998510,
+    "by": "dktalks",
+    "timeISO": "2025-08-23T19:35:06.000Z",
+    "textPlain": "I worked on this while I was at LI and I think the major selling point back then was Replayability of messages but it was something similar to what you would get with Pub/Sub. We could also have multiple clients listening and processing same messages for their own purposes so you could use the same queue and have different clients process them as they wanted.",
     "parent": 44988845,
     "depth": 1
   },
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 44998870,
-    "by": "pojzon",
-    "timeISO": "2025-08-23T20:26:56.000Z",
-    "textPlain": "Its the ability to replay messages at later notice when needed.At least this was the reason we decided to use Kafka instead of simple queues.It was useful when we built new consumer types for the same data we already processed or we knew we gonna have later but cant build now due to prorities.",
-    "parent": 44998510,
-    "depth": 2
-  },
-  {
     "id": 44998672,
     "by": "mrweasel",
     "timeISO": "2025-08-23T19:59:22.000Z",
     "textPlain": "I previously helped clients setup and run Kafka clusters. Why they'd need Kafka was always our first question, never got a good answer from a single one of them. That's not to say that Kafka isn't useful, it is, in the right setting, but that settings is never \"I need a queue\". If you need a queue, great, go get RabbitMQ, ZMQ, Redis, SQS, named pipes, pretty anything but Kafka. It's not that Kafka can't do it, but you are making things harder than they needed to be.",
+    "parent": 44998395,
+    "depth": 2
+  },
+  {
+    "id": 44999086,
+    "by": "AtlasBarfed",
+    "timeISO": "2025-08-23T20:58:38.000Z",
+    "textPlain": "If you're running a distributed system...You're running a distributed system. They aren't simple.Especially on AWS. AWS is really a double-bladed sword. Yeah, you'll get tutorials to set up whatever distributed system pretty quickly, but your nodes aren't nearly as reliable. Your networking isn't nearly as reliable. Your costs aren't nearly as reliable and administration. Headaches go up in the long run",
     "parent": 44998395,
     "depth": 2
   },
@@ -120,11 +128,11 @@
     "depth": 2
   },
   {
-    "id": 44999086,
-    "by": "AtlasBarfed",
-    "timeISO": "2025-08-23T20:58:38.000Z",
-    "textPlain": "If you're running a distributed system...You're running a distributed system. They aren't simple.Especially on AWS. AWS is really a double-bladed sword. Yeah, you'll get tutorials to set up whatever distributed system pretty quickly, but your nodes aren't nearly as reliable. Your networking isn't nearly as reliable. Your costs aren't nearly as reliable and administration. Headaches go up in the long run",
-    "parent": 44998395,
+    "id": 44998870,
+    "by": "pojzon",
+    "timeISO": "2025-08-23T20:26:56.000Z",
+    "textPlain": "Its the ability to replay messages at later notice when needed.At least this was the reason we decided to use Kafka instead of simple queues.It was useful when we built new consumer types for the same data we already processed or we knew we gonna have later but cant build now due to prorities.",
+    "parent": 44998510,
     "depth": 2
   },
   {
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 44999442,
+    "by": "atombender",
+    "timeISO": "2025-08-23T21:54:16.000Z",
+    "textPlain": "NATS is very good. It's important to distinguish between core NATS and Jetstream, however.Core NATS is an ephemeral message broker. Clients tell the server what subjects they want messages about, producers publish. NATS handles the routing. If nobody is listening, messages go nowhere. It's very nice for situations where lots of clients come and go. It's not reliable; it sheds messages when consumers get slow. No durability, so when a consumer disconnects, it will miss messages sent in its absence. But this means it's very lightweight. Subjects are just wildcard paths, so you can have billions of them, which means RPC is trivial: Send out a message and tell the receiver to post a reply to a randomly generated subject, then listen to that subject for the answer.NATS organizes brokers into clusters, and clusters can form hub/spoke topologies where messages are routed between clusters by interest, so it's very scalable; if your cluster doesn't scale to the number of consumers, you can add another cluster that consumes the first cluster, and now you have two hubs/spokes. In short, NATS is a great \"message router\". You can build all sorts of semantics on top of it: RPC, cache invalidation channels, \"actor\" style processes, traditional pub/sub, logging, the sky is the limit.Jetstream is a different technology that is built on NATS. With Jetstream, you can create streams, which are ordered sequences of messages. A stream is durable and can have settings like maximum retention by age and size. Streams are replicated, with each stream being a Raft group. Consumers follow from a position. In many ways it's like Kafka and Redpanda, but \"on steroids\", superficially similar but just a lot richer.For example, Kafka is very strict about the topic being a sequence of messages that must be consumed exactly sequentially. If the client wants to subscribe to a subset of events, it must either filter client-side, or you have some intermediary that filters and writes to a topic that the c",
+    "parent": 44998598,
+    "depth": 2
+  },
+  {
     "id": 44998829,
     "by": "sea-gold",
     "timeISO": "2025-08-23T20:22:40.000Z",
@@ -152,11 +168,11 @@
     "depth": 2
   },
   {
-    "id": 44999442,
-    "by": "atombender",
-    "timeISO": "2025-08-23T21:54:16.000Z",
-    "textPlain": "NATS is very good. It's important to distinguish between core NATS and Jetstream, however.Core NATS is an ephemeral message broker. Clients tell the server what subjects they want messages about, producers publish. NATS handles the routing. If nobody is listening, messages go nowhere. It's very nice for situations where lots of clients come and go. It's not reliable; it sheds messages when consumers get slow. No durability, so when a consumer disconnects, it will miss messages sent in its absence. But this means it's very lightweight. Subjects are just wildcard paths, so you can have billions of them, which means RPC is trivial: Send out a message and tell the receiver to post a reply to a randomly generated subject, then listen to that subject for the answer.NATS organizes brokers into clusters, and clusters can form hub/spoke topologies where messages are routed between clusters by interest, so it's very scalable; if your cluster doesn't scale to the number of consumers, you can add another cluster that consumes the first cluster, and now you have two hubs/spokes. In short, NATS is a great \"message router\". You can build all sorts of semantics on top of it: RPC, cache invalidation channels, \"actor\" style processes, traditional pub/sub, logging, the sky is the limit.Jetstream is a different technology that is built on NATS. With Jetstream, you can create streams, which are ordered sequences of messages. A stream is durable and can have settings like maximum retention by age and size. Streams are replicated, with each stream being a Raft group. Consumers follow from a position. In many ways it's like Kafka and Redpanda, but \"on steroids\", superficially similar but just a lot richer.For example, Kafka is very strict about the topic being a sequence of messages that must be consumed exactly sequentially. If the client wants to subscribe to a subset of events, it must either filter client-side, or you have some intermediary that filters and writes to a topic that the c",
-    "parent": 44998598,
+    "id": 45002220,
+    "by": "fifilura",
+    "timeISO": "2025-08-24T07:46:40.000Z",
+    "textPlain": "I wanted to write a comment on this topic, but after several tries this thread is where I ended up because it describes my sentiment as well.The arguments in the article are very compelling. But as soon as you choose Kafka you realize the things you hate.Many of the reasons are stupid things - like it uncovers otherwise unimportant bugs in your client code. Or that it just makes experimenting a hassle because it enforces poking around in lots of different places to do something. Or that writing and maintaining the compulsory integration test takes weeks of your time.Sure - you can replay your data - but not until you have fixed all the issues for that special case in your receiving service.I think maybe my main gripe (for us) was that it was a difficult to get an understanding what is actually inside your pipe. Much easier to have that in a solid state in s3?At the end of they day you get annoyed because it slows you down. In particular when you are a small localized team.",
+    "parent": 44998615,
     "depth": 2
   },
   {
@@ -196,6 +212,14 @@
     "by": "njitbew",
     "timeISO": "2025-08-23T19:33:05.000Z",
     "textPlain": "> and it feels bloated (Java!)I'm curious, what exactly feels bloated about Java? I don't feel like the Java language or runtime are particularly bloated, so I'm guessing you're referring to some practices/principles that you often see around Java software?",
+    "parent": 44998437,
+    "depth": 2
+  },
+  {
+    "id": 45002203,
+    "by": "gf000",
+    "timeISO": "2025-08-24T07:42:39.000Z",
+    "textPlain": "If you have this stance to technology (\"feels bloated\", meme-level knowledge on Java), then I really hope that you are not responsible for technical decisions.",
     "parent": 44998437,
     "depth": 2
   },
