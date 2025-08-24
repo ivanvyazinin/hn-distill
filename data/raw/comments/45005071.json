@@ -1,17 +1,25 @@
 [
   {
-    "id": 45005410,
-    "by": "conradev",
-    "timeISO": "2025-08-24T16:15:59.000Z",
-    "textPlain": "One Apple platforms, you also want to use F_FULLFSYNC instead of fsync:https://www.sqlite.org/pragma.html#pragma_checkpoint_fullfsy...",
+    "id": 45005548,
+    "by": "charleslmunger",
+    "timeISO": "2025-08-24T16:30:31.000Z",
+    "textPlain": "The default is FULLhttps://sqlite.org/compile.html#default_synchronous>SQLITE_DEFAULT_SYNCHRONOUS=<0-3> This macro determines the default value of the PRAGMA synchronous setting. If not overridden at compile-time, the default setting is 2 (FULL).>SQLITE_DEFAULT_WAL_SYNCHRONOUS=<0-3> This macro determines the default value of the PRAGMA synchronous setting for database files that open in WAL mode. If not overridden at compile-time, this value is the same as SQLITE_DEFAULT_SYNCHRONOUS.Many wrappers for sqlite take this advice and change the default, but the default is FULL.",
     "parent": 45005071,
     "depth": 1
   },
   {
-    "id": 45005431,
-    "by": "sethev",
-    "timeISO": "2025-08-24T16:18:32.000Z",
-    "textPlain": "One of the things I like about SQLite is how easy it is to understand its behavior if you read the docs. This is one of the potentially surprising defaults - but it seems reasonable for an embedded database, where a power loss is likely to cause the application to \"forget\" that something was committed at the same time that SQLite does.However, it depends on the application - hence the need for clear docs and an understandable model.",
+    "id": 45005628,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-08-24T16:38:56.000Z",
+    "textPlain": "SQLite defaults have many, many weird choices that make unsuspecting users choose dangerous configurations.And it's not reasonable to expect them to read through all the docs to figure out that the defaults are not safe.Defaults should be safe, tune for performance. Not the other way around.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005410,
+    "by": "conradev",
+    "timeISO": "2025-08-24T16:15:59.000Z",
+    "textPlain": "One Apple platforms, you also want to use F_FULLFSYNC instead of fsync if you need durability:https://www.sqlite.org/pragma.html#pragma_checkpoint_fullfsy...",
     "parent": 45005071,
     "depth": 1
   },
@@ -24,11 +32,107 @@
     "depth": 1
   },
   {
+    "id": 45005556,
+    "by": "chasil",
+    "timeISO": "2025-08-24T16:31:44.000Z",
+    "textPlain": "There is enough going on with WAL mode that it really shouldn't be enabled unless all the limitations are understood.In addition to the need for all clients to see shared memory, it disables acid transactions on attached databases (2nd to last paragraph below):https://sqlite.org/lang_attach.html",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005431,
+    "by": "sethev",
+    "timeISO": "2025-08-24T16:18:32.000Z",
+    "textPlain": "One of the things I like about SQLite is how easy it is to understand its behavior if you read the docs. This is one of the potentially surprising defaults - but it seems reasonable for an embedded database, where a power loss is likely to cause the application to \"forget\" that something was committed at the same time that SQLite does.However, it depends on the application - hence the need for clear docs and an understandable model.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005636,
+    "by": "wiradikusuma",
+    "timeISO": "2025-08-24T16:39:24.000Z",
+    "textPlain": "Does anyone, preferably from Cloudflare, know the settings used in D1, since it's a SQLite dialect?",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
     "id": 45005425,
     "by": "weinzierl",
     "timeISO": "2025-08-24T16:18:06.000Z",
-    "textPlain": "I don't know why SQLite has this default, I suspect primarily performance, but I think even with modern SSD's there is a fsync frequency where it starts to hurt lifetime.",
+    "textPlain": "I don't know why SQLite has this default, I suspect primarily performance, but I think even with modern SSD's there is a fsync frequency where it starts to hurt lifetime.Also, you probably do not gain much with synchronization=FULL if the SSD does not really honor flushes correctly.\nSome SSDs historically lied - acknowledging flushes before actually persisting them.\nI don't know if this is still true.",
     "parent": 45005071,
     "depth": 1
+  },
+  {
+    "id": 45005664,
+    "by": "hoppp",
+    "timeISO": "2025-08-24T16:43:07.000Z",
+    "textPlain": "Calling fsync on each commit makes it slower, doesn't it?Its an extra syscall. It depends on the use-case if its needed or not",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005866,
+    "by": "nh2",
+    "timeISO": "2025-08-24T17:09:45.000Z",
+    "textPlain": "From this (linked https://sqlite.org/pragma.html#pragma_synchronous), does anybody understand EXTRA?> EXTRA provides additional durability if the commit is followed closely by a power loss.means?How can one have \"additional\" durability, if FULL already \"ensures that an operating system crash or power failure will not corrupt the database\"?Is it that FULL only protects against \"corruption\" as stated, but will still lose committed transactions?It seems so from the points on https://stackoverflow.com/questions/58113560/during-power-lo...Which is also quite nasty. I want my databases to be fully durable by default, and not lose anything once they have acknowledged a transaction. The typical example for ACID DBs are bank transactions; imagine a bank accidentally undoing a transaction upon server crash, after already having acknowledged it to a third-party over the network.",
+    "parent": 45005548,
+    "depth": 2
+  },
+  {
+    "id": 45005665,
+    "by": "avinassh",
+    "timeISO": "2025-08-24T16:43:18.000Z",
+    "textPlain": "hey, I just tested and `NORMAL` is default:    $ sqlite3 test.db\n    \n    SQLite version 3.43.2 2023-10-10 13:08:14\n    Enter \".help\" for usage hints.\n    sqlite> PRAGMA journal_mode=wal;\n    wal\n    sqlite> PRAGMA synchronous;\n    1\n    sqlite>\n\nedit: fresh installation from homebrew shows default as FULL:    /opt/homebrew/opt/sqlite/bin/sqlite3 test.db\n    SQLite version 3.50.4 2025-07-30 19:33:53\n    Enter \".help\" for usage hints.\n    sqlite> PRAGMA journal_mode=wal;\n    wal\n    sqlite> PRAGMA synchronous;\n    2\n    sqlite>\n\nI will update the post, thanks!",
+    "parent": 45005548,
+    "depth": 2
+  },
+  {
+    "id": 45005701,
+    "by": "jabwd",
+    "timeISO": "2025-08-24T16:47:31.000Z",
+    "textPlain": "Sqlite defaults in many ways perfectly fine, you get the foot guns when you need the performance. Read the article rather than commenting on HN because WAL is not default.",
+    "parent": 45005628,
+    "depth": 2
+  },
+  {
+    "id": 45005736,
+    "by": "baruz",
+    "timeISO": "2025-08-24T16:52:37.000Z",
+    "textPlain": "Is there a performance hit for f_fullfsync?",
+    "parent": 45005410,
+    "depth": 2
+  },
+  {
+    "id": 45005822,
+    "by": "nolist_policy",
+    "timeISO": "2025-08-24T17:03:33.000Z",
+    "textPlain": "Without the \"making sure data written to disk after power loss\" part you won't get serialization either in modern storage stacks.",
+    "parent": 45005478,
+    "depth": 2
+  },
+  {
+    "id": 45005550,
+    "by": "wellpast",
+    "timeISO": "2025-08-24T16:31:00.000Z",
+    "textPlain": "Wouldn’t it depend on use case?If the app confirms to me my crypto transaction has been reliably queued, I probably don’t want to hear that it was unqueued because a node using SQLite in the cluster had died at an inconvenient specific time.",
+    "parent": 45005478,
+    "depth": 2
+  },
+  {
+    "id": 45005813,
+    "by": "bawolff",
+    "timeISO": "2025-08-24T17:01:54.000Z",
+    "textPlain": "> In addition to the need for all clients to see shared memory, it disables acid transactions on attached databasesIt only disables global cross-db transactions. It does not disable transactions in the attached db.The fact that global transactions are a thing at all is the surprising bit to me. I think the WAL mode is the more expected behaviour.",
+    "parent": 45005556,
+    "depth": 2
+  },
+  {
+    "id": 45005752,
+    "by": "SoftTalker",
+    "timeISO": "2025-08-24T16:54:36.000Z",
+    "textPlain": "This is true for any database, for any concurrency or durability settings. You must understand the implications of the defaults and your choices if you change them.",
+    "parent": 45005556,
+    "depth": 2
   }
 ]
