@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45005478,
-    "by": "liuliu",
-    "timeISO": "2025-08-24T16:22:45.000Z",
-    "textPlain": "Does it matter? For all we know, it keeps the serializability. At this point (of computer hardware history), you would care more about serializability than making sure data written to disk after power loss, the latter would now depend on so many layers of drivers doing correct things (for things that is hard to test correctly).",
+    "id": 45006396,
+    "by": "jmull",
+    "timeISO": "2025-08-24T18:18:26.000Z",
+    "textPlain": "The takeaway should be:Don't assume sqlite is doing an fsync on each commit.While that's the \"default default\", you may be using a sqlite3 compiled by someone else or using non-default build options, or using a wrapper that sets its own defaults.More generally, be careful about assuming any of the various levers sqlite3 has are set in a specific way. That is, take control of the ones that are important to your use case (well, and before that, review the levers so you know which ones those are).",
     "parent": 45005071,
     "depth": 1
   },
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45005431,
-    "by": "sethev",
-    "timeISO": "2025-08-24T16:18:32.000Z",
-    "textPlain": "One of the things I like about SQLite is how easy it is to understand its behavior if you read the docs. This is one of the potentially surprising defaults - but it seems reasonable for an embedded database, where a power loss is likely to cause the application to \"forget\" that something was committed at the same time that SQLite does.However, it depends on the application - hence the need for clear docs and an understandable model.",
+    "id": 45005478,
+    "by": "liuliu",
+    "timeISO": "2025-08-24T16:22:45.000Z",
+    "textPlain": "Does it matter? For all we know, it keeps the serializability. At this point (of computer hardware history), you would care more about serializability than making sure data written to disk after power loss, the latter would now depend on so many layers of drivers doing correct things (for things that is hard to test correctly).",
     "parent": 45005071,
     "depth": 1
   },
@@ -56,10 +56,34 @@
     "depth": 1
   },
   {
+    "id": 45005431,
+    "by": "sethev",
+    "timeISO": "2025-08-24T16:18:32.000Z",
+    "textPlain": "One of the things I like about SQLite is how easy it is to understand its behavior if you read the docs. This is one of the potentially surprising defaults - but it seems reasonable for an embedded database, where a power loss is likely to cause the application to \"forget\" that something was committed at the same time that SQLite does.However, it depends on the application - hence the need for clear docs and an understandable model.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
     "id": 45005425,
     "by": "weinzierl",
     "timeISO": "2025-08-24T16:18:06.000Z",
     "textPlain": "I don't know why SQLite has this default, I suspect primarily performance, but I think even with modern SSD's there is a fsync frequency where it starts to hurt lifetime.Also, you probably do not gain much with synchronization=FULL if the SSD does not really honor flushes correctly.\nSome SSDs historically lied - acknowledging flushes before actually persisting them.\nI don't know if this is still true.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005937,
+    "by": "arpinum",
+    "timeISO": "2025-08-24T17:21:36.000Z",
+    "textPlain": "This is popping up because SurrealDB was found to turn fsync off by default. But there are important differences:- SurrealDB provides poor documentation about this default- SQLite is typically run client side, while SurrealDB is typically run as a remote server- SQLite is actually full sync by default, but distros may package it with other defaults\n- SurrealDB explicitly did this for benchmarking reasons (for comparison fairness) while SQLite distros turn off fsync for typically practical reasons as it's run pure client side.",
+    "parent": 45005071,
+    "depth": 1
+  },
+  {
+    "id": 45005915,
+    "by": "sgammon",
+    "timeISO": "2025-08-24T17:18:55.000Z",
+    "textPlain": "yeah it says that in the docs",
     "parent": 45005071,
     "depth": 1
   },
@@ -96,11 +120,51 @@
     "depth": 2
   },
   {
+    "id": 45005945,
+    "by": "conradev",
+    "timeISO": "2025-08-24T17:21:59.000Z",
+    "textPlain": "This is perhaps my favorite one. By default, SQLite doesn’t actually delete data:  The default setting for secure_delete is determined by the SQLITE_SECURE_DELETE compile-time option and is normally off. The off setting for secure_delete improves performance by reducing the number of CPU cycles and the amount of disk I/O.\n\nhttps://www.sqlite.org/pragma.html#pragma_secure_delete",
+    "parent": 45005628,
+    "depth": 2
+  },
+  {
+    "id": 45006089,
+    "by": "sgarland",
+    "timeISO": "2025-08-24T17:37:26.000Z",
+    "textPlain": "Yes, yes it does [0]. I fully understand the need for backwards-compatibility given the sheer number of SQLite installations, I find their attitude towards flexible types [1] appalling. At least they’ve added STRICT.Similarly, the fact that FKs aren’t actually enforced by default is a horrifying discovery if you’re new to it, but tbf a. MySQL until quite recently allowed CHECK constraints to be declared, which it then ignored b. The FK enforcement decision is for backwards-compatibility.[0]: https://www.sqlite.org/quirks.html[1]: https://www.sqlite.org/flextypegood.html",
+    "parent": 45005628,
+    "depth": 2
+  },
+  {
+    "id": 45006062,
+    "by": "lupusreal",
+    "timeISO": "2025-08-24T17:34:45.000Z",
+    "textPlain": "I swear I think people choose WAL mode because they read something about it online, where that something obviously isn't the documentation.   This behavior shouldn't be catching any engineer by surprise.",
+    "parent": 45005628,
+    "depth": 2
+  },
+  {
     "id": 45005736,
     "by": "baruz",
     "timeISO": "2025-08-24T16:52:37.000Z",
     "textPlain": "Is there a performance hit for f_fullfsync?",
     "parent": 45005410,
+    "depth": 2
+  },
+  {
+    "id": 45005813,
+    "by": "bawolff",
+    "timeISO": "2025-08-24T17:01:54.000Z",
+    "textPlain": "> In addition to the need for all clients to see shared memory, it disables acid transactions on attached databasesIt only disables global cross-db transactions. It does not disable transactions in the attached db.The fact that global transactions are a thing at all is the surprising bit to me. I think the WAL mode is the more expected behaviour.",
+    "parent": 45005556,
+    "depth": 2
+  },
+  {
+    "id": 45005752,
+    "by": "SoftTalker",
+    "timeISO": "2025-08-24T16:54:36.000Z",
+    "textPlain": "This is true for any database, for any concurrency or durability settings. You must understand the implications of the defaults and your choices if you change them.",
+    "parent": 45005556,
     "depth": 2
   },
   {
@@ -120,19 +184,19 @@
     "depth": 2
   },
   {
-    "id": 45005813,
-    "by": "bawolff",
-    "timeISO": "2025-08-24T17:01:54.000Z",
-    "textPlain": "> In addition to the need for all clients to see shared memory, it disables acid transactions on attached databasesIt only disables global cross-db transactions. It does not disable transactions in the attached db.The fact that global transactions are a thing at all is the surprising bit to me. I think the WAL mode is the more expected behaviour.",
-    "parent": 45005556,
+    "id": 45006022,
+    "by": "koakuma-chan",
+    "timeISO": "2025-08-24T17:29:38.000Z",
+    "textPlain": "Is D1 a dialect? I thought they actually run SQLite.",
+    "parent": 45005636,
     "depth": 2
   },
   {
-    "id": 45005752,
-    "by": "SoftTalker",
-    "timeISO": "2025-08-24T16:54:36.000Z",
-    "textPlain": "This is true for any database, for any concurrency or durability settings. You must understand the implications of the defaults and your choices if you change them.",
-    "parent": 45005556,
+    "id": 45006294,
+    "by": "praptak",
+    "timeISO": "2025-08-24T18:02:42.000Z",
+    "textPlain": "That's why big DBs do group commits, trading latency for throughput.",
+    "parent": 45005664,
     "depth": 2
   }
 ]
