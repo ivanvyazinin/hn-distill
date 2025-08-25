@@ -1,21 +1,5 @@
 [
   {
-    "id": 45010847,
-    "by": "gorgoiler",
-    "timeISO": "2025-08-25T06:28:32.000Z",
-    "textPlain": "The IFS part is misguided.  If the author used double quotes around the array reference then words are kept in tact:  vs=(\"a b\" \"c d\")\n  for v in \"${vs[@]}\"\n  do      #^♥      ♥^\n    echo $v\n  done\n  #= a b\n  #= c d\n\nWhereas in their (counter-)example, with missing quotes:  vs=(\"a b\" \"c d\")\n  for v in  ${vs[@]}\n  do      #^!      !^\n    echo $v\n  done\n  #= a\n  #= b\n  #= c\n  #= d\n\n* Any element of an array may be  referenced using ${name[subscript]}.  If subscript is @ the  word  expands  to  all members  of  name.   These  subscripts\n       differ only  when  the  word  appears\n       within double quotes.  If the word is\n       double-quoted, ${name[@]} expands each element of\n       name to  a separate word.*",
-    "parent": 44983442,
-    "depth": 1
-  },
-  {
-    "id": 45010831,
-    "by": "jenders",
-    "timeISO": "2025-08-25T06:25:31.000Z",
-    "textPlain": "As a seasoned shell programmer, when I see set -euo pipefail, I know immediately that low quality code “batched list of commands”-type code follows.It’s bad code smell and an anti-pattern as far as I’m concerned. Anyone who has actually has taken the time to learn POSIX/BASH shell to any degree or complexity knows that it’s fully capable of catching errors in-band and that a .sh file isn’t just a dumping ground for repeating your shell history.",
-    "parent": 44983442,
-    "depth": 1
-  },
-  {
     "id": 45010142,
     "by": "jacob2161",
     "timeISO": "2025-08-25T04:16:19.000Z",
@@ -28,6 +12,14 @@
     "by": "vivzkestrel",
     "timeISO": "2025-08-25T04:25:03.000Z",
     "textPlain": "Lots of arguments against not using set -euo pipefail https://www.reddit.com/r/commandline/comments/g1vsxk/comment... anything you wanna say about this?",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
+    "id": 45010847,
+    "by": "gorgoiler",
+    "timeISO": "2025-08-25T06:28:32.000Z",
+    "textPlain": "The IFS part is misguided.  If the author used double quotes around the array reference then words are kept intact:  vs=(\"a b\" \"c d\")\n  for v in \"${vs[@]}\"\n  do      #^♥      ♥^\n    echo \"$v\"\n  done\n  #= a b\n  #= c d\n\nWhereas in their (counter-)example, with missing quotes:  vs=(\"a b\" \"c d\")\n  for v in  ${vs[@]}\n  do      #^!      !^\n    echo \"$v\"\n  done\n  #= a\n  #= b\n  #= c\n  #= d\n\nTo paraphrase the manual: Any element of an array may be  referenced using ${name[subscript]}.  If subscript is @ the  word  expands  to  all members  of  name.   If the word is double-quoted, \"${name[@]}\" expands each element of name  to  a separate word.",
     "parent": 44983442,
     "depth": 1
   },
@@ -80,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45010231,
-    "by": "burnt-resistor",
-    "timeISO": "2025-08-25T04:35:03.000Z",
-    "textPlain": "set -Eeuo pipefail\n\nIt's missing -E to respect traps.",
-    "parent": 44983442,
-    "depth": 1
-  },
-  {
     "id": 45009816,
     "by": "deathanatos",
     "timeISO": "2025-08-25T03:06:05.000Z",
@@ -96,10 +80,26 @@
     "depth": 1
   },
   {
+    "id": 45010231,
+    "by": "burnt-resistor",
+    "timeISO": "2025-08-25T04:35:03.000Z",
+    "textPlain": "set -Eeuo pipefail\n\nIt's missing -E to respect traps.",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
     "id": 45009823,
     "by": "matheusmoreira",
     "timeISO": "2025-08-25T03:07:36.000Z",
     "textPlain": "This honestly should be the default for all scripts. There are so many little annoyances in bash that would make it great if they were changed and improved. Sadly there's just no changing certain things.My number one wishlist feature was a simple library system. Essentially just let me source files by name by searching in some standard user location. I actually wrote and submitted patches for this but it just didn't work out. Maintained my own version for a while and it was nice but not enough to justify the maintenance burden. Bash's number one feature is being the historical default shell on virtually every Linux distribution, without that there's no point.At least we've got shellcheck.",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
+    "id": 45010831,
+    "by": "jenders",
+    "timeISO": "2025-08-25T06:25:31.000Z",
+    "textPlain": "As a seasoned shell programmer, when I see set -euo pipefail, I know immediately that low quality code “batched list of commands”-type code follows.It’s bad code smell and an anti-pattern as far as I’m concerned. Anyone who has actually has taken the time to learn POSIX/BASH shell to any degree or complexity knows that it’s fully capable of catching errors in-band and that a .sh file isn’t just a dumping ground for repeating your shell history.",
     "parent": 44983442,
     "depth": 1
   },
@@ -133,6 +133,14 @@
     "timeISO": "2025-08-25T04:45:55.000Z",
     "textPlain": "euo pipefail has been the one good thing with bash. I'll start looking at alternatives now",
     "parent": 45010189,
+    "depth": 2
+  },
+  {
+    "id": 45010921,
+    "by": "degamad",
+    "timeISO": "2025-08-25T06:37:20.000Z",
+    "textPlain": "The author addresses that in footnote 2:    > [2] Another approach: instead of altering IFS, begin the loop with for arg in \"$@\" - double quoting the iteration variable. This changes loop semantics to produces the nicer behavior, and even handles a few edge cases better. The big problem is maintainability. It's easy for even experienced developers to forget to put in the double quotes. Even if the original author has managed to impeccably ingrain the habit, it's foolish to expect that all future maintainers will. In short, relying on quotes has a high risk of introducing subtle time-bomb bugs. Setting IFS renders this impossible.",
+    "parent": 45010847,
     "depth": 2
   },
   {
@@ -197,6 +205,22 @@
     "timeISO": "2025-08-25T04:42:08.000Z",
     "textPlain": "bash-modules project tries to implement \"modules\", which works in strict mode, but it got no traction.",
     "parent": 45009823,
+    "depth": 2
+  },
+  {
+    "id": 45011107,
+    "by": "naruhodo",
+    "timeISO": "2025-08-25T07:05:23.000Z",
+    "textPlain": "For anyone looking for supporting evidence:https://www.reddit.com/r/commandline/comments/g1vsxk/the_fir...\"set -euo pipefail\" comes with footguns.",
+    "parent": 45010831,
+    "depth": 2
+  },
+  {
+    "id": 45011040,
+    "by": "matheusmoreira",
+    "timeISO": "2025-08-25T06:53:50.000Z",
+    "textPlain": "> a .sh file isn’t just a dumping ground for repeating your shell historyMaybe it should be? As fun as it can be to write complex software in these legacy Turing tarpits, results aren't that great no matter how hard we try. Makefiles are another example.",
+    "parent": 45010831,
     "depth": 2
   }
 ]
