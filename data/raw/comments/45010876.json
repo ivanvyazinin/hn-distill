@@ -3,7 +3,39 @@
     "id": 45011025,
     "by": "chrismorgan",
     "timeISO": "2025-08-25T06:51:53.000Z",
-    "textPlain": "The “Better Gradients” thing is dodgy.OKLCH is a polar coordinate space. Hue is angle in this space. So to interpolate hue from one angle to another, to get from one side of a circle to the other, you go round the edge. This leads to extreme examples like the one shown:  linear-gradient(in oklch, #f0f, #0f0)\n\nYou can also go round the circle the other way, which will take you via blue–aqua instead of via red–yellow:  linear-gradient(in oklch longer hue, f0f, #0f0)\n\nThe gradient shown (in either case) is a good example of a way that perceptual colour spaces are really bad to work in: practically the entire way round the edge of the circle, it’s outside sRGB, in fact way outside of the colours humans can perceive. Perceptual colour spaces are really bad at handling the edges of gamuts, where slightly perturbing the values take you out of gamut.Accordingly, there are algorithms defined (yes, plural: not every application has agreed on the technique to use) to drag the colour back in-gamut, but it sacrifices the perceptual uniformity. The red in that gradient is way darker than the rest of it.When you’re looking for better gradients, if you’re caring about perceptual uniformity (which frequently you shouldn’t, perceptual colour spaces are being massively overapplied), you should probably default to interpolating in Oklab instead, which takes a straight line from one side of the circle to the other—yes, through grey, if necessary.  linear-gradient(in oklab, #f0f, #0f0)\n\nAnd in this case, that gets you about as decent a magenta-to-lime gradient as you can hope for, not going via red and yellow, and not exhibiting the inappropriate darkening of sRGB interpolation (… though if I were hand-tuning such a gradient, I’d actually go a bit darker than Oklab does).During its beta period, Tailwind v4 tried shifting from sRGB to Oklch for gradient interpolation; by release, they’d decided Oklab was a safer default.",
+    "textPlain": "The “Better Gradients” thing is dodgy.OKLCH is a polar coordinate space. Hue is angle in this space. So to interpolate hue from one angle to another, to get from one side of a circle to the other, you go round the edge. This leads to extreme examples like the one shown:  linear-gradient(in oklch, #f0f, #0f0)\n\nYou can also go round the circle the other way, which will take you via blue–aqua instead of via red–yellow:  linear-gradient(in oklch longer hue, #f0f, #0f0)\n\nThe gradient shown (in either case) is a good example of a way that perceptual colour spaces are really bad to work in: practically the entire way round the edge of the circle, it’s outside sRGB, in fact way outside of the colours humans can perceive. Perceptual colour spaces are really bad at handling the edges of gamuts, where slightly perturbing the values take you out of gamut.Accordingly, there are algorithms defined (yes, plural: not every application has agreed on the technique to use) to drag the colour back in-gamut, but it sacrifices the perceptual uniformity. The red in that gradient is way darker than the rest of it.When you’re looking for better gradients, if you’re caring about perceptual uniformity (which frequently you shouldn’t, perceptual colour spaces are being massively overapplied), you should probably default to interpolating in Oklab instead, which takes a straight line from one side of the circle to the other—yes, through grey, if necessary.  linear-gradient(in oklab, #f0f, #0f0)\n\nAnd in this case, that gets you about as decent a magenta-to-lime gradient as you can hope for, not going via red and yellow, and not exhibiting the inappropriate darkening of sRGB interpolation (… though if I were hand-tuning such a gradient, I’d actually go a bit darker than Oklab does).During its beta period, Tailwind v4 tried shifting from sRGB to Oklch for gradient interpolation; by release, they’d decided Oklab was a safer default.",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011306,
+    "by": "twhb",
+    "timeISO": "2025-08-25T07:40:24.000Z",
+    "textPlain": "Great post!Also check out oklch.com, I found it useful for building an intuition. Some stumbling blocks are that hues aren’t the same as HSL hues, and max chroma is different depending on hue and lightness. This isn’t a bug, but a reflection of human eyes and computer screens; the alternative, as in HSL, is a consistent max but inconsistent meaning.Another very cool thing about CSS’s OKLCH is it’s a formula, so you can write things like oklch(from var(--accent) calc(l + .1) c h). Do note, though, that you’ll need either some color theory or fiddling to figure out your formulas, my programmer’s intuition told me lies like “a shadow is just a lightness change, not a hue change”.Also, OKLCH gradients aren’t objectively best, they’re consistently colorful. When used with similar hues, not like the article’s example, they can look very nice, but it’s not realistic; if your goal is how light mixes, then you actually want XYZ. More: https://developer.mozilla.org/en-US/docs/Web/CSS/color_value....Also, fun fact: the “ok” is actually just the word “ok”. The implication being that LCH was not OK, it had some bugs.",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011580,
+    "by": "dev_l1x_be",
+    "timeISO": "2025-08-25T08:29:03.000Z",
+    "textPlain": "I was wondering about this exact subject the other day when working on some web dev task. Now I know why this way is better.",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011052,
+    "by": "JohnKemeny",
+    "timeISO": "2025-08-25T06:55:43.000Z",
+    "textPlain": "OKLCH: a color model based on OKLab (a perceptually uniform color space) where you control Lightness, Chroma (saturation), and Hue.\"OK\" because \"it does an ok job\" according to its creater Björn Ottosson.",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011466,
+    "by": "JimDabell",
+    "timeISO": "2025-08-25T08:09:23.000Z",
+    "textPlain": "I found this to be a good article on the subject:https://evilmartians.com/chronicles/oklch-in-css-why-quit-rg...Along with their picker / converter here:https://oklch.com/Discussed on Hacker News here:https://news.ycombinator.com/item?id=43073819 (6 months ago, 30 comments)",
     "parent": 45010876,
     "depth": 1
   },
@@ -24,18 +56,26 @@
     "depth": 1
   },
   {
-    "id": 45011052,
-    "by": "JohnKemeny",
-    "timeISO": "2025-08-25T06:55:43.000Z",
-    "textPlain": "OKLCH: a color model based on OKLab (a perceptually uniform color space) where you control Lightness, Chroma (saturation), and Hue.\"OK\" because \"it does an ok job\" according to its creater Björn Ottosson.",
+    "id": 45011473,
+    "by": "Aissen",
+    "timeISO": "2025-08-25T08:10:48.000Z",
+    "textPlain": "On the comparison between Color spaces, it's weird, my monitor from 2008 does show a difference between the Display-P3 and the sRGB purple colors, yet I didn't think it'd have such a big color range. Is there some color conversion at the browser or OS-level? (my distro/desktop enables colormgr by default).",
     "parent": 45010876,
     "depth": 1
   },
   {
-    "id": 45011018,
-    "by": "tiedemann",
-    "timeISO": "2025-08-25T06:51:07.000Z",
-    "textPlain": "Seems nice. But how to pronounce it?",
+    "id": 45011238,
+    "by": "vanderZwan",
+    "timeISO": "2025-08-25T07:27:04.000Z",
+    "textPlain": "Aside from a few criticisms that others have already raised I think this is quite a nice introduction to OKLCH and how to use them in CSS.With that out of the way, I'd like to go on a tangent here: can anyone explain the modern trend of not including publishing dates in blog articles? It stood out to me here in particular because the opening sentence said that \"OKLCH is a newer color model\" and the \"newer\" part of that sentence will get dated quicker than you think. The main site does mention a date, but limits it to \"August 2025\" so this seems like a conscious choice and I just don't get it.[0] https://jakub.kr/",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011382,
+    "by": "roer",
+    "timeISO": "2025-08-25T07:54:36.000Z",
+    "textPlain": "There is a youtuber (Gneiss Name) making educational content through the medium of Minecraft.  \nHe's made one on OKLab as well: https://youtu.be/nJlZT5AE9zY",
     "parent": 45010876,
     "depth": 1
   },
@@ -48,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 45011018,
+    "by": "tiedemann",
+    "timeISO": "2025-08-25T06:51:07.000Z",
+    "textPlain": "Seems nice. But how to pronounce it?",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
     "id": 45011069,
     "by": "skylurk",
     "timeISO": "2025-08-25T06:59:11.000Z",
@@ -56,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45011076,
-    "by": "lieblingautor",
-    "timeISO": "2025-08-25T07:00:20.000Z",
-    "textPlain": "seems like a great idea, this will make working with colors so much easier",
+    "id": 45011320,
+    "by": "TiredOfLife",
+    "timeISO": "2025-08-25T07:41:46.000Z",
+    "textPlain": "That gradient example is hilarious.With RGB you order green salad you get green salad.With OKLCH you order green salad you get beet soup.",
     "parent": 45010876,
     "depth": 1
   },
@@ -72,10 +120,34 @@
     "depth": 1
   },
   {
+    "id": 45011256,
+    "by": "seanwilson",
+    "timeISO": "2025-08-25T07:29:47.000Z",
+    "textPlain": "> It also works the other way around, where you can change the lightness value to create various color shades and there is no hue or saturation drift unlike in other color modes.> In the example above, you can see that the OKLCH colors maintain consistent blueness across all of the shades, while in the HSL example, the lighter shades drift to purple and the darker ones muddy out towards grayish.I see lots of automatic palette generator projects where the shades of each color are generated with OKLCH by only varying the lightness value on some chosen base color. The problem I find is if you look at popular open source palettes, the way the hand-crafted hue and saturation values vary across the shades for different hues isn't that predictable (the curve of the hue/saturation values over shades aren't straight lines or typical easing curves).Hawking my own tool (using HSLuv with RGB for now), but you can load and compare the hue and saturation curves as they vary over shades of a color using example palettes from Tailwind 3, USWDS and IBM Carbon, plus tweak each shade to your liking:https://www.inclusivecolors.com/?style_dictionary=eyJjb2xvci...So I think OKLCH is a nice starting base for palettes and a quick way to generate a color you need in CSS, but I think designers will always want to tweak the hue and saturation of each shade so it looks just right as there's no single right answer.",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011076,
+    "by": "lieblingautor",
+    "timeISO": "2025-08-25T07:00:20.000Z",
+    "textPlain": "seems like a great idea, this will make working with colors so much easier",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
     "id": 45010900,
     "by": "CIAOBENGA",
     "timeISO": "2025-08-25T06:35:08.000Z",
     "textPlain": "Awesome Post",
+    "parent": 45010876,
+    "depth": 1
+  },
+  {
+    "id": 45011410,
+    "by": "teekert",
+    "timeISO": "2025-08-25T07:59:52.000Z",
+    "textPlain": "These IP addresses being released at some point, and making their way into something else is probably the reason I never got to fully run my mailserver from my basement. These companies are just massively giving IP addresses a bad reputation, messing them up for any other use and then abandoning them. I wonder what this would look like when plotted: AI (and other toxic crawling) companies slowly consuming the IPv4 address space? Ideally we'd forced them into some corner of the IPv6 space I guess. I mean robots.txt seems not to be of any help here.",
     "parent": 45010876,
     "depth": 1
   },
@@ -88,11 +160,11 @@
     "depth": 2
   },
   {
-    "id": 45011138,
-    "by": "robin_reala",
-    "timeISO": "2025-08-25T07:09:34.000Z",
-    "textPlain": "While the above site is great for measuring with a modern contrast algorithm (it’s the current algorithm for the yet-to-be-released WCAG 3 accessibility standards), it’s worth bearing in mind that the WCAG 2 algorithm is somewhat different, and a legal requirement in many markets / industries. You can check your colours against that with a tool like https://www.siegemedia.com/contrast-ratio, although there are many more.",
-    "parent": 45011054,
+    "id": 45011340,
+    "by": "Vingdoloras",
+    "timeISO": "2025-08-25T07:47:54.000Z",
+    "textPlain": "For anyone else copy pasting the gradients into dev tools to look at them: The second one is missing the # sign on the first color.And yes, both oklch gradients look pretty weird while the oklab gradient looks nice (if you can accept it going through grey).",
+    "parent": 45011025,
     "depth": 2
   },
   {
@@ -104,11 +176,27 @@
     "depth": 2
   },
   {
-    "id": 45011163,
-    "by": "idle_zealot",
-    "timeISO": "2025-08-25T07:13:39.000Z",
-    "textPlain": "Like \"okay lock\" I would guess.",
-    "parent": 45011018,
+    "id": 45011138,
+    "by": "robin_reala",
+    "timeISO": "2025-08-25T07:09:34.000Z",
+    "textPlain": "While the above site is great for measuring with a modern contrast algorithm (it’s the current algorithm for the yet-to-be-released WCAG 3 accessibility standards), it’s worth bearing in mind that the WCAG 2 algorithm is somewhat different, and a legal requirement in many markets / industries. You can check your colours against that with a tool like https://www.siegemedia.com/contrast-ratio, although there are many more.",
+    "parent": 45011054,
+    "depth": 2
+  },
+  {
+    "id": 45011546,
+    "by": "chrismorgan",
+    "timeISO": "2025-08-25T08:24:08.000Z",
+    "textPlain": "It’s just completely wrong.The first uses oklch(0.65 0.20 300), comfortably inside sRGB, not even at the boundary. The second uses oklch(0.65 0.28 300), which is well outside P3 and even Rec.2020.The smallest fix would be to make the second one oklch(0.65 0.2399 300) to bring it inside P3 so the demo doesn’t get slightly warped if Rec.2020-capable (not really necessary, but preferable, I’d say), and the first #a95eff (oklch(0.6447 0.2297 301.67)) which is CSS’s fallback.But purple is also pretty much the worst choice for such a demo—P3 adds the least to sRGB around there, so the difference will be smallest. A better choice is red or green.So a better pair would be oklch(0.65 0.2977284 28) on the right (a bright red at the very edge of the P3 gamut, well outside sRGB) and #f00 on the left (the sRGB value CSS will map it to if out of gamut).",
+    "parent": 45011473,
+    "depth": 2
+  },
+  {
+    "id": 45010998,
+    "by": "tovej",
+    "timeISO": "2025-08-25T06:47:57.000Z",
+    "textPlain": "oklch uses the oklab color space.",
+    "parent": 45010941,
     "depth": 2
   },
   {
@@ -128,11 +216,19 @@
     "depth": 2
   },
   {
-    "id": 45010998,
-    "by": "tovej",
-    "timeISO": "2025-08-25T06:47:57.000Z",
-    "textPlain": "oklch uses the oklab color space.",
-    "parent": 45010941,
+    "id": 45011163,
+    "by": "idle_zealot",
+    "timeISO": "2025-08-25T07:13:39.000Z",
+    "textPlain": "Like \"okay lock\" I would guess.",
+    "parent": 45011018,
+    "depth": 2
+  },
+  {
+    "id": 45011269,
+    "by": "BrenBarn",
+    "timeISO": "2025-08-25T07:33:12.000Z",
+    "textPlain": "\"Oh, clutch\"?",
+    "parent": 45011018,
     "depth": 2
   },
   {
@@ -141,6 +237,22 @@
     "timeISO": "2025-08-25T07:15:07.000Z",
     "textPlain": "Yes, the diagram is a representation. Kind off like drawing 3D shapes on a 2D surface.",
     "parent": 45011069,
+    "depth": 2
+  },
+  {
+    "id": 45011336,
+    "by": "boronine",
+    "timeISO": "2025-08-25T07:46:55.000Z",
+    "textPlain": "Wow, this might be the best use of HSLuv so far, I'm going to add it to the examples page https://www.hsluv.org/examples/",
+    "parent": 45011256,
+    "depth": 2
+  },
+  {
+    "id": 45011418,
+    "by": "phgn",
+    "timeISO": "2025-08-25T08:00:46.000Z",
+    "textPlain": "I think you commented on the wrong post :)",
+    "parent": 45011410,
     "depth": 2
   }
 ]
