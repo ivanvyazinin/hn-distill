@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45010096,
+    "by": "kayson",
+    "timeISO": "2025-08-25T04:06:29.000Z",
+    "textPlain": "Or use shellcheck: https://www.shellcheck.net/",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
     "id": 45010189,
     "by": "vivzkestrel",
     "timeISO": "2025-08-25T04:25:03.000Z",
@@ -24,18 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45010096,
-    "by": "kayson",
-    "timeISO": "2025-08-25T04:06:29.000Z",
-    "textPlain": "Or use shellcheck: https://www.shellcheck.net/",
-    "parent": 44983442,
-    "depth": 1
-  },
-  {
-    "id": 45010206,
-    "by": "vivzkestrel",
-    "timeISO": "2025-08-25T04:28:20.000Z",
-    "textPlain": "Again another great read about why you should use this https://mywiki.wooledge.org/BashFAQ/105",
+    "id": 45009913,
+    "by": "chubot",
+    "timeISO": "2025-08-25T03:27:53.000Z",
+    "textPlain": "I use essentially this, but I think this post is over 10 years old (needs a date), and it's now INCOMPLETE.bash introduced an option to respect rather than ignore errors within command sub processes years ago.  So if you want to be safer, do something like:    #!/bin/bash\n    set -euo pipefail\n    shopt -s inherit_errexit \n\nThat works as-is in OSH, which is part of https://oils.pub/(edit: the last time this came up was a year ago, and here's a more concrete example - https://lobste.rs/s/1wohaz/posix_2024_changes#c_9oo1av )---But that's STILL incomplete because POSIX mandates that errors be LOST.  That is, it mandates broken error handling.For example, there what I call the \"if myfunc\" pitfall    set -e\n\n    my-deploy-func  # errors respected\n\n    if ! my-deploy-func; then   # errors lost\n      echo failed\n    fi\n    my-deploy-func || echo fail  # errors lost\n\nBut even if you fix that, it's still not enough.---I describe all the problems in this doc, e.g. waiting for process subs:YSH Fixes Shell's Error Handling (errexit) - https://oils.pub/release/latest/doc/error-handling.htmlSummary: YSH fixes all shell error handling issues.  This was surprisingly hard and required many iterations, but it has stood up to scrutiny.For contrast, here is a recent attempt at fixing bash, which is also incomplete, and I argue is a horrible language design: https://lobste.rs/s/kidktn/bash_patch_add_shopt_for_implicit...",
     "parent": 44983442,
     "depth": 1
   },
@@ -48,10 +48,26 @@
     "depth": 1
   },
   {
-    "id": 45009913,
-    "by": "chubot",
-    "timeISO": "2025-08-25T03:27:53.000Z",
-    "textPlain": "I use essentially this, but I think this post is over 10 years old (needs a date), and it's now INCOMPLETE.bash introduced an option to respect rather than ignore errors within command sub processes years ago.  So if you want to be safer, do something like:    #!/bin/bash\n    set -euo pipefail\n    shopt -s inherit_errexit \n\nThat works as-is in OSH, which is part of https://oils.pub/(edit: the last time this came up was a year ago, and here's a more concrete example - https://lobste.rs/s/1wohaz/posix_2024_changes#c_9oo1av )---But that's STILL incomplete because POSIX mandates that errors be LOST.  That is, it mandates broken error handling.For example, there what I call the \"if myfunc\" pitfall    set -e\n\n    my-deploy-func  # errors respected\n\n    if ! my-deploy-func; then   # errors lost\n      echo failed\n    fi\n    my-deploy-func || echo fail  # errors lost\n\nBut even if you fix that, it's still not enough.---I describe all the problems in this doc, e.g. waiting for process subs:YSH Fixes Shell's Error Handling (errexit) - https://oils.pub/release/latest/doc/error-handling.htmlSummary: YSH fixes all shell error handling issues.  This was surprisingly hard and required many iterations, but it has stood up to scrutiny.For contrast, here is a recent attempt at fixing bash, which is also incomplete, and I argue is a horrible language design: https://lobste.rs/s/kidktn/bash_patch_add_shopt_for_implicit...",
+    "id": 45010233,
+    "by": "tomhow",
+    "timeISO": "2025-08-25T04:35:15.000Z",
+    "textPlain": "Use the unofficial Bash strict mode - https://news.ycombinator.com/item?id=8054440 - July 2014 (36 comments)",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
+    "id": 45010206,
+    "by": "vivzkestrel",
+    "timeISO": "2025-08-25T04:28:20.000Z",
+    "textPlain": "Again another great read about why you should NOT use this https://mywiki.wooledge.org/BashFAQ/105",
+    "parent": 44983442,
+    "depth": 1
+  },
+  {
+    "id": 45010231,
+    "by": "burnt-resistor",
+    "timeISO": "2025-08-25T04:35:03.000Z",
+    "textPlain": "set -Eeuo pipefail\n\nIt's missing -E to respect traps.",
     "parent": 44983442,
     "depth": 1
   },
@@ -80,10 +96,42 @@
     "depth": 2
   },
   {
+    "id": 45010239,
+    "by": "burnt-resistor",
+    "timeISO": "2025-08-25T04:36:03.000Z",
+    "textPlain": "Too damn verbose and you're assuming bash is at /bin. This will cause problems in nix and other environments where bash should be found on the path instead.Always, always unless the script is guaranteed to not be portable to other platforms:    #!/usr/bin/env bash\n    ...",
+    "parent": 45010142,
+    "depth": 2
+  },
+  {
+    "id": 45010249,
+    "by": "burnt-resistor",
+    "timeISO": "2025-08-25T04:37:58.000Z",
+    "textPlain": "Tl;dr: Use both because they aren't mutex.Shellcheck isn't a complete solution, and running -e mode is essential to smaller bash files. Shellcheck even knows if a script is in -e mode or not.",
+    "parent": 45010096,
+    "depth": 2
+  },
+  {
+    "id": 45010480,
+    "by": "jacob2161",
+    "timeISO": "2025-08-25T05:21:15.000Z",
+    "textPlain": "That post is quite nitpicky, pointing to edge cases and old version behavior. The essence of it is that writing reliable Bash scripts requires significant domain knowledge, which is true.Bash scripts are great if you've been doing it for a very long time or you're doing something simple and small (<50 LOC). If it's complicated or large, you should just write it in a proper programming language anyway.",
+    "parent": 45010189,
+    "depth": 2
+  },
+  {
+    "id": 45010296,
+    "by": "awestroke",
+    "timeISO": "2025-08-25T04:45:55.000Z",
+    "textPlain": "euo pipefail has been the one good thing with bash. I'll start looking at alternatives now",
+    "parent": 45010189,
+    "depth": 2
+  },
+  {
     "id": 45010110,
     "by": "esafak",
     "timeISO": "2025-08-25T04:10:20.000Z",
-    "textPlain": "It's time to stop using these archaic shells, and make sure the newer ones are packaged for and included with popular operating systems. Better options have existed for a long time:https://en.wikipedia.org/wiki/Scsh",
+    "textPlain": "It's time to stop using these archaic shells, and make sure the newer ones are packaged for and included with popular operating systems. Better scripting languages have been offered in shells for a long time: https://en.wikipedia.org/wiki/ScshThese days I've settled on https://www.nushell.sh/",
     "parent": 45009894,
     "depth": 2
   },
@@ -124,6 +172,14 @@
     "by": "dhamidi",
     "timeISO": "2025-08-25T04:15:36.000Z",
     "textPlain": "The `source` builtin searches through all directories on PATH, not quite a library system, but useable with a bit of discipline in the to-be-sourced shellscripts.",
+    "parent": 45009823,
+    "depth": 2
+  },
+  {
+    "id": 45010273,
+    "by": "oneshtein",
+    "timeISO": "2025-08-25T04:42:08.000Z",
+    "textPlain": "bash-modules project tries to implement \"modules\", which works in strict mode, but it got no traction.",
     "parent": 45009823,
     "depth": 2
   }
