@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45011628,
-    "by": "bob1029",
-    "timeISO": "2025-08-25T08:35:48.000Z",
-    "textPlain": "I think a lot of really smart people are letting themselves get taken for a ride by the web scraping thing. Unless the bot activity is legitimately hammering your site and causing issues (not saying this isn't happening in some cases), then this mostly amounts to an ideological game of capture the flag. The difference being that you'll never find their flag. The only thing you win by playing is lost time.The best way to mitigate the load from diffuse, unidentifiable, grey area participants is to have a fast and well engineered web product. This is good news, because your actual human customers would really enjoy this too.",
+    "id": 45012032,
+    "by": "Jnr",
+    "timeISO": "2025-08-25T09:41:54.000Z",
+    "textPlain": "Externally I use Cloudflare proxy and internally I put Crowdsec and Modsecurity CRS middlewares in front of Traefik.After some fine-tuning and eliminating false positives, it is running smoothly. It logs all the temporarily banned and reported IPs (to Crowdsec) and logging them to a Discord channel. On average it blocks a few dozen different IPs each day.From what I see, there are far more American IPs trying to access non-public resources and attempting to exploit CVEs than there are Chinese ones.I don't really mind anyone scraping publicly accessible content and the rest is either gated by SSO or located in intranet.For me personally there is no need to block a specific country, I think that trying to block exploit or flooding attempts is a better approach.",
     "parent": 45010183,
     "depth": 1
   },
   {
-    "id": 45011356,
-    "by": "boris",
-    "timeISO": "2025-08-25T07:49:32.000Z",
-    "textPlain": "Yes, I've seen this one in our logs. Quite obnoxious, but at least it identifies  itself as a bot and, at least in our case (cgit host), does not generate much traffic. The bulk of our traffic comes from bots that pretend to be real browsers and that use a large number of IP addresses (mostly from Brazil and Asia in our case).I've been playing cat and mouse trying to block them for the past week and here are a couple of observations/ideas, in case this is helpful to someone:* As mentioned above, the bulk of the traffic comes from a large number of IPs, each issuing only a few requests a day, and they pretend to be real UAs.* Most of them don't bother sending the referrer URL, but not all (some bots from Huawei Cloud do, but they currently don't generate much traffic).* The first thing I tried was to throttle bandwidth for URLs that contain id= (which on a cgit instance generate the bulk of the bot traffic). So I set the bandwidth to 1Kb/s and thought surely most of the bots will not be willing to wait for 10-20s to download the page. Surprise: they didn't care. They just waited and kept coming back.* BTW, they also used keep alive connections if ones were offered. So another thing I did was disable keep alive for the /cgit/ locations. Failed that enough bots would routinely hog up all the available connections.* My current solution is to deny requests for all URLs containing id= unless they also contain the `notbot` parameter in the query string (and which I suggest legitimate users add in the custom error message for 403). I also currently only do this if the referrer is not present but I may have to change that if the bots adapt. Overall, this helped with the load and freed up connections to legitimate users, but the bots didn't go away. They still request, get 403, but keep coming back.My conclusion from this experience is that you really only have two options: either do something ad hoc, very specific to your site (like the notbot in query string) that whoever r",
+    "id": 45011628,
+    "by": "bob1029",
+    "timeISO": "2025-08-25T08:35:48.000Z",
+    "textPlain": "I think a lot of really smart people are letting themselves get taken for a ride by the web scraping thing. Unless the bot activity is legitimately hammering your site and causing issues (not saying this isn't happening in some cases), then this mostly amounts to an ideological game of capture the flag. The difference being that you'll never find their flag. The only thing you win by playing is lost time.The best way to mitigate the load from diffuse, unidentifiable, grey area participants is to have a fast and well engineered web product. This is good news, because your actual human customers would really enjoy this too.",
     "parent": 45010183,
     "depth": 1
   },
@@ -40,6 +40,22 @@
     "depth": 1
   },
   {
+    "id": 45012265,
+    "by": "sim7c00",
+    "timeISO": "2025-08-25T10:14:29.000Z",
+    "textPlain": "i think there is an opportunity to train an neural network on browser user agent s(they are catalogued but vary and change a lot). then u can block everything not matching.it will work better than regex.\na lot of these companies rely on 'but we are clearly recognizable' via fornexample these user agents,  as excuse to put burden on sysadmins to maintains blocklists instead of otherway round (keep list of scrapables..)maybe someone mathy can unburden them ?you could also look who ask for nonexisting resources, and block anyone who asks for more than X (large enough not to let config issue or so kill regular clients). block might be just a minute so u dont have too many risk when an FP occurs. it will be enough likely to make the scraper turn away.there are many things to do depending on context, app complexity, load etc. , problem is there's no really easy way to do these things.ML should be able to help a lot in such a space??",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45011356,
+    "by": "boris",
+    "timeISO": "2025-08-25T07:49:32.000Z",
+    "textPlain": "Yes, I've seen this one in our logs. Quite obnoxious, but at least it identifies  itself as a bot and, at least in our case (cgit host), does not generate much traffic. The bulk of our traffic comes from bots that pretend to be real browsers and that use a large number of IP addresses (mostly from Brazil and Asia in our case).I've been playing cat and mouse trying to block them for the past week and here are a couple of observations/ideas, in case this is helpful to someone:* As mentioned above, the bulk of the traffic comes from a large number of IPs, each issuing only a few requests a day, and they pretend to be real UAs.* Most of them don't bother sending the referrer URL, but not all (some bots from Huawei Cloud do, but they currently don't generate much traffic).* The first thing I tried was to throttle bandwidth for URLs that contain id= (which on a cgit instance generate the bulk of the bot traffic). So I set the bandwidth to 1Kb/s and thought surely most of the bots will not be willing to wait for 10-20s to download the page. Surprise: they didn't care. They just waited and kept coming back.* BTW, they also used keep alive connections if ones were offered. So another thing I did was disable keep alive for the /cgit/ locations. Failed that enough bots would routinely hog up all the available connections.* My current solution is to deny requests for all URLs containing id= unless they also contain the `notbot` parameter in the query string (and which I suggest legitimate users add in the custom error message for 403). I also currently only do this if the referrer is not present but I may have to change that if the bots adapt. Overall, this helped with the load and freed up connections to legitimate users, but the bots didn't go away. They still request, get 403, but keep coming back.My conclusion from this experience is that you really only have two options: either do something ad hoc, very specific to your site (like the notbot in query string) that whoever r",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
     "id": 45010574,
     "by": "Etheryte",
     "timeISO": "2025-08-25T05:39:43.000Z",
@@ -48,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45011911,
-    "by": "baxuz",
-    "timeISO": "2025-08-25T09:23:51.000Z",
-    "textPlain": "Geoblocking China and Russia should be the default.",
+    "id": 45012135,
+    "by": "poisonborz",
+    "timeISO": "2025-08-25T09:57:04.000Z",
+    "textPlain": "Naive question: why isn't there a publicly accessible central repository of bad IPs and domains, stewarded by the industry, operated by a nonprofit, like W3C? Yes it wouldn't be enough by itself (\"bad\" is a very subjective term) but it could be a popular well-maintained baseline.",
     "parent": 45010183,
     "depth": 1
   },
@@ -64,10 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45011577,
-    "by": "mellosouls",
-    "timeISO": "2025-08-25T08:28:28.000Z",
-    "textPlain": "Unfortunately, HN itself is occasionally used for publicising crawling services that rely on underhand techniques that don't seem terribly different to the ones here.I don't know if its because they operate in the service of capital rather than China, as here, but use of those methods in the former case seems to get more of a pass here.",
+    "id": 45012136,
+    "by": "timpera",
+    "timeISO": "2025-08-25T09:57:10.000Z",
+    "textPlain": "As someone who uses VPNs all the time, these comments make me sad. Blocking by IP is not the solution.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45010550,
+    "by": "_def",
+    "timeISO": "2025-08-25T05:34:48.000Z",
+    "textPlain": "I've seen blocks like that for e.g. alibaba cloud. It's sad indeed, but it can be really difficult to handle aggressive scrapers.",
     "parent": 45010183,
     "depth": 1
   },
@@ -88,10 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45010550,
-    "by": "_def",
-    "timeISO": "2025-08-25T05:34:48.000Z",
-    "textPlain": "I've seen blocks like that for e.g. alibaba cloud. It's sad indeed, but it can be really difficult to handle aggressive scrapers.",
+    "id": 45011498,
+    "by": "niczem",
+    "timeISO": "2025-08-25T08:14:24.000Z",
+    "textPlain": "I think banning IPs is a treadmill you never really get off of. Between cloud providers, VPNs, CGNAT, and botnets, you spend more time whack-a-moling than actually stopping abuse. What’s worked better for me is tarpitting or just confusing the hell out of scrapers so they waste their own resources.There’s a great talk on this: Defense by numbers: Making Problems for Script Kiddies and Scanner Monkeys\nhttps://www.youtube.com/watch?v=H9Kxas65f7AWhat I’d really love to see - but probably never will—is companies joining forces to share data or support open projects like Common Crawl. That would raise the floor for everyone. But, you know… capitalism, so instead we all reinvent the wheel in our own silos.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45011577,
+    "by": "mellosouls",
+    "timeISO": "2025-08-25T08:28:28.000Z",
+    "textPlain": "Unfortunately, HN itself is occasionally used for publicising crawling services that rely on underhand techniques that don't seem terribly different to the ones here.I don't know if its because they operate in the service of capital rather than China, as here, but use of those methods in the former case seems to get more of a pass here.",
     "parent": 45010183,
     "depth": 1
   },
@@ -112,6 +144,14 @@
     "depth": 1
   },
   {
+    "id": 45011035,
+    "by": "roguebloodrage",
+    "timeISO": "2025-08-25T06:53:35.000Z",
+    "textPlain": "This is everything I have for AS132203 (Tencent). It has your addresses plus others I have found and confirmed using ipinfo.io43.131.0.0/18\n43.129.32.0/20\n101.32.0.0/20\n101.32.102.0/23\n101.32.104.0/21\n101.32.112.0/23\n101.32.112.0/24\n101.32.114.0/23\n101.32.116.0/23\n101.32.118.0/23\n101.32.120.0/23\n101.32.122.0/23\n101.32.124.0/23\n101.32.126.0/23\n101.32.128.0/23\n101.32.130.0/23\n101.32.13.0/24\n101.32.132.0/22\n101.32.132.0/24\n101.32.136.0/21\n101.32.140.0/24\n101.32.144.0/20\n101.32.160.0/20\n101.32.16.0/20\n101.32.17.0/24\n101.32.176.0/20\n101.32.192.0/20\n101.32.208.0/20\n101.32.224.0/22\n101.32.228.0/22\n101.32.232.0/22\n101.32.236.0/23\n101.32.238.0/23\n101.32.240.0/20\n101.32.32.0/20\n101.32.48.0/20\n101.32.64.0/20\n101.32.78.0/23\n101.32.80.0/20\n101.32.84.0/24\n101.32.85.0/24\n101.32.86.0/24\n101.32.87.0/24\n101.32.88.0/24\n101.32.89.0/24\n101.32.90.0/24\n101.32.91.0/24\n101.32.94.0/23\n101.32.96.0/20\n101.33.0.0/23\n101.33.100.0/22\n101.33.10.0/23\n101.33.10.0/24\n101.33.104.0/21\n101.33.11.0/24\n101.33.112.0/22\n101.33.116.0/22\n101.33.120.0/21\n101.33.128.0/22\n101.33.132.0/22\n101.33.136.0/22\n101.33.140.0/22\n101.33.14.0/24\n101.33.144.0/22\n101.33.148.0/22\n101.33.15.0/24\n101.33.152.0/22\n101.33.156.0/22\n101.33.160.0/22\n101.33.164.0/22\n101.33.168.0/22\n101.33.17.0/24\n101.33.172.0/22\n101.33.176.0/22\n101.33.180.0/22\n101.33.18.0/23\n101.33.184.0/22\n101.33.188.0/22\n101.33.24.0/24\n101.33.25.0/24\n101.33.26.0/23\n101.33.30.0/23\n101.33.32.0/21\n101.33.40.0/24\n101.33.4.0/23\n101.33.41.0/24\n101.33.42.0/23\n101.33.44.0/22\n101.33.48.0/22\n101.33.52.0/22\n101.33.56.0/22\n101.33.60.0/22\n101.33.64.0/19\n101.33.64.0/23\n101.33.96.0/22\n103.52.216.0/22\n103.52.216.0/23\n103.52.218.0/23\n103.7.28.0/24\n103.7.29.0/24\n103.7.30.0/24\n103.7.31.0/24\n43.130.0.0/18\n43.130.64.0/18\n43.130.128.0/19\n43.130.160.0/19\n43.132.192.0/18\n43.133.64.0/19\n43.134.128.0/18\n43.135.0.0/18\n43.135.64.0/18\n43.135.192.0/19\n43.153.0.0/18\n43.153.192.0/18\n43.154.64.0/18\n43.154.128.0/18\n43.154.192.0/18\n43.155.0.0/18\n43.155.128.0/18\n43.156.192.0/18\n43.157.0.0/18\n43.157.64.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
     "id": 45011231,
     "by": "yumraj",
     "timeISO": "2025-08-25T07:26:00.000Z",
@@ -120,10 +160,18 @@
     "depth": 1
   },
   {
-    "id": 45011035,
-    "by": "roguebloodrage",
-    "timeISO": "2025-08-25T06:53:35.000Z",
-    "textPlain": "This is everything I have for AS132203 (Tencent). It has your addresses plus others I have found and confirmed using ipinfo.io43.131.0.0/18\n43.129.32.0/20\n101.32.0.0/20\n101.32.102.0/23\n101.32.104.0/21\n101.32.112.0/23\n101.32.112.0/24\n101.32.114.0/23\n101.32.116.0/23\n101.32.118.0/23\n101.32.120.0/23\n101.32.122.0/23\n101.32.124.0/23\n101.32.126.0/23\n101.32.128.0/23\n101.32.130.0/23\n101.32.13.0/24\n101.32.132.0/22\n101.32.132.0/24\n101.32.136.0/21\n101.32.140.0/24\n101.32.144.0/20\n101.32.160.0/20\n101.32.16.0/20\n101.32.17.0/24\n101.32.176.0/20\n101.32.192.0/20\n101.32.208.0/20\n101.32.224.0/22\n101.32.228.0/22\n101.32.232.0/22\n101.32.236.0/23\n101.32.238.0/23\n101.32.240.0/20\n101.32.32.0/20\n101.32.48.0/20\n101.32.64.0/20\n101.32.78.0/23\n101.32.80.0/20\n101.32.84.0/24\n101.32.85.0/24\n101.32.86.0/24\n101.32.87.0/24\n101.32.88.0/24\n101.32.89.0/24\n101.32.90.0/24\n101.32.91.0/24\n101.32.94.0/23\n101.32.96.0/20\n101.33.0.0/23\n101.33.100.0/22\n101.33.10.0/23\n101.33.10.0/24\n101.33.104.0/21\n101.33.11.0/24\n101.33.112.0/22\n101.33.116.0/22\n101.33.120.0/21\n101.33.128.0/22\n101.33.132.0/22\n101.33.136.0/22\n101.33.140.0/22\n101.33.14.0/24\n101.33.144.0/22\n101.33.148.0/22\n101.33.15.0/24\n101.33.152.0/22\n101.33.156.0/22\n101.33.160.0/22\n101.33.164.0/22\n101.33.168.0/22\n101.33.17.0/24\n101.33.172.0/22\n101.33.176.0/22\n101.33.180.0/22\n101.33.18.0/23\n101.33.184.0/22\n101.33.188.0/22\n101.33.24.0/24\n101.33.25.0/24\n101.33.26.0/23\n101.33.30.0/23\n101.33.32.0/21\n101.33.40.0/24\n101.33.4.0/23\n101.33.41.0/24\n101.33.42.0/23\n101.33.44.0/22\n101.33.48.0/22\n101.33.52.0/22\n101.33.56.0/22\n101.33.60.0/22\n101.33.64.0/19\n101.33.64.0/23\n101.33.96.0/22\n103.52.216.0/22\n103.52.216.0/23\n103.52.218.0/23\n103.7.28.0/24\n103.7.29.0/24\n103.7.30.0/24\n103.7.31.0/24\n43.130.0.0/18\n43.130.64.0/18\n43.130.128.0/19\n43.130.160.0/19\n43.132.192.0/18\n43.133.64.0/19\n43.134.128.0/18\n43.135.0.0/18\n43.135.64.0/18\n43.135.192.0/19\n43.153.0.0/18\n43.153.192.0/18\n43.154.64.0/18\n43.154.128.0/18\n43.154.192.0/18\n43.155.0.0/18\n43.155.128.0/18\n43.156.192.0/18\n43.157.0.0/18\n43.157.64.",
+    "id": 45011543,
+    "by": "rglullis",
+    "timeISO": "2025-08-25T08:23:11.000Z",
+    "textPlain": "All of the \"blockchain is only for drug dealing and scams\" people will sooner or later realize that it is the exact type of scenarios that makes it imperative to keep developing trustless systems.The internet was a big level-playing field, but for the past half century corporations and state actors managed to keep control and profit to themselves while giving the illusion that us peasants could still benefit from it and had a shot at freedom. Now that computing power is so vast and cheap, it has become an arms race and the cyberpunk dystopia has become apparent.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45011956,
+    "by": "mediumsmart",
+    "timeISO": "2025-08-25T09:30:31.000Z",
+    "textPlain": "fiefdom internet 1.0 release party - information near your fingertips",
     "parent": 45010183,
     "depth": 1
   },
@@ -136,18 +184,18 @@
     "depth": 1
   },
   {
-    "id": 45011498,
-    "by": "niczem",
-    "timeISO": "2025-08-25T08:14:24.000Z",
-    "textPlain": "I think banning IPs is a treadmill you never really get off of. Between cloud providers, VPNs, CGNAT, and botnets, you spend more time whack-a-moling than actually stopping abuse. What’s worked better for me is tarpitting or just confusing the hell out of scrapers so they waste their own resources.There’s a great talk on this: Defense by numbers: Making Problems for Script Kiddies and Scanner Monkeys\nhttps://www.youtube.com/watch?v=H9Kxas65f7AWhat I’d really love to see - but probably never will—is companies joining forces to share data or support open projects like Common Crawl. That would raise the floor for everyone. But, you know… capitalism, so instead we all reinvent the wheel in our own silos.",
-    "parent": 45010183,
-    "depth": 1
-  },
-  {
     "id": 45010694,
     "by": "ta8645",
     "timeISO": "2025-08-25T06:02:11.000Z",
     "textPlain": "If ipv6 ever becomes a thing, it'll make blocking all that much harder.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45011911,
+    "by": "baxuz",
+    "timeISO": "2025-08-25T09:23:51.000Z",
+    "textPlain": "Geoblocking China and Russia should be the default.",
     "parent": 45010183,
     "depth": 1
   },
@@ -164,6 +212,14 @@
     "by": "sneak",
     "timeISO": "2025-08-25T07:18:59.000Z",
     "textPlain": "I feel like people seem to forget that an HTTP request is, after all, a request.  When you serve a webpage to a client, you are consenting to that interaction with a voluntary response.You can blunt instrument 403 geoblock entire countries if you want, or any user agent, or any netblock or ASN.  It’s entirely up to you and it’s your own server and nobody will be legitimately mad at you.You can rate limit IPs to x responses per day or per hour or per week, whatever you like.This whole AI scraper panic is so incredibly overblown.I’m currently working on a sniffer that tracks all inbound TCP connections and UDP/ICMP traffic and can trigger firewall rule addition/removal based on traffic attributes (such as firewalling or rate limiting all traffic from certain ASNs or countries) without actually having to be a reverse proxy in the HTTP flow.  That way your in-kernel tables don’t need to be huge and they can just dynamically be adjusted from userspace in response to actual observed traffic.",
+    "parent": 45010183,
+    "depth": 1
+  },
+  {
+    "id": 45012043,
+    "by": "harbingerofdoom",
+    "timeISO": "2025-08-25T09:43:19.000Z",
+    "textPlain": "[dead]",
     "parent": 45010183,
     "depth": 1
   },
@@ -192,26 +248,18 @@
     "depth": 1
   },
   {
-    "id": 45011543,
-    "by": "rglullis",
-    "timeISO": "2025-08-25T08:23:11.000Z",
-    "textPlain": "All of the \"blockchain is only for drug dealing and scams\" people will sooner or later realize that it is the exact type of scenarios that makes it imperative to keep developing trustless systems.The internet was a big level-playing field, but for the past half century corporations and state actors managed to keep control and profit to themselves while giving the illusion that us peasants could still benefit from it and had a shot at freedom. Now that computing power is so vast and cheap, it has become an arms race and the cyberpunk dystopia has become apparent.",
-    "parent": 45010183,
-    "depth": 1
+    "id": 45010787,
+    "by": "sugarpimpdorsey",
+    "timeISO": "2025-08-25T06:18:36.000Z",
+    "textPlain": "There's some weird ones you'd never think of that originate an inordinate amount of bad traffic. Like Seychelles. A tiny little island nation in the middle of the ocean inhabited by... bots apparently? Cyprus is another one.Re: China, their cloud services seem to stretch to Singapore and beyond. I had to blacklist all of Alibaba Cloud and Tencent and the ASNs stretched well beyond PRC borders.",
+    "parent": 45010657,
+    "depth": 2
   },
   {
     "id": 45011732,
     "by": "adzicg",
     "timeISO": "2025-08-25T08:52:13.000Z",
     "textPlain": "We solved a similar issue by blocking free user traffic from data centres (and whitelisted crawlers for SEO). This eliminated most fraudulent usage over VPNs. Commercial users can still access, but free just users get a prompt to pay.CloudFront is fairly good at marking if someone is accessing from a data centre or a residential/commercial endpoint. It's not 100% accurate and really bad actors can still use infected residential machines to proxy traffic, but this fix was simple and reduced the problem to a negligent level.",
-    "parent": 45010657,
-    "depth": 2
-  },
-  {
-    "id": 45010787,
-    "by": "sugarpimpdorsey",
-    "timeISO": "2025-08-25T06:18:36.000Z",
-    "textPlain": "There's some weird ones you'd never think of that originate an inordinate amount of bad traffic. Like Seychelles. A tiny little island nation in the middle of the ocean inhabited by... bots apparently? Cyprus is another one.Re: China, their cloud services seem to stretch to Singapore and beyond. I had to blacklist all of Alibaba Cloud and Tencent and the ASNs stretched well beyond PRC borders.",
     "parent": 45010657,
     "depth": 2
   },
@@ -264,11 +312,11 @@
     "depth": 2
   },
   {
-    "id": 45011850,
-    "by": "themafia",
-    "timeISO": "2025-08-25T09:11:49.000Z",
-    "textPlain": "The way I get a fast web product is to pay a premium for data.  So,  no,  it's not \"lost time\" by banning these entities,  it's actual saved costs on my bandwidth and compute bills.The bonus is my actual customers get the same benefits and don't notice any material loss from my content _not_ being scraped.  How you see this as me being secretly taken advantage of is completely beyond me.",
-    "parent": 45011628,
+    "id": 45012108,
+    "by": "poisonborz",
+    "timeISO": "2025-08-25T09:52:18.000Z",
+    "textPlain": "Crowdsec: the idea is tempting, but giving away all of the server's traffic to a for-profit is a huge liability.",
+    "parent": 45012032,
     "depth": 2
   },
   {
@@ -276,6 +324,14 @@
     "by": "phito",
     "timeISO": "2025-08-25T08:40:29.000Z",
     "textPlain": "My friend has a small public gitea instance, only use by him a a few friends. He's getting thousounds of requests an hour from bots. I'm sorry but even if it does not impact his service, at the very least it feels like harassment",
+    "parent": 45011628,
+    "depth": 2
+  },
+  {
+    "id": 45011850,
+    "by": "themafia",
+    "timeISO": "2025-08-25T09:11:49.000Z",
+    "textPlain": "The way I get a fast web product is to pay a premium for data.  So,  no,  it's not \"lost time\" by banning these entities,  it's actual saved costs on my bandwidth and compute bills.The bonus is my actual customers get the same benefits and don't notice any material loss from my content _not_ being scraped.  How you see this as me being secretly taken advantage of is completely beyond me.",
     "parent": 45011628,
     "depth": 2
   },
@@ -288,11 +344,11 @@
     "depth": 2
   },
   {
-    "id": 45011674,
-    "by": "palmfacehn",
-    "timeISO": "2025-08-25T08:42:49.000Z",
-    "textPlain": "Pick an obscure UA substring like MSIE 3.0 or HP-UX. Preemptively 403 these User Agents, (you'll create your own list). Later in the week you can circle back and distill these 403s down to problematic ASNs. Whack moles as necessary.",
-    "parent": 45011356,
+    "id": 45012142,
+    "by": "JdeBP",
+    "timeISO": "2025-08-25T09:57:37.000Z",
+    "textPlain": "One of the few manual deny-list entries that I have made was not for a Chinese company, but for the ASes of the U.S.A. subsidiary of a Chinese company.  It just kept coming back again and again, quite rapidly, for a particular page that was 404.  Not for any other related pages, mind.  Not for the favicon, robots.txt, or even the enclosing pseudo-directory.  Just that 1 page.  Over and over.The directory structure had changed, and the page is now 1 level lower in the tree, correctly hyperlinked long since, in various sitemaps long since, and long since discovered by genuine HTTP clients.The URL?  It now only exists in 1 place on the WWW according to Google.  It was posted to Hacker News back in 2017.(My educated guess is that I am suffering from the page-preloading fallout from repeated robotic scraping of old Hacker News stuff by said U.S.A. subsidiary.)",
+    "parent": 45010698,
     "depth": 2
   },
   {
@@ -312,6 +368,22 @@
     "depth": 2
   },
   {
+    "id": 45011674,
+    "by": "palmfacehn",
+    "timeISO": "2025-08-25T08:42:49.000Z",
+    "textPlain": "Pick an obscure UA substring like MSIE 3.0 or HP-UX. Preemptively 403 these User Agents, (you'll create your own list). Later in the week you can circle back and distill these 403s down to problematic ASNs. Whack moles as necessary.",
+    "parent": 45011356,
+    "depth": 2
+  },
+  {
+    "id": 45011988,
+    "by": "JdeBP",
+    "timeISO": "2025-08-25T09:35:18.000Z",
+    "textPlain": "I (of course) use the djbwares descendent of Bernstein publicfile.  I added a static GEMINI UCSPI-SSL tool to it a while back.  One of the ideas that I took from the GEMINI specification and then applied to Bernstein's HTTP server was the prohibition on fragments in request URLs (which the Bernstein original allowed), which I extended to a prohibition on query parameters as well (which the Bernstein original also allowed) in both GEMINI and HTTP.* https://geminiprotocol.net/docs/protocol-specification.gmi#r...The reasoning for disallowing them in GEMINI pretty much applies to static HTTP service (which is what publicfile provides) as it does to static GEMINI service.  They moreover did not actually work in Bernstein publicfile unless a site administrator went to extraordinary lengths to create multiple oddly-named filenames (non-trivial to handle from a shell on a Unix or Linux-based system, because of the metacharacter) with every possible combination of query parameters, all naming the same file.* https://jdebp.uk/Softwares/djbwares/guide/publicfile-securit...* https://jdebp.uk/Softwares/djbwares/guide/commands/httpd.xml* https://jdebp.uk/Softwares/djbwares/guide/commands/geminid.x...Before I introduced this, attempted (and doomed to fail) exploits against weak CGI and PHP scripts were a large fraction of all of the file not found errors that httpd had been logging.  These things were getting as far as hitting the filesystem and doing namei lookups.  After I introduced this, they are rejected earlier in the transaction, without hitting the filesystem, when the requested URL is decomposed into its constituent parts.Bernstein publicfile is rather late to this party, as there are over 2 decades of books on the subject of static sites versus dynamic sites (although in fairness it does pre-date all of them).  But I can report that the wisdom when it comes to queries holds up even today, in 2025, and if anything a stronger position can be taken on them now.To those runn",
+    "parent": 45011356,
+    "depth": 2
+  },
+  {
     "id": 45010611,
     "by": "bobbiechen",
     "timeISO": "2025-08-25T05:47:19.000Z",
@@ -320,83 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45010935,
-    "by": "jampa",
-    "timeISO": "2025-08-25T06:39:25.000Z",
-    "textPlain": "The Pokémon Go company tried that shortly after launch to block scraping. I remember they had three categories of IPs:- Blacklisted IP (Google Cloud, AWS, etc), those were always blocked- Untrusted IPs (residential IPs) were given some leeway, but quickly got to 429 if they started querying too much- Whitelisted IPs (IPV4 addresses are used legitimately by many people), for example, my current data plan tells me my IP is from 5 states over, so anything behind a CGNAT.You can probably guess what happens next. Most scrapers were thrown out, but the largest ones just got a modem device farm and ate the cost. They successfully prevented most users from scraping locally, but were quickly beaten by companies profiting from scraping.I think this was one of many bad decisions Pokémon Go made. Some casual players dropped because they didn't want to play without a map, while the hardcore players started paying for scraping, which hammered their servers even more.",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010910,
-    "by": "friendzis",
-    "timeISO": "2025-08-25T06:36:13.000Z",
-    "textPlain": "It's never either/or: you don't have to choose between white and black lists exclusively and most of the traffic is going to come from grey areas anyway.Say you whitelist an address/range and some systems detect \"bad things\". Now what? You remove that address/range from whitelist? Doo you distribute the removal to your peers? Do you communicate removal to the owner of unwhitelisted address/range? How does owner communicate dealing with the issue back? What if the owner of the range is hosting provider where they don't proactively control the content hosted, yet have robust anti-abuse mechanisms in place? And so on.Whitelist-only is a huge can of worms and whitelists works best with trusted partner you can maintain out-of-band communication with. Similarly blacklists work best with trusted partners, however to determine addresses/ranges that are more trouble than they are worth. And somewhere in the middle are grey zone addresses, e.g. ranges assigned to ISPs with CGNATs: you just cannot reliably label an individual address or even a range of addresses as strictly troublesome or strictly trustworthy by default.Implement blacklists on known bad actors, e.g. the whole of China and Russia, maybe even cloud providers. Implement whitelists for ranges you explicitly trust to have robust anti-abuse mechanisms, e.g. corporations with strictly internal hosts.",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010757,
-    "by": "lxgr",
-    "timeISO": "2025-08-25T06:13:10.000Z",
-    "textPlain": "Many US companies do it already.It should be illegal, at least for companies that still charge me while I’m abroad and don’t offer me any other way of canceling service or getting support.",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010872,
-    "by": "partyguy",
-    "timeISO": "2025-08-25T06:31:50.000Z",
-    "textPlain": "That's what I'm trying to do here, PRs welcome: https://github.com/AnTheMaker/GoodBots",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010624,
-    "by": "delusional",
-    "timeISO": "2025-08-25T05:50:27.000Z",
-    "textPlain": "At that point it almost sounds like we're doing \"peering\" agreements at the IP level.Would it make sense to have a class of ISPs that didn't peer with these \"bad\" network participants?",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010604,
-    "by": "ygritte",
-    "timeISO": "2025-08-25T05:45:53.000Z",
-    "textPlain": "Came here to say something similar. The sheer amount of IP addresses one has to block to keep malware and bots at bay is becoming unmanageable.",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010597,
-    "by": "worthless-trash",
-    "timeISO": "2025-08-25T05:44:00.000Z",
-    "textPlain": "I admin a few local business sites..  I whitelist all the countries isps and the strangeness in the logs and attack counts have gone down.Google indexes in country, as does a few other search engines..Would recommend.",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45010603,
-    "by": "plaguna",
-    "timeISO": "2025-08-25T05:45:50.000Z",
-    "textPlain": "[flagged]",
-    "parent": 45010574,
-    "depth": 2
-  },
-  {
-    "id": 45011070,
-    "by": "devoutsalsa",
-    "timeISO": "2025-08-25T06:59:34.000Z",
-    "textPlain": "There are a lot of dumb questions, and I pose all of them to Claude.  There's no infrastructure in place for this, but I would support some business model where LLM-of-choice compensates website operators for resources consumed by my super dumb questions.  Like how content creators get paid when I watch with a YouTube Premium subscription. I doubt this is practical in practice.",
-    "parent": 45011011,
-    "depth": 2
-  },
-  {
-    "id": 45011848,
-    "by": "N_Lens",
-    "timeISO": "2025-08-25T09:11:47.000Z",
-    "textPlain": "Bots often rotate the UA too, their entire goal is to get through and scrape as much content as possible, using any means possible.",
-    "parent": 45011319,
+    "id": 45012172,
+    "by": "sim7c00",
+    "timeISO": "2025-08-25T10:01:03.000Z",
+    "textPlain": "there are many of these and they are always outdatedanother issue is things like cloud hosting will overlap their ranges with legit business ranges happily, so if you go that route you will inadvertently also block legitimate things. not that a regular person care too much for that, but an abuse list should be accurate.",
+    "parent": 45012135,
     "depth": 2
   }
 ]
