@@ -1,9 +1,17 @@
 [
   {
-    "id": 45008539,
-    "by": "zahlman",
-    "timeISO": "2025-08-24T22:54:32.000Z",
-    "textPlain": "Anyone else old enough to remember when \"API\" also meant something that had nothing to do with sending and receiving JSON over HTTP? In some cases, you could even make something that your users would install locally, and use without needing an Internet connection.",
+    "id": 45008529,
+    "by": "dwattttt",
+    "timeISO": "2025-08-24T22:53:30.000Z",
+    "textPlain": "The reminder to \"never break userspace\" is good, but people never bring up the other half of that statement: \"we can and will break kernel APIs without warning\".It illustrates that the reminder isn't \"never change an API in a way that breaks someone\", it's the more nuanced \"declare what's stable, and never break those\".",
+    "parent": 45006801,
+    "depth": 1
+  },
+  {
+    "id": 45009161,
+    "by": "swagasaurus-rex",
+    "timeISO": "2025-08-25T00:46:10.000Z",
+    "textPlain": "Cursor based pagination was mentioned. It has another useful feature: If items have been added between when a user loads the page and hits the next button, index based pagination will give you some already viewed items from the previous page.Cursor based pagination (using the ID of the last object on the previous page) will give you a new list of items that haven't been viewed. This is helpful for infinite scrolling.The downside to cursor based pagination is that it's hard to build a jump to page N button.",
     "parent": 45006801,
     "depth": 1
   },
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45008529,
-    "by": "dwattttt",
-    "timeISO": "2025-08-24T22:53:30.000Z",
-    "textPlain": "The reminder to \"never break userspace\" is good, but people never bring up the other half of that statement: \"we can and will break kernel APIs without warning\".It illustrates that the reminder isn't \"never change an API in a way that breaks someone\", it's the more nuanced \"declare what's stable, and never break those\".",
+    "id": 45009322,
+    "by": "achernik",
+    "timeISO": "2025-08-25T01:16:32.000Z",
+    "textPlain": "> How should you store the key? I’ve seen people store it in some durable, resource-specific way (e.g. as a column on the comments table), but I don’t think that’s strictly necessary. The easiest way is to put them in Redis or some similar key/value store (with the idempotency key as the key).I'm not sure how would storing a key in Redis achieve idempotency in all failure cases. What's the algorithm? Imagine a server handling the request is doing a conditional write (like SET key 1 NX), and sees that the key is already stored. What then, skip creating a comment? Can't assume that the comment had been created before, since the process could have been killed in-between storing the key in Redis and actually creating the comment in the database.An attempt to store idempotency key needs to be atomically committed (and rolled back in case it's unsuccessful) together with the operation payload, i.e. it always has to be a resource-specific id. For all intents and purposes, the idempotency key is the ID of the operation (request) being executed, be it \"comment creation\" or \"comment update\".",
     "parent": 45006801,
     "depth": 1
   },
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45008395,
-    "by": "claw-el",
-    "timeISO": "2025-08-24T22:29:56.000Z",
-    "textPlain": "> However, a technically-poor product can make it nearly impossible to build an elegant API. That’s because API design usually tracks the “basic resources” of a product (for instance, Jira’s resources would be issues, projects, users and so on). When those resources are set up awkwardly, that makes the API awkward as well.One issue I have with weird resources are those that feel like unnecessary abstraction. It makes it hard for the human to read and understand intuitively, especially someone new to these set of APIs. Also, it makes it so much harder to troubleshoot during an incident.",
+    "id": 45009175,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-08-25T00:47:42.000Z",
+    "textPlain": "Most people who see \"API\" today only think \"it's a web app I send a request to, and I pass some arguments and set some headers, then check some settings from the returned headers, then parse some returned data.\"But \"API\" means \"Application Programming Interface\". It was originally for application programs, which were... programs with user interfaces! It comes from the 1940's originally, and wasn't referred to for much else until 1990. APIs have existed for over 80 years. Books and papers have been published on the subject that are older than many of the people reading this text right now.What might've those older APIs been like? What were they working with? What was their purpose? How did those programmers solve their problems? How might that be relevant to you?",
     "parent": 45006801,
     "depth": 1
   },
@@ -48,10 +56,34 @@
     "depth": 1
   },
   {
-    "id": 45008504,
-    "by": "cyberax",
-    "timeISO": "2025-08-24T22:48:49.000Z",
-    "textPlain": "I'm a bit of a different opinion on API versioning, but I can see the argument. I definitely disagree about idempotency: it's NOT optional. You don't have to require idempotency tokens for each request, but there should be an option to specify them. Stripe API clients are a good example here, they automatically generate idempotency tokens for you.Things that's missing from this list but that were important for me at some points:1. Deadlines. Your API should allow to specify the deadline after which the request is no longer going to matter. The API implementation can use this deadline to cancel any pending operations.2. Closely related: backpressure and dependent services. Your API should be designed to not overload its own dependent services with useless retries. Some retries might be useful, but in general the API should quickly propagate the error status back to the callers.3. Static stability. The system behind the API should be designed to fail static, so that it retains some functionality even if the mutating operations fail.",
+    "id": 45008395,
+    "by": "claw-el",
+    "timeISO": "2025-08-24T22:29:56.000Z",
+    "textPlain": "> However, a technically-poor product can make it nearly impossible to build an elegant API. That’s because API design usually tracks the “basic resources” of a product (for instance, Jira’s resources would be issues, projects, users and so on). When those resources are set up awkwardly, that makes the API awkward as well.One issue I have with weird resources are those that feel like unnecessary abstraction. It makes it hard for the human to read and understand intuitively, especially someone new to these set of APIs. Also, it makes it so much harder to troubleshoot during an incident.",
+    "parent": 45006801,
+    "depth": 1
+  },
+  {
+    "id": 45009059,
+    "by": "wener",
+    "timeISO": "2025-08-25T00:25:06.000Z",
+    "textPlain": "I still try think /v1 /v2 is a break, I don't trust you will keep v1 forever, otherwise you'll never introduce this execuse.I'd like to introduce more fields or flags to control the behavior as params, not asking user to change the whole base url for single new API.",
+    "parent": 45006801,
+    "depth": 1
+  },
+  {
+    "id": 45008986,
+    "by": "mlhpdx",
+    "timeISO": "2025-08-25T00:07:59.000Z",
+    "textPlain": "Having built a bunch of low level network APIs I think the author hits on some good, common themes.Versioning, etc. matter (or don’t) for binary UDP APIs (aka protocols) just as much as for any web API.",
+    "parent": 45006801,
+    "depth": 1
+  },
+  {
+    "id": 45008539,
+    "by": "zahlman",
+    "timeISO": "2025-08-24T22:54:32.000Z",
+    "textPlain": "Anyone else old enough to remember when \"API\" also meant something that had nothing to do with sending and receiving JSON over HTTP? In some cases, you could even make something that your users would install locally, and use without needing an Internet connection.",
     "parent": 45006801,
     "depth": 1
   },
@@ -64,6 +96,14 @@
     "depth": 1
   },
   {
+    "id": 45008504,
+    "by": "cyberax",
+    "timeISO": "2025-08-24T22:48:49.000Z",
+    "textPlain": "I'm a bit of a different opinion on API versioning, but I can see the argument. I definitely disagree about idempotency: it's NOT optional. You don't have to require idempotency tokens for each request, but there should be an option to specify them. Stripe API clients are a good example here, they automatically generate idempotency tokens for you.Things that's missing from this list but that were important for me at some points:1. Deadlines. Your API should allow to specify the deadline after which the request is no longer going to matter. The API implementation can use this deadline to cancel any pending operations.2. Closely related: backpressure and dependent services. Your API should be designed to not overload its own dependent services with useless retries. Some retries might be useful, but in general the API should quickly propagate the error status back to the callers.3. Static stability. The system behind the API should be designed to fail static, so that it retains some functionality even if the mutating operations fail.",
+    "parent": 45006801,
+    "depth": 1
+  },
+  {
     "id": 45007982,
     "by": "cyberax",
     "timeISO": "2025-08-24T21:29:53.000Z",
@@ -72,27 +112,11 @@
     "depth": 1
   },
   {
-    "id": 45008640,
-    "by": "chubot",
-    "timeISO": "2025-08-24T23:08:22.000Z",
-    "textPlain": "Well it stands for “application programming interface”, so I think it is valid to apply it to in-process interfaces as well as between-process interfacesSome applications live in a single process, while others span processes and machines.  There are clear differences, but also enough in common to speak of “APIs” for both",
-    "parent": 45008539,
-    "depth": 2
-  },
-  {
-    "id": 45008634,
-    "by": "drdaeman",
-    "timeISO": "2025-08-24T23:07:38.000Z",
-    "textPlain": "I believe it’s pretty common to e.g. call libraries’ and frameworks’ user- (developer-) facing interface an API, like in “Python’s logging library has a weird-looking API”, so I don’t think API had eroded to mean only networked ones.",
-    "parent": 45008539,
-    "depth": 2
-  },
-  {
-    "id": 45008436,
-    "by": "claw-el",
-    "timeISO": "2025-08-24T22:36:07.000Z",
-    "textPlain": "If there is a breaking change forced upon in the future, can’t we use a different name for the function?",
-    "parent": 45008158,
+    "id": 45008791,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-08-24T23:37:33.000Z",
+    "textPlain": "Even if the kernel doesn't break userspace, GNU libc does, all the time, so the net effect is that Linux userspace is broken regardless of the kernel maintainers' efforts. Put simply, programs and libraries compiled on/for newer libc are ABI-incompatible or straight-up do not run on older libc, so everything needs to be upgraded in lockstep.It is a bit ironic and a little funny that Windows solved this problem a couple decades ago with redistributables.",
+    "parent": 45008529,
     "depth": 2
   },
   {
@@ -104,11 +128,99 @@
     "depth": 2
   },
   {
+    "id": 45009169,
+    "by": "paulhodge",
+    "timeISO": "2025-08-25T00:47:04.000Z",
+    "textPlain": "I have to agree with the author about not adding \"v1\" since it's rarely useful.What actually happens as the API grows-First, the team extends the existing endpoints as much as possible, adding new fields/options without breaking compatibility.Then, once they need to have backwards-incompatible operations, it's more likely that they will also want to revisit the endpoint naming too, so they'll just create new endpoints with new names. (instead of naming anything \"v2\").Then, if the entire API needs to be reworked, it's more likely that the team will just decide to deprecate the entire service/API, and then launch a new and better service with a different name to replace it.So in the end, it's really rare that any endpoints ever have \"/v2\" in the name. I've been in the industry 25 years and only once have I seen a service that had a \"/v2\" to go with its \"/v1\".",
+    "parent": 45008158,
+    "depth": 2
+  },
+  {
+    "id": 45009423,
+    "by": "gitremote",
+    "timeISO": "2025-08-25T01:42:02.000Z",
+    "textPlain": "I don't think the author meant they don't include /v1 in the endpoint in the beginning. The point is that you should do everything to avoid having a /v2, because you would have to maintain two versions for every bug fix, which means making the same code change in two places or having extra conditional logic multiplied against any existing or new conditional logic. The code bases that support multiple versions look like spaghetti code, and it usually means that /v1 was not designed with future compatibility in mind.",
+    "parent": 45008158,
+    "depth": 2
+  },
+  {
+    "id": 45008763,
+    "by": "andix",
+    "timeISO": "2025-08-24T23:31:27.000Z",
+    "textPlain": "I don't see any harm in adding versioning later. Let's say your api is /api/posts, then the next version is simply /api/v2/posts.",
+    "parent": 45008158,
+    "depth": 2
+  },
+  {
+    "id": 45008436,
+    "by": "claw-el",
+    "timeISO": "2025-08-24T22:36:07.000Z",
+    "textPlain": "If there is a breaking change forced upon in the future, can’t we use a different name for the function?",
+    "parent": 45008158,
+    "depth": 2
+  },
+  {
     "id": 45008497,
     "by": "devmor",
     "timeISO": "2025-08-24T22:47:29.000Z",
     "textPlain": "I think versioning still helps solve this problem.There’s a lot of things you can do with internal users to prevent causing a burden though - often the most helpful one is just collaborating on the spec and making the working copy available to stakeholders. Even if it’s a living document, letting them have a frame of reference can be very helpful (as long as your office politics prevent them from causing issues for you over parts in progress they do not like.)",
     "parent": 45008463,
+    "depth": 2
+  },
+  {
+    "id": 45009097,
+    "by": "calrain",
+    "timeISO": "2025-08-25T00:32:16.000Z",
+    "textPlain": "I like this pattern.When an API commits to /v1 it doesn't mean it will deprecate /v1 when /v2 or /v3 come out, it just means we're committing to supporting older URI strategies and responses./v2 and /v3 give you that flexibility to improve without affecting existing customers.",
+    "parent": 45009059,
+    "depth": 2
+  },
+  {
+    "id": 45008634,
+    "by": "drdaeman",
+    "timeISO": "2025-08-24T23:07:38.000Z",
+    "textPlain": "I believe it’s pretty common to e.g. call libraries’ and frameworks’ user- (developer-) facing interface an API, like in “Python’s logging library has a weird-looking API”, so I don’t think API had eroded to mean only networked ones.",
+    "parent": 45008539,
+    "depth": 2
+  },
+  {
+    "id": 45008640,
+    "by": "chubot",
+    "timeISO": "2025-08-24T23:08:22.000Z",
+    "textPlain": "Well it stands for “application programming interface”, so I think it is valid to apply it to in-process interfaces as well as between-process interfacesSome applications live in a single process, while others span processes and machines.  There are clear differences, but also enough in common to speak of “APIs” for both",
+    "parent": 45008539,
+    "depth": 2
+  },
+  {
+    "id": 45008932,
+    "by": "gct",
+    "timeISO": "2025-08-25T00:00:13.000Z",
+    "textPlain": "Everyone's decided that writing regular software to run locally on a computer is the weird case and so it has to be called \"local first\".",
+    "parent": 45008539,
+    "depth": 2
+  },
+  {
+    "id": 45009303,
+    "by": "ivanjermakov",
+    "timeISO": "2025-08-25T01:13:47.000Z",
+    "textPlain": "> sending and receiving JSON over HTTPIn my circles this is usually (perhaps incorrectly) called REST API.",
+    "parent": 45008539,
+    "depth": 2
+  },
+  {
+    "id": 45008724,
+    "by": "rogerthis",
+    "timeISO": "2025-08-24T23:25:23.000Z",
+    "textPlain": "Things would come in SDKs, and docs were in MS Help .chm files.",
+    "parent": 45008539,
+    "depth": 2
+  },
+  {
+    "id": 45008781,
+    "by": "j45",
+    "timeISO": "2025-08-24T23:35:16.000Z",
+    "textPlain": "APIs are for providing accessibility - to provide access to interactions and data inside an application from the outside.The format and protocol of communication was never fixed.In addition to the rest api’s of today, soap, wsdl, web sockets could all can deliver some form of API.",
+    "parent": 45008539,
     "depth": 2
   },
   {
@@ -120,18 +232,18 @@
     "depth": 2
   },
   {
-    "id": 45008372,
-    "by": "pixelatedindex",
-    "timeISO": "2025-08-24T22:27:46.000Z",
-    "textPlain": "To add on, are they talking about access tokens or refresh tokens? It can’t be just one token, because then when it expires you have to update it manually from a portal or go through the same auth process, neither of which is good.And what time frame is “long-lived”? IME access tokens almost always have a lifetime of one week and refresh tokens anywhere from 6 months to a year.",
-    "parent": 45007982,
-    "depth": 2
-  },
-  {
     "id": 45008330,
     "by": "TrueDuality",
     "timeISO": "2025-08-24T22:23:21.000Z",
     "textPlain": "There are other options that allow long-lived access with naturally rotating keys without OAuth and only a tiny amount of complexity increase that can be managed by a bash script. The refresh token/bearer token combo is pretty powerful and has MUCH stronger security properties than a bare API key.",
+    "parent": 45007982,
+    "depth": 2
+  },
+  {
+    "id": 45008372,
+    "by": "pixelatedindex",
+    "timeISO": "2025-08-24T22:27:46.000Z",
+    "textPlain": "To add on, are they talking about access tokens or refresh tokens? It can’t be just one token, because then when it expires you have to update it manually from a portal or go through the same auth process, neither of which is good.And what time frame is “long-lived”? IME access tokens almost always have a lifetime of one week and refresh tokens anywhere from 6 months to a year.",
     "parent": 45007982,
     "depth": 2
   }
