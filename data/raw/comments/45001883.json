@@ -8,10 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45012194,
-    "by": "IshKebab",
-    "timeISO": "2025-08-25T10:04:30.000Z",
-    "textPlain": "I guess the overhead from the syscalls simply wasn't that significant. Syscalls aren't that slow (~0.5us). This never says how many you were doing.",
+    "id": 45012748,
+    "by": "bhawks",
+    "timeISO": "2025-08-25T11:37:47.000Z",
+    "textPlain": "Posix file system semantics are very complex. An in memory implementation is likely to have quality gaps that make it sub optimal. If you want fast tests /tmp is likely to be backed by tmpfs in memory. If you are paranoid you can use /dev/shm to be explicit about your desire.Going this route means you're going to leverage all the well tested Linux VFS code and your tests will execute with higher fidelity.",
+    "parent": 45001883,
+    "depth": 1
+  },
+  {
+    "id": 45012779,
+    "by": "mpweiher",
+    "timeISO": "2025-08-25T11:42:34.000Z",
+    "textPlain": "Yeah, SSDs are really fast.  Have been for a while now, so fast that system call and other kernel overheads easily dominate unless you take care:https://blog.metaobject.com/2017/02/mkfile8-is-severely-sysc...That was 8 years ago, and even then mkfile needed a 512K buffer size to saturate the hardware.  With the 512 byte default buffer it was 8x slower than the hardware.In addition, as others have pointed out, if you are not doing something extra to ensure things are flushed to disk, you are just measuring the buffer cache in the first place.",
     "parent": 45001883,
     "depth": 1
   },
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45011218,
-    "by": "eumon",
-    "timeISO": "2025-08-25T07:23:07.000Z",
-    "textPlain": "you may try /dev/shm for the testing purpose, which is effectively an in memory filesystem that linux provides, it is very performant",
+    "id": 45012194,
+    "by": "IshKebab",
+    "timeISO": "2025-08-25T10:04:30.000Z",
+    "textPlain": "I guess the overhead from the syscalls simply wasn't that significant. Syscalls aren't that slow (~0.5us). This never says how many you were doing.",
     "parent": 45001883,
     "depth": 1
   },
   {
-    "id": 45012123,
-    "by": "the8472",
-    "timeISO": "2025-08-25T09:54:05.000Z",
-    "textPlain": ">  but all my benchmarks seem to disagree.Well, benchmarks could be wrong or misleading. Did you make sure that the IO actually happens and that it dominates the process execution time?",
+    "id": 45011218,
+    "by": "eumon",
+    "timeISO": "2025-08-25T07:23:07.000Z",
+    "textPlain": "you may try /dev/shm for the testing purpose, which is effectively an in memory filesystem that linux provides, it is very performant",
     "parent": 45001883,
     "depth": 1
   },
@@ -48,19 +56,35 @@
     "depth": 1
   },
   {
+    "id": 45012123,
+    "by": "the8472",
+    "timeISO": "2025-08-25T09:54:05.000Z",
+    "textPlain": ">  but all my benchmarks seem to disagree.Well, benchmarks could be wrong or misleading. Did you make sure that the IO actually happens and that it dominates the process execution time?",
+    "parent": 45001883,
+    "depth": 1
+  },
+  {
+    "id": 45013234,
+    "by": "lenkite",
+    "timeISO": "2025-08-25T12:44:29.000Z",
+    "textPlain": "Go has a basic FS abstraction in the standard library: https://dev.to/rezmoss/gos-fs-package-modern-file-system-abs...But the stdlib one is a bit barebones. So people created: https://github.com/spf13/afero",
+    "parent": 45011755,
+    "depth": 2
+  },
+  {
+    "id": 45013177,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-25T12:36:26.000Z",
+    "textPlain": "See David R. Hanson's \"A Portable File Directory System\" [0][1], for example: a 700 lines long implementation of early UNIX's filesystem API that piggy-backs on some sort of pre-existing (block-oriented) I/O primitives, which means you can do it entirely in-memory, with about another 300 lines of code or so.I suspect that with OSes becoming much more UNIX-like the demand for such abstraction layers shrank almost to nothing.[0] https://drh.github.io/documents/pds-spe.pdf[1] https://drh.github.io/documents/pds.pdf",
+    "parent": 45011755,
+    "depth": 2
+  },
+  {
     "id": 45012325,
     "by": "ozgrakkurt",
     "timeISO": "2025-08-25T10:27:09.000Z",
     "textPlain": "Mocking file system or network seems counter productive.Complicated logic can be in pure functions and not be intertwined with IO if it needs to be tested.Mocking IO seems like it won’t really capture the problems you might encounter in reality anyway.",
     "parent": 45011755,
-    "depth": 2
-  },
-  {
-    "id": 45012334,
-    "by": "ozgrakkurt",
-    "timeISO": "2025-08-25T10:28:33.000Z",
-    "textPlain": "Also kernel code is probably more optimized than a mock library",
-    "parent": 45012194,
     "depth": 2
   },
   {
@@ -77,6 +101,14 @@
     "timeISO": "2025-08-25T06:20:43.000Z",
     "textPlain": "A Rust-specific danger is that, if you don't explicitly sync a file before dropping it, any errors from syncing are ignored. So if you care about atomicity, call eg `File::sync_all()`.",
     "parent": 45002291,
+    "depth": 2
+  },
+  {
+    "id": 45012334,
+    "by": "ozgrakkurt",
+    "timeISO": "2025-08-25T10:28:33.000Z",
+    "textPlain": "Also kernel code is probably more optimized than a mock library",
+    "parent": 45012194,
     "depth": 2
   }
 ]
