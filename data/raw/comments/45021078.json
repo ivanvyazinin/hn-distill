@@ -27,7 +27,7 @@
     "id": 45025741,
     "by": "Bender",
     "timeISO": "2025-08-26T12:41:21.000Z",
-    "textPlain": "They state there is a problem but then state they are happy with what Chrony is doing so what exactly is the problem they are trying to solve?  What on their network is requiring better than 200ns?  or even 400ns for that matter?  Not in theory but in reality?  Also there are optimizations they are missing in this document [1] such as disabling EEE.On a more taboo note, while RasPi's can be great little time servers they have more drift and will have higher jitter but that should not matter for a home setup and should not be surprising.  If jitter is their concern then they should consider using mini-pc's, disable cpuspeed, all power management and confine/lock the min/max speed to half the CPU capabilities and disable all services other than chrony.  It will use more power but would address their concerns.   They could also try different models of layer 2 switches.  Consumer switches will add some artificial jitter and that varies wildly from make, model and even batch but again for a home network that should not matter.  I think they are nitpicking.  Perfect is the enemy of good.[Edit] As a side note the aggressive min/max poll settings they are using can amplify the inefficiencies of consumer switches and NICs regardless of filter settings and that can make the graphs more chaotic.  They should consider re-testing that on data-center class servers, server NICs and enterprise class switches or just reduce the polling to something reasonable for a home network minpoll 1 maxpoll 2 for client, minpoll 5 maxpoll 7 for edge talking to a dozen stratum 1's.  Presend should not be required even with default ARP neighbor GC times and intervals.  Oh and if you want to try something fun with the graphs, run chronyc makestep ever minute in cron on every node. yeah yeah I know why one would not do that and its just cheating.[1] - https://chrony-project.org/examples.html",
+    "textPlain": "They state there is a problem but then state they are happy with what Chrony is doing so what exactly is the problem they are trying to solve?  What on their network is requiring better than 200ns?  or even 400ns for that matter?  Not in theory but in reality?  Also there are optimizations they are missing in this document [1] such as disabling EEE.On a more taboo note, while RasPi's can be great little time servers they have more drift and will have higher jitter but that should not matter for a home setup and should not be surprising.  If jitter is their concern then they should consider using mini-pc's, disable cpuspeed, all power management and confine/lock the min/max speed to half the CPU capabilities and disable all services other than chrony.  It will use more power but would address their concerns.   They could also try different models of layer 2 switches.  Consumer switches will add some artificial jitter and that varies wildly from make, model and even batch but again for a home network that should not matter.  I think they are nitpicking.  Perfect is the enemy of good, especially in a day and age when people prefer power saving over accuracy.[Edit] As a side note the aggressive min/max poll settings they are using can amplify the inefficiencies of consumer switches and NICs regardless of filter settings and that can make the graphs more chaotic.  They should consider re-testing that on data-center class servers, server NICs and enterprise class switches or just reduce the polling to something reasonable for a home network minpoll 1 maxpoll 2 for client, minpoll 5 maxpoll 7 for edge talking to a dozen stratum 1's with a high combinelimit.  Presend should not be required even with default ARP neighbor GC times and intervals.  Oh and if you want to try something fun with the graphs, run chronyc makestep ever minute in cron on every node. yeah yeah I know why one would not do that and its just cheating.[1] - https://chrony-project.org/examples.html",
     "parent": 45021078,
     "depth": 1
   },
@@ -112,11 +112,19 @@
     "depth": 1
   },
   {
-    "id": 45024710,
-    "by": "EnnEmmEss",
-    "timeISO": "2025-08-26T10:35:59.000Z",
-    "textPlain": "You're probably looking for https://scottstuff.net/posts/2025/06/10/timing-conclusions/ which discusses the overall conclusions of NTP vs PTP and is the culmination of several blog posts on the topic.",
-    "parent": 45022496,
+    "id": 45026498,
+    "by": "mlichvar",
+    "timeISO": "2025-08-26T13:46:27.000Z",
+    "textPlain": "I agree with most of what you said.The author has other posts in the series where he tried to measure the accuracy relative to the PHC (not system clock) using PPS:\nhttps://scottstuff.net/posts/2025/06/02/measuring-ntp-accura...Steering the same PHC with phc2sys as chronyd is using for HW timestamping is not the best approach as that creates a feedback loop (instability). It would be better to leave the PHC running free and just compare the sys<->PHC with PHC<->PPS offsets.> So your 100m->1G link for example will already introduce over 1 us of error (to accuracy!), but NTP will never show you thisThat doesn't apply to NTP to such an extent as PTP because it timestamps end of the reception (HW RX timestamps are transposed to the end of the packet), so the asymmetries in transmission lengths due to different link speeds should cancel out (unless the switches are cutting through in the faster->slower link direction, but that seems to be rare).",
+    "parent": 45025444,
+    "depth": 2
+  },
+  {
+    "id": 45026585,
+    "by": "petesoper",
+    "timeISO": "2025-08-26T13:52:17.000Z",
+    "textPlain": "The OP says early he only needs 10us.",
+    "parent": 45025444,
     "depth": 2
   },
   {
@@ -124,6 +132,14 @@
     "by": "jacob2161",
     "timeISO": "2025-08-26T06:05:44.000Z",
     "textPlain": "Chrony over NTP is capable of incredible accuracy, as shown in the post. Most users who think they need PTP actually just need Chrony and high quality NICs.Chrony is also much better software than any of the PTP daemons I tested a few years ago (for an onboard autonomous vehicle system).",
+    "parent": 45022496,
+    "depth": 2
+  },
+  {
+    "id": 45024710,
+    "by": "EnnEmmEss",
+    "timeISO": "2025-08-26T10:35:59.000Z",
+    "textPlain": "You're probably looking for https://scottstuff.net/posts/2025/06/10/timing-conclusions/ which discusses the overall conclusions of NTP vs PTP and is the culmination of several blog posts on the topic.",
     "parent": 45022496,
     "depth": 2
   },
