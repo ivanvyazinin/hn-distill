@@ -1,9 +1,17 @@
 [
   {
-    "id": 45025008,
-    "by": "donatj",
-    "timeISO": "2025-08-26T11:17:50.000Z",
-    "textPlain": "As a decades long time Mac user, when I see something show up in ~/.config it just feels like a maladapted port. It's a similar feel to seeing .dotfiles that anrent actually hidden on Windows. Like, whelp, they didn't even bother.No part of macOS's desktop uses or specifies the XDG standard, it's not a POSIX standard nor a standard embraced by the OS. Following it is applying someone else's custom.As another commenter mentioned though, ~/Library/Preferences is the more correct location on macOS.",
+    "id": 45025018,
+    "by": "pie_flavor",
+    "timeISO": "2025-08-26T11:19:50.000Z",
+    "textPlain": "None of the tools the author mentions as following XDG, actually follow XDG. No default tools shipped with macOS place files under .config or anything like that. There is a bunch of dotfile vomit in $HOME and that's it. Every tool that uses .config is one you manually install from an external source.The XDG spec is to coordinate the userspace of Linux software, meaning both CLI apps and windowed apps. Linux needs things called standards because Linus has not bothered to write them down himself, so there is no equivalent of Microsoft telling you data goes in AppData and Apple telling you data goes in Library. Identifying it as a standard for CLI tools across OSes is just wrong.When CLI tools do this on macOS, it is not because anyone thought 'this is a standard for macOS', it is because they thought 'with -target darwin I don't get any compilation errors. ship it!' and frequently use those locations on Windows too where they don't make any kind of sense at all.The standardized location is Library. If you do not expect it, that is on you; you should expect it, as it is the standardized location. It is only just now that people are starting to catch up with it, instead of blind ports with absolute minimum macOS-specific code, because of libraries like `dirs` which make it easy.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45025585,
+    "by": "ndegruchy",
+    "timeISO": "2025-08-26T12:25:34.000Z",
+    "textPlain": "I disagree with this.macOS isn't Linux, and as much as I _absolutely support_ the XDG BaseDir spec, I don't think it's fair to try and apply it to macOS. Linux has no 'proper' directory for storing configuration, cache and application user data. macOS and Windows _do_. It's only proper to support those systems in the way that they intend. I wouldn't put stuff in to `%HOME%\\.config` on Windows any more than I would put data in `$HOME/.Application Data/Local/` on Linux. Why would macOS get bundled in with Linux? Because it's a unix? That's silly.Personally, I have my zsh config repoint those directories into `~/Library/Application Data`, though (as some have pointed out) it's probably better to put some of those folders in `~/Library/Preferences`.",
     "parent": 45022383,
     "depth": 1
   },
@@ -16,18 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45024412,
-    "by": "watersb",
-    "timeISO": "2025-08-26T09:56:43.000Z",
-    "textPlain": "XDG directories for macOS dotfiles is my hill to tilt windmills.To make it extra fun, my $HOME directory is immutable:   chflags uchg \"${HOME}\"\n\n(Simply setting it read-only would work too.)Preventing arbitrary writes in $HOME breaks things, but it's actually quite rare.I should document this setup. Or perhaps it's better to keep the madness to myself...",
-    "parent": 45022383,
-    "depth": 1
-  },
-  {
-    "id": 45023189,
-    "by": "SulphurCrested",
-    "timeISO": "2025-08-26T07:02:28.000Z",
-    "textPlain": "Towards the end TFA claims that Apple’s bundled command line utilities, including zsh and vim, put their dotfiles in ~/.config. They don’t. They put them in the traditional BSD place, the user’s home directory ~/. Looking at mine now, I see .bash_login, .emacs (wow! that’s old), .lldb, .lldbinit, .vimrc, .swiftpm, .z{profile,env,rc} and a few others. I see no ~/.config directory.My personal practice when writing command line utiities for macOS is to use the macOS API to write settings (previously known as “preferences”) into ~/Library/Preferences, so they can interoperate with any GUI versions of them I might like to write, and for the utilities themselves to have command line options to control those settings. As a sibling comment suggests, you do need to avoid name space collisions. You can use a reverse DNS name, or some companies are big enough just to use their company name. They do appear as .plist files but are actually maintained by a daemon – which nicely avoids race problems with multiple processes updating settings.If I were writing a portable utility which had a dotfile with a documented format the user was expected to edit, I would make it a dotfile under the home directory.~/Library/Application Support is really more for per-user static data, like presets and templates, things that are known in a GUI by a string in some dialogue but not necessarily thought of by the user as a file.",
+    "id": 45025008,
+    "by": "donatj",
+    "timeISO": "2025-08-26T11:17:50.000Z",
+    "textPlain": "As a decades long time Mac user, when I see something show up in ~/.config it just feels like a maladapted port. It's a similar feel to seeing .dotfiles that are not actually hidden on Windows. Like, whelp, they didn't even bother.No part of macOS's desktop uses or specifies the XDG standard, it's not a POSIX standard nor a standard embraced by the OS. Following it is applying someone else's custom.As another commenter mentioned though, ~/Library/Preferences is likely the more correct location on macOS.",
     "parent": 45022383,
     "depth": 1
   },
@@ -40,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45023189,
+    "by": "SulphurCrested",
+    "timeISO": "2025-08-26T07:02:28.000Z",
+    "textPlain": "Towards the end TFA claims that Apple’s bundled command line utilities, including zsh and vim, put their dotfiles in ~/.config. They don’t. They put them in the traditional BSD place, the user’s home directory ~/. Looking at mine now, I see .bash_login, .emacs (wow! that’s old), .lldb, .lldbinit, .vimrc, .swiftpm, .z{profile,env,rc} and a few others. I see no ~/.config directory.My personal practice when writing command line utiities for macOS is to use the macOS API to write settings (previously known as “preferences”) into ~/Library/Preferences, so they can interoperate with any GUI versions of them I might like to write, and for the utilities themselves to have command line options to control those settings. As a sibling comment suggests, you do need to avoid name space collisions. You can use a reverse DNS name, or some companies are big enough just to use their company name. They do appear as .plist files but are actually maintained by a daemon – which nicely avoids race problems with multiple processes updating settings.If I were writing a portable utility which had a dotfile with a documented format the user was expected to edit, I would make it a dotfile under the home directory.~/Library/Application Support is really more for per-user static data, like presets and templates, things that are known in a GUI by a string in some dialogue but not necessarily thought of by the user as a file.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
     "id": 45023689,
     "by": "Someone",
     "timeISO": "2025-08-26T08:11:40.000Z",
     "textPlain": "I agree with “should not go in ~/Library/Application Support”, but why would anybody put them there? The Mac way is ~/Library/Preferences, or, system-wide /Library/Preferences, and the use of NSDefaults.https://developer.apple.com/library/archive/documentation/Fi...:“This directory contains app-specific preference files. You should not create files in this directory yourself. Instead, use the NSUserDefaults class or CFPreferences API to get and set preference values for your app.\nIn iOS, the contents of this directory are backed up by iTunes and iCloud.”If a tool doesn’t want to use NSDefaults, using ~/.config is way preferable over polluting the user’s home directory, as many tools do.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45024412,
+    "by": "watersb",
+    "timeISO": "2025-08-26T09:56:43.000Z",
+    "textPlain": "XDG directories for macOS dotfiles is my hill to tilt windmills.To make it extra fun, my $HOME directory is immutable:   chflags uchg \"${HOME}\"\n\n(Simply setting it read-only would work too.)Preventing arbitrary writes in $HOME breaks things, but it's actually quite rare.I should document this setup. Or perhaps it's better to keep the madness to myself...",
     "parent": 45022383,
     "depth": 1
   },
@@ -64,18 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45023275,
-    "by": "marcyb5st",
-    "timeISO": "2025-08-26T07:13:29.000Z",
-    "textPlain": "I put them in a dotfiles directory and use `stow`[1] to symlink the contents to where applications expect them to be. Under that root I have a home folder that it is symlinked to `~/`, and I have and applications one that is symlinked to `Applications Support` through the `-T` argument of stow.To this day I still have to find anything that has problems taking a symlink instead of a file.I am pretty happy with this setup as it means that all my dotfiles are in a single root folder that I manage through a git repo.So I don't see what the linked articled means when it says that stows \"makes (unsurprisingly) no effort to support ~/Library/Application Support.\". It is literally a bit of organization from your side and passing a flag.[1] https://www.gnu.org/software/stow/",
-    "parent": 45022383,
-    "depth": 1
-  },
-  {
     "id": 45023289,
     "by": "cedws",
     "timeISO": "2025-08-26T07:15:12.000Z",
     "textPlain": "XDG is a Linux-centric spec. If we the people want it to be OS-agnostic, it needs to be vetted and designed for that. Until then I don’t see why macOS applications must adopt XDG, despite it being my preference.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45023275,
+    "by": "marcyb5st",
+    "timeISO": "2025-08-26T07:13:29.000Z",
+    "textPlain": "I put them in a dotfiles directory and use `stow`[1] to symlink the contents to where applications expect them to be. Under that root I have a home folder that it is symlinked to `~/`, and I have and applications one that is symlinked to `Applications Support` through the `-T` argument of stow.To this day I still have to find anything that has problems taking a symlink instead of a file.I am pretty happy with this setup as it means that all my dotfiles are in a single root folder that I manage through a git repo.So I don't see what the linked articled means when it says that stows \"makes (unsurprisingly) no effort to support ~/Library/Application Support.\". It is literally a bit of organization from your side and passing a flag.[1] https://www.gnu.org/software/stow/",
     "parent": 45022383,
     "depth": 1
   },
@@ -112,6 +128,14 @@
     "depth": 1
   },
   {
+    "id": 45025493,
+    "by": "lukateras",
+    "timeISO": "2025-08-26T12:15:35.000Z",
+    "textPlain": "~/. for Darwin, ~/Library/Application Support for macOS. That simple.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
     "id": 45022581,
     "by": "wpm",
     "timeISO": "2025-08-26T05:25:22.000Z",
@@ -124,6 +148,14 @@
     "by": "joshka",
     "timeISO": "2025-08-26T05:51:56.000Z",
     "textPlain": "I wrote elsewhere that I think the solution to this is to add another variable to the XDG Base Directory Specification to explicitly opt into using XDG variables, and then to support that flag on libraries that target Windows / MacOS and which would otherwise choose mac Application Support / Windows AppData folders.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45023642,
+    "by": "hoherd",
+    "timeISO": "2025-08-26T08:06:15.000Z",
+    "textPlain": "Somewhat related, a few weeks ago on Python Bytes I learned that there is a python module that abstracts various directory locations per-platform. For instance, you can use this module to find the location of the Movies directory, or the cache directory.For example, on macOS:    >>> appname = \"SuperApp\"\n    >>> appauthor = \"Acme\"\n    >>> user_config_dir(appname, appauthor)\n    '/Users/trentm/Library/Application Support/SuperApp'\n\nor in Windows:    >>> user_config_dir(appname, appauthor)\n    'C:\\\\Users\\\\trentm\\\\AppData\\\\Local\\\\Acme\\\\SuperApp'\n\nhttps://pypi.org/project/platformdirs",
     "parent": 45022383,
     "depth": 1
   },
@@ -148,14 +180,6 @@
     "by": "rcarmo",
     "timeISO": "2025-08-26T07:45:11.000Z",
     "textPlain": "Yeah, I broadly agree — even if I am primarily a Mac user, I am constantly annoyed by the odd tool that does that. SimonW’s “llm” tool is one of the offenders.",
-    "parent": 45022383,
-    "depth": 1
-  },
-  {
-    "id": 45023642,
-    "by": "hoherd",
-    "timeISO": "2025-08-26T08:06:15.000Z",
-    "textPlain": "Somewhat related, a few weeks ago on Python Bytes I learned that there is a python module that abstracts various directory locations per-platform. For instance, you can use this module to find the location of the Movies directory, or the cache directory.For example, on macOS:    >>> appname = \"SuperApp\"\n    >>> appauthor = \"Acme\"\n    >>> user_config_dir(appname, appauthor)\n    '/Users/trentm/Library/Application Support/SuperApp'\n\nor in Windows:    >>> user_config_dir(appname, appauthor)\n    'C:\\\\Users\\\\trentm\\\\AppData\\\\Local\\\\Acme\\\\SuperApp'\n\nhttps://pypi.org/project/platformdirs",
     "parent": 45022383,
     "depth": 1
   },
@@ -224,6 +248,54 @@
     "depth": 1
   },
   {
+    "id": 45025534,
+    "by": "rollcat",
+    "timeISO": "2025-08-26T12:19:45.000Z",
+    "textPlain": "> [...] Linus has not bothered to write them down himself [...]He's a kernel hacker and a technical leader. He doesn't write specs for the userspace, that's the least of his concerns. Linux has very strong guarantees on syscall backwards compat - Go doesn't even use libc. This is all by design.Even the name \"GNU/Linux\" was something FSF tried to impose on distributions. The distributions being distributions, were free to brand themselves as they willed, which is 100% fair under the license terms.This ecosystem has always been a bazaar, if that's not for you - use a BSD. (e.g. macOS.)",
+    "parent": 45025018,
+    "depth": 2
+  },
+  {
+    "id": 45025491,
+    "by": "judofyr",
+    "timeISO": "2025-08-26T12:15:29.000Z",
+    "textPlain": "> The standardized location is Library.Except for Zsh (~/.zshrc), SSH (~/.ssh/config), Vim (~/.vimrc), Curl (~/.curlrc), Git (~/.gitconfig). Apple could have chosen to patch these and move the configuration files into ~/Library if they really wanted.",
+    "parent": 45025018,
+    "depth": 2
+  },
+  {
+    "id": 45025421,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-26T12:07:58.000Z",
+    "textPlain": "What, there are other OSes that are not Linux? But why would you use them, just use Linux instead? Okay, fine, we'll pretend they're kinda Linux anyway and build the binaries for you. \"Wrong paths\"? Okay, patch it yourself then or something, idgaf about your weird non-Linux....seems to be a rather popular attitude between mainly-Linux based developers. I get it that it's easier to just read/write from/to \"C:\\etc\\ssh\\ssh_config\" or \"%HOME%\\.dotfiles_are_cool_do_you_think_dotfiles_are_cool_no_I_will_not_set_hidden_attribute_on_it_why_would_I\" but sometimes it's a bit jarring. Especially when the app doesn't work when placed inside a \"Program Files\" folder because it has spaces in the path.",
+    "parent": 45025018,
+    "depth": 2
+  },
+  {
+    "id": 45025547,
+    "by": "seanyeh",
+    "timeISO": "2025-08-26T12:21:05.000Z",
+    "textPlain": "git supports XDG - its config lives in `$XDG_CONFIG_HOME/git/config`. Though a lot of people still use the older location of ~/.gitconfig",
+    "parent": 45025018,
+    "depth": 2
+  },
+  {
+    "id": 45025768,
+    "by": "codazoda",
+    "timeISO": "2025-08-26T12:43:54.000Z",
+    "textPlain": "I kinda wonder if this is an age thing as the English language morphs over time.I'm a bit old school, I like the XDG standard, but the arguments against \"~/Library/Application Support\" don't make sense to me.The people arguing against it are saying that a program that uses the CLI is not an \"App\". That argument seems wrong. App is short for \"application\" and I've been using the long form of that term since before the GUI even existed. A command line application is still an App in my mind.",
+    "parent": 45025585,
+    "depth": 2
+  },
+  {
+    "id": 45025712,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-08-26T12:39:14.000Z",
+    "textPlain": "> I wouldn't put stuff in to `%HOME%\\.config` on WindowsHaha, and yet so many (usually Linux-first) applications do. Here's `gci $env:USERPROFILE -Force` on my computer:  d----            3/6/2022    04:39                .android\n  d----            6/9/2024 18:14                .cache\n  d----           31/7/2025 11:10                .claude\n  d----           16/8/2024 01:38                .config\n  d----            2/3/2022 07:25                .dlv\n  d----            7/8/2025 18:20                .dotnet\n  d----           19/7/2022 07:15                .eclipse\n  d----            1/4/2022 16:29                .fop\n  d----          12/10/2024 23:49                .get_iplayer\n  d----           26/8/2025 01:07                .gk\n  d----           26/8/2025 01:07                .gnupg\n  d----          31/12/2022 15:12                .gradle\n  d----           30/3/2025 15:10                .ipython\n  d----          22/10/2021 07:59                .librarymanager\n  d----            9/6/2025 17:53                .local\n  d----          26/11/2024 12:58                .lucid\n  d----          31/12/2022 15:14                .m2\n  d----           3/11/2022 06:14                .matplotlib\n  d----           9/10/2024 20:24                .minio\n  d----           20/4/2023 13:16                .ms-ad\n  d----            4/5/2023 10:48                .nuget\n  d----            7/9/2024 02:05                .ollama\n  d----            2/9/2021 15:14                .omnisharp\n  d----           15/7/2022 06:10                .platformio\n  d----           18/6/2024 19:10                .redhat\n  d----           7/11/2023 12:49                .runelite\n  d----            2/7/2024 11:17                .sonarlint\n  d----           10/7/2025 04:42                .ssh\n  d----          27/12/2021 14:46                .templateengine\n  d----            9/2/2023 11:35                .thumbnails\n  d----           10/6/2023 09:15                .vscode\n  d----            3/4/2023 11:30        ",
+    "parent": 45025585,
+    "depth": 2
+  },
+  {
     "id": 45023881,
     "by": "tyilo",
     "timeISO": "2025-08-26T08:37:06.000Z",
@@ -264,10 +336,10 @@
     "depth": 2
   },
   {
-    "id": 45022632,
-    "by": "quotemstr",
-    "timeISO": "2025-08-26T05:33:19.000Z",
-    "textPlain": "> they refuse to see it this wayThat's why the long-term future of app development is containers. It is not possible, on a human level, to convince people to lift even the lightest of fingers for the common good.Consider https://specifications.freedesktop.org/basedir-spec/latest/The XDG specification has been around for 22 years. It has real benefits for users. It's trivial to implement. Yet even in the year of our lord two thousand and twenty five I still see TypeScript developers complain that it's \"too hard\" to comply with \"this BS\" and just stick files in $HOME.I've long given up on solving technical coordination problems by appealing to the universal goodness of humanity. The only thing that works is to sandbox applications at tightly as possible and direct all their access to the external world through narrow interfaces that do their best to limit shenanigans.",
+    "id": 45023773,
+    "by": "soni96pl",
+    "timeISO": "2025-08-26T08:21:29.000Z",
+    "textPlain": "From the same person:\nhttps://soc.me/standards/defending-homeI'm aware it mentions Linux specifically, but this is golden:> From this point on, the number of dot-files and dot-directories can only shrink as the remaining applications get fixed and start conforming to the XDG base directory spec, while no new dot-files and dot-directories can be added to your home directory.As is original reasoning for not using ~/.config from https://github.com/dirs-dev/directories-rs/issues/62#issueco...> As Apple keeps tightening its after-sale ownership of macOS appliances, it's becoming increasingly unlikely that randomly dumping stuff in $HOME will keep working.I get the feel he just does not like macOS?",
     "parent": 45022533,
     "depth": 2
   },
@@ -280,35 +352,19 @@
     "depth": 2
   },
   {
-    "id": 45023773,
-    "by": "soni96pl",
-    "timeISO": "2025-08-26T08:21:29.000Z",
-    "textPlain": "[dead]",
+    "id": 45022632,
+    "by": "quotemstr",
+    "timeISO": "2025-08-26T05:33:19.000Z",
+    "textPlain": "> they refuse to see it this wayThat's why the long-term future of app development is containers. It is not possible, on a human level, to convince people to lift even the lightest of fingers for the common good.Consider https://specifications.freedesktop.org/basedir-spec/latest/The XDG specification has been around for 22 years. It has real benefits for users. It's trivial to implement. Yet even in the year of our lord two thousand and twenty five I still see TypeScript developers complain that it's \"too hard\" to comply with \"this BS\" and just stick files in $HOME.I've long given up on solving technical coordination problems by appealing to the universal goodness of humanity. The only thing that works is to sandbox applications at tightly as possible and direct all their access to the external world through narrow interfaces that do their best to limit shenanigans.",
     "parent": 45022533,
     "depth": 2
   },
   {
-    "id": 45024552,
-    "by": "johnisgood",
-    "timeISO": "2025-08-26T10:15:40.000Z",
-    "textPlain": "No, I think you should write more about it. Motivations, what about programs or scripts that require writing or at least modifying files in $HOME, etc.? You say it is rare, but is it really? Also what is your way when you want to communicate between two programs? What is your preferred method of IPC? I will check how much my system works if I do the same thing as you, on Linux. :DFWIW I use firejail so applications cannot run anything in $HOME and temporarily (heh) mounted tmpfs (two separate options).",
-    "parent": 45024412,
-    "depth": 2
-  },
-  {
-    "id": 45024860,
-    "by": "dkmar",
-    "timeISO": "2025-08-26T10:57:38.000Z",
-    "textPlain": "honestly as long as they don’t use the home directory ill survive. vscode and similar apps not offering any alternative to home directory pollution kills me.I assume this breaks vscode? Would love a writeup if you have time",
-    "parent": 45024412,
-    "depth": 2
-  },
-  {
-    "id": 45023548,
-    "by": "varenc",
-    "timeISO": "2025-08-26T07:54:45.000Z",
-    "textPlain": "> My personal practice when writing command line utiities for macOS is to use the macOS API to write settings (previously known as “preferences”) into ~/Library/PreferencesThis would mean that essentially all edits to the configuration must be performed by the CLI tool itself? Because macOS preferences aren't really intended to be edited directly by the user. That feels like a totally different category of configuration than what we're discussing here. Though it certainly provides some nice functionality.",
-    "parent": 45023189,
+    "id": 45025090,
+    "by": "Hendrikto",
+    "timeISO": "2025-08-26T11:32:00.000Z",
+    "textPlain": "I prefer https://uapi-group.org/specifications/specs/configuration_fi...Defaults should go in /usr/. It is package developer / maintainer territory.System-wide overrides should go in /etc/. It is the purview of the system administrator. Importantly:> Programs must work correctly if no configuration files are found in /etc/.User-specific overrides should go in XDG_CONFIG_HOME, with a fallback to ~/.config/.",
+    "parent": 45022917,
     "depth": 2
   },
   {
@@ -320,83 +376,27 @@
     "depth": 2
   },
   {
-    "id": 45022991,
-    "by": "pjmlp",
-    "timeISO": "2025-08-26T06:31:35.000Z",
-    "textPlain": "UNIX, Plan 9 and Inferno, aren't exactly the same as macOS, even if macOS is a certified UNIX.POSIX exists, because out of UNIX System V, every clone went down their own merry way.",
-    "parent": 45022680,
+    "id": 45023548,
+    "by": "varenc",
+    "timeISO": "2025-08-26T07:54:45.000Z",
+    "textPlain": "> My personal practice when writing command line utiities for macOS is to use the macOS API to write settings (previously known as “preferences”) into ~/Library/PreferencesThis would mean that essentially all edits to the configuration must be performed by the CLI tool itself? Because macOS preferences aren't really intended to be edited directly by the user. That feels like a totally different category of configuration than what we're discussing here. Though it certainly provides some nice functionality.",
+    "parent": 45023189,
     "depth": 2
   },
   {
-    "id": 45023448,
-    "by": "thehours",
-    "timeISO": "2025-08-26T07:39:10.000Z",
-    "textPlain": "I also use stow on MacOS and have been pretty happy with it.> […]although macOS will regularly replace your symlinks with copies of the destination filesI’m curious about this claim from the article - to what extent is this true?",
-    "parent": 45023275,
+    "id": 45025607,
+    "by": "vinnymac",
+    "timeISO": "2025-08-26T12:28:33.000Z",
+    "textPlain": "I want this, but also a LuLu firewall style permissions prompt to accept or decline writes to my ~",
+    "parent": 45024412,
     "depth": 2
   },
   {
-    "id": 45024426,
-    "by": "sebws",
-    "timeISO": "2025-08-26T09:58:39.000Z",
-    "textPlain": "from the article,> Elsewhere, Reilly Wood rebukes a user asking if there would “be any downside to just not using Application Support ever” by saying that “[Nushell would] no longer be following the macOS Standard Directories guidelines.”> We’ll read through those guidelines in a minute, but it’s not entirely clear to me that they’re relevant in the first place. The XDG Base Directory Specification mentions Unix a few times but lists no carveouts for macOS or any other operating system. If ~/.config is accepted as the standard location for configuration files on Unix-like operating systems, then surely it would be the standard location on macOS as well, given that macOS is a Unix by way of BSD.> But suppose we accept that the XDG specification only applies to some Unix operating systems, despite making no mention of this. The macOS Standard Directories documentation starts by stating that “[w]hether provided by the system or created by your app, every file has its place in macOS”, and honestly we could stop reading right there, because a command-line tool is not the system or an app.",
-    "parent": 45023289,
-    "depth": 2
-  },
-  {
-    "id": 45022587,
-    "by": "re",
-    "timeISO": "2025-08-26T05:26:36.000Z",
-    "textPlain": "I doubt anyone running Unix-style command-line/TUI tools where the config files are expected to be edited by hand by the user is expecting to find it in the Application Support directory; that directory is not a directory that Apple intends for users to ever interact with directly:> Put app-created support files in the Library/Application support/ directory. In general, this directory includes files that the app uses to run but that should remain hidden from the user. [emphasis added]",
-    "parent": 45022494,
-    "depth": 2
-  },
-  {
-    "id": 45022608,
-    "by": "tux3",
-    "timeISO": "2025-08-26T05:30:01.000Z",
-    "textPlain": "It seems like the roadblock is that most cli tools don't want to think too hard about XDG in the slightest, and they delegate to standard directory libraries.Those libraries aren't normally in the business of creating symlinks,  and if previous discussions are any indications, convincing them to add XDG support at all - let alone by default - seems on the same level as pleading Vim/Emacs users to just try Emacs/Vim",
-    "parent": 45022494,
-    "depth": 2
-  },
-  {
-    "id": 45023057,
-    "by": "eviks",
-    "timeISO": "2025-08-26T06:40:58.000Z",
-    "textPlain": "The best of both worlds is respecting user configuration, not pollution",
-    "parent": 45022494,
-    "depth": 2
-  },
-  {
-    "id": 45023102,
-    "by": "pasc1878",
-    "timeISO": "2025-08-26T06:46:25.000Z",
-    "textPlain": "the XDG_CONFIG_HOME should point to ~/Library/Preferences.The issue is that often everyone assumes that XDG_CONFIG_HOME  is ~/.configThe idea of having a variable is that it could be anywhere,",
-    "parent": 45023025,
-    "depth": 2
-  },
-  {
-    "id": 45022949,
-    "by": "sunshowers",
-    "timeISO": "2025-08-26T06:26:44.000Z",
-    "textPlain": "When I last encountered this (agreeing with the article author about the correct location for CLI tools being XDG_CONFIG_HOME), I found https://crates.io/crates/etcetera.",
-    "parent": 45022667,
-    "depth": 2
-  },
-  {
-    "id": 45023145,
-    "by": "eviks",
-    "timeISO": "2025-08-26T06:55:10.000Z",
-    "textPlain": "The semantic distinction you're trying to make is artificial, but also explicitly against Apple spec, so no, your approach is the wrongest as no-one would expect you edit configs there> This directory contains app-specific preference files. You should not create files in this directory yourself.Also> defaults command to query and modify my preferences without having to open the app or read some 4000 line long JSONC file with 20 lines of settings and ~4000 lines of bad documentation.I'd prefer the convenience of an editor to read the real 5 lines and 5 lines of comments of the settings I've changed (instead of the made up 4000000) and having a diffable config rather than some binary plist nonsense and relying on a clunky defaults cli. I'd even be prepared to shed the complexity of profiles for this basic conveniences",
-    "parent": 45022581,
-    "depth": 2
-  },
-  {
-    "id": 45022599,
-    "by": "JoshTriplett",
-    "timeISO": "2025-08-26T05:28:46.000Z",
-    "textPlain": "To the best of my knowledge, it's incorrect to store anything other than plists in that directory.And if you're writing a cross-platform application, it's not necessarily correct to have a completely different file format on different OSes. Not all Windows applications should store all their preferences in the registry, either.",
-    "parent": 45022581,
+    "id": 45024552,
+    "by": "johnisgood",
+    "timeISO": "2025-08-26T10:15:40.000Z",
+    "textPlain": "No, I think you should write more about it. Motivations, what about programs or scripts that require writing or at least modifying files in $HOME, etc.? You say it is rare, but is it really? Also what is your way when you want to communicate between two programs? What is your preferred method of IPC? I will check how much my system works if I do the same thing as you, on Linux. :DFWIW I use firejail so applications cannot run anything in $HOME and temporarily (heh) mounted tmpfs (two separate options).",
+    "parent": 45024412,
     "depth": 2
   }
 ]
