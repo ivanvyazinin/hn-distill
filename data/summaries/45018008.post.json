@@ -1,0 +1,8 @@
+{
+  "id": 45018008,
+  "lang": "ru",
+  "summary": "**Анонимные структуры в Zig**\n\nВ C структуры различаются по имени: `struct A` и `struct B` — разные типы.\n\nВ Zig:\n\n```zig\nconst A = struct {};\n```\n\nСтруктура получает имя `test.A`, где `test` — имя файла.  \nПереименование не меняет тип:\n\n```zig\nconst B = A;  // всё ещё `test.A`\n```\n\n**Равенство типов**\n\n```zig\nstruct {} == struct {}  // false — две разные литералы\n```\n\nНо если структуры создаются одним и тем же выражением, они считаются одинаковыми:\n\n```zig\nfn make() type { return struct {}; }\nconst T = make() == make();  // true\n```\n\nЕсли выражение разное — типы разные:\n\n```zig\nfn make(x: i64) type {\n    return if (x == 0) struct {} else struct {};\n}\nconst T = make(0) == make(1);  // false\n```\n\nДаже значение по умолчанию влияет:\n\n```zig\nfn make(x: i64) type {\n    return struct { b: i32 = x };\n}\nconst T = make(0) == make(1);  // false\n```\n\n**Мемоизация и имена**\n\nZig кеширует результат вызова функции-конструктора, если аргументы не используются:\n\n```zig\nfn make(x: i64) type { _ = x; return struct {}; }\nconst A = make(0);\nconst B = make(1);\n// A и B — один тип, но имя печатается как `type_constructor(0)` или `type_constructor(1)`\n```\n\nЕсли аргумент влияет на структуру, даже косвенно, типы разные:\n\n```zig\nfn make(x: i64) type {\n    return struct { b: i64 = x * 0 };\n}\nconst A = make(0);\nconst B = make(1);\n// A != B\n```\n\nZig не вычисляет `x * 0` как константу, поэтому создаёт два разных типа.",
+  "inputHash": "f65d0d8a9c74b3f71ee912a21cac5946db7c6f4341d1a70afce14cd0318c19e2",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-26T17:25:13.713Z"
+}
