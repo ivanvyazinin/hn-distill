@@ -3,7 +3,31 @@
     "id": 45022533,
     "by": "orlp",
     "timeISO": "2025-08-26T05:18:46.000Z",
-    "textPlain": "I and others have brought this up with the dirs Rust crate maintainer but they refuse to see it this way: https://codeberg.org/dirs/dirs-rs/issues/64. It's very frustrating.I now use a combination of xdg + known_folders manually:    [target.'cfg(windows)'.dependencies]\n    known-folders = \"1.2.0\"\n\n    [target.'cfg(not(windows))'.dependencies]\n    xdg = \"2.5.2\"\n\nto get the config directory:    use anyhow::{Context, Result};\n\n    #[cfg(windows)]\n    fn get_config_base_dir() -> Result<PathBuf> {\n        use known_folders::{KnownFolder, get_known_folder_path};\n        get_known_folder_path(KnownFolder::RoamingAppData).context(\"unable to get config dir\")\n    }\n\n    #[cfg(not(windows))]\n    fn get_config_base_dir() -> Result<PathBuf> {\n        let base_dirs = xdg::BaseDirectories::new().context(\"unable to get config dir\")?;\n        Ok(base_dirs.get_config_home())\n    }",
+    "textPlain": "I and others have brought this up with the dirs Rust crate maintainer but they refuse to see it this way: https://codeberg.org/dirs/dirs-rs/issues/64. It's very frustrating.I now use a combination of xdg + known-folders manually:    [target.'cfg(windows)'.dependencies]\n    known-folders = \"1.2.0\"\n\n    [target.'cfg(not(windows))'.dependencies]\n    xdg = \"2.5.2\"\n\nto get the config directory:    use anyhow::{Context, Result};\n\n    #[cfg(windows)]\n    fn get_config_base_dir() -> Result<PathBuf> {\n        use known_folders::{KnownFolder, get_known_folder_path};\n        get_known_folder_path(KnownFolder::RoamingAppData).context(\"unable to get config dir\")\n    }\n\n    #[cfg(not(windows))]\n    fn get_config_base_dir() -> Result<PathBuf> {\n        let base_dirs = xdg::BaseDirectories::new().context(\"unable to get config dir\")?;\n        Ok(base_dirs.get_config_home())\n    }",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022917,
+    "by": "pdpi",
+    "timeISO": "2025-08-26T06:21:32.000Z",
+    "textPlain": "If your binary is supposed to live in `/Applications`, by all means put its config in `~/Application Support`. If it lives in `/bin` or somewhere similar, or if its default or system-wide configuration go in `/etc`, config goes in `~/.config`.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022680,
+    "by": "evanelias",
+    "timeISO": "2025-08-26T05:42:14.000Z",
+    "textPlain": "The Go standard library uses ~/Library/Application Support as well [1]. Given the Unix credentials of Golang's top folks, I would assume there's a good argument in favor of this decision?[1] https://pkg.go.dev/os#UserConfigDir",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022973,
+    "by": "zarzavat",
+    "timeISO": "2025-08-26T06:29:38.000Z",
+    "textPlain": "The hint is in the name. \"Application Support\" has a space in it, so it's not designed to be used for CLI config.",
     "parent": 45022383,
     "depth": 1
   },
@@ -22,5 +46,141 @@
     "textPlain": "It seems like the best of both worlds, here, would be to put the files in ~/.config/yourprogram, and symlink that to `~/Library/Application Support/org.example.yourprogram`. That would satisfy folks expecting to find it in either place. The only folks it wouldn't satisfy would be those complaining about the files being present in one of those places at all, and that seems like the least of the concerns compared to making sure people find it.",
     "parent": 45022383,
     "depth": 1
+  },
+  {
+    "id": 45022667,
+    "by": "hamandcheese",
+    "timeISO": "2025-08-26T05:39:04.000Z",
+    "textPlain": "Strongly agree with the authors take. Is anyone aware of an alternative to dirs in the rust universe which follows XDG?",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022737,
+    "by": "joshka",
+    "timeISO": "2025-08-26T05:51:56.000Z",
+    "textPlain": "I wrote elsewhere that I think the solution to this is to add another variable to the XDG Base Directory Specification to explicitly opt into using XDG variables, and then to support that flag on libraries that target Windows / MacOS and which would otherwise choose mac Application Support / Windows AppData folders.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022974,
+    "by": "eviks",
+    "timeISO": "2025-08-26T06:29:39.000Z",
+    "textPlain": "Yes, they shouldn't, but try to convince people who misunderstood some poorly written Apple spec that they're wrong...",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022909,
+    "by": "pjmlp",
+    "timeISO": "2025-08-26T06:20:21.000Z",
+    "textPlain": "Ah, after all there aren't only the devs on Windows ecosystem that don't follow the guidelines where to place the configuration files.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022581,
+    "by": "wpm",
+    "timeISO": "2025-08-26T05:25:22.000Z",
+    "textPlain": "Both options are wrong on macOS.My configurations are preferences, stored in ~/Library/Preferences.Even better if you store those as property lists and hook into CFPreferences so I can manage them with configuration profiles and use the defaults command to query and modify my preferences without having to open the app or read some 4000 line long JSONC file with 20 lines of settings and ~4000 lines of bad documentation.",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022633,
+    "by": "troupo",
+    "timeISO": "2025-08-26T05:33:27.000Z",
+    "textPlain": "> given that macOS is a Unix by way of BSD.Moreover, most versions of MacOS are certified Unix: https://www.opengroup.org/openbrand/register/",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022814,
+    "by": "evrennetwork",
+    "timeISO": "2025-08-26T06:05:01.000Z",
+    "textPlain": "[dead]",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022596,
+    "by": "worthless-trash",
+    "timeISO": "2025-08-26T05:28:24.000Z",
+    "textPlain": "[flagged]",
+    "parent": 45022383,
+    "depth": 1
+  },
+  {
+    "id": 45022781,
+    "by": "joshka",
+    "timeISO": "2025-08-26T05:58:58.000Z",
+    "textPlain": "From my previous recollection, there's an issue for this in just about every rust crate that handles these dirs. The right way to fix this is fix the spec, then make the libs adhere to the spec.",
+    "parent": 45022533,
+    "depth": 2
+  },
+  {
+    "id": 45022595,
+    "by": "CGamesPlay",
+    "timeISO": "2025-08-26T05:28:05.000Z",
+    "textPlain": "I think there should be two crates in rust-land. The answer by @soc makes sense for apps, as the article discusses. Many (most?) people building Rust programs aren't making apps and so shouldn't be using this crate, which clearly and definitively only supports MacOS \"Apps\".",
+    "parent": 45022533,
+    "depth": 2
+  },
+  {
+    "id": 45022632,
+    "by": "quotemstr",
+    "timeISO": "2025-08-26T05:33:19.000Z",
+    "textPlain": "> they refuse to see it this wayThat's why the long-term future of app development is containers. It is not possible, on a human level, to convince people to lift even the lightest of fingers for the common good.Consider https://specifications.freedesktop.org/basedir-spec/latest/The XDG specification has been around for 22 years. It has real benefits for users. It's trivial to implement. Yet even in the year of our lord two thousand and twenty five I still see TypeScript developers complain that it's \"too hard\" to comply with \"this BS\" and just stick files in $HOME.I've long given up on solving technical coordination problems by appealing to the universal goodness of humanity. The only thing that works is to sandbox applications at tightly as possible and direct all their access to the external world through narrow interfaces that do their best to limit shenanigans.",
+    "parent": 45022533,
+    "depth": 2
+  },
+  {
+    "id": 45022811,
+    "by": "bowsamic",
+    "timeISO": "2025-08-26T06:04:43.000Z",
+    "textPlain": "Why is that soc guy so angry and rude about it?",
+    "parent": 45022533,
+    "depth": 2
+  },
+  {
+    "id": 45022991,
+    "by": "pjmlp",
+    "timeISO": "2025-08-26T06:31:35.000Z",
+    "textPlain": "UNIX, Plan 9 and Inferno, aren't exactly the same as macOS, even if macOS is a certified UNIX.POSIX exists, because out of UNIX System V, every clone went down their own merry way.",
+    "parent": 45022680,
+    "depth": 2
+  },
+  {
+    "id": 45022587,
+    "by": "re",
+    "timeISO": "2025-08-26T05:26:36.000Z",
+    "textPlain": "I doubt anyone running Unix-style command-line/TUI tools where the config files are expected to be edited by hand by the user is expecting to find it in the Application Support directory; that directory is not a directory that Apple intends for users to ever interact with directly:> Put app-created support files in the Library/Application support/ directory. In general, this directory includes files that the app uses to run but that should remain hidden from the user. [emphasis added]",
+    "parent": 45022494,
+    "depth": 2
+  },
+  {
+    "id": 45022608,
+    "by": "tux3",
+    "timeISO": "2025-08-26T05:30:01.000Z",
+    "textPlain": "It seems like the roadblock is that most cli tools don't want to think too hard about XDG in the slightest, and they delegate to standard directory libraries.Those libraries aren't normally in the business of creating symlinks,  and if previous discussions are any indications, convincing them to add XDG support at all - let alone by default - seems on the same level as pleading Vim/Emacs users to just try Emacs/Vim",
+    "parent": 45022494,
+    "depth": 2
+  },
+  {
+    "id": 45022949,
+    "by": "sunshowers",
+    "timeISO": "2025-08-26T06:26:44.000Z",
+    "textPlain": "When I last encountered this (agreeing with the article author about the correct location for CLI tools being XDG_CONFIG_HOME), I found https://crates.io/crates/etcetera.",
+    "parent": 45022667,
+    "depth": 2
+  },
+  {
+    "id": 45022599,
+    "by": "JoshTriplett",
+    "timeISO": "2025-08-26T05:28:46.000Z",
+    "textPlain": "To the best of my knowledge, it's incorrect to store anything other than plists in that directory.And if you're writing a cross-platform application, it's not necessarily correct to have a completely different file format on different OSes. Not all Windows applications should store all their preferences in the registry, either.",
+    "parent": 45022581,
+    "depth": 2
   }
 ]
