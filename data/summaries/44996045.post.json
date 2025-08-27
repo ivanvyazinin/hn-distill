@@ -1,0 +1,8 @@
+{
+  "id": 44996045,
+  "lang": "ru",
+  "summary": "Проблема — написать цикл повторов, который:\n\n- синтаксически показывает ограничение на кол-во попыток;  \n- не делает лишний `sleep` после последней;  \n- возвращает исходную ошибку при неудаче;  \n- не дублирует код.\n\nПервое требование вело в тупик: цикл `for 0..retry_count` может не выполниться ни разу, если `retry_count == 0`, и приходится добавлять проверки. Лучше инвертировать логику: крутимся, пока действие возвращает ошибку, и выходим по счётчику попыток:\n\n```zig\nvar retries_left = retry_count;\nconst result = try while (true) {\n    const err = if (action()) |ok| break ok else |err| err;\n    if (!is_transient_error(err)) break err;\n    if (retries_left == 0) break err;\n    retries_left -= 1;\n    sleep();\n};\n```\n\nЕсли нужно «синтаксически» ограничить цикл, добавляем верхнюю границу:\n\n```zig\nconst result = try for (0..retry_count + 1) {\n    ...\n} else @panic(\"runaway loop\");\n```\n\nНо забыть `+1` легко, поэтому решение всё ещё не идеально.",
+  "inputHash": "a5e02f8950fd90c373cb47d1ccf6ba157c50f1e64a1cf75644f14187c43981ab",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-27T08:35:29.433Z"
+}
