@@ -1,5 +1,13 @@
 [
   {
+    "id": 45054389,
+    "by": "leoc",
+    "timeISO": "2025-08-28T16:53:57.000Z",
+    "textPlain": "In memory-safety discussions it needs to be borne in mind that 'simply fix the hardware' is also a viable approach; or at least it's a lot more viable than it was or seemed to be a few decades ago https://en.wikipedia.org/wiki/Capability_Hardware_Enhanced_R... . Memory-safe BSD and applications running on real memory-safe RISC-V hardware apparently already exist, though obviously, yes, even in a best case existing architectures would not come close to being fully displaced for a long time. That said, I really hope the process isn't being further delayed by attempts to grub license money.",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
     "id": 45053050,
     "by": "sirwhinesalot",
     "timeISO": "2025-08-28T14:59:45.000Z",
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45053353,
-    "by": "Joker_vD",
-    "timeISO": "2025-08-28T15:22:08.000Z",
-    "textPlain": "There is also \"Tree Borrows\" [0] proposal for Rust, which is aimed at the same problem.[0] https://perso.crans.org/vanille/treebor/aux/preprint.pdf",
+    "id": 45052248,
+    "by": "nixpulvis",
+    "timeISO": "2025-08-28T13:56:10.000Z",
+    "textPlain": "No mention of how this is safe when operating on data across threads? One of the biggest wins for Rust is sane treatment of references when using parallelism.",
     "parent": 45051345,
     "depth": 1
   },
   {
-    "id": 45052325,
-    "by": "estebarb",
-    "timeISO": "2025-08-28T14:05:17.000Z",
-    "textPlain": "I'm not sure if I understand it correctly. So, if I have a hashtable, adding or removing an element would invalidate existing pointers to any other element in the hashtable? I guess it makes sense from a memory release POV, but... I end up thinking that for databases using GC or RC is a better approach. Maybe I'm biased, but I have found far easier to work on databases written in C or C#. For that kind of programs I felt Rust overrestrictive and forcing to more dangerous patterns such as replacing pointers with offsets.",
+    "id": 45053353,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-28T15:22:08.000Z",
+    "textPlain": "There is also \"Tree Borrows\" [0] proposal for Rust, which is aimed at the same problem.[0] https://perso.crans.org/vanille/treebor/aux/preprint.pdf",
     "parent": 45051345,
     "depth": 1
   },
@@ -48,12 +56,20 @@
     "depth": 1
   },
   {
-    "id": 45052248,
-    "by": "nixpulvis",
-    "timeISO": "2025-08-28T13:56:10.000Z",
-    "textPlain": "No mention of how this is safe when operating on data across threads? One of the biggest wins for Rust is sane treatment of references when using parallelism.",
+    "id": 45052325,
+    "by": "estebarb",
+    "timeISO": "2025-08-28T14:05:17.000Z",
+    "textPlain": "I'm not sure if I understand it correctly. So, if I have a hashtable, adding or removing an element would invalidate existing pointers to any other element in the hashtable? I guess it makes sense from a memory release POV, but... I end up thinking that for databases using GC or RC is a better approach. Maybe I'm biased, but I have found far easier to work on databases written in C or C#. For that kind of programs I felt Rust overrestrictive and forcing to more dangerous patterns such as replacing pointers with offsets.",
     "parent": 45051345,
     "depth": 1
+  },
+  {
+    "id": 45054629,
+    "by": "codedokode",
+    "timeISO": "2025-08-28T17:16:21.000Z",
+    "textPlain": "The general rule to prevent any data races (as I guess) between threads is that at any point of time there can be either one writer or multiple readers to the same object. Rust guarantees this by not allowing to have any other references if you have a read-write (mutable) reference.Note that Rust is more strict than necessary - theoretically you can have multiple writable and readable references, but not use them simultaneously and observe the rule. But it is difficult (or even impossible) to verify during compilation so Rust doesn't allow it. C allows it but leaves verification to the author which doesn't work well and doesn't scale.This situation can happen if you have a graph of objects. For example, in an OS you might have a Process object having references to a list of opened Files, and have a File  hold reference back to Process that opened it. In this case you cannot ever have a writable reference to the Process from anywhere because Files already have multiple reading references. And Files can have only read-only references to the Process that opened them.So you have to use only read-only references and additional structures like Cell, Arc etc. that allow safe writing through them. They are cheap, but not free and ideally we as developers want to have memory safety for free. That's the problem yet to solve.Note that there are other ways to achieve safety:- use C and manually verify that your program never breaks this rule - requires god level coding skills- immutable data - after the writer finished writing, data are \"frozen\" and can be safely shared without any checks and no rules are broken. Very good, but modification is expensive and requires you to clone the data or use clever and complicated design (for example, if you have 10-elements array but shared a reference only to first 7 elements, you can safely append to the last 3 elements because nobody else knows about them - that's how ring buffers work). See immer C++ library for example.- atomic variabl",
+    "parent": 45052293,
+    "depth": 2
   },
   {
     "id": 45052591,
@@ -64,19 +80,19 @@
     "depth": 2
   },
   {
-    "id": 45052417,
+    "id": 45052300,
     "by": "verdagon",
-    "timeISO": "2025-08-28T14:13:06.000Z",
-    "textPlain": "Yep, adding or removing an element would invalidate existing pointers to any other element in the hash table. This is generally regarded as a good thing if your elements are stored contiguously in the hash table, because a resize would cause any existing pointers to dangle. This should be true for C, and might be true for C# if you're using `struct`s which put the data inline (memory's a bit fuzzy on C#'s rules for references to structs though, maybe someone can chime in).This new approach still requires us to be mindful of our data layout. Not caring about data layout is still definitely a strength of GC and RC. I'm actually hoping to find a way to blend Nick's approach seamlessly with reference counting (preferably without risking panics or deadlocks) to get the best of both worlds, so that we can consider it for Mojo. I consider that the holy grail of memory safety, and some recent developments give me some hope for that!(Also, I probably shouldn't mention it since it's not ready, but Nick's newest model might have found a way to solve that for separate-chaining hash maps where addresses are stable. We might be able to express that to the type system, which would be pretty cool.)",
-    "parent": 45052325,
+    "timeISO": "2025-08-28T14:03:07.000Z",
+    "textPlain": "Great question! That's a big enough topic that I'd love to write a followup post about it. There's also a good thread on r/Compilers at https://www.reddit.com/r/Compilers/comments/1n2ay7g/comment/... about how Nick's model should support that.TL;DR: Mutability is tracked at the group level, so we can share an immutable group with any number of threads (especially good with structured concurrency) or lend a mutable group to a single other thread. References themselves are still aliasable, regardless of the group's mutability.Taking an existing (mutable, aliasing) group and temporarily interpreting it as immutable has precedent (I did it in Vale [0]) so I like the approach, but I might be biased ;)(This is from my memory of how Nick's proposal works, I'll ask him to give a better answer once morning hits his Australia timezone)[0] https://verdagon.dev/blog/zero-cost-borrowing-regions-part-1...",
+    "parent": 45052248,
     "depth": 2
   },
   {
-    "id": 45052904,
-    "by": "modulared",
-    "timeISO": "2025-08-28T14:50:26.000Z",
-    "textPlain": "> I believe that languages with typestate can cause types to change as a result of function callsDo you have any specific languages?",
-    "parent": 45052036,
+    "id": 45054366,
+    "by": "SkiFire13",
+    "timeISO": "2025-08-28T16:52:25.000Z",
+    "textPlain": "No, Tree Borrows is aimed at defining the semantics of memory accesses. It does not provide a way to statically check whether they are correct, which is what the borrow checker and this proposal aim to do.",
+    "parent": 45053353,
     "depth": 2
   },
   {
@@ -84,6 +100,14 @@
     "by": "verdagon",
     "timeISO": "2025-08-28T13:51:23.000Z",
     "textPlain": "Great point =) That's true for a lot of languages (including Mojo too), so I should have said \"non-owning reference\" there. I'll update the post to clarify. Thanks for catching that!",
+    "parent": 45052036,
+    "depth": 2
+  },
+  {
+    "id": 45052904,
+    "by": "modulared",
+    "timeISO": "2025-08-28T14:50:26.000Z",
+    "textPlain": "> I believe that languages with typestate can cause types to change as a result of function callsDo you have any specific languages?",
     "parent": 45052036,
     "depth": 2
   },
@@ -112,11 +136,11 @@
     "depth": 2
   },
   {
-    "id": 45052300,
+    "id": 45052417,
     "by": "verdagon",
-    "timeISO": "2025-08-28T14:03:07.000Z",
-    "textPlain": "Great question! That's a big enough topic that I'd love to write a followup post about it. There's also a good thread on r/Compilers at https://www.reddit.com/r/Compilers/comments/1n2ay7g/comment/... about how Nick's model should support that.TL;DR: Mutability is tracked at the group level, so we can share an immutable group with any number of threads (especially good with structured concurrency) or lend a mutable group to a single other thread. References themselves are still aliasable, regardless of the group's mutability.Taking an existing (mutable, aliasing) group and temporarily interpreting it as immutable has precedent (I did it in Vale [0]) so I like the approach, but I might be biased ;)(This is from my memory of how Nick's proposal works, I'll ask him to give a better answer once morning hits his Australia timezone)[0] https://verdagon.dev/blog/zero-cost-borrowing-regions-part-1...",
-    "parent": 45052248,
+    "timeISO": "2025-08-28T14:13:06.000Z",
+    "textPlain": "Yep, adding or removing an element would invalidate existing pointers to any other element in the hash table. This is generally regarded as a good thing if your elements are stored contiguously in the hash table, because a resize would cause any existing pointers to dangle. This should be true for C, and might be true for C# if you're using `struct`s which put the data inline (memory's a bit fuzzy on C#'s rules for references to structs though, maybe someone can chime in).This new approach still requires us to be mindful of our data layout. Not caring about data layout is still definitely a strength of GC and RC. I'm actually hoping to find a way to blend Nick's approach seamlessly with reference counting (preferably without risking panics or deadlocks) to get the best of both worlds, so that we can consider it for Mojo. I consider that the holy grail of memory safety, and some recent developments give me some hope for that!(Also, I probably shouldn't mention it since it's not ready, but Nick's newest model might have found a way to solve that for separate-chaining hash maps where addresses are stable. We might be able to express that to the type system, which would be pretty cool.)",
+    "parent": 45052325,
     "depth": 2
   }
 ]
