@@ -1,9 +1,9 @@
 [
   {
-    "id": 45057063,
-    "by": "siva7",
-    "timeISO": "2025-08-28T21:08:52.000Z",
-    "textPlain": "These abstractions are nice to not get locked in with one llm provider - but like with langchain - once you use some more niche feature the bugs do shine through. I tried it out with structured output for azure openai but had to give up since somewhere somewhat was broken and it's difficult to figure out if it's the abstraction or the library of the llm provider which the abstraction uses.Nevertheless i would strongly recommend to not use directly the libraries of the ai providers as you get quickly locked in a extremely fast paced market where today's king can change weekly.",
+    "id": 45057995,
+    "by": "photonthug",
+    "timeISO": "2025-08-28T23:00:21.000Z",
+    "textPlain": "I wanted to love pydantic AI as much as I love pydantic but the killer feature is pydantic-model-completion and weirdly.. it has always seemed to work better for me when I naively build it from scratch without pydantic AI.I haven't looked deeply into pydantic's implementation but this might be related to tool-usage vs completion [0], the backend LLM model, etc.  All I know is that with the same LLM models, `openai.client.chat.completions` + a custom prompt to pass in the pydantic JSON schema + post-processing to instantiate SomePydanticModel(*json) creates objects successfully whereas vanilla pydantic-ai rarely does, regardless of the number of retries.I went with what works in my code, but didn't remove the pydantic-ai dependency completely because I'm hoping something changes.  I'd say that getting dynamic prompt context by leveraging JSON schemas, model-and-field docs from pydantic, plus maybe other results from runtime-inspection (like the actual source-code) is obviously a very good idea. Many people want something like  \"fuzzy compilers\" with structured output, not magical oracles that might return anything.Documentation is context, and even very fuzzy context is becoming a force multiplier.  Similarly languages/frameworks with good support for runtime-inspection/reflection and have an ecosystem with strong tools for things like ASTs really should be the best things to pair with AI and agents.[0]: https://github.com/pydantic/pydantic-ai/issues/582",
     "parent": 45055439,
     "depth": 1
   },
@@ -16,18 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45056338,
-    "by": "bluecoconut",
-    "timeISO": "2025-08-28T19:55:00.000Z",
-    "textPlain": "After maintaining my own agents library for a while, I’ve switched over to pydantic ai recently. I have some minor nits, but overall it's been working great for me. I’ve especially liked combining it with langfuse.Towards coding agents, I wonder if there are any good / efficient ways to measure how much different implementations work on coding? SWE-bench seems good, but expensive to run. Effectively I’m curious for things like: given tool definition X vs Y (eg. diff vs full file edit), prompt for tool X vs Y (how it’s described, does it use examples), model choice (eg. MCP with Claude, but python-exec inline with GPT-5), sub-agents, todo lists, etc. how much across each ablation, does it matter? And measure not just success, but cost to success too (efficiency).Overall, it seems like in the phase space of options, everything “kinda works” but I’m very curious if there are any major lifts, big gotchas, etc.I ask, because it feels like the Claude code cli always does a little bit better, subjectively for me, but I haven’t seen a LLMarena or clear A vs B, comparison or measure.",
+    "id": 45058108,
+    "by": "bgwalter",
+    "timeISO": "2025-08-28T23:16:23.000Z",
+    "textPlain": "Fowler has pushed Agile, UML, Design Patterns, NoSQL, Extreme Programming, Pair Programming.\"AI\" and vibe coding fits very well into that list.",
     "parent": 45055439,
     "depth": 1
   },
   {
-    "id": 45056306,
-    "by": "binalpatel",
-    "timeISO": "2025-08-28T19:51:38.000Z",
-    "textPlain": "Pydantic-AI is lovely - I've been working on a forever, fun project to build a coding agent CLI for a year plus now. IMO it does make constructing any given agent very easy, though the lower level APIs are a little painful to use but they seem to be aware of that.https://github.com/caesarnine/rune-codePart of the reason I switched to it initially wasn't so much it's niceties versus just being disgusted at how poor the documentation/experience of using LiteLLM was and I thought the folks who make Pydantic would do a better job of the \"universal\" interface.",
+    "id": 45057063,
+    "by": "siva7",
+    "timeISO": "2025-08-28T21:08:52.000Z",
+    "textPlain": "These abstractions are nice to not get locked in with one llm provider - but like with langchain - once you use some more niche feature the bugs do shine through. I tried it out with structured output for azure openai but had to give up since somewhere somewhat was broken and it's difficult to figure out if it's the abstraction or the library of the llm provider which the abstraction uses.Nevertheless i would strongly recommend to not use directly the libraries of the ai providers as you get quickly locked in a extremely fast paced market where today's king can change weekly.",
+    "parent": 45055439,
+    "depth": 1
+  },
+  {
+    "id": 45056338,
+    "by": "bluecoconut",
+    "timeISO": "2025-08-28T19:55:00.000Z",
+    "textPlain": "After maintaining my own agents library for a while, I’ve switched over to pydantic ai recently. I have some minor nits, but overall it's been working great for me. I’ve especially liked combining it with langfuse.Towards coding agents, I wonder if there are any good / efficient ways to measure how much different implementations work on coding? SWE-bench seems good, but expensive to run. Effectively I’m curious for things like: given tool definition X vs Y (eg. diff vs full file edit), prompt for tool X vs Y (how it’s described, does it use examples), model choice (eg. MCP with Claude, but python-exec inline with GPT-5), sub-agents, todo lists, etc. how much across each ablation, does it matter? And measure not just success, but cost to success too (efficiency).Overall, it seems like in the phase space of options, everything “kinda works” but I’m very curious if there are any major lifts, big gotchas, etc.I ask, because it feels like the Claude code cli always does a little bit better, subjectively for me, but I haven’t seen a LLMarena or clear A vs B, comparison or measure.",
     "parent": 45055439,
     "depth": 1
   },
@@ -40,11 +48,51 @@
     "depth": 1
   },
   {
-    "id": 45056528,
-    "by": "ziftface",
-    "timeISO": "2025-08-28T20:12:38.000Z",
-    "textPlain": "I had the opposite experience. I liked the niceties of Pydantic AI, but had trouble with it that I found difficult to deal with. For example, some of the models wouldn't stream, but the OpenAI models did. It took months to resolve, and well before that I switched to LiteLLM and just hand-rolled the agentic logic stuff. LiteLLM's docs were simple and everything worked as expected. The agentic code is simple enough that I'm not sure what the value-add for some of these libraries is besides adding complexity and the opportunity for more bugs. I'm sure for more complex use cases they can be useful, but for most of the applications I've seen, a simple translation layer like LiteLLM or maybe OpenRouter is more than enough.",
-    "parent": 45056306,
+    "id": 45056306,
+    "by": "binalpatel",
+    "timeISO": "2025-08-28T19:51:38.000Z",
+    "textPlain": "Pydantic-AI is lovely - I've been working on a forever, fun project to build a coding agent CLI for a year plus now. IMO it does make constructing any given agent very easy, though the lower level APIs are a little painful to use but they seem to be aware of that.https://github.com/caesarnine/rune-codePart of the reason I switched to it initially wasn't so much it's niceties versus just being disgusted at how poor the documentation/experience of using LiteLLM was and I thought the folks who make Pydantic would do a better job of the \"universal\" interface.",
+    "parent": 45055439,
+    "depth": 1
+  },
+  {
+    "id": 45058045,
+    "by": "DouweM",
+    "timeISO": "2025-08-28T23:08:46.000Z",
+    "textPlain": "> All I know is that with the same LLM models, `openai.client.chat.completions` + a custom prompt to pass in the pydantic JSON schema + post-processing to instantiate SomePydanticModel(*json) creates objects successfully whereas vanilla pydantic-ai rarely does, regardless of the number of retries.That's very odd, would you mind sharing the Pydantic model / schema so I can have a look? (I'm a maintainer) What you're doing with a custom prompt that includes the schema sounds like our Prompted output mode (https://ai.pydantic.dev/output/#prompted-output), but you should get better performance still with the Native or Tool output modes (https://ai.pydantic.dev/output/#native-output, https://ai.pydantic.dev/output/#tool-output) which leverage the APIs' native strict JSON schema enforcement.",
+    "parent": 45057995,
+    "depth": 2
+  },
+  {
+    "id": 45057853,
+    "by": "DouweM",
+    "timeISO": "2025-08-28T22:41:08.000Z",
+    "textPlain": "Pydantic AI maintainer here! Did you happen to file an issue for the problem you were seeing with Azure OpenAI?The vast majority of bugs we encounter are not in Pydantic AI itself but rather in having to deal with supposedly OpenAI Chat Completions-compatible APIs that aren't really, and with local models ran through e.g. Ollama or vLLM that tend to not be the best at tool calling.The big three model providers (OpenAI, Claude, Gemini) and enterprise platforms (Bedrock, Vertex, Azure) see the vast majority of usage and our support for them is very stable. It remains a challenge to keep up with their pace of shipping new features and models, but thanks to our 200+ contributors we're usually not far behind the bleeding edge in terms of LLM API feature coverage, and as you may have seen we're very responsive to issues and PRs on GitHub, and questions on Slack.",
+    "parent": 45057063,
+    "depth": 2
+  },
+  {
+    "id": 45057765,
+    "by": "dcreater",
+    "timeISO": "2025-08-28T22:29:47.000Z",
+    "textPlain": "In this example, you get locked into pydantic_ai, another proprietary provider.",
+    "parent": 45057063,
+    "depth": 2
+  },
+  {
+    "id": 45057785,
+    "by": "dcreater",
+    "timeISO": "2025-08-28T22:31:50.000Z",
+    "textPlain": "I wish Python would improve to bridge the gaps between pydantic and dataclasses,  so that we don't have to rely on pydantic. It's too foundational a piece to not be part of the core python anymore",
+    "parent": 45056540,
+    "depth": 2
+  },
+  {
+    "id": 45057990,
+    "by": "DouweM",
+    "timeISO": "2025-08-28T22:59:57.000Z",
+    "textPlain": "I'm curious what issues you've run into, do you happen to have GitHub links so I can have a look? (I'm a maintainer.)Pydantic still sees multiple commits per week, which is less than it was at one point, but I'd say that's a sign of its maturity and stability more than a lack of attention.",
+    "parent": 45056540,
     "depth": 2
   },
   {
@@ -53,6 +101,14 @@
     "timeISO": "2025-08-28T20:34:39.000Z",
     "textPlain": "how so? Was thinking of using it for my next project - would love to hear some of the risks",
     "parent": 45056540,
+    "depth": 2
+  },
+  {
+    "id": 45056528,
+    "by": "ziftface",
+    "timeISO": "2025-08-28T20:12:38.000Z",
+    "textPlain": "I had the opposite experience. I liked the niceties of Pydantic AI, but had trouble with it that I found difficult to deal with. For example, some of the models wouldn't stream, but the OpenAI models did. It took months to resolve, and well before that I switched to LiteLLM and just hand-rolled the agentic logic stuff. LiteLLM's docs were simple and everything worked as expected. The agentic code is simple enough that I'm not sure what the value-add for some of these libraries is besides adding complexity and the opportunity for more bugs. I'm sure for more complex use cases they can be useful, but for most of the applications I've seen, a simple translation layer like LiteLLM or maybe OpenRouter is more than enough.",
+    "parent": 45056306,
     "depth": 2
   }
 ]
