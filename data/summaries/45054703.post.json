@@ -1,0 +1,8 @@
+{
+  "id": 45054703,
+  "lang": "ru",
+  "summary": "Люди слишком уверены в себе. В коде это проявляется так:\n\n```swift\nif currentLocation.distance(to: target) < 100 {\n    print(\"Вы прибыли!\") // А точно ли? 🤨\n```\n\nGPS-координаты приблизительны, но `Bool` требует выбора. Мы «схлопываем волновую функцию» слишком рано.\n\nВ 2014 г. исследователи предложили тип `Uncertain<T>`, встроенный в систему типов. Я портировал идею на Swift:\n\n```swift\nimport Uncertain\n\nlet loc = Uncertain<CLLocation>.from(currentLocation)\nlet nearby = loc.distance(to: target) < 100\nif nearby.probability(exceeds: 0.95) {\n    print(\"Вы прибыли!\") // с 95 % уверенности\n}\n```\n\nСравнение возвращает не `Bool`, а `Uncertain<Bool>` — вероятность истинности. Под капотом используется распределение Рэлея и метод Монте-Карло; выборка происходит только при необходимости, а SPRT экономит вычисления.\n\n```swift\nlet speed = 400 / Uncertain<Double>.normal(mean: 60, sd: 5)\nlet ok = speed < 6\nprint(ok.probability(exceeds: 0.9))\n```\n\nТакой подход делает неопределённость первоклассной и заставляет писать более умный код.",
+  "inputHash": "1c6eef3bc3457fba5eaab64b0416a868c8f2678d5a1f21e331648eb95c192bad",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-28T18:34:56.883Z"
+}
