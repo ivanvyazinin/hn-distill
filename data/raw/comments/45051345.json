@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": 45052325,
+    "by": "estebarb",
+    "timeISO": "2025-08-28T14:05:17.000Z",
+    "textPlain": "I'm not sure if I understand it correctly. So, if I have a hashtable, adding or removing an element would invalidate existing pointers to any other element in the hashtable? I guess it makes sense from a memory release POV, but... I end up thinking that for databases using GC or RC is a better approach. Maybe I'm biased, but I have found far easier to work on databases written in C or C#. For that kind of programs I felt Rust overrestrictive and forcing to more dangerous patterns such as replacing pointers with offsets.",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052229,
+    "by": "verdagon",
+    "timeISO": "2025-08-28T13:53:29.000Z",
+    "textPlain": "Hey all, this is a post explaining a new memory safety model by my friend Nick Smith (original proposal at https://gist.github.com/nmsmith/cdaa94aa74e8e0611221e65db8e4...)It was interesting enough that I knew I had to write a post about it. Happy to answer any questions!",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052293,
+    "by": "mrkeen",
+    "timeISO": "2025-08-28T14:02:07.000Z",
+    "textPlain": "> Because of those \"inaccessible\" rules, we can never have a readwrite reference and a readonly reference to an object at the same time.I can't not see this as a good thing.  It's almost at the level of \"the only thing an ownership system does\".If my thread is operating on a struct of 4 int64s, do I now have to think about another read-only thread  seeing that struct in an invalid partially-written state?",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052248,
+    "by": "nixpulvis",
+    "timeISO": "2025-08-28T13:56:10.000Z",
+    "textPlain": "No mention of how this is safe when operating on data across threads? One of the biggest wins for Rust is sane treatment of references when using parallelism.",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052036,
+    "by": "kibwen",
+    "timeISO": "2025-08-28T13:39:32.000Z",
+    "textPlain": "> In any language, when we hand a function a reference to an object, that function can't destroy the object, nor change its typeThis isn't quite true. While Rust doesn't currently support this, people have proposed the concept of `&own` references that take ownership of the object and free it when the reference goes out of scope (consider that Rust's standard destructor signature, `fn drop(&mut)`, should probably take one of these hypothetical owning references). I addition, I believe that languages with typestate can cause types to change as a result of function calls, although I don't quite understand the details.",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052417,
+    "by": "verdagon",
+    "timeISO": "2025-08-28T14:13:06.000Z",
+    "textPlain": "Yep, adding or removing an element would invalidate existing pointers to any other element in the hash table. This is generally regarded as a good thing if your elements are stored contiguously in the hash table, because a resize would cause any existing pointers to dangle. This should be true for C, and might be true for C# if you're using `struct`s which put the data inline (memory's a bit fuzzy on C#'s rules for references to structs though, maybe someone can chime in).This new approach still requires us to be mindful of our data layout. Not caring about data layout is still definitely a strength of GC and RC. I'm actually hoping to find a way to blend Nick's approach seamlessly with reference counting (preferably without risking panics or deadlocks) to get the best of both worlds, so that we can consider it for Mojo. I consider that the holy grail of memory safety, and some recent developments give me some hope for that!(Also, I probably shouldn't mention it since it's not ready, but Nick's newest model might have found a way to solve that for separate-chaining hash maps where addresses are stable. We might be able to express that to the type system, which would be pretty cool.)",
+    "parent": 45052325,
+    "depth": 2
+  },
+  {
+    "id": 45052300,
+    "by": "verdagon",
+    "timeISO": "2025-08-28T14:03:07.000Z",
+    "textPlain": "Great question! That's a big enough topic that I'd love to write a followup post about it. There's also a good thread on r/Compilers at https://www.reddit.com/r/Compilers/comments/1n2ay7g/comment/... about how Nick's model should support that.TL;DR: Mutability is tracked at the group level, so we can share an immutable group with any number of threads (especially good with structured concurrency) or lend a mutable group to a single other thread. References themselves are still aliasable, regardless of the group's mutability.Taking an existing (mutable, aliasing) group and temporarily interpreting it as immutable has precedent (I did it in Vale [0]) so I like the approach, but I might be biased ;)(This is from my memory of how Nick's proposal works, I'll ask him to give a better answer once morning hits his Australia timezone)[0] https://verdagon.dev/blog/zero-cost-borrowing-regions-part-1...",
+    "parent": 45052248,
+    "depth": 2
+  },
+  {
+    "id": 45052194,
+    "by": "verdagon",
+    "timeISO": "2025-08-28T13:51:23.000Z",
+    "textPlain": "Great point =) That's true for a lot of languages (including Mojo too), so I should have said \"non-owning reference\" there. I'll update the post to clarify. Thanks for catching that!",
+    "parent": 45052036,
+    "depth": 2
+  },
+  {
+    "id": 45052204,
+    "by": "skywal_l",
+    "timeISO": "2025-08-28T13:52:02.000Z",
+    "textPlain": "I don't understand your comment. `drop` takes a *mutable* reference. But by default, references in Rust are immutable.",
+    "parent": 45052036,
+    "depth": 2
+  }
+]
