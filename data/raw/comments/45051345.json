@@ -1,9 +1,9 @@
 [
   {
-    "id": 45052325,
-    "by": "estebarb",
-    "timeISO": "2025-08-28T14:05:17.000Z",
-    "textPlain": "I'm not sure if I understand it correctly. So, if I have a hashtable, adding or removing an element would invalidate existing pointers to any other element in the hashtable? I guess it makes sense from a memory release POV, but... I end up thinking that for databases using GC or RC is a better approach. Maybe I'm biased, but I have found far easier to work on databases written in C or C#. For that kind of programs I felt Rust overrestrictive and forcing to more dangerous patterns such as replacing pointers with offsets.",
+    "id": 45053050,
+    "by": "sirwhinesalot",
+    "timeISO": "2025-08-28T14:59:45.000Z",
+    "textPlain": "I had a somewhat related idea to this which was simply to track reference stability (i.e., is there any operation beyond freeing the data outright that will invalidate them).A reference into a vector is unstable so you can only have 1 mut xor N read. A reference into an arena is stable so you can have all the muts you want, but they cannot be sent across threads.Reference to object vs reference to contents is also related, you can safely have multiple mut references to the same object that cannot invalidate each other, even if they invalidate references to the contents.This can be tracked with path analysis as employed by Hylo (Hylo only has second class references, but I mean the algorithm they use to track paths is applicable).",
     "parent": 45051345,
     "depth": 1
   },
@@ -24,10 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45052248,
-    "by": "nixpulvis",
-    "timeISO": "2025-08-28T13:56:10.000Z",
-    "textPlain": "No mention of how this is safe when operating on data across threads? One of the biggest wins for Rust is sane treatment of references when using parallelism.",
+    "id": 45053353,
+    "by": "Joker_vD",
+    "timeISO": "2025-08-28T15:22:08.000Z",
+    "textPlain": "There is also \"Tree Borrows\" [0] proposal for Rust, which is aimed at the same problem.[0] https://perso.crans.org/vanille/treebor/aux/preprint.pdf",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052325,
+    "by": "estebarb",
+    "timeISO": "2025-08-28T14:05:17.000Z",
+    "textPlain": "I'm not sure if I understand it correctly. So, if I have a hashtable, adding or removing an element would invalidate existing pointers to any other element in the hashtable? I guess it makes sense from a memory release POV, but... I end up thinking that for databases using GC or RC is a better approach. Maybe I'm biased, but I have found far easier to work on databases written in C or C#. For that kind of programs I felt Rust overrestrictive and forcing to more dangerous patterns such as replacing pointers with offsets.",
     "parent": 45051345,
     "depth": 1
   },
@@ -40,6 +48,22 @@
     "depth": 1
   },
   {
+    "id": 45052248,
+    "by": "nixpulvis",
+    "timeISO": "2025-08-28T13:56:10.000Z",
+    "textPlain": "No mention of how this is safe when operating on data across threads? One of the biggest wins for Rust is sane treatment of references when using parallelism.",
+    "parent": 45051345,
+    "depth": 1
+  },
+  {
+    "id": 45052591,
+    "by": "wavemode",
+    "timeISO": "2025-08-28T14:27:48.000Z",
+    "textPlain": "Ideally, the rules for single-threaded references and references that are allowed to be shared across threads would be different.",
+    "parent": 45052293,
+    "depth": 2
+  },
+  {
     "id": 45052417,
     "by": "verdagon",
     "timeISO": "2025-08-28T14:13:06.000Z",
@@ -48,11 +72,11 @@
     "depth": 2
   },
   {
-    "id": 45052300,
-    "by": "verdagon",
-    "timeISO": "2025-08-28T14:03:07.000Z",
-    "textPlain": "Great question! That's a big enough topic that I'd love to write a followup post about it. There's also a good thread on r/Compilers at https://www.reddit.com/r/Compilers/comments/1n2ay7g/comment/... about how Nick's model should support that.TL;DR: Mutability is tracked at the group level, so we can share an immutable group with any number of threads (especially good with structured concurrency) or lend a mutable group to a single other thread. References themselves are still aliasable, regardless of the group's mutability.Taking an existing (mutable, aliasing) group and temporarily interpreting it as immutable has precedent (I did it in Vale [0]) so I like the approach, but I might be biased ;)(This is from my memory of how Nick's proposal works, I'll ask him to give a better answer once morning hits his Australia timezone)[0] https://verdagon.dev/blog/zero-cost-borrowing-regions-part-1...",
-    "parent": 45052248,
+    "id": 45052904,
+    "by": "modulared",
+    "timeISO": "2025-08-28T14:50:26.000Z",
+    "textPlain": "> I believe that languages with typestate can cause types to change as a result of function callsDo you have any specific languages?",
+    "parent": 45052036,
     "depth": 2
   },
   {
@@ -69,6 +93,30 @@
     "timeISO": "2025-08-28T13:52:02.000Z",
     "textPlain": "I don't understand your comment. `drop` takes a *mutable* reference. But by default, references in Rust are immutable.",
     "parent": 45052036,
+    "depth": 2
+  },
+  {
+    "id": 45052616,
+    "by": "wavemode",
+    "timeISO": "2025-08-28T14:30:02.000Z",
+    "textPlain": "An &own reference seems like it would just be equivalent to a Box.",
+    "parent": 45052036,
+    "depth": 2
+  },
+  {
+    "id": 45052553,
+    "by": "littlestymaar",
+    "timeISO": "2025-08-28T14:24:44.000Z",
+    "textPlain": "Intriguing, what would be the purpose of such owning references compared to just passing ownership? Is that to have a way to reliably avoid memcopying large objects when passing them by value?",
+    "parent": 45052036,
+    "depth": 2
+  },
+  {
+    "id": 45052300,
+    "by": "verdagon",
+    "timeISO": "2025-08-28T14:03:07.000Z",
+    "textPlain": "Great question! That's a big enough topic that I'd love to write a followup post about it. There's also a good thread on r/Compilers at https://www.reddit.com/r/Compilers/comments/1n2ay7g/comment/... about how Nick's model should support that.TL;DR: Mutability is tracked at the group level, so we can share an immutable group with any number of threads (especially good with structured concurrency) or lend a mutable group to a single other thread. References themselves are still aliasable, regardless of the group's mutability.Taking an existing (mutable, aliasing) group and temporarily interpreting it as immutable has precedent (I did it in Vale [0]) so I like the approach, but I might be biased ;)(This is from my memory of how Nick's proposal works, I'll ask him to give a better answer once morning hits his Australia timezone)[0] https://verdagon.dev/blog/zero-cost-borrowing-regions-part-1...",
+    "parent": 45052248,
     "depth": 2
   }
 ]
