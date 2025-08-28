@@ -1,9 +1,9 @@
 [
   {
-    "id": 45056588,
-    "by": "dang",
-    "timeISO": "2025-08-28T20:18:13.000Z",
-    "textPlain": "Related:That boolean should probably be something else - https://news.ycombinator.com/item?id=44423995 - June 2025 (1 comment, but it's solid)",
+    "id": 45057138,
+    "by": "amelius",
+    "timeISO": "2025-08-28T21:16:43.000Z",
+    "textPlain": "> A lot of boolean data is representing a temporal event having happened. For example, websites often have you confirm your email. This may be stored as a boolean column, is_confirmed, in the database. It makes a lot of sense.> But, you're throwing away data: when the confirmation happened. You can instead store when the user confirmed their email in a nullable column. You can still get the same information by checking whether the column is null. But you also get richer data for other purposes.So the Boolean should be something else + NULL?Now we have another problem ...",
     "parent": 45051361,
     "depth": 1
   },
@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45051959,
-    "by": "taylodl",
-    "timeISO": "2025-08-28T13:33:03.000Z",
-    "textPlain": "What I'm getting out of this is boolean shouldn't be a state that's durably stored, it's ephemeral, an artifact of runtime processing. You wouldn't likely durably store a boolean in an OLTP store, but your ETL into the OLAP store may capture a boolean to simplify logic for all the systems using the OLAP store to drive decision support. That is, it's an optimization. That feels right, but I've never really thought through this before. Interesting!",
-    "parent": 45051361,
-    "depth": 1
-  },
-  {
     "id": 45051958,
     "by": "Fraterkes",
     "timeISO": "2025-08-28T13:32:58.000Z",
@@ -48,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45052323,
-    "by": "bayindirh",
-    "timeISO": "2025-08-28T14:05:12.000Z",
-    "textPlain": "I'll expand on the first example, the datetime one.Many user databases use soft-deletes where fields can change or be deleted, so user's actions can be logged, investigated or rolled back.When user changes their e-mail (or adds another one), we add a row, and \"verifiedAt\" is now null. User verifies new email, so its time is recorded to the \"verifiedAt\" field.Now, we have many e-mails for the same user with valid \"verifiedAt\" fields. Which one is the current one? We need another boolean for that (isCurrent). Selecting the last one doesn't make sense all the time, because we might have primary and backup mails, and the oldest one might be the primary one.If we want to support multiple valid e-mails for a single account, we might need another boolean field \"isPrimary\". So it makes two additional booleans. isCurrent, isPrimary.I can merge it into a nice bit field or a comma separated value list, but it defeats the purpose and wanders into code-golf territory.Booleans are nice. Love them, and don't kick them around because they're small, and sometimes round.",
+    "id": 45051959,
+    "by": "taylodl",
+    "timeISO": "2025-08-28T13:33:03.000Z",
+    "textPlain": "What I'm getting out of this is boolean shouldn't be a state that's durably stored, it's ephemeral, an artifact of runtime processing. You wouldn't likely durably store a boolean in an OLTP store, but your ETL into the OLAP store may capture a boolean to simplify logic for all the systems using the OLAP store to drive decision support. That is, it's an optimization. That feels right, but I've never really thought through this before. Interesting!",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
+    "id": 45056588,
+    "by": "dang",
+    "timeISO": "2025-08-28T20:18:13.000Z",
+    "textPlain": "Related:That boolean should probably be something else - https://news.ycombinator.com/item?id=44423995 - June 2025 (1 comment, but it's solid)",
     "parent": 45051361,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "jbreckmckye",
     "timeISO": "2025-08-28T13:34:52.000Z",
     "textPlain": "To summarise: booleans should be derived, not stored",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
+    "id": 45052323,
+    "by": "bayindirh",
+    "timeISO": "2025-08-28T14:05:12.000Z",
+    "textPlain": "I'll expand on the first example, the datetime one.Many user databases use soft-deletes where fields can change or be deleted, so user's actions can be logged, investigated or rolled back.When user changes their e-mail (or adds another one), we add a row, and \"verifiedAt\" is now null. User verifies new email, so its time is recorded to the \"verifiedAt\" field.Now, we have many e-mails for the same user with valid \"verifiedAt\" fields. Which one is the current one? We need another boolean for that (isCurrent). Selecting the last one doesn't make sense all the time, because we might have primary and backup mails, and the oldest one might be the primary one.If we want to support multiple valid e-mails for a single account, we might need another boolean field \"isPrimary\". So it makes two additional booleans. isCurrent, isPrimary.I can merge it into a nice bit field or a comma separated value list, but it defeats the purpose and wanders into code-golf territory.Booleans are nice. Love them, and don't kick them around because they're small, and sometimes round.",
     "parent": 45051361,
     "depth": 1
   },
@@ -112,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45056760,
+    "by": "zwieback",
+    "timeISO": "2025-08-28T20:35:46.000Z",
+    "textPlain": "Maybe for the DB domain author is talking about but the nice thing about a bool is that it's true or false. I don't have to dig around documentation or look through the code what the convention of converting enum, datetime, etc. to true/false is. 1970/1/1 (I was four years old then, just sayin), -6000 or something else?Nullable helps a lot here but not all languages support that the same way.",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
     "id": 45052511,
     "by": "eflim",
     "timeISO": "2025-08-28T14:21:01.000Z",
@@ -152,10 +168,10 @@
     "depth": 1
   },
   {
-    "id": 45052401,
-    "by": "arethuza",
-    "timeISO": "2025-08-28T14:11:50.000Z",
-    "textPlain": "If you use keyword arguments then something like that doesn't look too bad:serialize(someObject, prettyPrint:true)NB I have no idea whether Lua has keyword arguments but if your language does then that would seem to address your particular issue?",
+    "id": 45057136,
+    "by": "StopDisinfo910",
+    "timeISO": "2025-08-28T21:16:36.000Z",
+    "textPlain": "Named arguments are a solution to precisely this issue. With optional arguments with default value, you get to do precisely what was being done in your Lua code but with self documenting code.I personally believe very strongly that people shouldn’t use programming languages lacking basic functionalities.",
     "parent": 45052307,
     "depth": 2
   },
@@ -164,6 +180,14 @@
     "by": "account42",
     "timeISO": "2025-08-28T14:39:16.000Z",
     "textPlain": "But this isn't really a boolean problem - even in your example there is another mistery argument: nilAnd you can get the same problem with any argument type. What do the arguments in  copy(obectA, objectB, \"\")\n\nmean?In general, you're going to need some kind of way to communicate the purpose - named parameters, IDE autocomplete, whatever - and once you have that then booleans are not worse than any other type.",
+    "parent": 45052307,
+    "depth": 2
+  },
+  {
+    "id": 45052401,
+    "by": "arethuza",
+    "timeISO": "2025-08-28T14:11:50.000Z",
+    "textPlain": "If you use keyword arguments then something like that doesn't look too bad:serialize(someObject, prettyPrint:true)NB I have no idea whether Lua has keyword arguments but if your language does then that would seem to address your particular issue?",
     "parent": 45052307,
     "depth": 2
   },
@@ -197,14 +221,6 @@
     "timeISO": "2025-08-28T15:42:34.000Z",
     "textPlain": "That's why you have coding style guides and documentation.  Both choices are \"correct\", you just need to be consistent.",
     "parent": 45052211,
-    "depth": 2
-  },
-  {
-    "id": 45051995,
-    "by": "jbreckmckye",
-    "timeISO": "2025-08-28T13:36:30.000Z",
-    "textPlain": "This makes intuitive sense because booleans are obviously reductive, as reductive as it gets (ideally stored in 1 bit), but for processing and analysis there's typically no reason to store data so sparingly",
-    "parent": 45051959,
     "depth": 2
   },
   {
@@ -269,6 +285,14 @@
     "timeISO": "2025-08-28T14:27:44.000Z",
     "textPlain": "I think it’s implicitly in the context of datastore design. In that context it feels like decent advice that would prevent a lot of mess.",
     "parent": 45052361,
+    "depth": 2
+  },
+  {
+    "id": 45051995,
+    "by": "jbreckmckye",
+    "timeISO": "2025-08-28T13:36:30.000Z",
+    "textPlain": "This makes intuitive sense because booleans are obviously reductive, as reductive as it gets (ideally stored in 1 bit), but for processing and analysis there's typically no reason to store data so sparingly",
+    "parent": 45051959,
     "depth": 2
   },
   {
