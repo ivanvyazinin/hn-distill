@@ -1,9 +1,9 @@
 [
   {
-    "id": 45052323,
-    "by": "bayindirh",
-    "timeISO": "2025-08-28T14:05:12.000Z",
-    "textPlain": "I'll expand on the first example, the datetime one.Many user databases use soft-deletes where fields can change or be deleted, so user's actions can be logged, investigated or rolled back.When user changes their e-mail (or adds another one), we add a row, and \"verifiedAt\" is now null. User verifies new email, so its time is recorded to the \"verifiedAt\" field.Now, we have many e-mails for the same user with valid \"verifiedAt\" fields. Which one is the current one? We need another boolean for that (isCurrent). Selecting the last one doesn't make sense all the time, because we might have primary and backup mails, and the oldest one might be the primary one.If we want to support multiple valid e-mails for a single account, we might need another boolean field \"isPrimary\". So it makes two additional booleans. isCurrent, isPrimary.I can merge it into a nice bit field or a comma separated value list, but it defeats the purpose and wanders into code-golf territory.Booleans are nice. Love them, and don't kick them around because they're small, and sometimes round.",
+    "id": 45056588,
+    "by": "dang",
+    "timeISO": "2025-08-28T20:18:13.000Z",
+    "textPlain": "Related:That boolean should probably be something else - https://news.ycombinator.com/item?id=44423995 - June 2025 (1 comment, but it's solid)",
     "parent": 45051361,
     "depth": 1
   },
@@ -11,15 +11,15 @@
     "id": 45052307,
     "by": "OskarS",
     "timeISO": "2025-08-28T14:03:54.000Z",
-    "textPlain": "A piece of advise I read somewhere early in my career was \"a boolean should almost never be an argument to a function\". I didn't understand what the problem was at the time, but then years later I started at a company with a large Lua code-base (mostly written by one-two developers) and there were many lines of code that looked like this:   serialize(someObject, true, false, nil, true)\n\nWhat does those extra arguments do? Who knows, it's impossible without looking at the function definition.Basically, what had happened was that the developer had written a function (\"serialize()\", in this example) and then later discovered that they wanted slightly different behaviour in some cases (maybe pretty printed or something). Since Lua allows you to change arity of a function without changing call-sites (missing arguments are just nil), they had just added a flag as an argument. And then another flag. And then another.I now believe very strongly that you should virtually never have a boolean as an argument to a function. There are exceptions, but not many.",
+    "textPlain": "A piece of advice I read somewhere early in my career was \"a boolean should almost never be an argument to a function\". I didn't understand what the problem was at the time, but then years later I started at a company with a large Lua code-base (mostly written by one-two developers) and there were many lines of code that looked like this:   serialize(someObject, true, false, nil, true)\n\nWhat does those extra arguments do? Who knows, it's impossible without looking at the function definition.Basically, what had happened was that the developer had written a function (\"serialize()\", in this example) and then later discovered that they wanted slightly different behaviour in some cases (maybe pretty printed or something). Since Lua allows you to change arity of a function without changing call-sites (missing arguments are just nil), they had just added a flag as an argument. And then another flag. And then another.I now believe very strongly that you should virtually never have a boolean as an argument to a function. There are exceptions, but not many.",
     "parent": 45051361,
     "depth": 1
   },
   {
-    "id": 45052511,
-    "by": "eflim",
-    "timeISO": "2025-08-28T14:21:01.000Z",
-    "textPlain": "I would add counters to this list. Start from zero (false), and then you know not just whether an event has occurred, but how many times.",
+    "id": 45052211,
+    "by": "fifticon",
+    "timeISO": "2025-08-28T13:52:27.000Z",
+    "textPlain": "The scope of TFA is data modelling, where it advises to use more descriptive data values, such as enums or happenedAtTimestamp.However, personally I agree with the advice, in another context: Function return types, and if-statements.Often, some critical major situation or direction is communicated with returned booleans.\nThey will indicate something like 'did-optimizer-pass-succeed-or-run-to-completion-or-finish',\nstuff like that.\nAnd this will determine how the program proceeds next (retry, abort, continue, etc.)A problem arises when multiple developers (maybe yourself, in 3 months) need to communicate about and understand this correctly.Sometimes, that returned value will mean\n'function-was-successful'.\nSometimes it means 'true if there were problems/issues'\n(the way to this perspective, is when the function is 'checkForProblems'/verify/sanitycheck() ).Another way to make confusion with this, is when multiple functions are available to plug in or proceed to call - and people assume they all agree on \"true is OK, false is problems\" or vice versa.A third and maybe most important variant, is when 'the return value doesn't quite mean what you thought'.\n - 'I thought it meant \"a map has been allocated\".'\n - but it means 'a map exists' (but has not necesarily been allocated, if it was pre-existing).All this can be attacked with two-value enums, \nNO_CONVERSION_FAILED=0, YES_CONVERSION_WAS_SUCCESFUL=1 .\n(and yes, I see the peril in putting 0 and 1 there, but any value will be dangerous..)",
     "parent": 45051361,
     "depth": 1
   },
@@ -40,22 +40,6 @@
     "depth": 1
   },
   {
-    "id": 45052336,
-    "by": "alphazard",
-    "timeISO": "2025-08-28T14:06:13.000Z",
-    "textPlain": "The timestamps instead of boolean thing is something good engineers stumble upon pretty reliably.  One gotcha is the database might be weird about indexing nulls.  I'm not going to give an example because you should really read the docs for your specific database if this matters.The ever growing set of boolean flags seems to be an attractor state for database schemas.  Unless you take steps to avoid/prohibit it, people will reach for a single boolean flag for their project/task.  Fortunately it's pretty easy to explain why it's bad with a counting argument. e.g. There are this many states with booleans, and this fraction are valid vs. this many with the enum and this fraction are valid.  There is no verification, so a misunderstanding is more likely to produce an invalid state than a valid state.",
-    "parent": 45051361,
-    "depth": 1
-  },
-  {
-    "id": 45052211,
-    "by": "fifticon",
-    "timeISO": "2025-08-28T13:52:27.000Z",
-    "textPlain": "The scope of TFA is data modelling, where it advises to use more descriptive data values, such as enums or happenedAtTimestamp.However, personally I agree with the advice, in another context: Function return types, and if-statements.Often, some critical major situation or direction is communicated with returned booleans.\nThey will indicate something like 'did-optimizer-pass-succeed-or-run-to-completion-or-finish',\nstuff like that.\nAnd this will determine how the program proceeds next (retry, abort, continue, etc.)A problem arises when multiple developers (maybe yourself, in 3 months) need to communicate about and understand this correctly.Sometimes, that returned value will mean\n'function-was-successful'.\nSometimes it means 'true if there were problems/issues'\n(the way to this perspective, is when the function is 'checkForProblems'/verify/sanitycheck() ).Another way to make confusion with this, is when multiple functions are available to plug in or proceed to call - and people assume they all agree on \"true is OK, false is problems\" or vice versa.A third and maybe most important variant, is when 'the return value doesn't quite mean what you thought'.\n - 'I thought it meant \"a map has been allocated\".'\n - but it means 'a map exists' (but has not necesarily been allocated, if it was pre-existing).All this can be attacked with two-value enums, \nNO_CONVERSION_FAILED=0, YES_CONVERSION_WAS_SUCCESFUL=1 .\n(and yes, I see the peril in putting 0 and 1 there, but any value will be dangerous..)",
-    "parent": 45051361,
-    "depth": 1
-  },
-  {
     "id": 45052361,
     "by": "bsoles",
     "timeISO": "2025-08-28T14:08:00.000Z",
@@ -64,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45052148,
-    "by": "mrheosuper",
-    "timeISO": "2025-08-28T13:47:50.000Z",
-    "textPlain": "I dont like this pattern.The author example, checking if \"Datetime is null\" to check if user is authorized or not, is not clear.What if there are other field associated with login session like login Location ? Now you dont know exactly what field to check.Or if you receive Null in Datetime field, is it because the user has not login, or because there is problem when retriving Datetime ?This is just micro-optimization for no good reason",
+    "id": 45052323,
+    "by": "bayindirh",
+    "timeISO": "2025-08-28T14:05:12.000Z",
+    "textPlain": "I'll expand on the first example, the datetime one.Many user databases use soft-deletes where fields can change or be deleted, so user's actions can be logged, investigated or rolled back.When user changes their e-mail (or adds another one), we add a row, and \"verifiedAt\" is now null. User verifies new email, so its time is recorded to the \"verifiedAt\" field.Now, we have many e-mails for the same user with valid \"verifiedAt\" fields. Which one is the current one? We need another boolean for that (isCurrent). Selecting the last one doesn't make sense all the time, because we might have primary and backup mails, and the oldest one might be the primary one.If we want to support multiple valid e-mails for a single account, we might need another boolean field \"isPrimary\". So it makes two additional booleans. isCurrent, isPrimary.I can merge it into a nice bit field or a comma separated value list, but it defeats the purpose and wanders into code-golf territory.Booleans are nice. Love them, and don't kick them around because they're small, and sometimes round.",
     "parent": 45051361,
     "depth": 1
   },
@@ -80,10 +64,26 @@
     "depth": 1
   },
   {
+    "id": 45052336,
+    "by": "alphazard",
+    "timeISO": "2025-08-28T14:06:13.000Z",
+    "textPlain": "The timestamps instead of boolean thing is something good engineers stumble upon pretty reliably.  One gotcha is the database might be weird about indexing nulls.  I'm not going to give an example because you should really read the docs for your specific database if this matters.The ever growing set of boolean flags seems to be an attractor state for database schemas.  Unless you take steps to avoid/prohibit it, people will reach for a single boolean flag for their project/task.  Fortunately it's pretty easy to explain why it's bad with a counting argument. e.g. There are this many states with booleans, and this fraction are valid vs. this many with the enum and this fraction are valid.  There is no verification, so a misunderstanding is more likely to produce an invalid state than a valid state.",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
     "id": 45051501,
     "by": "ck45",
     "timeISO": "2025-08-28T12:46:33.000Z",
     "textPlain": "One argument that I’m missing in the article is that with an enumerated, states are mutually exclusive, while withseveral booleans, there could be some limbo state of several bool columns with value true, e.g. is_guest and is_admin, which is an invalid state.",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
+    "id": 45052148,
+    "by": "mrheosuper",
+    "timeISO": "2025-08-28T13:47:50.000Z",
+    "textPlain": "I dont like this pattern.The author example, checking if \"Datetime is null\" to check if user is authorized or not, is not clear.What if there are other field associated with login session like login Location ? Now you dont know exactly what field to check.Or if you receive Null in Datetime field, is it because the user has not login, or because there is problem when retriving Datetime ?This is just micro-optimization for no good reason",
     "parent": 45051361,
     "depth": 1
   },
@@ -96,6 +96,14 @@
     "depth": 1
   },
   {
+    "id": 45053917,
+    "by": "Duanemclemore",
+    "timeISO": "2025-08-28T16:09:52.000Z",
+    "textPlain": "APL and its descendents don't have booleans, just 0 and 1 [0]. Which is awesome. It allows for bitmasks, sums / reductions, and even conditionals via Iverson Brackets. [1][0] https://aplwiki.com/wiki/Boolean[1] https://en.m.wikipedia.org/wiki/Iverson_bracket",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
     "id": 45052170,
     "by": "coin",
     "timeISO": "2025-08-28T13:49:22.000Z",
@@ -104,10 +112,26 @@
     "depth": 1
   },
   {
+    "id": 45052511,
+    "by": "eflim",
+    "timeISO": "2025-08-28T14:21:01.000Z",
+    "textPlain": "I would add counters to this list. Start from zero (false), and then you know not just whether an event has occurred, but how many times.",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
     "id": 45052226,
     "by": "the__alchemist",
     "timeISO": "2025-08-28T13:53:19.000Z",
     "textPlain": "I read an article with the same premise here a few years ago.A Boolean is a special, universal case of an enum (or whatever you prefer to call these choice types...) that is semantically valid for many uses.I'm also an enum fanboy, and agree with the article's examples. It's conclusion of not using booleans because enums are more appropriate in some cases is wrong.Some cases are good uses of booleans. If you find a Boolean isn't semantically clear, or you need a third variant, then move to an enum.",
+    "parent": 45051361,
+    "depth": 1
+  },
+  {
+    "id": 45052557,
+    "by": "arethuza",
+    "timeISO": "2025-08-28T14:25:01.000Z",
+    "textPlain": "I once, briefly, worked with a developer who believed that you should never use primitive types for fields or parameters...",
     "parent": 45051361,
     "depth": 1
   },
@@ -136,6 +160,46 @@
     "depth": 2
   },
   {
+    "id": 45052756,
+    "by": "account42",
+    "timeISO": "2025-08-28T14:39:16.000Z",
+    "textPlain": "But this isn't really a boolean problem - even in your example there is another mistery argument: nilAnd you can get the same problem with any argument type. What do the arguments in  copy(obectA, objectB, \"\")\n\nmean?In general, you're going to need some kind of way to communicate the purpose - named parameters, IDE autocomplete, whatever - and once you have that then booleans are not worse than any other type.",
+    "parent": 45052307,
+    "depth": 2
+  },
+  {
+    "id": 45052555,
+    "by": "lelanthran",
+    "timeISO": "2025-08-28T14:24:57.000Z",
+    "textPlain": "It's a failing of many type systems of older languages (except Pascal).The best way in many languages for flags is using unsigned integers that are botwise-ORed together.In pseudocode:    Object someObject;\n    foo (someObject, Object.Flag1 | Object.Flag2 | Object.Flag3);\n\nWhatever language you are using, it probably has some namespaced way to define flags as `(1 << 0)` and `(1 << 1)` etc.",
+    "parent": 45052307,
+    "depth": 2
+  },
+  {
+    "id": 45055007,
+    "by": "0x3444ac53",
+    "timeISO": "2025-08-28T17:53:55.000Z",
+    "textPlain": "I think the answer to this (specific to lua) is passing a table as an argument that gets unpacked.",
+    "parent": 45052307,
+    "depth": 2
+  },
+  {
+    "id": 45052898,
+    "by": "nutjob2",
+    "timeISO": "2025-08-28T14:49:58.000Z",
+    "textPlain": "> I now believe very strongly that you should virtually never have a boolean as an argument to a function. There are exceptions, but not many.Really? That sounds unjustified outside of some specific context. As a general rule I just can't see it.I don't see whats fundamentally wrong with it. Whats the alternative? Multiple static functions with different names corresponding to the flags and code duplication, plus switch statements to select the right function?Or maybe you're making some other point?",
+    "parent": 45052307,
+    "depth": 2
+  },
+  {
+    "id": 45053617,
+    "by": "1718627440",
+    "timeISO": "2025-08-28T15:42:34.000Z",
+    "textPlain": "That's why you have coding style guides and documentation.  Both choices are \"correct\", you just need to be consistent.",
+    "parent": 45052211,
+    "depth": 2
+  },
+  {
     "id": 45051995,
     "by": "jbreckmckye",
     "timeISO": "2025-08-28T13:36:30.000Z",
@@ -152,6 +216,14 @@
     "depth": 2
   },
   {
+    "id": 45052789,
+    "by": "joshstrange",
+    "timeISO": "2025-08-28T14:41:09.000Z",
+    "textPlain": "Normally you'd name the field `created_at`, `updated_at`, or similar which I think makes it very clear.> Making a boolean a datetime, just in case you ever want to use the data, is not the kind of pattern that makes your code clearer in my opinion.I don't follow at all, if your field is named as when a thing happened (`_at` suffix) then that seems very clear. Also, even if you never expose this via UI it can be a godsend for debugging \"Oh, it was updated on XXXX-XX-XX, that's when we had Y bug or that's why Z service was having an issue\".",
+    "parent": 45051958,
+    "depth": 2
+  },
+  {
     "id": 45051996,
     "by": "bluGill",
     "timeISO": "2025-08-28T13:36:30.000Z",
@@ -160,19 +232,51 @@
     "depth": 2
   },
   {
+    "id": 45052560,
+    "by": "jilles",
+    "timeISO": "2025-08-28T14:25:16.000Z",
+    "textPlain": "* led status: on, off, non-responsive\n* button status: idle, pressing, pressedI'm with you by the way, but you can often think of a way to use enums instead (not saying you should).",
+    "parent": 45052361,
+    "depth": 2
+  },
+  {
+    "id": 45052886,
+    "by": "aDyslecticCrow",
+    "timeISO": "2025-08-28T14:48:42.000Z",
+    "textPlain": "The boolean type is the massive whaste, not the enum. A boolean in c is just a full int. So definitely not a whaste to use an enum which is also an int.And usually you use operations to isolate the bit from a status byte or word, which is how it's also stored and accessed in registers anyway.So its still no boolean type despite expressing boolean things.Enums also help keep the state machine clear. {Init, on, off, error} capture a larger part of the program behavior in a clear format than 2-3 binary flags, despite describing the same function. Every new boolean flag is a two state composite state machine hiding edgecases.",
+    "parent": 45052361,
+    "depth": 2
+  },
+  {
+    "id": 45052542,
+    "by": "leni536",
+    "timeISO": "2025-08-28T14:23:53.000Z",
+    "textPlain": "> Using Enums, etc. to represent those values in the embedded world would be a monumental waste of memory, where a single bit would normally suffice.In C++ you can use enums in bit-fields, not sure what the case is in C.",
+    "parent": 45052361,
+    "depth": 2
+  },
+  {
+    "id": 45052671,
+    "by": "kps",
+    "timeISO": "2025-08-28T14:33:51.000Z",
+    "textPlain": "They're boolean (single bit of information) but not boolean (single bit interpreted as meaning true or false). The LED isn't true or false, the microcontroller pin isn't true or false.",
+    "parent": 45052361,
+    "depth": 2
+  },
+  {
+    "id": 45052590,
+    "by": "padjo",
+    "timeISO": "2025-08-28T14:27:44.000Z",
+    "textPlain": "I think it’s implicitly in the context of datastore design. In that context it feels like decent advice that would prevent a lot of mess.",
+    "parent": 45052361,
+    "depth": 2
+  },
+  {
     "id": 45052503,
     "by": "pixelfarmer",
     "timeISO": "2025-08-28T14:20:03.000Z",
     "textPlain": "There can be verification for such things.",
     "parent": 45052336,
-    "depth": 2
-  },
-  {
-    "id": 45052358,
-    "by": "monkeyelite",
-    "timeISO": "2025-08-28T14:07:46.000Z",
-    "textPlain": "> Now you dont know exactly what field to check.Yes you do - you have a helper method that encapsulates the details.In the DB you could also make a view or generated column.> This is just micro-optimization for no good reasonIt’s conceptually simpler to have a representation with fewer states, and bugs are hopefully impossible. For example what would it mean for the bool authorized to be false but the authorized date time to be non-null?",
-    "parent": 45052148,
     "depth": 2
   },
   {
@@ -189,6 +293,14 @@
     "timeISO": "2025-08-28T13:44:28.000Z",
     "textPlain": "look up the typestate pattern.",
     "parent": 45051501,
+    "depth": 2
+  },
+  {
+    "id": 45052358,
+    "by": "monkeyelite",
+    "timeISO": "2025-08-28T14:07:46.000Z",
+    "textPlain": "> Now you dont know exactly what field to check.Yes you do - you have a helper method that encapsulates the details.In the DB you could also make a view or generated column.> This is just micro-optimization for no good reasonIt’s conceptually simpler to have a representation with fewer states, and bugs are hopefully impossible. For example what would it mean for the bool authorized to be false but the authorized date time to be non-null?",
+    "parent": 45052148,
     "depth": 2
   },
   {
