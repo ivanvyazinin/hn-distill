@@ -1,9 +1,17 @@
 [
   {
-    "id": 45068177,
-    "by": "cfu28",
-    "timeISO": "2025-08-29T19:12:33.000Z",
-    "textPlain": "I struggled with this landscape a few years ago when building Mere Medical to manage my own medical records. To be fair, I was aiming for not just offline-first, but offline-only (user data was exclusively stored on device, not in any server). I got surprisingly far with RxDB, but it definitely felt like I was pushing these tools and the web platform to their limit.There’s just an assumption that these client databases don’t need mature tools and migration strategies as “it’s just a web client, you can always just re-sync with a server”. Few client db felt mature enough to warrant building my entire app on as they’re not the easiet to migrate off of.I also tried LokiJS which is mentioned in the OP. I even forked (renamed it SylvieJS lol) it to rewrite it in TS and update some of the adapters. I ultimately moved away from it as well. I found an in memory db will struggle past a few hundred mbs which I hit pretty quickly.No matter what db you use, you’re realistically using indexed db behind the hood. What surprised me was that a query to indexed db can be slower than a network call. Like what.",
+    "id": 45068781,
+    "by": "hakanshehu",
+    "timeISO": "2025-08-29T20:05:44.000Z",
+    "textPlain": "Nice post! I'm building an offline-first collaboration app and went on the route of building a custom sync engine, mainly because the app is open-source and I didn't want to introduce any dependency. I've implemented a simple cursor based sync with Postgres on server and SQLite in client side.Initially I built only a desktop client, because I didn't like IndexedDB. After the app got into HN, someone recommended to check for OPFS (Origin Private File System).Now we have a full offline-first app in web using SQLite on top of OPFS. We didn't test it with large scale yet, but so far looks very promising. The good thing is that we use Kysely as an abstraction for performing queries in SQLite which helps us share most of the code across both platforms (electron + web) with some minor abstractions.You can check the implementation in Github: https://github.com/colanode/colanode",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45068435,
+    "by": "dfabulich",
+    "timeISO": "2025-08-29T19:36:31.000Z",
+    "textPlain": "The punchline of this article is that all the implementations they tried (WatermelonDB, PowerSync, ElectricSQL, Triplit, InstantDB, Convex) are all built on top of IndexedDB.\"The root cause is that all of these offline-first tools for web are essentially hacks. PowerSync itself is WASM SQLite... On top of IndexedDB.\"But there's a new web storage API in town, Origin Private File System. https://developer.mozilla.org/en-US/docs/Web/API/File_System... \"It provides access to a special kind of file that is highly optimized for performance and offers in-place write access to its content.\"OPFS reached Baseline \"Newly Available\" in March 2023; it will be \"Widely Available\" in September.WASM sqlite on OPFS is, finally, not a hack, and is pretty much exactly what the author needed in the first place.",
     "parent": 45066070,
     "depth": 1
   },
@@ -12,6 +20,14 @@
     "by": "fmajid",
     "timeISO": "2025-08-29T17:56:35.000Z",
     "textPlain": "The OP does not mention that IndexedDB itself is built on top of... SQLite. Abandoning WebSQL was truly a heinous crime against the Web.",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45068177,
+    "by": "cfu28",
+    "timeISO": "2025-08-29T19:12:33.000Z",
+    "textPlain": "I struggled with this landscape a few years ago when building Mere Medical to manage my own medical records. To be fair, I was aiming for not just offline-first, but offline-only (user data was exclusively stored on device, not in any server). I got surprisingly far with RxDB, but it definitely felt like I was pushing these tools and the web platform to their limit.There’s just an assumption that these client databases don’t need mature tools and migration strategies as “it’s just a web client, you can always just re-sync with a server”. Few client db felt mature enough to warrant building my entire app on as they’re not the easiet to migrate off of.I also tried LokiJS which is mentioned in the OP. I even forked (renamed it SylvieJS lol) it to rewrite it in TS and update some of the adapters. I ultimately moved away from it as well. I found an in memory db will struggle past a few hundred mbs which I hit pretty quickly.No matter what db you use, you’re realistically using indexed db behind the hood. What surprised me was that a query to indexed db can be slower than a network call. Like what.",
     "parent": 45066070,
     "depth": 1
   },
@@ -32,11 +48,19 @@
     "depth": 1
   },
   {
-    "id": 45068129,
-    "by": "matharmin",
-    "timeISO": "2025-08-29T19:08:12.000Z",
-    "textPlain": "wa-sqlite on top of OPFS is actually pretty great these days. Performance is about half of what I'd get in native SQLite, which is not too bad overall. It's around 10x faster than SQLite on top of IndexedDB for large databases in my experience.It's much better than WebSQL could ever be. You get the full power of modern SQLite, with the version, compile options, additional extensions, all under your control.",
-    "parent": 45067339,
+    "id": 45068599,
+    "by": "jitl",
+    "timeISO": "2025-08-29T19:49:43.000Z",
+    "textPlain": "We do see about 10x the database row corruption rate w/ WASM OPFS SQLite compared to the same logic running against native SQLite. For read-side cache use-case this is recoverable and relatively benign but we're not moving write-side use-case from IndexedDB to WASM-OPFS-SQLite until things look a bit better. Not to put the blame on SQLite here, there's shared responsibility for the corruption between the host application (eg Notion), the SQLite OPFS VFS authors, the user-agent authors, and the user's device to ensure proper locking and file semantics.",
+    "parent": 45068435,
+    "depth": 2
+  },
+  {
+    "id": 45068786,
+    "by": "isaachinman",
+    "timeISO": "2025-08-29T20:06:25.000Z",
+    "textPlain": "Yeah, I did fail to mention OPFS in the blog post. It does look very promising, but we're not in a position to build on emergent tech – we need a battle-tested stack. Boring over exciting.",
+    "parent": 45068435,
     "depth": 2
   },
   {
@@ -48,11 +72,27 @@
     "depth": 2
   },
   {
+    "id": 45068129,
+    "by": "matharmin",
+    "timeISO": "2025-08-29T19:08:12.000Z",
+    "textPlain": "wa-sqlite on top of OPFS is actually pretty great these days. Performance is about half of what I'd get in native SQLite, which is not too bad overall. It's around 10x faster than SQLite on top of IndexedDB for large databases in my experience.It's much better than WebSQL could ever be. You get the full power of modern SQLite, with the version, compile options, additional extensions, all under your control.",
+    "parent": 45067339,
+    "depth": 2
+  },
+  {
     "id": 45067623,
     "by": "dunham",
     "timeISO": "2025-08-29T18:19:49.000Z",
     "textPlain": "It's leveldb with a custom key format in chrome and electron.It would be nice to have WebSQL though, even if it has to be spec'd as \"it's sqlite\".",
     "parent": 45067339,
+    "depth": 2
+  },
+  {
+    "id": 45068485,
+    "by": "jitl",
+    "timeISO": "2025-08-29T19:40:17.000Z",
+    "textPlain": "On midrange and below Android devices, literally any local persisted data access can be slower than a network call. Even a point read from a small SQLite b-tree can be coming off a $3 microsd card and a CPU equivalent to a 10 year old iPhone. https://infrequently.org/2024/01/performance-inequality-gap-...",
+    "parent": 45068177,
     "depth": 2
   },
   {
