@@ -1,17 +1,25 @@
 [
   {
-    "id": 45064456,
-    "by": "malshe",
-    "timeISO": "2025-08-29T14:17:00.000Z",
-    "textPlain": "The folks who are using RAG, what's the SOTA for extracting text from pdf documents? I have been following discussions on HN and I have seen a few promising solutions that involve converting pdf to png and then doing extraction. However, for my application this looks a bit risky because my pdfs have tons of tables and I can't afford to get in return incorrect of made up numbers.The original documents are in HTML format and although I don't have access to them I can obtain them if I want. Is it better to just use these HTML documents instead? Previously I tried converting HTML to markdown and then use these for RAG. I wasn't too happy with the result although I fear I might be doing something wrong.",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
     "id": 45063694,
     "by": "ineedasername",
     "timeISO": "2025-08-29T13:14:38.000Z",
     "textPlain": ">\"Retrieval based on reasoning — say goodbye to approximate semantic search (\"vibe retrieval\"How is this not precisely \"vibe retrieval\" and much more approximate, where approximate in this case is uncertainty over the precise reasoning?Similarity with conversion to high-dimensional vectors and then something like kNN seems significantly less approximate, less \"vibe\" based, than this.This also appears to be completely predicated on pre-enrichment of the documents by adding structure through API calls to, in the example, openAI.It doesn't at all seem accurate to:1: Toss out mathematical similarity calculations2: Add structure with LLMs3: Use LLMs to traverse the structure4: Label this as less vibe-ishAlso for any sufficiently large set of documents, or granularity on smaller sets of documents, scaling will become problematic as the doc structure approaches the context limit of the LLM doing the retrieval.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45065132,
+    "by": "CuriouslyC",
+    "timeISO": "2025-08-29T15:07:14.000Z",
+    "textPlain": "So, this has already been done plenty, Serena MCP and Codanna MCP both do this with AST source graphs, Codanna even gives hints in the MCP response to guide the agent to walk up/down the graph.  There might be some small efficiency gain in having a separate agent walk the graph in terms of context savings, but you also lose solution fidelity, so I'm not sure it's a win. Also, it's not a replacement for RAG, it's just another piece in the pipeline that you merge over (rerank+cut or llm distillate).",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45065067,
+    "by": "gillesjacobs",
+    "timeISO": "2025-08-29T15:02:53.000Z",
+    "textPlain": "A suspicious lack of any performance metrics on the many standard RAG/QA benchmarks out there, except for their highly fine-tuned and dataset-specific MAFIN2.5 system. I would love the see this approach vs. a similarly well-tuned structured hybrid retriever (vector similarity + text matching) which is the common way of building domain-specific RAG. The FinanceBench GPT4o+Search system never mentions what the retrieval approach is [1,2], so I will have to assume it is the dumbest retriever possible to oversell the improvement.PageIndex does not state to what degree the semantic structuring is rule-based (document structure) or also inferred by an ML model, in any case structuring chunks using semantic document structure is nothing new and pretty common, as is adding generated titles and summaries to the chunk nodes. But I find it dubious that prompt-based retrieval on structured chunk metadata works robustly, and if it does perform well it is because of the extra work in prompt-engineering done on chunk metadata generation and retrieval. This introduces two LLM-based components that can lead to highly variable output versus a traditional vector chunker and retriever. There are many more knobs to tune in a text prompt and an LLM-based chunker than in a sentence/paragraph chunker and a vector+text similarity hybrid retriever.You will have to test retrieval and generation performance for your application regardless, but with so many LLM-based components this will lead to increased iteration time and cost vs. embeddings. Advantage of PageIndex is you can make it really domain-specific probably. Claims of improved retrieval time are dubious, vector databases (even with hybrid search) are highly efficient, definitely more efficient that prompting an LLM to select relevant nodes.1. https://pageindex.ai/blog/Mafin2.5\n2. https://github.com/VectifyAI/Mafin2.5-FinanceBench",
     "parent": 45036944,
     "depth": 1
   },
@@ -32,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45064456,
+    "by": "malshe",
+    "timeISO": "2025-08-29T14:17:00.000Z",
+    "textPlain": "The folks who are using RAG, what's the SOTA for extracting text from pdf documents? I have been following discussions on HN and I have seen a few promising solutions that involve converting pdf to png and then doing extraction. However, for my application this looks a bit risky because my pdfs have tons of tables and I can't afford to get in return incorrect of made up numbers.The original documents are in HTML format and although I don't have access to them I can obtain them if I want. Is it better to just use these HTML documents instead? Previously I tried converting HTML to markdown and then use these for RAG. I wasn't too happy with the result although I fear I might be doing something wrong.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
     "id": 45063358,
     "by": "dcre",
     "timeISO": "2025-08-29T12:43:01.000Z",
@@ -48,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45063988,
-    "by": "esafak",
-    "timeISO": "2025-08-29T13:39:11.000Z",
-    "textPlain": "I don't see this scaling: https://deepwiki.com/search/how-is-the-tree-formed-and-tra_9...I'd do some large scale benchmarks before doubling down on this approach.",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
     "id": 45062387,
     "by": "thatjoeoverthr",
     "timeISO": "2025-08-29T10:39:44.000Z",
     "textPlain": "There's good reasons to do this. Embedding similarity is _not_ a reliable method of determining relevance.I did some measurements and found you can't even really tell if two documents are \"similar\" or not. Here: https://joecooper.me/blog/redundancy/One common way is to mix approaches. e.g. take a large top-K from ANN on embeddings as a preliminary shortlist, then run a tuned LLM or cross encoder to evaluate relevance.I'll link here these guys' paper which you might find fun: https://arxiv.org/pdf/2310.08319At the end of the day you just want a way to shortlist and focus information that's cheaper, computationally, and more reliable, than dumping your entire corpus into a very large context window.So what we're doing is fitting the technique to the situation. Price of RAM; GPU price; size of dataset; etc. The \"ideal\" setup will evolve as the cost structure and model quality evolves, and will always depend on your activity.But for sure, ANN-on-embedding as your RAG pipeline is a very blunt instrument and if you can afford to do better you can usually think of a way.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45062084,
+    "by": "brap",
+    "timeISO": "2025-08-29T09:46:45.000Z",
+    "textPlain": "Very cool. These days I’m building RAG over a large website, and when I look at the results being fed into the LLM, most of them are so silly it’s surprising the LLM even manages to extract something meaningful. Always makes me wonder if it’s just using prior knowledge even though it’s instructed not to do so (which is hacky).I like your approach because it seems like a very natural search process, like a human would navigate a website to find information. I imagine the tradeoff is performance of both indexing and search, but for some use cases (like mine) it’s a good sacrifice to make.I wonder if it’s useful to merge to two approaches. Like you could vectorize the nodes in the tree to give you a heuristic that guides the search. Could be useful in cases where information is hidden deep in a subtree, in a way that the document’s structure doesn’t give it away.",
     "parent": 45036944,
     "depth": 1
   },
@@ -72,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45062084,
-    "by": "brap",
-    "timeISO": "2025-08-29T09:46:45.000Z",
-    "textPlain": "Very cool. These days I’m building RAG over a large website, and when I look at the results being fed into the LLM, most of them are so silly it’s surprising the LLM even manages to extract something meaningful. Always makes me wonder if it’s just using prior knowledge even though it’s instructed not to do so (which is hacky).I like your approach because it seems like a very natural search process, like a human would navigate a website to find information. I imagine the tradeoff is performance of both indexing and search, but for some use cases (like mine) it’s a good sacrifice to make.I wonder if it’s useful to merge to two approaches. Like you could vectorize the nodes in the tree to give you a heuristic that guides the search. Could be useful in cases where information is hidden deep in a subtree, in a way that the document’s structure doesn’t give it away.",
+    "id": 45063988,
+    "by": "esafak",
+    "timeISO": "2025-08-29T13:39:11.000Z",
+    "textPlain": "I don't see this scaling: https://deepwiki.com/search/how-is-the-tree-formed-and-tra_9...I'd do some large scale benchmarks before doubling down on this approach.",
     "parent": 45036944,
     "depth": 1
   },
@@ -96,14 +112,6 @@
     "depth": 1
   },
   {
-    "id": 45062781,
-    "by": "rco8786",
-    "timeISO": "2025-08-29T11:44:59.000Z",
-    "textPlain": "This seems really interesting but I can't quite figure out if this is like a SaaS product or an OSS library? The code sample seems to indicate that it uses some sort of \"client\" to send the document somewhere and then wait to retrieve it later.But the home page doesn't indicate any sort of sign up or pricing.So I'm a little confused.edit Ok I found a sign up flow, but the verification email never came :(",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
     "id": 45062490,
     "by": "Koaisu",
     "timeISO": "2025-08-29T10:57:07.000Z",
@@ -112,10 +120,10 @@
     "depth": 1
   },
   {
-    "id": 45063595,
-    "by": "cantor_S_drug",
-    "timeISO": "2025-08-29T13:05:23.000Z",
-    "textPlain": "This is like semantic version of B+ trees.",
+    "id": 45062781,
+    "by": "rco8786",
+    "timeISO": "2025-08-29T11:44:59.000Z",
+    "textPlain": "This seems really interesting but I can't quite figure out if this is like a SaaS product or an OSS library? The code sample seems to indicate that it uses some sort of \"client\" to send the document somewhere and then wait to retrieve it later.But the home page doesn't indicate any sort of sign up or pricing.So I'm a little confused.edit Ok I found a sign up flow, but the verification email never came :(",
     "parent": 45036944,
     "depth": 1
   },
@@ -136,6 +144,22 @@
     "depth": 1
   },
   {
+    "id": 45063595,
+    "by": "cantor_S_drug",
+    "timeISO": "2025-08-29T13:05:23.000Z",
+    "textPlain": "This is like semantic version of B+ trees.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45062473,
+    "by": "monster_truck",
+    "timeISO": "2025-08-29T10:54:56.000Z",
+    "textPlain": "vectorless rag? I think I have one of those in my kitchen",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
     "id": 45062510,
     "by": "jdthedisciple",
     "timeISO": "2025-08-29T11:00:25.000Z",
@@ -152,10 +176,10 @@
     "depth": 1
   },
   {
-    "id": 45062473,
-    "by": "monster_truck",
-    "timeISO": "2025-08-29T10:54:56.000Z",
-    "textPlain": "vectorless rag? I think I have one of those in my kitchen",
+    "id": 45061982,
+    "by": "koakuma-chan",
+    "timeISO": "2025-08-29T09:29:37.000Z",
+    "textPlain": "What about latency?",
     "parent": 45036944,
     "depth": 1
   },
@@ -164,14 +188,6 @@
     "by": "nathan_compton",
     "timeISO": "2025-08-29T10:35:09.000Z",
     "textPlain": "I let a boot do a free text search over and indexed database. Works ok. I've also tried keyword based retrieval and vector search.I've found all leave something to be desired, sadly.",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
-    "id": 45061982,
-    "by": "koakuma-chan",
-    "timeISO": "2025-08-29T09:29:37.000Z",
-    "textPlain": "What about latency?",
     "parent": 45036944,
     "depth": 1
   },
@@ -206,6 +222,14 @@
     "textPlain": "[dead]",
     "parent": 45036944,
     "depth": 1
+  },
+  {
+    "id": 45065256,
+    "by": "raytang",
+    "timeISO": "2025-08-29T15:16:51.000Z",
+    "textPlain": "[dead]",
+    "parent": 45063694,
+    "depth": 2
   },
   {
     "id": 45062258,
@@ -248,6 +272,14 @@
     "depth": 2
   },
   {
+    "id": 45065153,
+    "by": "CuriouslyC",
+    "timeISO": "2025-08-29T15:09:59.000Z",
+    "textPlain": "The idea this person is trying for is a LLM that explores the codebase using the source graph in the way a human might, by control+clicking in idea/vscode to go to definition, searching for usages of a function, etc. It actually does work, other systems use it as well, though they have the main agent performing the codebase walk rather than delegate to a \"codebase walker\" agent.",
+    "parent": 45062280,
+    "depth": 2
+  },
+  {
     "id": 45064277,
     "by": "mingtianzhang",
     "timeISO": "2025-08-29T14:02:41.000Z",
@@ -272,19 +304,59 @@
     "depth": 2
   },
   {
+    "id": 45065204,
+    "by": "gillesjacobs",
+    "timeISO": "2025-08-29T15:13:00.000Z",
+    "textPlain": "Last I checked Gemini Flash was very good cost/performance wise for document extraction. Mistral OCR claims better performance in their benchmarks but people I know used it and other benchmarks beg to differ. Personally I use Azure Document Intelligence a lot for the bounding boxes feature, but Gemini Flash apparently has this covered too.https://getomni.ai/blog/ocr-benchmarkSidenote: What you want for RAG is not OCR as-in extracting text. The task for RAG preprocessing is typically called Document Layout Analysis or End-to-End Document Parsing/Extraction.Good RAG is multimodal and semantic document structure and layout-aware so your pipeline needs to extract and recognize text sections, footers/headers, images, and tables. When working with PDFs you want accurate bounding boxes in your metadata for referring your users to retrieved sources etc.",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
+    "id": 45065097,
+    "by": "kcb",
+    "timeISO": "2025-08-29T15:05:11.000Z",
+    "textPlain": "I've used nv-ingest and Nvidia's nemoretriever-parse model.",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
+    "id": 45064645,
+    "by": "giamma",
+    "timeISO": "2025-08-29T14:32:41.000Z",
+    "textPlain": "How about using something like Apache Tika for extracting text from multiple documents? It's a subproject of Lucene and consists of a proxy parser + delegates for a number of document formats. If a document, e.g. PDF, comes from a scanner, Tika can optionally shell-out a Tesseract invocation and perform OCR for you.",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
+    "id": 45065028,
+    "by": "z3ugma",
+    "timeISO": "2025-08-29T15:00:21.000Z",
+    "textPlain": "extractous is worth a look if it's real textIf it's an image / you need to OCR it, Gemini Flash is so good and so cheap that I've had good luck using it as a \"meta OCR\" tool",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
+    "id": 45064561,
+    "by": "JJax7",
+    "timeISO": "2025-08-29T14:24:56.000Z",
+    "textPlain": "If accuracy is a major concern, then it's probably guaranteed better to go with the HTML documents. Otherwise, I've heard Docling is pretty good from a few co-workers.",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
+    "id": 45064717,
+    "by": "davidajackson",
+    "timeISO": "2025-08-29T14:37:27.000Z",
+    "textPlain": "Can you explain why to png? why not to markdown?",
+    "parent": 45064456,
+    "depth": 2
+  },
+  {
     "id": 45064259,
     "by": "mingtianzhang",
     "timeISO": "2025-08-29T14:01:02.000Z",
     "textPlain": "In their gitHub repo’s readme, they show a benchmark on FinanceBench and found that PageIndex-based retrieval significantly outperforms vector-based methods. I’ve noticed that in domain-specific documents, where all the text has similar “semantic vibes,” non-vector methods like PageIndex can be more useful. In contrast, for use cases like recommendation systems, you might actually need a semantic-vibe search.",
     "parent": 45063607,
-    "depth": 2
-  },
-  {
-    "id": 45064224,
-    "by": "mingtianzhang",
-    "timeISO": "2025-08-29T13:58:05.000Z",
-    "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
-    "parent": 45063988,
     "depth": 2
   },
   {
@@ -312,91 +384,19 @@
     "depth": 2
   },
   {
-    "id": 45063814,
-    "by": "page_index",
-    "timeISO": "2025-08-29T13:25:22.000Z",
-    "textPlain": "[dead]",
-    "parent": 45062170,
+    "id": 45064811,
+    "by": "sgt",
+    "timeISO": "2025-08-29T14:44:26.000Z",
+    "textPlain": "Won't that be slower than vector DB's by an order of magnitude or more?",
+    "parent": 45063832,
     "depth": 2
   },
   {
-    "id": 45064482,
+    "id": 45064224,
     "by": "mingtianzhang",
-    "timeISO": "2025-08-29T14:19:26.000Z",
+    "timeISO": "2025-08-29T13:58:05.000Z",
     "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
-    "parent": 45062587,
-    "depth": 2
-  },
-  {
-    "id": 45064175,
-    "by": "mingtianzhang",
-    "timeISO": "2025-08-29T13:53:55.000Z",
-    "textPlain": "Yeah, they share a similar intuition. I found that the difference is that PageIndex is more of a learning-free approach, more like how a human would do retrieval?",
-    "parent": 45062490,
-    "depth": 2
-  },
-  {
-    "id": 45062533,
-    "by": "thatjoeoverthr",
-    "timeISO": "2025-08-29T11:03:39.000Z",
-    "textPlain": "I love it",
-    "parent": 45062490,
-    "depth": 2
-  },
-  {
-    "id": 45064101,
-    "by": "nikishuyi",
-    "timeISO": "2025-08-29T13:48:51.000Z",
-    "textPlain": "Yeah, I strongly agree. I also found in AI coding tools, tree search has replaced vector search. I’m wondering if in generic RAG systems, tree search will replace vector databases?",
-    "parent": 45063595,
-    "depth": 2
-  },
-  {
-    "id": 45063682,
-    "by": "page_index",
-    "timeISO": "2025-08-29T13:13:14.000Z",
-    "textPlain": "[dead]",
-    "parent": 45063595,
-    "depth": 2
-  },
-  {
-    "id": 45062221,
-    "by": "actionfromafar",
-    "timeISO": "2025-08-29T10:06:43.000Z",
-    "textPlain": "If you have a lot of time, cost on a local machine may be low.",
-    "parent": 45062100,
-    "depth": 2
-  },
-  {
-    "id": 45062137,
-    "by": "kruxigt",
-    "timeISO": "2025-08-29T09:53:41.000Z",
-    "textPlain": "[dead]",
-    "parent": 45062100,
-    "depth": 2
-  },
-  {
-    "id": 45064213,
-    "by": "mingtianzhang",
-    "timeISO": "2025-08-29T13:57:12.000Z",
-    "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
-    "parent": 45062510,
-    "depth": 2
-  },
-  {
-    "id": 45063494,
-    "by": "bjornsing",
-    "timeISO": "2025-08-29T12:56:16.000Z",
-    "textPlain": "It scales as log(N), right? So if you can tolerate it for a few hundred docs you can probably tolerate it for a lot more.",
-    "parent": 45062510,
-    "depth": 2
-  },
-  {
-    "id": 45062579,
-    "by": "scotty79",
-    "timeISO": "2025-08-29T11:10:16.000Z",
-    "textPlain": "I think it's about how you decide where to press Ctrl+F next.",
-    "parent": 45062555,
+    "parent": 45063988,
     "depth": 2
   }
 ]
