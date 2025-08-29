@@ -1,0 +1,8 @@
+{
+  "id": 45017177,
+  "lang": "ru",
+  "summary": "В C# один и тот же синтаксис `T?` означает разные вещи:  \n- для **структур** это обёртка `Nullable<T>` (новая, отличная от `T` тип);  \n- для **классов** это лишь аннотация «здесь может быть null», но тип остаётся прежним.\n\nЭто приводит к неожиданностям. Попытка написать универсальный `SelectNotNull`, который фильтрует `null`, показывает проблему:\n\n```csharp\npublic static IEnumerable<TR> SelectNotNull<T, TR>(\n    this IEnumerable<T> source,\n    Func<T, TR?> fn) =>\n    source.Select(fn).Where(x => x != null).Cast<TR>();\n```\n\nДля ссылочных типов всё работает:\n\n```csharp\nIEnumerable<string?> maybe = [\"a\", null, \"b\"];\nIEnumerable<string> ok = maybe.SelectNotNull(x => x);\n```\n\nДля значимых — компилятор ругается: `IEnumerable<int?>` не кастуется к `IEnumerable<int>`.\n\nРешение — дублировать метод и ограничить `TR`:\n\n```csharp\n// для классов\npublic static IEnumerable<TR> SelectNotNull<T, TR>(\n    this IEnumerable<T> s, Func<T, TR?> f) where TR : class =>\n    s.Select(f).Where(x => x != null).Cast<TR>();\n\n// для структур\npublic static IEnumerable<TR> SelectNotNull<T, TR>(\n    this IEnumerable<T> s, Func<T, TR?> f) where TR : struct =>\n    s.Select(f).Where(x => x != null).Cast<TR>();\n```\n\nОдинаковый код, но разные ограничения убирают неоднозначность. Работает, но выглядит безумием.",
+  "inputHash": "3862ef28f457d1ec4164a675ccad7ad8dbb3059762bcbfa3f9074d8964225b7a",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-29T11:21:49.319Z"
+}
