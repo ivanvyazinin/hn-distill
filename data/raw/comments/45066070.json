@@ -1,17 +1,17 @@
 [
   {
-    "id": 45068781,
-    "by": "hakanshehu",
-    "timeISO": "2025-08-29T20:05:44.000Z",
-    "textPlain": "Nice post! I'm building an offline-first collaboration app and went on the route of building a custom sync engine, mainly because the app is open-source and I didn't want to introduce any dependency. I've implemented a simple cursor based sync with Postgres on server and SQLite in client side.Initially I built only a desktop client, because I didn't like IndexedDB. After the app got into HN, someone recommended to check for OPFS (Origin Private File System).Now we have a full offline-first app in web using SQLite on top of OPFS. We didn't test it with large scale yet, but so far looks very promising. The good thing is that we use Kysely as an abstraction for performing queries in SQLite which helps us share most of the code across both platforms (electron + web) with some minor abstractions.You can check the implementation in Github: https://github.com/colanode/colanode",
-    "parent": 45066070,
-    "depth": 1
-  },
-  {
     "id": 45068435,
     "by": "dfabulich",
     "timeISO": "2025-08-29T19:36:31.000Z",
     "textPlain": "The punchline of this article is that all the implementations they tried (WatermelonDB, PowerSync, ElectricSQL, Triplit, InstantDB, Convex) are all built on top of IndexedDB.\"The root cause is that all of these offline-first tools for web are essentially hacks. PowerSync itself is WASM SQLite... On top of IndexedDB.\"But there's a new web storage API in town, Origin Private File System. https://developer.mozilla.org/en-US/docs/Web/API/File_System... \"It provides access to a special kind of file that is highly optimized for performance and offers in-place write access to its content.\"OPFS reached Baseline \"Newly Available\" in March 2023; it will be \"Widely Available\" in September.WASM sqlite on OPFS is, finally, not a hack, and is pretty much exactly what the author needed in the first place.",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45068781,
+    "by": "hakanshehu",
+    "timeISO": "2025-08-29T20:05:44.000Z",
+    "textPlain": "Nice post! I'm building an offline-first collaboration app and went on the route of building a custom sync engine, mainly because the app is open-source and I didn't want to introduce any dependency. I've implemented a simple cursor based sync with Postgres on server and SQLite in client side.Initially I built only a desktop client, because I didn't like IndexedDB. After the app got into HN, someone recommended to check for OPFS (Origin Private File System).Now we have a full offline-first app in web using SQLite on top of OPFS. We didn't test it with large scale yet, but so far looks very promising. The good thing is that we use Kysely as an abstraction for performing queries in SQLite which helps us share most of the code across both platforms (electron + web) with some minor abstractions.You can check the implementation in Github: https://github.com/colanode/colanode",
     "parent": 45066070,
     "depth": 1
   },
@@ -24,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45068177,
-    "by": "cfu28",
-    "timeISO": "2025-08-29T19:12:33.000Z",
-    "textPlain": "I struggled with this landscape a few years ago when building Mere Medical to manage my own medical records. To be fair, I was aiming for not just offline-first, but offline-only (user data was exclusively stored on device, not in any server). I got surprisingly far with RxDB, but it definitely felt like I was pushing these tools and the web platform to their limit.There’s just an assumption that these client databases don’t need mature tools and migration strategies as “it’s just a web client, you can always just re-sync with a server”. Few client db felt mature enough to warrant building my entire app on as they’re not the easiet to migrate off of.I also tried LokiJS which is mentioned in the OP. I even forked (renamed it SylvieJS lol) it to rewrite it in TS and update some of the adapters. I ultimately moved away from it as well. I found an in memory db will struggle past a few hundred mbs which I hit pretty quickly.No matter what db you use, you’re realistically using indexed db behind the hood. What surprised me was that a query to indexed db can be slower than a network call. Like what.",
-    "parent": 45066070,
-    "depth": 1
-  },
-  {
     "id": 45067465,
     "by": "rudedogg",
     "timeISO": "2025-08-29T18:07:14.000Z",
     "textPlain": "I’m doing offline-first apps at work and want to emphasize that you’re constraining yourself a lot trying to do this.As mentioned, everything fast(ish) is using SQLite under the hood. If you don’t already know, SQLite has a limited set of types, and some funky defaults. How are you going to take this loosey-goosey typed data and store it in a backend database when you sync? What about foreign key constraints, etc., can you live without those? Some of the sync solutions don’t support enforcing them on the client.Also, the SQLite query planner isn’t great in my experience, even when you’re only joining on ids/indexes.Document databases seem more friendly/natural, but as mentioned indexeddb is slow.I wish this looked at https://rxdb.info/ more. They have some posts that lead me to believe they have a good grasp on the issues in this space at leastAlso, OPFS is a newish thing everyone is using to store SQLite directly instead of wrapping IndexedDB for better performance.",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45069159,
+    "by": "victorbjorklund",
+    "timeISO": "2025-08-29T20:42:16.000Z",
+    "textPlain": "Related question to people building local-first - what size of db is too big? I always see examples doing todo lists etc which seems perfect for this. But what about apps with larger databases. When does local-first no longer make sense?",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45068177,
+    "by": "cfu28",
+    "timeISO": "2025-08-29T19:12:33.000Z",
+    "textPlain": "I struggled with this landscape a few years ago when building Mere Medical to manage my own medical records. To be fair, I was aiming for not just offline-first, but offline-only (user data was exclusively stored on device, not in any server). I got surprisingly far with RxDB, but it definitely felt like I was pushing these tools and the web platform to their limit.There’s just an assumption that these client databases don’t need mature tools and migration strategies as “it’s just a web client, you can always just re-sync with a server”. Few client db felt mature enough to warrant building my entire app on as they’re not the easiet to migrate off of.I also tried LokiJS which is mentioned in the OP. I even forked (renamed it SylvieJS lol) it to rewrite it in TS and update some of the adapters. I ultimately moved away from it as well. I found an in memory db will struggle past a few hundred mbs which I hit pretty quickly.No matter what db you use, you’re realistically using indexed db behind the hood. What surprised me was that a query to indexed db can be slower than a network call. Like what.",
     "parent": 45066070,
     "depth": 1
   },
@@ -48,10 +56,26 @@
     "depth": 1
   },
   {
-    "id": 45068599,
-    "by": "jitl",
-    "timeISO": "2025-08-29T19:49:43.000Z",
-    "textPlain": "We do see about 10x the database row corruption rate w/ WASM OPFS SQLite compared to the same logic running against native SQLite. For read-side cache use-case this is recoverable and relatively benign but we're not moving write-side use-case from IndexedDB to WASM-OPFS-SQLite until things look a bit better. Not to put the blame on SQLite here, there's shared responsibility for the corruption between the host application (eg Notion), the SQLite OPFS VFS authors, the user-agent authors, and the user's device to ensure proper locking and file semantics.",
+    "id": 45069394,
+    "by": "scarface_74",
+    "timeISO": "2025-08-29T21:07:29.000Z",
+    "textPlain": "Email though?Except in pre-sales, I can’t imagine anyone using an email heavy workflow in 2025.In my personal life, email is only for one way transactions.  Where some company is sending email to me or spam.  Even the one newsletter I subscribe to - Stratechery is available as a podcast and an RSS feed.In my professional life, of course all internal communication happens on Slack (700 employees) and even in consulting, the first thing we do after a deal closes is either invite customers to our Slack or ask to be invited to their platform.This is a solution in search of a problem.",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45069378,
+    "by": "aboodman",
+    "timeISO": "2025-08-29T21:06:27.000Z",
+    "textPlain": "Replicache, which author loves, is also built on top of IndexedDB.But notably, not directly atop. We build our own KV store that uses IDB just as block storage. So I sort of agree w/ you.But if we were to build atop OPFS we'd also just be using it for block storage. So I'm not sure it's a win? It will be interesting to explore.",
+    "parent": 45068435,
+    "depth": 2
+  },
+  {
+    "id": 45069099,
+    "by": "ochiba",
+    "timeISO": "2025-08-29T20:36:08.000Z",
+    "textPlain": "PowerSync supports OPFS as SQLite VFS since earlier 2025: https://github.com/powersync-ja/powersync-js/pull/418",
     "parent": 45068435,
     "depth": 2
   },
@@ -61,6 +85,22 @@
     "timeISO": "2025-08-29T20:06:25.000Z",
     "textPlain": "Yeah, I did fail to mention OPFS in the blog post. It does look very promising, but we're not in a position to build on emergent tech – we need a battle-tested stack. Boring over exciting.",
     "parent": 45068435,
+    "depth": 2
+  },
+  {
+    "id": 45068599,
+    "by": "jitl",
+    "timeISO": "2025-08-29T19:49:43.000Z",
+    "textPlain": "We do see about 10x the database row corruption rate w/ WASM OPFS SQLite compared to the same logic running against native SQLite. For read-side cache use-case this is recoverable and relatively benign but we're not moving write-side use-case from IndexedDB to WASM-OPFS-SQLite until things look a bit better. Not to put the blame on SQLite here, there's shared responsibility for the corruption between the host application (eg Notion), the SQLite OPFS VFS authors, the user-agent authors, and the user's device to ensure proper locking and file semantics.",
+    "parent": 45068435,
+    "depth": 2
+  },
+  {
+    "id": 45068957,
+    "by": "jitl",
+    "timeISO": "2025-08-29T20:22:52.000Z",
+    "textPlain": "Depending on your data model, LiveStore is a completely open-source, SQLite based approach for local first sync-y apps: https://livestore.dev/It's oriented around event sourcing and syncs the events, which get materialized into local table views on clients. It's got pretty slick devtools too.",
+    "parent": 45068781,
     "depth": 2
   },
   {
@@ -88,19 +128,19 @@
     "depth": 2
   },
   {
-    "id": 45068485,
-    "by": "jitl",
-    "timeISO": "2025-08-29T19:40:17.000Z",
-    "textPlain": "On midrange and below Android devices, literally any local persisted data access can be slower than a network call. Even a point read from a small SQLite b-tree can be coming off a $3 microsd card and a CPU equivalent to a 10 year old iPhone. https://infrequently.org/2024/01/performance-inequality-gap-...",
-    "parent": 45068177,
-    "depth": 2
-  },
-  {
     "id": 45067921,
     "by": "jitl",
     "timeISO": "2025-08-29T18:48:54.000Z",
     "textPlain": "I've been a bit put off by rxdb's lack of transactions (see https://rxdb.info/transactions-conflicts-revisions.html) and the sometimes  self-congratulatory tone in their docs.Notion is a very async collaborative application and we rely on a form of transactions. When you make a change in Notion like moving a bunch of blocks from one page to another, we compose the transaction client-side given the client's in-memory snapshot view of the universe, and send the transaction to the server. If the transaction turns out to violate some server-side validation (like a permissions issue), we reject the change as a unit and roll back the client.I'm not sure how we'd do this kind of thing with RxDb. If we model it as a delete in one document and an insert into another document, we'd get data loss. Maybe they'd tell us our app shouldn't have that feature.",
     "parent": 45067465,
+    "depth": 2
+  },
+  {
+    "id": 45068485,
+    "by": "jitl",
+    "timeISO": "2025-08-29T19:40:17.000Z",
+    "textPlain": "On midrange and below Android devices, literally any local persisted data access can be slower than a network call. Even a point read from a small SQLite b-tree can be coming off a $3 microsd card and a CPU equivalent to a 10 year old iPhone. https://infrequently.org/2024/01/performance-inequality-gap-...",
+    "parent": 45068177,
     "depth": 2
   },
   {
