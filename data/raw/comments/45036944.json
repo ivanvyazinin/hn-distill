@@ -1,9 +1,9 @@
 [
   {
-    "id": 45063832,
-    "by": "mritchie712",
-    "timeISO": "2025-08-29T13:27:01.000Z",
-    "textPlain": "an effective \"vectorless RAG\" is to have an LLM write search queries against the documents. e.g. if you store your documents in postgres, allow the LLM to construct a regex string that will find relevant matches. If you were searching for “Martin Luther King Jr.”, it might write something like:    SELECT id, body\n    FROM docs\n    WHERE body ~* E'(?x)                                     -- x = allow whitespace/comments\n      (?:\\\\m(?:dr|rev(?:erend)?)\\\\.?\\\\M[\\\\s.]+)?             -- optional title: Dr., Rev., Reverend\n      (                                                      -- name forms\n        (?:\\\\mmartin\\\\M[\\\\s.]+(?:\\\\mluther\\\\M[\\\\s.]+)?\\\\mking\\\\M)  -- \"Martin (Luther)? King\"\n      | (?:\\\\mm\\\\.?\\\\M[\\\\s.]+(?:\\\\ml\\\\.?\\\\M[\\\\s.]+)?\\\\mking\\\\M)     -- \"M. (L.)? King\" / \"M L King\"\n      | (?:\\\\mmlk\\\\M)                                       -- \"MLK\"\n      )\n      (?:[\\\\s.,-]*\\\\m(?:jr|junior)\\\\M\\\\.?)*                  -- optional suffix(es): Jr, Jr., Junior\n    ';",
+    "id": 45064456,
+    "by": "malshe",
+    "timeISO": "2025-08-29T14:17:00.000Z",
+    "textPlain": "The folks who are using RAG, what's the SOTA for extracting text from pdf documents? I have been following discussions on HN and I have seen a few promising solutions that involve converting pdf to png and then doing extraction. However, for my application this looks a bit risky because my pdfs have tons of tables and I can't afford to get in return incorrect of made up numbers.The original documents are in HTML format and although I don't have access to them I can obtain them if I want. Is it better to just use these HTML documents instead? Previously I tried converting HTML to markdown and then use these for RAG. I wasn't too happy with the result although I fear I might be doing something wrong.",
     "parent": 45036944,
     "depth": 1
   },
@@ -16,26 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45063607,
-    "by": "mvieira38",
-    "timeISO": "2025-08-29T13:06:47.000Z",
-    "textPlain": "> It moves RAG away from approximate \"semantic vibes\" and toward explicit reasoning about where information lives. That clarity can help teams trust outputs and debug workflows more effectively.Wasn't this a feature of RAGs, though? That they could match semantics instead of structure, while us mere balls of flesh need to rely on indexes. I'd be interested in benchmarks of this versus traditional vector-based RAGs, is something to that effect planned?",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
     "id": 45062038,
     "by": "mosselman",
     "timeISO": "2025-08-29T09:39:21.000Z",
     "textPlain": "So if I understand this correctly it goes over every possible document with an LLM each time someone performs a search?I might have misunderstood of course.If so, then the use cases for this would be fairly limited since you'd have to deal with lots of latency and costs. In some cases (legal documents, medical records, etc) it might be worth it though.An interesting alternative I've been meaning to try out is inverting this flow. Instead of using an LLM at time of searching to find relevant pieces to the query, you flip it around: at time of ingesting you let an LLM note all of the possible questions that you can answer with a given text and store those in an index. You could them use some traditional full-text search or other algorithms (BM25?) to search for relevant documents and pieces of text. You could even go for a hybrid approach with vectors on top or next to this. Maybe vectors first and then more ranking with something more traditional.What appeals to me with that setup is low latency and good debug-ability of the results.But as I said, maybe I've misunderstood the linked approach.",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
-    "id": 45063358,
-    "by": "dcre",
-    "timeISO": "2025-08-29T12:43:01.000Z",
-    "textPlain": "My approach in \"LLM-only RAG for small corpora\" [0] was to mechanically make an outline version of all the documents _without_ an LLM, feed that to an LLM with the prompt to tell which docs are likely relevant, and then feed the entirety of those relevant docs to a second LLM call to answer the prompt. It only works with markdown and asciidoc files, but it's surprisingly solid for, for example, searching a local copy of the jj or helix docs. And if the corpus is small enough and your model is on the cheap side (like Gemini 2.5 Flash), you can of course skip the retrieval step and just send the entire thing every time.[0]: https://crespo.business/posts/llm-only-rag/",
     "parent": 45036944,
     "depth": 1
   },
@@ -48,6 +32,30 @@
     "depth": 1
   },
   {
+    "id": 45063358,
+    "by": "dcre",
+    "timeISO": "2025-08-29T12:43:01.000Z",
+    "textPlain": "My approach in \"LLM-only RAG for small corpora\" [0] was to mechanically make an outline version of all the documents _without_ an LLM, feed that to an LLM with the prompt to tell which docs are likely relevant, and then feed the entirety of those relevant docs to a second LLM call to answer the prompt. It only works with markdown and asciidoc files, but it's surprisingly solid for, for example, searching a local copy of the jj or helix docs. And if the corpus is small enough and your model is on the cheap side (like Gemini 2.5 Flash), you can of course skip the retrieval step and just send the entire thing every time.[0]: https://crespo.business/posts/llm-only-rag/",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45063607,
+    "by": "mvieira38",
+    "timeISO": "2025-08-29T13:06:47.000Z",
+    "textPlain": "> It moves RAG away from approximate \"semantic vibes\" and toward explicit reasoning about where information lives. That clarity can help teams trust outputs and debug workflows more effectively.Wasn't this a feature of RAGs, though? That they could match semantics instead of structure, while us mere balls of flesh need to rely on indexes. I'd be interested in benchmarks of this versus traditional vector-based RAGs, is something to that effect planned?",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45063988,
+    "by": "esafak",
+    "timeISO": "2025-08-29T13:39:11.000Z",
+    "textPlain": "I don't see this scaling: https://deepwiki.com/search/how-is-the-tree-formed-and-tra_9...I'd do some large scale benchmarks before doubling down on this approach.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
     "id": 45062387,
     "by": "thatjoeoverthr",
     "timeISO": "2025-08-29T10:39:44.000Z",
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45063595,
-    "by": "cantor_S_drug",
-    "timeISO": "2025-08-29T13:05:23.000Z",
-    "textPlain": "This is like semantic version of B+ trees.",
+    "id": 45063832,
+    "by": "mritchie712",
+    "timeISO": "2025-08-29T13:27:01.000Z",
+    "textPlain": "an effective \"vectorless RAG\" is to have an LLM write search queries against the documents. e.g. if you store your documents in postgres, allow the LLM to construct a regex string that will find relevant matches. If you were searching for “Martin Luther King Jr.”, it might write something like:    SELECT id, body\n    FROM docs\n    WHERE body ~* E'(?x)                                     -- x = allow whitespace/comments\n      (?:\\\\m(?:dr|rev(?:erend)?)\\\\.?\\\\M[\\\\s.]+)?             -- optional title: Dr., Rev., Reverend\n      (                                                      -- name forms\n        (?:\\\\mmartin\\\\M[\\\\s.]+(?:\\\\mluther\\\\M[\\\\s.]+)?\\\\mking\\\\M)  -- \"Martin (Luther)? King\"\n      | (?:\\\\mm\\\\.?\\\\M[\\\\s.]+(?:\\\\ml\\\\.?\\\\M[\\\\s.]+)?\\\\mking\\\\M)     -- \"M. (L.)? King\" / \"M L King\"\n      | (?:\\\\mmlk\\\\M)                                       -- \"MLK\"\n      )\n      (?:[\\\\s.,-]*\\\\m(?:jr|junior)\\\\M\\\\.?)*                  -- optional suffix(es): Jr, Jr., Junior\n    ';",
     "parent": 45036944,
     "depth": 1
   },
@@ -104,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 45063595,
+    "by": "cantor_S_drug",
+    "timeISO": "2025-08-29T13:05:23.000Z",
+    "textPlain": "This is like semantic version of B+ trees.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
     "id": 45062042,
     "by": "guerby",
     "timeISO": "2025-08-29T09:39:47.000Z",
@@ -112,18 +128,18 @@
     "depth": 1
   },
   {
-    "id": 45062510,
-    "by": "jdthedisciple",
-    "timeISO": "2025-08-29T11:00:25.000Z",
-    "textPlain": "Looks like this should scale spectacularly poorly.Might be useful for a few hundred documents max though.",
-    "parent": 45036944,
-    "depth": 1
-  },
-  {
     "id": 45062100,
     "by": "neya",
     "timeISO": "2025-08-29T09:49:23.000Z",
     "textPlain": "This is good for applications where a background queue based RAG is acceptable. You upload a file, set the expectation to the user that you're processing it and needs more time for a few hours and then after X hours you deliver them. Great for manuals, documentation and larger content.But for on-demand, near instant RAG (like say in a chat application), this won't work. Speed vs accuracy vs cost. Cost will be a really big one.",
+    "parent": 45036944,
+    "depth": 1
+  },
+  {
+    "id": 45062510,
+    "by": "jdthedisciple",
+    "timeISO": "2025-08-29T11:00:25.000Z",
+    "textPlain": "Looks like this should scale spectacularly poorly.Might be useful for a few hundred documents max though.",
     "parent": 45036944,
     "depth": 1
   },
@@ -232,6 +248,14 @@
     "depth": 2
   },
   {
+    "id": 45064277,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T14:02:41.000Z",
+    "textPlain": "I think it only needs to generate the tree once before retrieval, and it doesn’t require any external model at query time. The indexing may take some time upfront, but retrieval is then very fast and cost-free.",
+    "parent": 45062280,
+    "depth": 2
+  },
+  {
     "id": 45062454,
     "by": "falcor84",
     "timeISO": "2025-08-29T10:52:33.000Z",
@@ -248,6 +272,22 @@
     "depth": 2
   },
   {
+    "id": 45064259,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T14:01:02.000Z",
+    "textPlain": "In their gitHub repo’s readme, they show a benchmark on FinanceBench and found that PageIndex-based retrieval significantly outperforms vector-based methods. I’ve noticed that in domain-specific documents, where all the text has similar “semantic vibes,” non-vector methods like PageIndex can be more useful. In contrast, for use cases like recommendation systems, you might actually need a semantic-vibe search.",
+    "parent": 45063607,
+    "depth": 2
+  },
+  {
+    "id": 45064224,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T13:58:05.000Z",
+    "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
+    "parent": 45063988,
+    "depth": 2
+  },
+  {
     "id": 45063695,
     "by": "page_index",
     "timeISO": "2025-08-29T13:14:41.000Z",
@@ -256,11 +296,11 @@
     "depth": 2
   },
   {
-    "id": 45063682,
-    "by": "page_index",
-    "timeISO": "2025-08-29T13:13:14.000Z",
-    "textPlain": "[dead]",
-    "parent": 45063595,
+    "id": 45064467,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T14:18:04.000Z",
+    "textPlain": "Strongly agree! It is basically the Mone-Carlo tree search method used in Alpha Go! This is also mentioned in one of their toturials: PageIndex/blob/main/tutorials/doc-search/semantics.md. I believe it will make the method more scalable for large documents.",
+    "parent": 45062084,
     "depth": 2
   },
   {
@@ -280,6 +320,22 @@
     "depth": 2
   },
   {
+    "id": 45064482,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T14:19:26.000Z",
+    "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
+    "parent": 45062587,
+    "depth": 2
+  },
+  {
+    "id": 45064175,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T13:53:55.000Z",
+    "textPlain": "Yeah, they share a similar intuition. I found that the difference is that PageIndex is more of a learning-free approach, more like how a human would do retrieval?",
+    "parent": 45062490,
+    "depth": 2
+  },
+  {
     "id": 45062533,
     "by": "thatjoeoverthr",
     "timeISO": "2025-08-29T11:03:39.000Z",
@@ -288,11 +344,19 @@
     "depth": 2
   },
   {
-    "id": 45063494,
-    "by": "bjornsing",
-    "timeISO": "2025-08-29T12:56:16.000Z",
-    "textPlain": "It scales as log(N), right? So if you can tolerate it for a few hundred docs you can probably tolerate it for a lot more.",
-    "parent": 45062510,
+    "id": 45064101,
+    "by": "nikishuyi",
+    "timeISO": "2025-08-29T13:48:51.000Z",
+    "textPlain": "Yeah, I strongly agree. I also found in AI coding tools, tree search has replaced vector search. I’m wondering if in generic RAG systems, tree search will replace vector databases?",
+    "parent": 45063595,
+    "depth": 2
+  },
+  {
+    "id": 45063682,
+    "by": "page_index",
+    "timeISO": "2025-08-29T13:13:14.000Z",
+    "textPlain": "[dead]",
+    "parent": 45063595,
     "depth": 2
   },
   {
@@ -312,19 +376,27 @@
     "depth": 2
   },
   {
+    "id": 45064213,
+    "by": "mingtianzhang",
+    "timeISO": "2025-08-29T13:57:12.000Z",
+    "textPlain": "A good thing about tree representation compared to a 'list' representation is that you can search hierarchically, layer by layer, in a large tree. For example, AlphaGo performs search in a large tree. Since the scale of retrieval is smaller than that of the Go game, I guess this framework can scale very well.",
+    "parent": 45062510,
+    "depth": 2
+  },
+  {
+    "id": 45063494,
+    "by": "bjornsing",
+    "timeISO": "2025-08-29T12:56:16.000Z",
+    "textPlain": "It scales as log(N), right? So if you can tolerate it for a few hundred docs you can probably tolerate it for a lot more.",
+    "parent": 45062510,
+    "depth": 2
+  },
+  {
     "id": 45062579,
     "by": "scotty79",
     "timeISO": "2025-08-29T11:10:16.000Z",
     "textPlain": "I think it's about how you decide where to press Ctrl+F next.",
     "parent": 45062555,
-    "depth": 2
-  },
-  {
-    "id": 45062014,
-    "by": "marcodena",
-    "timeISO": "2025-08-29T09:34:23.000Z",
-    "textPlain": "yeah vectors are way more efficient for this",
-    "parent": 45061982,
     "depth": 2
   }
 ]
