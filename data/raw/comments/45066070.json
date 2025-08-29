@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45069159,
-    "by": "victorbjorklund",
-    "timeISO": "2025-08-29T20:42:16.000Z",
-    "textPlain": "Related question to people building local-first - what size of db is too big? I always see examples doing todo lists etc which seems perfect for this. But what about apps with larger databases. When does local-first no longer make sense?",
-    "parent": 45066070,
-    "depth": 1
-  },
-  {
     "id": 45068177,
     "by": "cfu28",
     "timeISO": "2025-08-29T19:12:33.000Z",
     "textPlain": "I struggled with this landscape a few years ago when building Mere Medical to manage my own medical records. To be fair, I was aiming for not just offline-first, but offline-only (user data was exclusively stored on device, not in any server). I got surprisingly far with RxDB, but it definitely felt like I was pushing these tools and the web platform to their limit.There’s just an assumption that these client databases don’t need mature tools and migration strategies as “it’s just a web client, you can always just re-sync with a server”. Few client db felt mature enough to warrant building my entire app on as they’re not the easiet to migrate off of.I also tried LokiJS which is mentioned in the OP. I even forked (renamed it SylvieJS lol) it to rewrite it in TS and update some of the adapters. I ultimately moved away from it as well. I found an in memory db will struggle past a few hundred mbs which I hit pretty quickly.No matter what db you use, you’re realistically using indexed db behind the hood. What surprised me was that a query to indexed db can be slower than a network call. Like what.",
+    "parent": 45066070,
+    "depth": 1
+  },
+  {
+    "id": 45069159,
+    "by": "victorbjorklund",
+    "timeISO": "2025-08-29T20:42:16.000Z",
+    "textPlain": "Related question to people building local-first - what size of db is too big? I always see examples doing todo lists etc which seems perfect for this. But what about apps with larger databases. When does local-first no longer make sense?",
     "parent": 45066070,
     "depth": 1
   },
@@ -72,14 +72,6 @@
     "depth": 2
   },
   {
-    "id": 45069099,
-    "by": "ochiba",
-    "timeISO": "2025-08-29T20:36:08.000Z",
-    "textPlain": "PowerSync supports OPFS as SQLite VFS since earlier 2025: https://github.com/powersync-ja/powersync-js/pull/418",
-    "parent": 45068435,
-    "depth": 2
-  },
-  {
     "id": 45068786,
     "by": "isaachinman",
     "timeISO": "2025-08-29T20:06:25.000Z",
@@ -92,6 +84,14 @@
     "by": "jitl",
     "timeISO": "2025-08-29T19:49:43.000Z",
     "textPlain": "We do see about 10x the database row corruption rate w/ WASM OPFS SQLite compared to the same logic running against native SQLite. For read-side cache use-case this is recoverable and relatively benign but we're not moving write-side use-case from IndexedDB to WASM-OPFS-SQLite until things look a bit better. Not to put the blame on SQLite here, there's shared responsibility for the corruption between the host application (eg Notion), the SQLite OPFS VFS authors, the user-agent authors, and the user's device to ensure proper locking and file semantics.",
+    "parent": 45068435,
+    "depth": 2
+  },
+  {
+    "id": 45069099,
+    "by": "ochiba",
+    "timeISO": "2025-08-29T20:36:08.000Z",
+    "textPlain": "PowerSync supports OPFS as SQLite VFS since earlier 2025: https://github.com/powersync-ja/powersync-js/pull/418",
     "parent": 45068435,
     "depth": 2
   },
@@ -144,11 +144,27 @@
     "depth": 2
   },
   {
+    "id": 45069896,
+    "by": "isaachinman",
+    "timeISO": "2025-08-29T21:56:42.000Z",
+    "textPlain": "Our dbs range from hundreds of MB to gigabytes.This is discussed in the blog post. A lot of offline-first tools fall apart at this scale.",
+    "parent": 45069159,
+    "depth": 2
+  },
+  {
     "id": 45067046,
     "by": "jitl",
     "timeISO": "2025-08-29T17:34:12.000Z",
     "textPlain": "But, does Replicache work for your native targets? Or you are okay with a different data layer for native (sqlite) vs web (boutique data model on top of IndexedDB). At the start of the article it sounds like the goal is to use the same abstraction across web and mobile native and solutions that bifurcate implementation are unacceptable, but then we end up preferring a solution that's different between web target and native targets.Zero (and I believe Replicache as well) layer their own SQL-like semantics on top of an arbitrary KV store, much like the layering of SQLite-over-IndexedDB discussed; like SQLite-over-IndexedDB, I believe they are storing binary byte pages in the underlying KV store and each page contains data for one-or-more Replicache/Zero records. The big difference between SQLite-over-IndexedDB and Zero-over-IndexedDB is that Zero is written with sympathy to IndexedDB's performance characteristics, whereas SQLite is written with sympathy to conventional filesystem performance.On the subject of \"keep whole thing in memory\", this is what Zero does for its instant performance, and why they suggest limiting your working set / data desired at app boot to ~40MB, although I can't find a reference for this. Zero is smart though and will pick the 40MB for you though. Hopefully Zero folks come by and corrects me if I'm wrong.",
     "parent": 45066826,
+    "depth": 2
+  },
+  {
+    "id": 45069906,
+    "by": "isaachinman",
+    "timeISO": "2025-08-29T21:58:21.000Z",
+    "textPlain": "Actually, the complete opposite. We're building this app because we need it ourselves.Turns out a lot of other people do too.",
+    "parent": 45069394,
     "depth": 2
   }
 ]
