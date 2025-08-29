@@ -1,5 +1,21 @@
 [
   {
+    "id": 45068066,
+    "by": "NewsaHackO",
+    "timeISO": "2025-08-29T19:02:49.000Z",
+    "textPlain": "> By default, SQLite is not durable, because the default value of journal_mode is DELETE, and the default value of synchronous is FULL, which doesn't provide durability in DELETE mode.From the documentation, it seems like synchronous being FULL does provide durability of the database in DELETE mode, as FULL means it calls fsync after the transaction is completed. I think you may be confusing durability of the journal file with durability of the database. I don't think WAL can ever really have a durable transaction; it is essentially based on leaving a transaction open until it gets \"check-pointed\" or actually committed to the database file.",
+    "parent": 45066999,
+    "depth": 1
+  },
+  {
+    "id": 45068192,
+    "by": "bawolff",
+    "timeISO": "2025-08-29T19:13:57.000Z",
+    "textPlain": "I can't help but feel that the difference to other DBs is that they just don't have these knobs or tell you at all.",
+    "parent": 45066999,
+    "depth": 1
+  },
+  {
     "id": 45067699,
     "by": "cenamus",
     "timeISO": "2025-08-29T18:27:00.000Z",
@@ -16,10 +32,50 @@
     "depth": 1
   },
   {
+    "id": 45068130,
+    "by": "mlyle",
+    "timeISO": "2025-08-29T19:08:29.000Z",
+    "textPlain": "> I don't think WAL can ever really have a durable transaction; it is essentially based on leaving a transaction open until it gets \"check-pointed\" or actually committed to the database file.In general: WAL means you write the transaction to the WAL, fsync (in sqlite, this depends upon the sync mode], and then return it's done to the application.  The transaction is then durable: even if the database crashes, the contents of the WAL will be applied to the database file.Checkpointing later just lets you throw away that part of the WAL and not have to replay as much to the database file.",
+    "parent": 45068066,
+    "depth": 2
+  },
+  {
+    "id": 45068136,
+    "by": "agwa",
+    "timeISO": "2025-08-29T19:08:57.000Z",
+    "textPlain": "My understanding of DELETE mode is that the transaction is not committed until the rollback journal file is deleted - if the rollback journal is present when sqlite opens a database, it applies the rollback journal to undo the changes that the transaction made. See https://www.sqlite.org/atomiccommit.html#1_deleting_the_roll...If the directory containing the rollback journal is not fsynced after the journal file is deleted, then the journal file might rematerialize after a power failure, causing sqlite to roll back a committed transaction.  And fsyncing the directory doesn't seem to happen unless you set synchronous to EXTRA, per the docs cited in the blog post.",
+    "parent": 45068066,
+    "depth": 2
+  },
+  {
+    "id": 45068210,
+    "by": "agwa",
+    "timeISO": "2025-08-29T19:15:48.000Z",
+    "textPlain": "PostgreSQL has the knobs and I find the documentation about them very clear: https://www.postgresql.org/docs/current/wal-async-commit.htm...",
+    "parent": 45068192,
+    "depth": 2
+  },
+  {
+    "id": 45067941,
+    "by": "topspin",
+    "timeISO": "2025-08-29T18:50:10.000Z",
+    "textPlain": "> Whether the docs are out of sync?Were this a one off, you would have a point.  It isn't, however.  My experience over many years has been that you can't ever be certain about what is actually going on, based on the documentation alone, and that you wind up in Reddit and Stack Overflow and a plethora of blog posts attempting to figure it out.  With LLMs, we have only more sources of contradictory and chronically obsolescent input.There is an actual problem here.  However I can see that, based on the contributions from the SQLite downmod mafia, this talk isn't welcome, so I'm off to some other thing.  Have a nice weekend, I suppose.",
+    "parent": 45067699,
+    "depth": 2
+  },
+  {
+    "id": 45067746,
+    "by": "3eb7988a1663",
+    "timeISO": "2025-08-29T18:31:33.000Z",
+    "textPlain": "It is the weekend. Most people use this site to avoid doing work.Edit: whoops, it is Friday! Gave myself a long weekend, and was just default thinking it is Saturday.",
+    "parent": 45067616,
+    "depth": 2
+  },
+  {
     "id": 45067674,
     "by": "meindnoch",
     "timeISO": "2025-08-29T18:24:06.000Z",
-    "textPlain": "Bro, this is a forum for startup founders. By the time SQLite durability issues cause anything tangible, our vibe-coded startups had long been sold to some clueless bagholder.",
+    "textPlain": "[flagged]",
     "parent": 45067616,
     "depth": 2
   }
