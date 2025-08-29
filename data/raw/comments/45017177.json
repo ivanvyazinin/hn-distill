@@ -1,17 +1,17 @@
 [
   {
-    "id": 45062827,
-    "by": "jibal",
-    "timeISO": "2025-08-29T11:53:35.000Z",
-    "textPlain": "> to denote two completely separate conceptsNo, same concept ... you're making a mistake that some call \"implementation on the brain\". That they're the same concept is why you're able to specify a common operation, SelectNotNull. That you had to provide an explicit type constraint that a compiler should be able to infer doesn't change that.",
+    "id": 45063650,
+    "by": "chrisoverzero",
+    "timeISO": "2025-08-29T13:11:30.000Z",
+    "textPlain": "> Luckily, since type constraints are part of the signature of the method and there is no ambiguity, I am allowed to make this overload.This isn’t the case. It’s allowed because the question-mark syntax means two different things in value- and reference-type contexts. The signatures really look like this:    public static IEnumerable<TR> SelectNotNull<T, TR>(\n      this IEnumerable<T> source,\n      Func<T, TR> fn)\n      where TR : class // …and the nullability of TR is tracked by the compiler\n\n    public static IEnumerable<TR> SelectNotNull<T, TR>(\n      this IEnumerable<T> source,\n      Func<T, Nullable<TR>> fn)\n      where TR : struct\n\nThis is an allowable overload.",
     "parent": 45017177,
     "depth": 1
   },
   {
-    "id": 45063270,
-    "by": "orthoxerox",
-    "timeISO": "2025-08-29T12:35:56.000Z",
-    "textPlain": "OP's code only works because the method goes from T? to T. If it accepted T and returned T?, he would've gotten an error like this:   CS0111: Type 'Utils' already defines a member called 'Foo' with the same parameter types\n\nThat's because the \"type constraints are part of the signature of the method and there is no ambiguity\" statement is wrong. They are not.",
+    "id": 45062827,
+    "by": "jibal",
+    "timeISO": "2025-08-29T11:53:35.000Z",
+    "textPlain": "> to denote two completely separate conceptsNo, same concept ... you're making a mistake that some call \"implementation on the brain\". That they're the same concept is why you're able to specify a common operation, SelectNotNull. That you had to provide an explicit type constraint that a compiler should be able to infer doesn't change that.",
     "parent": 45017177,
     "depth": 1
   },
@@ -24,10 +24,34 @@
     "depth": 1
   },
   {
+    "id": 45063779,
+    "by": "bazoom42",
+    "timeISO": "2025-08-29T13:21:56.000Z",
+    "textPlain": "Nullability on refererence types is boltet on in an ugly way in C#. Still a very valuable feature though.",
+    "parent": 45017177,
+    "depth": 1
+  },
+  {
     "id": 45062712,
     "by": "Dwedit",
     "timeISO": "2025-08-29T11:33:53.000Z",
     "textPlain": "Please remove the uppercase on the second \"Nullable\" in the headline.",
+    "parent": 45017177,
+    "depth": 1
+  },
+  {
+    "id": 45063521,
+    "by": "mrcsharp",
+    "timeISO": "2025-08-29T12:58:03.000Z",
+    "textPlain": "As a side note: please avoid, as much as possible, putting `.Select(..)` before `.Where(..)`. You are wasting CPU cycles and memory space by forcing LINQ to map all the items and then filtering on the mapped value.In most situations, you should be able to filter on the source enumerable before mapping making the whole thing more efficient.Additionally, that `.Cast<TR>(..)` at the end should have been a dead giveaway that you are going down the wrong path here. You are incurring even more CPU and Memory costs as the `.Cast<TR>(..)` call will now iterate through all the items needlessly.[1]Also, the design of this this method doesn't seem to make much difference to me anyways:```\n  var strs = source.SelectNotNull(it => it);\n```vs```\n  var strs = source.Where(it => it != null);\n```A lot of other LINQ extension methods allow you to pass in a predicate expression that will be executed on the source enumerable:```\n  var str = source.First(it => it != null);\n```[1] https://source.dot.net/#System.Linq/System/Linq/Cast.cs,152b...",
+    "parent": 45017177,
+    "depth": 1
+  },
+  {
+    "id": 45063270,
+    "by": "orthoxerox",
+    "timeISO": "2025-08-29T12:35:56.000Z",
+    "textPlain": "OP's code only works because the method goes from T? to T. If it accepted T and returned T?, he would've gotten an error like this:   CS0111: Type 'Utils' already defines a member called 'Foo' with the same parameter types\n\nThat's because the \"type constraints are part of the signature of the method and there is no ambiguity\" statement is wrong. They are not.",
     "parent": 45017177,
     "depth": 1
   },
@@ -38,6 +62,46 @@
     "textPlain": "@Bogdanp maybe this is another way to express it:public static class EnumerableExtensions\n{public static IEnumerable<TR> SelectNotNull<T, TR>(\n    this IEnumerable<T> source,\n    Func<T, TR?> fn)\n    where TR : class\n {\n  return source.Select(fn)\n      .Where(it => it != null)\n      .OfType<T>();\n }public static IEnumerable<TR> SelectNotNull<T, TR>(\n    this IEnumerable<T> source,\n    Func<T, TR?> fn)\n    where TR : struct\n {\n  return source.Select(fn)\n      .Where(it => it != null)\n      .Select(item => item.Value);\n }\n}",
     "parent": 45017177,
     "depth": 1
+  },
+  {
+    "id": 45063817,
+    "by": "pjmlp",
+    "timeISO": "2025-08-29T13:25:38.000Z",
+    "textPlain": "The class/struct approach predates C#.For example in Eiffel by default they are references, but can also be turned into value types if the are blesses ones like numeric types, or if the developer tags them as expanded classes, either at definition or declaration type.Delphi makes the distinction between classical object, and records from Object Pascal (both value based, and explicit pointers are required), or class types, heap only.Modula-3 classes and records also follow similar approach, OBJECT follows the same semantic model of REF RECORDS.For more modern examples, also D and Swift follow this approach.And plenty of other examples for anyone wanting to dive into SIGPLAN.",
+    "parent": 45062940,
+    "depth": 2
+  },
+  {
+    "id": 45063803,
+    "by": "tialaramex",
+    "timeISO": "2025-08-29T13:24:30.000Z",
+    "textPlain": "It is in hindsight unfortunate that this idea didn't get into the CLR itself.The blog post doesn't mention this, but whereas if I say my function only takes this 32-bit signed integer value type, a VB.NET caller can't hand it \"null\" because that's not a 32-bit signed integer - if instead I say it takes string (not the nullable string?) too bad, the VB.NET caller can just pass null anyway because in the CLR there's no distinction.You're actually expected (if you provide public surface) to write a null test, in your C# code which explicitly says in the function signature that this mustn't be null, otherwise it might blow up at runtime because the CLR doesn't care.",
+    "parent": 45062940,
+    "depth": 2
+  },
+  {
+    "id": 45063385,
+    "by": "bob1029",
+    "timeISO": "2025-08-29T12:45:54.000Z",
+    "textPlain": "> That said, we already have value types like System.Int32 which inherit from System.ValueType (an abstract type) which inherits from System.Object (a non-abstract reference type), so things are already a bit weird.But it all works, right? The runtime can do anything it wants to with the IL. The handling of Vector<T> is a good example of this - Locating arbitrary types/namespaces and emitting special instructions based upon the current machine's capabilities. Normalizing value vs reference semantics would be a tiny drop in this bucket.",
+    "parent": 45062940,
+    "depth": 2
+  },
+  {
+    "id": 45063797,
+    "by": "angrysaki",
+    "timeISO": "2025-08-29T13:24:01.000Z",
+    "textPlain": ">Also, the design of this this method doesn't seem to make much difference to me anyways:``` var strs = source.SelectNotNull(it => it); ```vs``` var strs = source.Where(it => it != null); ```Wouldn't the first be IEnumerable<TR> and the second be IEnumerable<TR?>I imagine that's the main driver for creating SelectNotNull, so that you get the nonnullable type out of the Linq query",
+    "parent": 45063521,
+    "depth": 2
+  },
+  {
+    "id": 45063787,
+    "by": "LtWorf",
+    "timeISO": "2025-08-29T13:23:00.000Z",
+    "textPlain": "If I was able to write a simple optimiser for relational algebra, I'm sure microsoft engineers can come up with something :D",
+    "parent": 45063521,
+    "depth": 2
   },
   {
     "id": 45063009,
