@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45061046,
+    "by": "greatgib",
+    "timeISO": "2025-08-29T06:58:32.000Z",
+    "textPlain": "I'm surprised to discover that it was not already the case for a long time for tmpfs to be used for /tmp, and that change is nice.But the auto-cleanup feature looks awful to me.\nBe it desktop or servers, machine with uptime of more than a year, I never saw the case of tmp being filled just by forgotten garbage. Only sometimes filled by unzipping a too big file or something like that. But it is on the spot.It used to be the place where you could store cache or other things like that that will hold until next reboot.\nIt looks so arbitrary and source of random unexpected bugs to have files being automatically deleted there after random time.I don't know where this feature comes from, but when stupid risky things like this are coming, I would easily bet that it is again a systemd \"I know best what is good for you\" broken feature shoved through our throats...And if coming from systemd, expect that one day it will accidentally delete important filed from you, something like following symlinks to your home dir or your nvme EFI partition...",
+    "parent": 45059470,
+    "depth": 1
+  },
+  {
     "id": 45060203,
     "by": "nrdvana",
     "timeISO": "2025-08-29T04:29:55.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45060884,
-    "by": "worthless-trash",
-    "timeISO": "2025-08-29T06:32:08.000Z",
-    "textPlain": "I'm still a fan of poly instantiated /tmp and PrivateTmp (systemd).  This may confuse/annoy admins who are not aware of namespaces, but I know that it definitely closes the attack vector of /tmp abuse by bad actors.https://www.redhat.com/en/blog/polyinstantiating-tmp-and-var...",
+    "id": 45061087,
+    "by": "rwmj",
+    "timeISO": "2025-08-29T07:06:45.000Z",
+    "textPlain": "'systemctl mask tmp.mount' - the most important command to run in these situations.It's a really bad idea to put /tmp into memory.  Filesystems already use memory when necessary and spill to the filesystem when memory is under pressure.  If they don't do this correctly (which they do) then fix your filesystem!  That will benefit everything.",
     "parent": 45059470,
     "depth": 1
   },
@@ -48,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45060518,
-    "by": "Incipient",
-    "timeISO": "2025-08-29T05:23:39.000Z",
-    "textPlain": "Using the example from the article, extracting an archive. Surely that use case is entity not possible using in-memory? What happens if you're dealing with a not-unreasonable 100gb archive?Who runs around with 100gb+ of swap?!",
-    "parent": 45059470,
-    "depth": 1
-  },
-  {
     "id": 45060561,
     "by": "gigatexal",
     "timeISO": "2025-08-29T05:31:09.000Z",
     "textPlain": "Why this change? Writing to it will be faster than disk but idk if am is a precious commodity I’d rather it was just a part of the disk I was writing to.",
+    "parent": 45059470,
+    "depth": 1
+  },
+  {
+    "id": 45060518,
+    "by": "Incipient",
+    "timeISO": "2025-08-29T05:23:39.000Z",
+    "textPlain": "Using the example from the article, extracting an archive. Surely that use case is entity not possible using in-memory? What happens if you're dealing with a not-unreasonable 100gb archive?Who runs around with 100gb+ of swap?!",
     "parent": 45059470,
     "depth": 1
   },
@@ -72,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45060177,
-    "by": "ars",
-    "timeISO": "2025-08-29T04:24:50.000Z",
-    "textPlain": "File is tmpfs will swap out if your system is under memory pressure.If that happens, reading the file back is DRAMATICALLY slower than if you had just stored the file on disk in the first place.This change is not going to speed things up for most users, it will slow things. Instead of caching important files, you waste memory on useless temporary files. Then the system swaps it out, so you can get cache back, and then it's really slow to read back.This change is a mistake.",
+    "id": 45060884,
+    "by": "worthless-trash",
+    "timeISO": "2025-08-29T06:32:08.000Z",
+    "textPlain": "I'm still a fan of poly instantiated /tmp and PrivateTmp (systemd).  This may confuse/annoy admins who are not aware of namespaces, but I know that it definitely closes the attack vector of /tmp abuse by bad actors.https://www.redhat.com/en/blog/polyinstantiating-tmp-and-var...",
     "parent": 45059470,
     "depth": 1
   },
@@ -86,6 +94,38 @@
     "textPlain": "Why is there no write through unionfs in Linux? Feels like a very useful tool to have. Does no one else need this? Have half a mind to write one with an NFS interface.EDIT: Thank you, jaunty. But all of these are device level. Even bcachefs was block device level. It doesn't allow union over a FUSE FS etc. It seems strange to not have it at the filesystem level.",
     "parent": 45059470,
     "depth": 1
+  },
+  {
+    "id": 45060177,
+    "by": "ars",
+    "timeISO": "2025-08-29T04:24:50.000Z",
+    "textPlain": "File is tmpfs will swap out if your system is under memory pressure.If that happens, reading the file back is DRAMATICALLY slower than if you had just stored the file on disk in the first place.This change is not going to speed things up for most users, it will slow things. Instead of caching important files, you waste memory on useless temporary files. Then the system swaps it out, so you can get cache back, and then it's really slow to read back.This change is a mistake.",
+    "parent": 45059470,
+    "depth": 1
+  },
+  {
+    "id": 45061170,
+    "by": "loa_in_",
+    "timeISO": "2025-08-29T07:18:27.000Z",
+    "textPlain": "I tried out variations on this on my daily driver setups. \nThe design choices here were likely threefold:Store tmpfs in memory: volatile but limited to free ram or swap, and that writes to diskStore tmpfs on dedicated volume: Since we're going to write onto disk anyway, make it a lightweight special purpose file system that's commited to diskOn disk tmpfs but cleaned up periodically: additional settings to clean up - how often, what should stay, tie file lifetime to machine reboot? The answers to these questions vary more between applications than between filesystems, therefore it's more flexible to leave clean up to userspace.In the end my main concern turned out to be that I lost files that I didn't want to lose, either to reboot cleanup, on timer cleanup, etc. I opted to clean up my temp files manually as needed.",
+    "parent": 45061046,
+    "depth": 2
+  },
+  {
+    "id": 45061178,
+    "by": "hnlmorg",
+    "timeISO": "2025-08-29T07:20:11.000Z",
+    "textPlain": "If you’ve got swap set up then stale files will get written back to disk so at least you’re not RAM indefinitely just because they’re stored on tmpfs.It’s still not an ideal solution though.",
+    "parent": 45061046,
+    "depth": 2
+  },
+  {
+    "id": 45061093,
+    "by": "PhilipRoman",
+    "timeISO": "2025-08-29T07:07:22.000Z",
+    "textPlain": "I agree about the auto cleanup, I discovered it a few days after using /tmp as a ramdisk for Yocto build. Lost a few patches but nothing significant.",
+    "parent": 45061046,
+    "depth": 2
   },
   {
     "id": 45060756,
@@ -120,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 45061129,
+    "by": "nolist_policy",
+    "timeISO": "2025-08-29T07:12:59.000Z",
+    "textPlain": "You'd think that, but in ext4 the first write to a new file will hit the disk (the code mentions it is a workaround for something). Btrfs does it correctly.",
+    "parent": 45061087,
+    "depth": 2
+  },
+  {
     "id": 45060151,
     "by": "margalabargala",
     "timeISO": "2025-08-29T04:20:31.000Z",
@@ -136,11 +184,43 @@
     "depth": 2
   },
   {
+    "id": 45061111,
+    "by": "rwmj",
+    "timeISO": "2025-08-29T07:09:43.000Z",
+    "textPlain": "It's a dumb idea that came from the systemd people.  They've never explained properly why it's a good idea, but it's the systemd default and for some reason distros defer to that.",
+    "parent": 45060561,
+    "depth": 2
+  },
+  {
+    "id": 45061038,
+    "by": "nolist_policy",
+    "timeISO": "2025-08-29T06:57:10.000Z",
+    "textPlain": "Use `/var/tmp` of you want a disk backed tmp. Not sure why the article omits that.",
+    "parent": 45060518,
+    "depth": 2
+  },
+  {
     "id": 45060583,
     "by": "perlgeek",
     "timeISO": "2025-08-29T05:34:30.000Z",
     "textPlain": "Who runs around with a 100gb+ /tmp partition?Our default server images come with a 4.4GB /tmp partition...",
     "parent": 45060518,
+    "depth": 2
+  },
+  {
+    "id": 45060973,
+    "by": "jona-f",
+    "timeISO": "2025-08-29T06:44:44.000Z",
+    "textPlain": "Do you mean that you can mark files for which still the underlying filesystem is used? As far as I remember there were experiments with that about 20 years ago, but it was decided that the added complexity wasn't worth it. The implementation that replaced all of that has been very stable (unlike the ones before) and i'm using it heavily, so i think they had a point. Some write-through behavior can be scripted on top of that.EDIT: So, wikipedia lists overlayfs and aufs as active projects and unionfs predates both. Maybe unionfs v2 is what replaced all that? Maybe I'm hallucinating...",
+    "parent": 45060144,
+    "depth": 2
+  },
+  {
+    "id": 45060168,
+    "by": "jauntywundrkind",
+    "timeISO": "2025-08-29T04:23:49.000Z",
+    "textPlain": "Dm-cache! https://www.kernel.org/doc/Documentation/device-mapper/cache...",
+    "parent": 45060144,
     "depth": 2
   },
   {
@@ -157,14 +237,6 @@
     "timeISO": "2025-08-29T04:31:45.000Z",
     "textPlain": "Most systems probably aren't having problems with insufficient RAM nowaday though, do they? And this will reduce wear on your SSD.Also, you can easily disable it: https://www.debian.org/releases/trixie/release-notes/issues....",
     "parent": 45060177,
-    "depth": 2
-  },
-  {
-    "id": 45060168,
-    "by": "jauntywundrkind",
-    "timeISO": "2025-08-29T04:23:49.000Z",
-    "textPlain": "Dm-cache! https://www.kernel.org/doc/Documentation/device-mapper/cache...",
-    "parent": 45060144,
     "depth": 2
   }
 ]
