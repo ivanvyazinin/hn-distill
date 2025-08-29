@@ -1,0 +1,8 @@
+{
+  "id": 45037936,
+  "lang": "ru",
+  "summary": "**Проблема**  \nПри переходе тестов Datadog-трейсера на Alpine 3.17 (требование .NET 10) приложение `Samples.Microsoft.Data.Sqlite` под `netcoreapp3.1` и `net5.0` стало падать:  \n`System.DllNotFoundException: Unable to load shared library 'e_sqlite3'`.\n\n**Диагностика**  \n- Ошибка возникает только на Alpine 3.17+ и только для старых TFM.  \n- `ldd` показал, что `e_sqlite3.so` не находит `libc.musl-x86_64.so.1`, потому что пакет `Microsoft.Data.Sqlite` поставляет библиотеку, собранную под Alpine 3.9.  \n- В Alpine 3.17 символ `stat64` удалён; старый `e_sqlite3.so` его требует.\n\n**Решение**  \n1. Убедиться, что используется актуальный `Microsoft.Data.Sqlite` ≥ 6.0, где библиотека пересобрана под новый musl.  \n2. Если обновить пакет нельзя, добавить в образ `apk add libc6-compat` — он предоставляет пропавший символ.  \n3. Для CI зафиксировать версию образа `alpine:3.17` и контролировать версии пакетов SQLite.\n\nИтог: после обновления `Microsoft.Data.Sqlite` или установки `libc6-compat` тесты проходят успешно.",
+  "inputHash": "0906fae3c33ab24680e4c7f57e1d5a60e25c6746ec2aefe0738a4809714f0f99",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-08-29T16:30:58.934Z"
+}
