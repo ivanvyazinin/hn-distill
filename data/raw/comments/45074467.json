@@ -8,22 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45076862,
-    "by": "spankalee",
-    "timeISO": "2025-08-30T18:20:13.000Z",
-    "textPlain": "After reading this more closely and following some of the links I think this post is really pointing to something more foundational than the \"VM for AI\" summary implies.The VM analogy is simply insufficient for securing LLM workflows where you can't trust the LLM to do what you told it to with potentially sensitive data. You may have a top-level workflow that needs access to both sensitive operations (network access) and sensitive data (PII, credentials), and an LLM that's susceptible to prompt injection attacks and general correctness and alignment problems. You can't just run the LLM calls in a VM with access to both sensitive operations and data.You need to partition the workflow, subtasks, operations, and data so that most subtasks have a very limited view of the world, and use information-flow to track data provenance. The hopefully much smaller subset of subtasks that need both sensitive operations and data will then need to be highly trusted and reviewed.This post does touch on that though. The really critical bit, IMO, is the \"Secure Orchestrators\" part, and the FIDES paper, \"Securing AI Agents with Information-Flow Control\" [1].The \"VM\" bit is running some task in a highly restricted container that only has access to the capabilities and data given to it. The \"orchestrator\" then becomes the critical piece that spawns these containers, gives them the appropriate capabilities, and labels the data they produce correctly (taint-tracking: data derived from sensitive data is sensitive, etc.).They seem on the right track to me, and I know others working in this area who would agree. I think they need a better hook than \"VMs for AI\" though. Maybe \"partitioning\" or \"isolation\" and emphasize the data part somehow.[1]: https://arxiv.org/pdf/2505.23643",
-    "parent": 45074467,
-    "depth": 1
-  },
-  {
-    "id": 45076909,
-    "by": "kookamamie",
-    "timeISO": "2025-08-30T18:26:22.000Z",
-    "textPlain": "No, they do not need one. The article paints VM as a very broad definition, mostly revolving around permissions for accessing things or executing actions.",
-    "parent": 45074467,
-    "depth": 1
-  },
-  {
     "id": 45076773,
     "by": "singron",
     "timeISO": "2025-08-30T18:06:31.000Z",
@@ -48,10 +32,42 @@
     "depth": 1
   },
   {
+    "id": 45076862,
+    "by": "spankalee",
+    "timeISO": "2025-08-30T18:20:13.000Z",
+    "textPlain": "After reading this more closely and following some of the links I think this post is really pointing to something more foundational than the \"VM for AI\" summary implies.The VM analogy is simply insufficient for securing LLM workflows where you can't trust the LLM to do what you told it to with potentially sensitive data. You may have a top-level workflow that needs access to both sensitive operations (network access) and sensitive data (PII, credentials), and an LLM that's susceptible to prompt injection attacks and general correctness and alignment problems. You can't just run the LLM calls in a VM with access to both sensitive operations and data.You need to partition the workflow, subtasks, operations, and data so that most subtasks have a very limited view of the world, and use information-flow to track data provenance. The hopefully much smaller subset of subtasks that need both sensitive operations and data will then need to be highly trusted and reviewed.This post does touch on that though. The really critical bit, IMO, is the \"Secure Orchestrators\" part, and the FIDES paper, \"Securing AI Agents with Information-Flow Control\" [1].The \"VM\" bit is running some task in a highly restricted container that only has access to the capabilities and data given to it. The \"orchestrator\" then becomes the critical piece that spawns these containers, gives them the appropriate capabilities, and labels the data they produce correctly (taint-tracking: data derived from sensitive data is sensitive, etc.).They seem on the right track to me, and I know others working in this area who would agree. I think they need a better hook than \"VMs for AI\" though. Maybe \"partitioning\" or \"isolation\" and emphasize the data part somehow.[1]: https://arxiv.org/pdf/2505.23643",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
     "id": 45075293,
     "by": "bitexploder",
     "timeISO": "2025-08-30T15:06:14.000Z",
     "textPlain": "If you look at how the most advanced commercial models are deployed they already have much of this, including isolation. This post is essentially sketching much of what I know already exists. Not in the literal OS sense, but in terms of all of the features suggested. It still isn’t enough. Agents need powerful access to things you care about to do their job. Granting them just enough permissions on the things you care about is much harder than containing the LLM, and that is already difficult. The right model for LLM security is an untrusted userspace, not an entire “OS”.",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45077012,
+    "by": "CuriouslyC",
+    "timeISO": "2025-08-30T18:44:33.000Z",
+    "textPlain": "AI agents don't need a virtual machine, the play is to do an inversion of control.  AI dispatches intents to a queue, and executors map intents to actions with whitelists and static analysis.",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45077033,
+    "by": "shykes",
+    "timeISO": "2025-08-30T18:47:32.000Z",
+    "textPlain": "Basically, this is about implementing core AI primitives (chat completion, tool calling, context management) at the system layer, instead of the application or framework layer like it is today.If you're curious to see one real-life implementation of this (I'm sure there are others), we're pretty far along in doing this with Dagger:- We already had system primitives for running functions in a sandboxed runtime- We added the ability for functions to 1) prompt LLMs, and 2) pass other functions to the LLMs as callbacks.- This way, a function can call LLMs, a LLM can call functions, in any permutation.- This allows exploring the full spectrum from fully deterministic workflows, to autonomous agents, and everything in between - without locking yourself in a particular programming language, library or framework.- We've also experimented with passing objects to the LLM, and mapping each of the object's methods to a tool call. This opens interesting possibilities, since the objects can carry state - effectively extending the LLM's context from text only, to arbitrary structured data, without additional dependencies like complex databases etc.Relevant documentation page: https://docs.dagger.io/features/llm",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45077055,
+    "by": "perlgeek",
+    "timeISO": "2025-08-30T18:50:08.000Z",
+    "textPlain": "What problem do they want to solve?From a security perspective, the real problem seems to me that LLMs cannot distinguish between instructions and data; I don't see how this proposal even attempts to address this, but then I haven't really understood their problem description (if there was one).",
     "parent": 45074467,
     "depth": 1
   },
@@ -72,6 +88,22 @@
     "depth": 1
   },
   {
+    "id": 45075653,
+    "by": "shwaj",
+    "timeISO": "2025-08-30T15:51:40.000Z",
+    "textPlain": "Fuchsia seems like a potentially practical OS for constraining the operations of AI models. As an object capability operating system, each component (and hence the process that one is instantiated in) has access only to the capabilities that it is explicitly granted.",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45077086,
+    "by": "slashdave",
+    "timeISO": "2025-08-30T18:54:44.000Z",
+    "textPlain": "Why is the author conflating a virtual machine (a deployment mechanism) with security?",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
     "id": 45076549,
     "by": "jmount",
     "timeISO": "2025-08-30T17:43:24.000Z",
@@ -80,10 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45075653,
-    "by": "shwaj",
-    "timeISO": "2025-08-30T15:51:40.000Z",
-    "textPlain": "Fuchsia seems like a potentially practical OS for constraining the operations of AI models. As an object capability operating system, each component (and hence the process that one is instantiated in) has access only to the capabilities that it is explicitly granted.",
+    "id": 45076909,
+    "by": "kookamamie",
+    "timeISO": "2025-08-30T18:26:22.000Z",
+    "textPlain": "No, they do not need one. The article paints VM as a very broad definition, mostly revolving around permissions for accessing things or executing actions.",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45077069,
+    "by": "polotics",
+    "timeISO": "2025-08-30T18:52:30.000Z",
+    "textPlain": "is this just describing in theory what bytebot.ai does in practice? i'm a user just started hacking on it",
     "parent": 45074467,
     "depth": 1
   },
@@ -100,6 +140,14 @@
     "by": "martini333",
     "timeISO": "2025-08-30T16:36:53.000Z",
     "textPlain": "I'm not reading a article on a web site that hijacks scroll.",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
+    "id": 45076990,
+    "by": "kachapopopow",
+    "timeISO": "2025-08-30T18:41:47.000Z",
+    "textPlain": "We do, it's called running it in docker.",
     "parent": 45074467,
     "depth": 1
   },
@@ -160,6 +208,14 @@
     "depth": 1
   },
   {
+    "id": 45077168,
+    "by": "bobrx4",
+    "timeISO": "2025-08-30T19:07:15.000Z",
+    "textPlain": "[dead]",
+    "parent": 45074467,
+    "depth": 1
+  },
+  {
     "id": 45076498,
     "by": "junail",
     "timeISO": "2025-08-30T17:37:42.000Z",
@@ -168,10 +224,26 @@
     "depth": 1
   },
   {
+    "id": 45077041,
+    "by": "CuriouslyC",
+    "timeISO": "2025-08-30T18:48:37.000Z",
+    "textPlain": "Virtual machines contain the blast radius. A good agent will be able to take advantage of zero days from within your system to crack you no problem, being a user makes this really easy. You'd have to carefully firewall its knowledge, but there are so many ways to get stuff on the internet (i.e. ask to download an encrypted version of the file in an obfuscated way from a service that can get past the gatekeeper AI). These things are going to be scary good at cracking systems, trust me, you are going to want things to be ironclad.",
+    "parent": 45076822,
+    "depth": 2
+  },
+  {
     "id": 45076903,
     "by": "jondwillis",
     "timeISO": "2025-08-30T18:25:13.000Z",
-    "textPlain": "I’m with you for the most part. A lot of, but certainly not all or the security risks are present regardless of whether or not you’re in a VM.I think defense in depth will eventually matter more, but there are a LOT of low-hanging fruit for attackers right now when it comes to turning AI agents against their users.",
+    "textPlain": "I’m with you for the most part. A lot of, but certainly not all or the security risks are present regardless of whether or not you’re in a VM.I think defense in depth will eventually matter more, but there are a LOT of low-hanging fruit for attackers right now when it comes to turning AI agents against their users, which is what I think you’re alluding to!",
+    "parent": 45076822,
+    "depth": 2
+  },
+  {
+    "id": 45076940,
+    "by": "EnPissant",
+    "timeISO": "2025-08-30T18:30:23.000Z",
+    "textPlain": "Once you have a tool to edit files, you pretty much lose all security.",
     "parent": 45076822,
     "depth": 2
   },
@@ -208,18 +280,18 @@
     "depth": 2
   },
   {
-    "id": 45076688,
-    "by": "procaryote",
-    "timeISO": "2025-08-30T17:57:29.000Z",
-    "textPlain": "> I don't want it to decide to send me to a 37 hour trip with three stops because it is 3$ cheaper.This sounds hard; as in: if you can define and enforce what a good enough response from an LLM looks like, you don't really need the LLM> what is the intent.For the HR person you have a human with intents you can ask; for an LLMs it's harder as they don't have intents",
-    "parent": 45075710,
-    "depth": 2
-  },
-  {
     "id": 45076097,
     "by": "BoiledCabbage",
     "timeISO": "2025-08-30T16:55:55.000Z",
     "textPlain": "Agreed they are thinking about it backwards.The model is simple and LLM agent js a user. Another user on the machine. And given the context it is working it, it is given permissions. Ex. It has read/write permissions under this folder of source code, but read only permissions for this other.Those permissions vary by context. The LLM Agent working on one coding project would be given different permissions than if it were working on a different project on the same machine.The permissions are an intersection or subset of the user's permissions that is is running on behalf of. Permissions fall into 3 categories. Allow, Deny and Ask - where it will ask an accountable user if it is allowed to do something. (Ie ask the user on who's behalf it is running if it can perform action x).The problem is that OSes (and apps and data) generally aren't fine grained enough in their permissions, and will need to become so. It's not that an LLM can or can't use git, it should only be allowed to use specific git commands. Git needs to be designed this way, along with many more things.As a result we get apps trying to re-create this model in user land and using a hodge-podge of regexes and things to do so.The workflow is: similar to sudo I launch and app as my LLM Agent user. It inherits its default permissions. I give it a context to work in, it is granted and/or denied permissions due to being in that context.I make requests and it works on my behalf doing what I permit it to do, and it never can do more than what I'm allowed to do.Instead now every agentic app needs to rebuild this workflow or risk rogue agents. It needs to be an OS service.The hacky stepping stone in betwern is to create a temporary user per agent context/usage. Grant that user perms and communicate only over IPC / network to the local LLM running as this user. Though you'll be spinning up and deleting a lot of user accounts in the process.",
+    "parent": 45075710,
+    "depth": 2
+  },
+  {
+    "id": 45076688,
+    "by": "procaryote",
+    "timeISO": "2025-08-30T17:57:29.000Z",
+    "textPlain": "> I don't want it to decide to send me to a 37 hour trip with three stops because it is 3$ cheaper.This sounds hard; as in: if you can define and enforce what a good enough response from an LLM looks like, you don't really need the LLM> what is the intent.For the HR person you have a human with intents you can ask; for an LLMs it's harder as they don't have intents",
     "parent": 45075710,
     "depth": 2
   },
@@ -304,50 +376,26 @@
     "depth": 2
   },
   {
+    "id": 45077210,
+    "by": "jackthetab",
+    "timeISO": "2025-08-30T19:14:23.000Z",
+    "textPlain": "Since I'm interested in local, small-use [1] cases of AI, what about the byte code VMs is not AI-scale? And what is AI-scale?[1] I'm looking at single-person/small office LLMs to do simple jobs: summarize these pdfs, structure this data, help drafting a document, that sort of thing, not a be-all end-all monster. Think of a bunch of highly intelligent Python scripts as opposed to  Microsoft Office.",
+    "parent": 45075697,
+    "depth": 2
+  },
+  {
+    "id": 45077096,
+    "by": "meindnoch",
+    "timeISO": "2025-08-30T18:56:56.000Z",
+    "textPlain": "We need a modern and scalable solution! Also, it has to support emojis in variable names.",
+    "parent": 45075697,
+    "depth": 2
+  },
+  {
     "id": 45075043,
     "by": "csmpltn",
     "timeISO": "2025-08-30T14:37:34.000Z",
     "textPlain": "This is the wrong take.There's a point beyond which LLMs are an overkill, where a simple script or a \"classic\" program can outdo the LLM across speed, accuracy, scalability, price and more. LLMs aren't supposed to solve \"universal computing\". They are another tool in the toolbox, and it's all about using the right tool for the problem.",
-    "parent": 45074995,
-    "depth": 2
-  },
-  {
-    "id": 45075096,
-    "by": "vjvjvjvjghv",
-    "timeISO": "2025-08-30T14:45:54.000Z",
-    "textPlain": "Using LLMs for universal computing would be crazy inefficient. On top of that they aren't deterministic (at the moment) so building systems on top of that would be shaky",
-    "parent": 45074995,
-    "depth": 2
-  },
-  {
-    "id": 45075192,
-    "by": "moduspol",
-    "timeISO": "2025-08-30T14:55:26.000Z",
-    "textPlain": "CPUs are deterministic! I think it’s going to be inherently limiting how far you can abstract above something non-deterministic.",
-    "parent": 45074995,
-    "depth": 2
-  },
-  {
-    "id": 45075169,
-    "by": "narrator",
-    "timeISO": "2025-08-30T14:53:39.000Z",
-    "textPlain": "LLMs are already hard to interpret as it is.  Why not just have some minimal linux so at least someone with a linux background can observe and easily make sense of its actions?  If we make an unfamiliar opaque virtual machine, it's likely to be even less user friendly.",
-    "parent": 45074995,
-    "depth": 2
-  },
-  {
-    "id": 45075134,
-    "by": "eldenring",
-    "timeISO": "2025-08-30T14:49:52.000Z",
-    "textPlain": "Hmmmm I don't think that would make sense. Closest analogy is working with humans. The easiest way to work with a human isn't a thin, limited api, but rather to give them context and work together (employment). I think the future of software will look more like Claude Code. Lets the model work in a similar space as us, where it can intelligently seek out information and use tools as a human would.",
-    "parent": 45074995,
-    "depth": 2
-  },
-  {
-    "id": 45075104,
-    "by": "lloydatkinson",
-    "timeISO": "2025-08-30T14:46:57.000Z",
-    "textPlain": "I can’t believe such hyperbolic fantasies are on HN now too.",
     "parent": 45074995,
     "depth": 2
   }
