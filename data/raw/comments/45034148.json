@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45075506,
+    "by": "zbentley",
+    "timeISO": "2025-08-30T15:33:58.000Z",
+    "textPlain": "Not only is dlclose(3) not guaranteed to close/unload the library, close(2) isn't guaranteed to close a file!.If the same file descriptor is open in another process (e.g. one that has it via fork(2) FD sharing either without child processes exec(2)ing or with CLOEXEC not set, or some older and esoteric abuses of fdpassing over UNIX sockets), then close(2) just decrements a refcount. The actual file isn't closed  until the last holder of a reference to its file descriptor calls close(2).This is rarely relevant, but when it comes up, it sure is wild. Common sources of confusion and pain due to this behavior are: files opened for \"global library reasons\" (e.g. /dev/shm buffers) in preforking servers, signalfd descriptors in preforking servers, processes that fork off and daemonize but leave their spawner around for e.g. CoW memory sharing efficiencies (looking at you, Python multiprocessing backends--the docs make it sound like they all act more or less the same, but in this regard they very much do not), libraries that usually swap STDIN/OUT/ERR file descriptors around with CLOEXEC disabled for a manually fork+exec'd child (e.g. situations where posix_spawn doesn't support needed pre-exec setup) but that are then used as part of larger applications that fork/spawn for other reasons and don't realize that file descriptor allocation/forking needs care and synchronization with the manually-fork/execing library in question: mixing forks and threads is one of those things that everyone says is a fast-track ticket to nasal demons, but that everyone also does regularly, I've found--if this describes you, be careful!If you end up in one of those situations, suddenly invariants like \"I called unlink on this path and then close(2)'d the descriptor to it, so that (maybe large) chunk of allocated space isn't taking up space on the filesystem/buffers any more\" and \"this externally-observable lockfile/directory is now unlocked due to its absence, now processes coordinating using th",
+    "parent": 45034148,
+    "depth": 1
+  },
+  {
     "id": 45074956,
     "by": "duped",
     "timeISO": "2025-08-30T14:26:42.000Z",
@@ -24,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45075726,
+    "by": "justincormack",
+    "timeISO": "2025-08-30T16:02:06.000Z",
+    "textPlain": "thats why Musl libc has dlclose as a no-op [0][0] https://wiki.musl-libc.org/functional-differences-from-glibc...",
+    "parent": 45074556,
+    "depth": 2
+  },
+  {
     "id": 45074649,
     "by": "10000truths",
     "timeISO": "2025-08-30T13:43:59.000Z",
     "textPlain": "You can run the DLL in a \"shim\" subprocess that proxies function calls over IPC. Then the DLL can muck about with global state all it wants, and the OS will clean up after it when you \"unload\" the DLL by killing the subprocess.",
+    "parent": 45074556,
+    "depth": 2
+  },
+  {
+    "id": 45075478,
+    "by": "dataflow",
+    "timeISO": "2025-08-30T15:29:42.000Z",
+    "textPlain": "I feel like I wouldn't frame it like this. Rather, the underlying assumption of the problem has to be that the DLL's resources are already released, otherwise the problem of what happens when the resources are used afterward is itself ill-posed. The problem is really how to ensure that.",
     "parent": 45074556,
     "depth": 2
   },
@@ -37,6 +61,22 @@
     "timeISO": "2025-08-30T13:54:22.000Z",
     "textPlain": "This is the way.As this article details, there are so many circumstances that preclude DLLs being unloaded completely that I was surprised that their design actually worked at all. So many language constructs do not play nicely with the idea that code and static data can just disappear at runtime.",
     "parent": 45074556,
+    "depth": 2
+  },
+  {
+    "id": 45075558,
+    "by": "immibis",
+    "timeISO": "2025-08-30T15:39:37.000Z",
+    "textPlain": "There is no safe, reliable, cross-environment way to deal with deallocating memory. A memory block can be referenced from arbitrary locations, some of which may be on the stack by clients of the memory block when it isndeallocated.The only safe, consistent, reliable approach is not to deallocate memory.",
+    "parent": 45074556,
+    "depth": 2
+  },
+  {
+    "id": 45075721,
+    "by": "colanderman",
+    "timeISO": "2025-08-30T16:00:54.000Z",
+    "textPlain": "Terminology nit: \"file descriptor\" is the reference itself. \"Open file description\" is the thing referenced. dup(2) and fork(2) create new file descriptors which reference the same underlying open file descriptions.",
+    "parent": 45075506,
     "depth": 2
   },
   {
