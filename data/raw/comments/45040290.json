@@ -1,17 +1,17 @@
 [
   {
-    "id": 45082945,
-    "by": "TuxSH",
-    "timeISO": "2025-08-31T13:18:27.000Z",
-    "textPlain": "In particular, std::thread constructor's (the non-default one) has a workaround against LTO optimizing the pthread call away: https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-...> Parallelism without pthreadTo get __atomic_add_dispatch to work, looks like one is expected to ensure pthread_create is referenced. One way to do it without creating a pthread or std::thread, is to do it outside LTO'd files, or like they did above.> > It is possible to create threads by using the OS syscalls bypassing completely the requirement of ptheadAs the other person said, it is impratical to do so, and it's easier to just reimplement gthread and pthread functions to be hooks (some toolchains do this).",
-    "parent": 45040290,
-    "depth": 1
-  },
-  {
     "id": 45082460,
     "by": "TillE",
     "timeISO": "2025-08-31T11:50:46.000Z",
     "textPlain": "> VisualC++ doesn’t have its source code availableGot all the way here and had to look back up to see this post was from 2019. The MSVC standard library has been open source for several years now. https://github.com/microsoft/STLThough to be perfectly honest, setting a breakpoint and looking at the disassembly is probably easier than reading standard library code.",
+    "parent": 45040290,
+    "depth": 1
+  },
+  {
+    "id": 45082945,
+    "by": "TuxSH",
+    "timeISO": "2025-08-31T13:18:27.000Z",
+    "textPlain": "In particular, std::thread constructor's (the non-default one) has a workaround against LTO optimizing the pthread call away: https://github.com/gcc-mirror/gcc/blob/master/libstdc%2B%2B-...> Parallelism without pthreadTo get __atomic_add_dispatch to work, looks like one is expected to ensure pthread_create is referenced. One way to do it without creating a pthread or std::thread, is to do it outside LTO'd files, or like they did above.> > It is possible to create threads by using the OS syscalls bypassing completely the requirement of ptheadAs the other person said, it is impratical to do so, and it's easier to just reimplement gthread and pthread functions to be hooks (some toolchains do this).",
     "parent": 45040290,
     "depth": 1
   },
@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45083002,
+    "by": "tialaramex",
+    "timeISO": "2025-08-31T13:26:10.000Z",
+    "textPlain": "As STL (nominative determinism at work) points out in the r/cpp thread about this, even when that git repo didn't exist you could have gone to see how this template works because C++ has to monomorphize generics somehow and that means when you write shared_ptr<goose> your C++ compiler needs to compile the source code for shared_ptr with the T replaced by goose.But you're correct, while I can read https://doc.rust-lang.org/src/alloc/sync.rs.html  (where Rust's Arc is defined) ...... good luck to me in https://github.com/microsoft/STL/blob/main/stl/inc/memoryThere are tricks to cope with C++ macros not being hygienic, layered on top of tricks to cope with the fact C++ doesn't have ZSTs, tricks to reduce redundancy in writing all this out for related types, and hacks to improve compiler diagnostics when you do something especially stupid. Do its maintainers learn to read like this? I guess so, as it's Open Source.",
+    "parent": 45082460,
+    "depth": 2
+  },
+  {
     "id": 45082838,
     "by": "tialaramex",
     "timeISO": "2025-08-31T13:02:49.000Z",
@@ -53,6 +61,14 @@
     "timeISO": "2025-08-31T13:14:58.000Z",
     "textPlain": "I believe HN does that automatically.",
     "parent": 45082527,
+    "depth": 2
+  },
+  {
+    "id": 45083133,
+    "by": "loeg",
+    "timeISO": "2025-08-31T13:48:46.000Z",
+    "textPlain": "Agner's instruction manual says \"A LOCK prefix typically costs more than a hundred clock cycles,\" which might be dated but is directionally correct.  (The atomic version is LOCK ADD.)If you go to the CPU-specific tables, LOCK ADD is like 10-50 (Zen 3: 8, Zen 2: 20, Bulldozer: 55, lol) cycles latency vs the expected 1 cycle for regular ADD.  And about 10 cycles on Intel CPUs.So it can be starkly slower on some older AMD platforms, and merely ~10x slower on modern x86 platforms.",
+    "parent": 45082719,
     "depth": 2
   },
   {
