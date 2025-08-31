@@ -1,17 +1,17 @@
 [
   {
-    "id": 45085428,
-    "by": "miggy",
-    "timeISO": "2025-08-31T18:09:04.000Z",
-    "textPlain": "We had a critical service that often got overwhelmed, not by one client app but by different apps over time. One week it was app A, the next week app B, each with its own buggy code suddenly spamming the service.The quick fix suggested was caching, since a lot of requests were for the same query. But after debating, we went with rate limiting instead. Our reasoning: caching would just hide the bad behavior and keep the broken clients alive, only for them to cause failures in other downstream systems later. By rate limiting, we stopped abusive patterns across all apps and forced bugs to surface. In fact, we discovered multiple issues in different apps this way.Takeaway: caching is good, but it is not a replacement for fixing buggy code or misuse. Sometimes the better fix is to protect the service and let the bugs show up where they belong.",
-    "parent": 45083495,
-    "depth": 1
-  },
-  {
     "id": 45087464,
     "by": "chamomeal",
     "timeISO": "2025-08-31T21:56:44.000Z",
     "textPlain": "Hey OP you may have seen this already, but in case you didn’t see my other comment, you should definitely check out this talk by Martin Kleppman.https://youtu.be/fU9hR3kiOK0?si=t9IhfPtCsSyszscfIt details Apache samza, which I didn’t totally grasp but it seems similar to what you’re talking about here.He talks about how if you could essentially use an event stream as your source of truth instead of a database, and you had a sufficiently powerful stream processor, you could define views on that data by consuming stream events.The end result is kind of like an auto-updating cache with no invalidation issues or race conditions. Need a new view on the data? Just define it and run the entire event stream through it. Once the stream is processed, that source of data is perpetually accurate and up-to-date.I’m not a database guy and most of this stuff is over my head, but I loved this talk and I think you should check it out! It’s the first thing I thought of when I read your post.",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45085428,
+    "by": "miggy",
+    "timeISO": "2025-08-31T18:09:04.000Z",
+    "textPlain": "We had a critical service that often got overwhelmed, not by one client app but by different apps over time. One week it was app A, the next week app B, each with its own buggy code suddenly spamming the service.The quick fix suggested was caching, since a lot of requests were for the same query. But after debating, we went with rate limiting instead. Our reasoning: caching would just hide the bad behavior and keep the broken clients alive, only for them to cause failures in other downstream systems later. By rate limiting, we stopped abusive patterns across all apps and forced bugs to surface. In fact, we discovered multiple issues in different apps this way.Takeaway: caching is good, but it is not a replacement for fixing buggy code or misuse. Sometimes the better fix is to protect the service and let the bugs show up where they belong.",
     "parent": 45083495,
     "depth": 1
   },
@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45087319,
-    "by": "mannyv",
-    "timeISO": "2025-08-31T21:34:38.000Z",
-    "textPlain": "Instead of redis etc you could get away with static files served via a cdn.Again, you should test. But the main reason imo for redis is connections and speed, not just speed.",
+    "id": 45087719,
+    "by": "stevoski",
+    "timeISO": "2025-08-31T22:37:40.000Z",
+    "textPlain": "Something missing from the article:For the type of cache usage described in the article, cache lookups are almost always O(1). This is because a cache value is retrieved for a specific key.Whereas db queries are often more complicated and therefore take longer. Yes, plenty of db queries are fetching a row by a key, and therefore fast. But many queries use a join and a somewhat complicated WHERE clause.",
     "parent": 45083495,
     "depth": 1
   },
@@ -52,6 +52,14 @@
     "by": "eatonphil",
     "timeISO": "2025-08-31T17:07:45.000Z",
     "textPlain": "Many of these points are not compelling to me when 1) you can filter both rows and columns (in postgres logical replication anyway [0]) and 2) SQL views.[0] https://www.postgresql.org/docs/current/logical-replication-...",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45087319,
+    "by": "mannyv",
+    "timeISO": "2025-08-31T21:34:38.000Z",
+    "textPlain": "Instead of redis etc you could get away with static files served via a cdn.Again, you should test. But the main reason imo for redis is connections and speed, not just speed.",
     "parent": 45083495,
     "depth": 1
   },
@@ -120,6 +128,14 @@
     "depth": 1
   },
   {
+    "id": 45087930,
+    "by": "spyspy",
+    "timeISO": "2025-08-31T23:13:57.000Z",
+    "textPlain": "You can never trust clients to behave. If your goal is to reduce infra cost, sure, rate limiting is an acceptable answer. But is it really that hard to throw on a cache and provision your service to be horizontally scalable?",
+    "parent": 45085428,
+    "depth": 2
+  },
+  {
     "id": 45087487,
     "by": "Alex_L_Wood",
     "timeISO": "2025-08-31T21:59:49.000Z",
@@ -156,6 +172,14 @@
     "by": "cortesoft",
     "timeISO": "2025-08-31T18:39:49.000Z",
     "textPlain": "> If your application requires caching to function effectively then you have a core issue that needs to be resolved, and if you don't address that issue then caching will become the problem eventually as your application grows more complex and active.I don’t think this is always true. Sometimes your app simply has data that takes a lot of computation to generate but doesn’t need to be generated often. Any way you solve this is going to be able to be described as a ‘cache’ even if you are just storing calculations in your main database. That doesn’t mean your application has a fundamental design flaw, it could mean your use case has a fundamental cache requirement.",
+    "parent": 45084661,
+    "depth": 2
+  },
+  {
+    "id": 45087864,
+    "by": "jiggawatts",
+    "timeISO": "2025-08-31T23:02:32.000Z",
+    "textPlain": "Not to mention latency! Caching does nothing to fix the latency of “misses”, which means any app that uses a caching layer to paper over a bad design will forever have a terrible P99 (or even P90) latency.“But, but, when I  reload the page now it’s fast! I fixed it!”",
     "parent": 45084661,
     "depth": 2
   },
