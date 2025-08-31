@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45087464,
+    "by": "chamomeal",
+    "timeISO": "2025-08-31T21:56:44.000Z",
+    "textPlain": "Hey OP you may have seen this already, but in case you didn’t see my other comment, you should definitely check out this talk by Martin Kleppman.https://youtu.be/fU9hR3kiOK0?si=t9IhfPtCsSyszscfIt details Apache samza, which I didn’t totally grasp but it seems similar to what you’re talking about here.He talks about how if you could essentially use an event stream as your source of truth instead of a database, and you had a sufficiently powerful stream processor, you could define views on that data by consuming stream events.The end result is kind of like an auto-updating cache with no invalidation issues or race conditions. Need a new view on the data? Just define it and run the entire event stream through it. Once the stream is processed, that source of data is perpetually accurate and up-to-date.I’m not a database guy and most of this stuff is over my head, but I loved this talk and I think you should check it out! It’s the first thing I thought of when I read your post.",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
     "id": 45084661,
     "by": "zeras",
     "timeISO": "2025-08-31T16:49:53.000Z",
@@ -20,6 +28,14 @@
     "by": "simonw",
     "timeISO": "2025-08-31T16:01:58.000Z",
     "textPlain": "A friend of mine once argued that adding a cache to a system is almost always an indication that you have an architectural problem further down the stack, and you should try to address that instead.The more software development experience I gain the more I agree with him on that!",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45087319,
+    "by": "mannyv",
+    "timeISO": "2025-08-31T21:34:38.000Z",
+    "textPlain": "Instead of redis etc you could get away with static files served via a cdn.Again, you should test. But the main reason imo for redis is connections and speed, not just speed.",
     "parent": 45083495,
     "depth": 1
   },
@@ -104,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45087487,
+    "by": "Alex_L_Wood",
+    "timeISO": "2025-08-31T21:59:49.000Z",
+    "textPlain": "It's funny how I encountered a problem which went exactly the opposite way! We initially introduced a rate limiter that was adequate for the time, but with the product scaling up it stopped being adequate, and any failures with 429 were either ignored, or closed as client bugs. Only after some time we realized that the rate of requests scaled up approximately with the rate of product growth, and a quick fix was to simply remove the limiter, but after a couple of times when DB decided to take a nap after being overwhelmed, we added a caching layer.Just goes to show that there is no silver bullet - context, experience and good amount of gut feeling is paramount.",
+    "parent": 45085428,
+    "depth": 2
+  },
+  {
     "id": 45086053,
     "by": "andersmurphy",
     "timeISO": "2025-08-31T19:07:08.000Z",
@@ -160,26 +184,10 @@
     "depth": 2
   },
   {
-    "id": 45087007,
-    "by": "tootie",
-    "timeISO": "2025-08-31T20:56:33.000Z",
-    "textPlain": "Most of the time I use caching it's to cut down on network round trips. If I'm fetching data on every end user request that only updates daily or weekly caching that's a no-brainer. Edge caching for content sites is also a no-brainer. Caching something computationally expensive may be fishy but also may be useful. Even if you are just papering over some inefficient process, that's not necessarily a sin. Sometimes you have to be pragmatic.",
-    "parent": 45084184,
-    "depth": 2
-  },
-  {
     "id": 45084340,
     "by": "jmull",
     "timeISO": "2025-08-31T16:18:32.000Z",
     "textPlain": "That's true in my experience.Caches have perfectly valid uses, but they are so often used in fundamentally poor ways, especially with databases.",
-    "parent": 45084184,
-    "depth": 2
-  },
-  {
-    "id": 45084622,
-    "by": "IgorPartola",
-    "timeISO": "2025-08-31T16:47:09.000Z",
-    "textPlain": "If you think of it as a cache, yes. If you think of it as another data layer then no.For example, let’s say that every web page your CMS produces is created using a computationally expensive compilation. But the final product is more or less static and only gets updated every so often. You can basically have your compilation process pull the data from your source of truth such as your RSBMS but then store the final page (or large fragments of it) in something like MongoDB. In other words the cache replacement happens at generation time and not on demand. This means there is always a cached version available (though possibly slightly stale), and it is always served out of a very fast data store without expensive computation. I prefer this style of caching to on demand caching because it means you avoid cache invalidation issues AND the thundering herd problem.Of course this doesn’t work for every workflow but I can get you quite far. And yes this example can also be sort of solved with a static site generator but look beyond that at things like document fragments, etc. This works very well for dynamic content where the read to write ratio is high.",
     "parent": 45084184,
     "depth": 2
   },
@@ -192,10 +200,26 @@
     "depth": 2
   },
   {
+    "id": 45084622,
+    "by": "IgorPartola",
+    "timeISO": "2025-08-31T16:47:09.000Z",
+    "textPlain": "If you think of it as a cache, yes. If you think of it as another data layer then no.For example, let’s say that every web page your CMS produces is created using a computationally expensive compilation. But the final product is more or less static and only gets updated every so often. You can basically have your compilation process pull the data from your source of truth such as your RSBMS but then store the final page (or large fragments of it) in something like MongoDB. In other words the cache replacement happens at generation time and not on demand. This means there is always a cached version available (though possibly slightly stale), and it is always served out of a very fast data store without expensive computation. I prefer this style of caching to on demand caching because it means you avoid cache invalidation issues AND the thundering herd problem.Of course this doesn’t work for every workflow but I can get you quite far. And yes this example can also be sort of solved with a static site generator but look beyond that at things like document fragments, etc. This works very well for dynamic content where the read to write ratio is high.",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
     "id": 45084309,
     "by": "jitl",
     "timeISO": "2025-08-31T16:15:40.000Z",
     "textPlain": "Yeah my architecture problem is that Postgres RDS EBS storage is slow as dog. Sure our data won’t go poof if we lose an instance but it’s so slow.(It’s not really my architecture problem. My architecture problem is that we store pages as grains of sand in a db instead of in a bucket, and that we allow user defined schemas)",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
+    "id": 45087007,
+    "by": "tootie",
+    "timeISO": "2025-08-31T20:56:33.000Z",
+    "textPlain": "Most of the time I use caching it's to cut down on network round trips. If I'm fetching data on every end user request that only updates daily or weekly caching that's a no-brainer. Edge caching for content sites is also a no-brainer. Caching something computationally expensive may be fishy but also may be useful. Even if you are just papering over some inefficient process, that's not necessarily a sin. Sometimes you have to be pragmatic.",
     "parent": 45084184,
     "depth": 2
   },
