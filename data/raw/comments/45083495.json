@@ -1,17 +1,17 @@
 [
   {
-    "id": 45084661,
-    "by": "zeras",
-    "timeISO": "2025-08-31T16:49:53.000Z",
-    "textPlain": "I think a fundamental mistake I see many developers make is they use caching trying to solve problems rather than improve efficiency.It's the equivalent of adding more RAM to fix poor memory management or adding more CPUs/servers to compensate for resource heavy and slow requests and complex queries.If your application requires caching to function effectively then you have a core issue that needs to be resolved, and if you don't address that issue then caching will become the problem eventually as your application grows more complex and active.",
+    "id": 45085428,
+    "by": "miggy",
+    "timeISO": "2025-08-31T18:09:04.000Z",
+    "textPlain": "We had a critical service that often got overwhelmed, not by one client app but by different apps over time. One week it was app A, the next week app B, each with its own buggy code suddenly spamming the service.The quick fix suggested was caching, since a lot of requests were for the same query. But after debating, we went with rate limiting instead. Our reasoning: caching would just hide the bad behavior and keep the broken clients alive, only for them to cause failures in other downstream systems later. By rate limiting, we stopped abusive patterns across all apps and forced bugs to surface. In fact, we discovered multiple issues in different apps this way.Takeaway: caching is good, but it is not a replacement for fixing buggy code or misuse. Sometimes the better fix is to protect the service and let the bugs show up where they belong.",
     "parent": 45083495,
     "depth": 1
   },
   {
-    "id": 45084833,
-    "by": "eatonphil",
-    "timeISO": "2025-08-31T17:07:45.000Z",
-    "textPlain": "Many of these points are not compelling to me when 1) you can filter both rows and columns (in postgres logical replication anyway [0]) and 2) SQL views.[0] https://www.postgresql.org/docs/current/logical-replication-...",
+    "id": 45084661,
+    "by": "zeras",
+    "timeISO": "2025-08-31T16:49:53.000Z",
+    "textPlain": "I think a fundamental mistake I see many developers make is they use caching trying to solve problems rather than improve efficiency.It's the equivalent of adding more RAM to fix poor memory management or adding more CPUs/servers to compensate for resource heavy and slow requests and complex queries.If your application requires caching to function effectively then you have a core issue that needs to be resolved, and if you don't address that issue then caching will become the problem eventually as your application grows more complex and active.",
     "parent": 45083495,
     "depth": 1
   },
@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45085456,
+    "by": "gethly",
+    "timeISO": "2025-08-31T18:11:39.000Z",
+    "textPlain": "Event-sourcing is a powerful tool that helps with exactly this. Why spin up a cache server when you can spin up another read DB instance for the same price and get unlimited capabilities...",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
     "id": 45084293,
     "by": "tengbretson",
     "timeISO": "2025-08-31T16:13:45.000Z",
@@ -32,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45084128,
-    "by": "xixixao",
-    "timeISO": "2025-08-31T15:52:30.000Z",
-    "textPlain": "This is a good deep dive into the complexity around caching: https://stack.convex.dev/caching-inHaving caching by default (like in Convex) is a really neat simplification to app development.",
+    "id": 45085170,
+    "by": "jamesblonde",
+    "timeISO": "2025-08-31T17:44:21.000Z",
+    "textPlain": "Some of these questions are informed by the Redis/DynamoDB or Postgres/MySQL world the author seems to inhabit.Why would you want to do this? \n\"I don’t know of any database built to handle hundreds of thousands of read replicas constantly pulling data.\"If you want an open-source database with Redis latencies to handle millions of concurrent reads, you can use RonDB (disclaimer, I work on it).\"Since I’m only interested in a subset of the data, setting up a full read replica feels like overkill. It would be great to have a read replica with just partial data. It would be great to have a read replica with just partial data.\"This is very unclear. Redis returns complete rows because it does not support pushdown projections or ordered indexes. RonDB supports these and distion aware partition-pruned index scans (start the transaction on the node/partition that contains the rows that are found with the index).Reference:https://www.rondb.com/post/the-process-to-reach-100m-key-loo...",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45084833,
+    "by": "eatonphil",
+    "timeISO": "2025-08-31T17:07:45.000Z",
+    "textPlain": "Many of these points are not compelling to me when 1) you can filter both rows and columns (in postgres logical replication anyway [0]) and 2) SQL views.[0] https://www.postgresql.org/docs/current/logical-replication-...",
     "parent": 45083495,
     "depth": 1
   },
@@ -44,6 +60,14 @@
     "by": "hoppp",
     "timeISO": "2025-08-31T15:19:47.000Z",
     "textPlain": "The cache service is a database of sorts that usually stores key value pairs.The difference is in persistence and scaling and read/write permissions",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45084128,
+    "by": "xixixao",
+    "timeISO": "2025-08-31T15:52:30.000Z",
+    "textPlain": "This is a good deep dive into the complexity around caching: https://stack.convex.dev/caching-inHaving caching by default (like in Convex) is a really neat simplification to app development.",
     "parent": 45083495,
     "depth": 1
   },
@@ -76,6 +100,14 @@
     "by": "chamomeal",
     "timeISO": "2025-08-31T17:07:15.000Z",
     "textPlain": "Idk I think caching is a crucial part of many well-designed systems. There’s a lot of very cache-able data out there. If invalidating events are well defined or the data is fine being stale (week/month level dashboards, for example), that’s a fantastic reason to use a cache. I’d much rather just stuff those values in a cache than figure out any other more complicated solution.I also just think it’s a necessary evil of big systems. Sometimes you need derived data. You can even think about databases as a kind of cache: the “real” data is the stream of every event that ever updated data in the database! (Yes this stretching the meaning of cache lol)However I agree that caching is often an easy bandaid for a bad architecture.This talk on Apache Samza completely changed how I think about caching and derived data in general: https://youtu.be/fU9hR3kiOK0?si=t9IhfPtCsSyszscfAnd this interview has some interesting insights on the problems that caching faces at super large scale systems (twitter specifically): https://softwareengineeringdaily.com/2023/01/12/caching-at-t...",
+    "parent": 45084661,
+    "depth": 2
+  },
+  {
+    "id": 45085489,
+    "by": "hinkley",
+    "timeISO": "2025-08-31T18:14:55.000Z",
+    "textPlain": "> It's the equivalent of adding more RAM to fix poor memory managementNo it’s ten times worse than that. Adding RAM doesn’t make the task of fixing the memory management problems intrinsically harder. It just makes the problem bigger when you do fix it.Adding caching to your app makes all of the tools used for detecting and categorizing performance issues much harder to use. We already have too many developers and “engineers” who balk at learning more than the basics of using these tools. Caching is like stirring up sediment in a submarine cave. Now only the most disciplined can still function and often just barely.When you don’t have caches, data has to flow along the call tree. So if you need a user’s data in three places, that data either flows to those three or you have to look it up three times, which can introduce concurrency issues if the user metadata changes in the middle of a request. But because it’s inefficient there is clear incentive to fix the data propagation issues. Fixing those issues will make testing easier because now the data is passed in instead of having to mock the lookup code.Then you introduce caching. Now the incentive is mostly gone, since you will only improve cold start performance. And now there is a perverse incentive to never propagate the data again. You start moving backward. Soon there are eight places in the code that use that data, because looking it up was “free” and they are all detached from each other.And because the lookup is “free” the user lookup code disappears from your perf data and flame graphs. Only a madman like me will still tackle such a mess, and even I have difficulty finding the motivation.For these reasons I say with great confidence and no small authority: adding caching to your app is the last major performance improvement most teams will ever see. So if you reach for it prematurely, you’re stuck with what you’ve got. Now a more astute competitor can deliver a faster, cheaper, or both product that eats your",
     "parent": 45084661,
     "depth": 2
   },
@@ -133,6 +165,14 @@
     "timeISO": "2025-08-31T16:56:23.000Z",
     "textPlain": "More like they're stocking the fridge and wondering what living next to the market is like.",
     "parent": 45084293,
+    "depth": 2
+  },
+  {
+    "id": 45085142,
+    "by": "avinassh",
+    "timeISO": "2025-08-31T17:40:32.000Z",
+    "textPlain": "Is it possible to create a filter that can work over a complex join operation?That's what IVM systems like Noria can do. With application + cache, the application stores the final result in the cache. So, with these new IVM systems, you get that precomputed data directly from the database.Views in Postgres are not materialized right? so every small delta would require refresh of entire view.",
+    "parent": 45084833,
     "depth": 2
   },
   {
