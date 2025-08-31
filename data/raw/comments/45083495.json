@@ -1,9 +1,17 @@
 [
   {
-    "id": 45084293,
-    "by": "tengbretson",
-    "timeISO": "2025-08-31T16:13:45.000Z",
-    "textPlain": "Maybe these distinctions are useful to people in some situations, but to me this reads like wondering whether we can replace houses with buildings.",
+    "id": 45084661,
+    "by": "zeras",
+    "timeISO": "2025-08-31T16:49:53.000Z",
+    "textPlain": "I think a fundamental mistake I see many developers make is they use caching trying to solve problems rather than improve efficiency.It's the equivalent of adding more RAM to fix poor memory management or adding more CPUs/servers to compensate for resource heavy and slow requests and complex queries.If your application requires caching to function effectively then you have a core issue that needs to be resolved, and if you don't address that issue then caching will become the problem eventually as your application grows more complex and active.",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45084833,
+    "by": "eatonphil",
+    "timeISO": "2025-08-31T17:07:45.000Z",
+    "textPlain": "Many of these points are not compelling to me when 1) you can filter both rows and columns (in postgres logical replication anyway [0]) and 2) SQL views.[0] https://www.postgresql.org/docs/current/logical-replication-...",
     "parent": 45083495,
     "depth": 1
   },
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45083842,
-    "by": "hoppp",
-    "timeISO": "2025-08-31T15:19:47.000Z",
-    "textPlain": "The cache service is a database of sorts that usually stores key value pairs.The difference is in persistence and scaling and read/write permissions",
+    "id": 45084293,
+    "by": "tengbretson",
+    "timeISO": "2025-08-31T16:13:45.000Z",
+    "textPlain": "Maybe these distinctions are useful to people in some situations, but to me this reads like wondering whether we can replace houses with buildings.",
     "parent": 45083495,
     "depth": 1
   },
@@ -28,6 +36,22 @@
     "by": "xixixao",
     "timeISO": "2025-08-31T15:52:30.000Z",
     "textPlain": "This is a good deep dive into the complexity around caching: https://stack.convex.dev/caching-inHaving caching by default (like in Convex) is a really neat simplification to app development.",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45083842,
+    "by": "hoppp",
+    "timeISO": "2025-08-31T15:19:47.000Z",
+    "textPlain": "The cache service is a database of sorts that usually stores key value pairs.The difference is in persistence and scaling and read/write permissions",
+    "parent": 45083495,
+    "depth": 1
+  },
+  {
+    "id": 45084695,
+    "by": "jayd16",
+    "timeISO": "2025-08-31T16:52:55.000Z",
+    "textPlain": "So I guess this guy wants Firestore (or the OSS equivalent)?",
     "parent": 45083495,
     "depth": 1
   },
@@ -48,10 +72,42 @@
     "depth": 1
   },
   {
+    "id": 45084830,
+    "by": "chamomeal",
+    "timeISO": "2025-08-31T17:07:15.000Z",
+    "textPlain": "Idk I think caching is a crucial part of many well-designed systems. There’s a lot of very cache-able data out there. If invalidating events are well defined or the data is fine being stale (week/month level dashboards, for example), that’s a fantastic reason to use a cache. I’d much rather just stuff those values in a cache than figure out any other more complicated solution.I also just think it’s a necessary evil of big systems. Sometimes you need derived data. You can even think about databases as a kind of cache: the “real” data is the stream of every event that ever updated data in the database! (Yes this stretching the meaning of cache lol)However I agree that caching is often an easy bandaid for a bad architecture.This talk on Apache Samza completely changed how I think about caching and derived data in general: https://youtu.be/fU9hR3kiOK0?si=t9IhfPtCsSyszscfAnd this interview has some interesting insights on the problems that caching faces at super large scale systems (twitter specifically): https://softwareengineeringdaily.com/2023/01/12/caching-at-t...",
+    "parent": 45084661,
+    "depth": 2
+  },
+  {
+    "id": 45084622,
+    "by": "IgorPartola",
+    "timeISO": "2025-08-31T16:47:09.000Z",
+    "textPlain": "If you think of it as a cache, yes. If you think of it as another data layer then no.For example, let’s say that every web page your CMS produces is created using a computationally expensive compilation. But the final product is more or less static and only gets updated every so often. You can basically have your compilation process pull the data from your source of truth such as your RSBMS but then store the final page (or large fragments of it) in something like MongoDB. In other words the cache replacement happens at generation time and not on demand. This means there is always a cached version available (though possibly slightly stale), and it is always served out of a very fast data store without expensive computation. I prefer this style of caching to on demand caching because it means you avoid cache invalidation issues AND the thundering herd problem.Of course this doesn’t work for every workflow but I can get you quite far. And yes this example can also be sort of solved with a static site generator but look beyond that at things like document fragments, etc. This works very well for dynamic content where the read to write ratio is high.",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
+    "id": 45084503,
+    "by": "DrBazza",
+    "timeISO": "2025-08-31T16:35:28.000Z",
+    "textPlain": "I'd argue the database falls into that category.The two questions no one seems to ask are 'do I even need a database?', and 'where do I need my database?'There are alternate data storage 'patterns' that aren't databases.  Though ultimately some sort of (Structure) query language gets invented to query them.",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
     "id": 45084309,
     "by": "jitl",
     "timeISO": "2025-08-31T16:15:40.000Z",
     "textPlain": "Yeah my architecture problem is that Postgres RDS EBS storage is slow as dog. Sure our data won’t go poof if we lose an instance but it’s so slow.(It’s not really my architecture problem. My architecture problem is that we store pages as grains of sand in a db instead of in a bucket, and that we allow user defined schemas)",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
+    "id": 45084561,
+    "by": "barrkel",
+    "timeISO": "2025-08-31T16:41:00.000Z",
+    "textPlain": "Caches suck because invalidation needs to be sprinkled all over the place in what is often an abstraction-violating way.Then there's memoization, often a hack for an algorithm problem.I once \"solved\" a huge performance problem with a couple of caches. The stain of it lies on my conscience. It was actually admitting defeat in reorganizing the logic to eliminate the need for the cache. I know that the invalidation logic will have caused bugs for years. I'm sure an engineer will curse my name for as long as that code lives.",
     "parent": 45084184,
     "depth": 2
   },
@@ -61,6 +117,38 @@
     "timeISO": "2025-08-31T16:18:32.000Z",
     "textPlain": "That's true in my experience.Caches have perfectly valid uses, but they are so often used in fundamentally poor ways, especially with databases.",
     "parent": 45084184,
+    "depth": 2
+  },
+  {
+    "id": 45084451,
+    "by": "AtheistOfFail",
+    "timeISO": "2025-08-31T16:31:01.000Z",
+    "textPlain": "I disagree. For large search pages where you're building payloads from multiple records that don't change often, it could be beneficial to use a cache. Your cache ends up helping the most common results to be fetched less often and return data faster.",
+    "parent": 45084184,
+    "depth": 2
+  },
+  {
+    "id": 45084722,
+    "by": "jayd16",
+    "timeISO": "2025-08-31T16:56:23.000Z",
+    "textPlain": "More like they're stocking the fridge and wondering what living next to the market is like.",
+    "parent": 45084293,
+    "depth": 2
+  },
+  {
+    "id": 45084570,
+    "by": "barrkel",
+    "timeISO": "2025-08-31T16:42:18.000Z",
+    "textPlain": "No, what makes a cache a cache is invalidation. A cache is stale data. It's a latent out of date calculation. It's misinformation that risks surviving until it lies to the user.",
+    "parent": 45083842,
+    "depth": 2
+  },
+  {
+    "id": 45084544,
+    "by": "Supermancho",
+    "timeISO": "2025-08-31T16:39:19.000Z",
+    "textPlain": "ie A cache is a database. The difference is features and usage.",
+    "parent": 45083842,
     "depth": 2
   }
 ]
