@@ -1,25 +1,9 @@
 [
   {
-    "id": 45094442,
-    "by": "ethin",
-    "timeISO": "2025-09-01T17:00:30.000Z",
-    "textPlain": "My (personal) problem with Nim is that it assumes a Unix universe for everything. Which is good until (1) you want to do something on Windows and (2) you want to use other Nim libraries from Nimble. Nim will happily allow you to use the MSVC compiler, but a lot of good libraries don't and force GCC via pragmas which directly pass compiler options to \"just make it work\" or something. Last time I tried discussing this in the Nim matrix chat, I got some... Quite hostile responses. Not in the insulting me way, but in the \"bro, just use Linux\" way. Maybe things have changed; when I did use Nim I found it to be quite the pleasant language to work with excepting the nimble library problem.",
-    "parent": 45057734,
-    "depth": 1
-  },
-  {
     "id": 45092026,
     "by": "cb321",
     "timeISO": "2025-09-01T12:01:11.000Z",
     "textPlain": "This is a decent overview, but misses a few nice things.  Interested readers should not assume it is exhaustive (generally something they should not assume..)E.g., because the feature is so rare (controversial?) it doesn't get mentioned much, but you can also define your own operators in Nim.  So, if you miss bitwise `|=` from C-like PLangs, you can just say:    proc `|=`*[T,U](a: var T, b: U) = a = a or b\n\nOf course, Nim has a built in `set[T]` for managing bit sets in a nicer fashion with traditionally named set theoretic operators like intersection, union, etc.  https://github.com/c-blake/procs makes a lot of use of set[enum] to do its dependency analysis of what Linux /proc files to load and what fields to parse, for example (and is generally much faster than C procps alternatives).This same user-defined operator notation for calls can be used for templates and macros as well which makes a number of customized notations/domain specific languages (DSLs) very easy.  And pragma macros make it easy to tag definitions with special compile-time behaviors.  And so on.",
-    "parent": 45057734,
-    "depth": 1
-  },
-  {
-    "id": 45094294,
-    "by": "banashark",
-    "timeISO": "2025-09-01T16:44:49.000Z",
-    "textPlain": "Regarding the js backend: how is the size of the produced artifacts?I recall seeing a comparison of “transpile to js” languages and noted Kotlin and nim as the two that were outputting MBs of js compared to the tens or low hundreds of kbs that other languages were outputting.",
     "parent": 45057734,
     "depth": 1
   },
@@ -32,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 45094442,
+    "by": "ethin",
+    "timeISO": "2025-09-01T17:00:30.000Z",
+    "textPlain": "My (personal) problem with Nim is that it assumes a Unix universe for everything. Which is good until (1) you want to do something on Windows and (2) you want to use other Nim libraries from Nimble. Nim will happily allow you to use the MSVC compiler, but a lot of good libraries don't and force GCC via pragmas which directly pass compiler options to \"just make it work\" or something. Last time I tried discussing this in the Nim matrix chat, I got some... Quite hostile responses. Not in the insulting me way, but in the \"bro, just use Linux\" way. Maybe things have changed; when I did use Nim I found it to be quite the pleasant language to work with excepting the nimble library problem.",
+    "parent": 45057734,
+    "depth": 1
+  },
+  {
     "id": 45092120,
     "by": "barchar",
     "timeISO": "2025-09-01T12:16:11.000Z",
     "textPlain": "The coolest thing about nim is that it's macros participate in the type system and overload resolution and can work with both type checked and non type checked code",
+    "parent": 45057734,
+    "depth": 1
+  },
+  {
+    "id": 45094294,
+    "by": "banashark",
+    "timeISO": "2025-09-01T16:44:49.000Z",
+    "textPlain": "Regarding the js backend: how is the size of the produced artifacts?I recall seeing a comparison of “transpile to js” languages and noted Kotlin and nim as the two that were outputting MBs of js compared to the tens or low hundreds of kbs that other languages were outputting.",
     "parent": 45057734,
     "depth": 1
   },
@@ -48,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45092192,
-    "by": "benterix",
-    "timeISO": "2025-09-01T12:28:09.000Z",
-    "textPlain": "> WASM is not supported in the standard library.Would using the C output and using emcc on it solve this problem?",
-    "parent": 45057734,
-    "depth": 1
-  },
-  {
     "id": 45092817,
     "by": "michaelsbradley",
     "timeISO": "2025-09-01T14:11:19.000Z",
     "textPlain": "Because Nim's unusual case-sensitivity rules[1] often make for a heated point of discussion on HN, I thought this quote from the Nimony docs[2] might be of interest:> Nimony is case sensitive like most other modern programming languages. The reason for this is implementation simplicity. This might also be changed in the future.[1] https://nim-lang.org/docs/manual.html#lexical-analysis-ident...[2] https://nim-lang.github.io/nimony-website/index.html#lexical...",
+    "parent": 45057734,
+    "depth": 1
+  },
+  {
+    "id": 45092192,
+    "by": "benterix",
+    "timeISO": "2025-09-01T12:28:09.000Z",
+    "textPlain": "> WASM is not supported in the standard library.Would using the C output and using emcc on it solve this problem?",
     "parent": 45057734,
     "depth": 1
   },
@@ -112,19 +112,11 @@
     "depth": 2
   },
   {
-    "id": 45094455,
-    "by": "cb321",
-    "timeISO": "2025-09-01T17:01:12.000Z",
-    "textPlain": "Like literally anything, it will depend upon how much your code does, what libraries it uses and so on, but here's a trivial little example to at least dispell a worry of multi-megabyte outputs for trivial things:    echo echo 1 > j.nim\n    nim js j.nim\n    node j.js\n    >>> see 1\\\\n <<<<\n    ls -l j.js\n    >>> 36636 Sep  1 12:54 j.js <<<\n    nim js -d:release j.nim\n    ls -l j.js\n    >>> 11369 Sep  1 12:56 j.js <<<\n\nSo, with -d:release stripping away a lot of debugging logic, it's not so bad.  Even with d:release there is probably ~50% of the text of that j.js that is just C comments which could be trivially stripped away.  E.g., cpp<j.js|wc -c gives 6350 for that very same 11369 file.  There are js minification things one could also run on the output.  People do complain about this, but people complain a lot.  It's probably not so uncompetitive for less trivial programs that do a little bit more work, both minified, apples-to-apples care & all that.",
-    "parent": 45094294,
-    "depth": 2
-  },
-  {
-    "id": 45094453,
-    "by": "summarity",
-    "timeISO": "2025-09-01T17:01:07.000Z",
-    "textPlain": "Wrote a post about it here: https://summarity.com/nim-alpine",
-    "parent": 45094294,
+    "id": 45094834,
+    "by": "dualogy",
+    "timeISO": "2025-09-01T17:38:28.000Z",
+    "textPlain": "> Nim has fantastic interoperability with C++Last year I asked around in the Nim community if \"the C++ interop\" will allow me to easily link-to-and-import in Nim a C++ lib (in this case, a 3D engine called WickedEngine) and thus make a game using its surface API from Nim instead of writing it all in C++.There seemed to be no straightforward way to do so whatsoever. Sure you can import old-school C APIs. Sure maybe you can have Nim transpile to C++ code. But \"fantastic interoperability\" didn't have my fantasy here in mind: something like `@importcpp \"../libwickedengine/compilecommands.json\"` and boom, done, including LSP auto-complete  =)It would be the same for other major C++ libs then: think LLVM, Dear Imgui, Qt, OpenCV, libtorrent, FLTK, wxWidgets, bgfx, assimp, SFML......Sure, I get it, \"unlike C, C++ doesn't have an ABI. These C++ libs should maintain and expose a basic C API\". I agree! But still..",
+    "parent": 45092285,
     "depth": 2
   },
   {
@@ -152,6 +144,22 @@
     "depth": 2
   },
   {
+    "id": 45094455,
+    "by": "cb321",
+    "timeISO": "2025-09-01T17:01:12.000Z",
+    "textPlain": "Like literally anything, it will depend upon how much your code does, what libraries it uses and so on, but here's a trivial little example to at least dispell a worry of multi-megabyte outputs for trivial things:    echo echo 1 > j.nim\n    nim js j.nim\n    node j.js\n    >>> see 1\\\\n <<<<\n    ls -l j.js\n    >>> 36636 Sep  1 12:54 j.js <<<\n    nim js -d:release j.nim\n    ls -l j.js\n    >>> 11369 Sep  1 12:56 j.js <<<\n\nSo, with -d:release stripping away a lot of debugging logic, it's not so bad.  Even with d:release there is probably ~50% of the text of that j.js that is just C comments which could be trivially stripped away.  E.g., cpp<j.js|wc -c gives 6350 for that very same 11369 file.  There are js minification things one could also run on the output.  People do complain about this, but people complain a lot.  It's probably not so uncompetitive for less trivial programs that do a little bit more work, both minified, apples-to-apples care & all that.",
+    "parent": 45094294,
+    "depth": 2
+  },
+  {
+    "id": 45094453,
+    "by": "summarity",
+    "timeISO": "2025-09-01T17:01:07.000Z",
+    "textPlain": "Wrote a post about it here: https://summarity.com/nim-alpine",
+    "parent": 45094294,
+    "depth": 2
+  },
+  {
     "id": 45092983,
     "by": "thomasmg",
     "timeISO": "2025-09-01T14:38:32.000Z",
@@ -168,19 +176,19 @@
     "depth": 2
   },
   {
-    "id": 45092213,
-    "by": "cb321",
-    "timeISO": "2025-09-01T12:30:41.000Z",
-    "textPlain": "Yeppers - https://github.com/treeform/nim_emscripten_tutorialFWIW, people have been doing that for about as long as there's even been an emscripten, but the article is pointing out the lack of more tight integration with stdlib/std compilation toolchains.  I would say evolving/growing the stdib in general is a pain point.  Both the language and compiler are more flexible than most, though.  So, this matters less in Nim that it might otherwise.",
-    "parent": 45092192,
-    "depth": 2
-  },
-  {
     "id": 45093384,
     "by": "throwawaymaths",
     "timeISO": "2025-09-01T15:17:35.000Z",
     "textPlain": "> The reason for this is implementation simplicityThe real correct reason for this is to facilitate grep/global-search-and-replace/LLM.",
     "parent": 45092817,
+    "depth": 2
+  },
+  {
+    "id": 45092213,
+    "by": "cb321",
+    "timeISO": "2025-09-01T12:30:41.000Z",
+    "textPlain": "Yeppers - https://github.com/treeform/nim_emscripten_tutorialFWIW, people have been doing that for about as long as there's even been an emscripten, but the article is pointing out the lack of more tight integration with stdlib/std compilation toolchains.  I would say evolving/growing the stdib in general is a pain point.  Both the language and compiler are more flexible than most, though.  So, this matters less in Nim that it might otherwise.",
+    "parent": 45092192,
     "depth": 2
   },
   {
