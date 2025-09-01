@@ -1,5 +1,13 @@
 [
   {
+    "id": 45093079,
+    "by": "tetraodonpuffer",
+    "timeISO": "2025-09-01T14:48:35.000Z",
+    "textPlain": "Thanks for the write up! In my current application I have a few different scenarios that are a bit different from yours but still require processing aggregated data in order1. Reading from various files where each file has lines with a unique identifier I can use to process in order: I open all the files and create a min heap reading the first line of each, then process by grabbing the lowest from the min-heap repeatedly, after reading a line from a file, I read another and put it in the min-heap again (the min heap cells contain the opened file descriptor for that file)2. Aggregating across goroutines that service data generators with different latencies and throughputs. I have a goroutine each that interfaces with them and consider them “producers”. Using a global atomic integer I can quickly assign a unique increasing index to the messages coming in, these can be serviced with a min-heap same as above. There are some considerations about dropping too old messages, so an alternative approach for some cases is to index the min-heap on received time and process only up to time.Now()-some buffering time to allow more time for things to settle before dropping things (trading total latency for this).3. Similar to the above I have another scenario where throughput ingestion is more important and repeated processing happens in-order but there is no requirement on all messages to have been processed every time, just that they are processed in order (this is the backing for a log viewer). In this case I just slab allocate and dump what I receive without ordering concerns but I also keep a btree with the indexes that I iterate over when it’s time to process. I originally had this buffering like (2) to guarantee mostly ordered insertions in the slabs themselves (which I simply iterated on) but if a stall happened in a goroutine then shifting over the items in the slab when the old items came in became very expensive and could spiral badly.",
+    "parent": 45089938,
+    "depth": 1
+  },
+  {
     "id": 45092712,
     "by": "destel",
     "timeISO": "2025-09-01T13:57:31.000Z",
@@ -14,5 +22,13 @@
     "textPlain": "Another scenario where order matters is in Temporal workflows. Temporal’s replay capability requires deterministic execution.",
     "parent": 45089938,
     "depth": 1
+  },
+  {
+    "id": 45093170,
+    "by": "Traubenfuchs",
+    "timeISO": "2025-09-01T14:58:46.000Z",
+    "textPlain": "> Curious how others tackle such problems.What do you think about the order preserving simplicity of Java?  List<Input> inputs = ...;\n\n  List<Output> results = inputs.parallelStream()\n                             .map(this::processTask)\n                             .collect(toList());\n\nIf you want more control or have more complex use cases, you can use an ExecutorService of your choice, handle the futures yourself or get creative with Javas new structured concurrency.",
+    "parent": 45092712,
+    "depth": 2
   }
 ]
