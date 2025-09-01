@@ -1,13 +1,5 @@
 [
   {
-    "id": 45093969,
-    "by": "candiddevmike",
-    "timeISO": "2025-09-01T16:14:42.000Z",
-    "textPlain": "Personally, I've come to really hate channels in Go.  They are a source of some seriously heinous deadlock bugs that are really hard to debug, and closing channels in the wrong spot can crash your entire app.  I try using plain locks until it hurts before I reach for channels these days.",
-    "parent": 45089938,
-    "depth": 1
-  },
-  {
     "id": 45093079,
     "by": "tetraodonpuffer",
     "timeISO": "2025-09-01T14:48:35.000Z",
@@ -24,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45094387,
+    "by": "latchkey",
+    "timeISO": "2025-09-01T16:54:54.000Z",
+    "textPlain": "For something like this, I would instinctively reach for an external queue mechanism instead of trying to work through the complexity of golangs concurrency.Create a bunch of sequentially numbered jobs that then update their output into postgres database. Then have N number of workers process the jobs. Something like GCP's CloudTasks is perfect for this because the \"workers\" are just GCP Cloud Functions, so you can have a near infinite number of them (limited by concurrent DB connections).This approach also buys you durability of the queue for free (ie: what happens when you need to stop your golang process mid queue?).Then it is just a query:  select * from finished_jobs order by job_num;",
+    "parent": 45089938,
+    "depth": 1
+  },
+  {
+    "id": 45093969,
+    "by": "candiddevmike",
+    "timeISO": "2025-09-01T16:14:42.000Z",
+    "textPlain": "Personally, I've come to really hate channels in Go.  They are a source of some seriously heinous deadlock bugs that are really hard to debug, and closing channels in the wrong spot can crash your entire app.  I try using plain locks until it hurts before I reach for channels these days.",
+    "parent": 45089938,
+    "depth": 1
+  },
+  {
     "id": 45092851,
     "by": "abtinf",
     "timeISO": "2025-09-01T14:16:30.000Z",
@@ -32,11 +40,35 @@
     "depth": 1
   },
   {
+    "id": 45094391,
+    "by": "destel",
+    "timeISO": "2025-09-01T16:55:15.000Z",
+    "textPlain": "Wow, that’s some seriously sophisticated stuff - it’s not that often you see a heap used in typical production code (outside of libraries)!Your first example definitely gives me merge-sort vibes - a really clean way to keep things ordered across multiple sources. The second and third scenarios are a bit beyond what I’ve tackled so far, but super interesting to read about.This also reminded me of a WIP PR I drafted for rill (probably too niche, so I’m not sure I’ll ever merge it). It implements a channel buffer that behaves like a heap - basically a fixed-size priority queue where re-prioritization only happens for items that pile up due to backpressure. Maybe some of that code could be useful for your future use cases: https://github.com/destel/rill/pull/50",
+    "parent": 45093079,
+    "depth": 2
+  },
+  {
     "id": 45093170,
     "by": "Traubenfuchs",
     "timeISO": "2025-09-01T14:58:46.000Z",
     "textPlain": "> Curious how others tackle such problems.What do you think about the order preserving simplicity of Java?  List<Input> inputs = ...;\n\n  List<Output> results = inputs.parallelStream()\n                             .map(this::processTask)\n                             .collect(toList());\n\nIf you want more control or have more complex use cases, you can use an ExecutorService of your choice, handle the futures yourself or get creative with Javas new structured concurrency.",
     "parent": 45092712,
+    "depth": 2
+  },
+  {
+    "id": 45094126,
+    "by": "Groxx",
+    "timeISO": "2025-09-01T16:29:30.000Z",
+    "textPlain": "Well over half of the code I've ever seen that uses three or more channels (i.e. two semantic ones plus a cancellation or shutdown) has had serious flaws in it.Granted, that generally means they're doing something non-trivial with concurrency, and that correlates strongly with \"has concurrency bugs\". But I see issues FAR more frequently when they reach for channels rather than mutexes.  It's bad enough that I just check absolutely every three-chan chunk of code proactively now.I lay part of the blame on Go's \"♥ safe and easy concurrency with channels! ♥\" messaging. And another large chunk at the lack of generics (until recently), making abstracting these kinds of things extremely painful.  Combined, you get \"just do it by hand lol, it's easy / get good\" programming, which is always a source of \"fun\".",
+    "parent": 45093969,
+    "depth": 2
+  },
+  {
+    "id": 45094405,
+    "by": "Groxx",
+    "timeISO": "2025-09-01T16:56:31.000Z",
+    "textPlain": "That's a rather special case: they and Cadence control when calls into their code unblocks, and they use that to run your code as if it was a single-threaded event loop.  That way, the stuff they do can be deterministic while simulating parallel execution (but only concurrency).",
+    "parent": 45092851,
     "depth": 2
   }
 ]
