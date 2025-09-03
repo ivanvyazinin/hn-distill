@@ -1,5 +1,13 @@
 [
   {
+    "id": 45112766,
+    "by": "userbinator",
+    "timeISO": "2025-09-03T06:21:11.000Z",
+    "textPlain": "I've done this before for easily relocatable (realloc'able) blocks but the code can get bigger and slower due to the additional address arithmetic. If you know the allocation pattern then allocating in large blocks is useful. It's always a tradeoff, and there is no right or best answer, so keep this in mind as another technique to consider.",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
     "id": 45111473,
     "by": "10000truths",
     "timeISO": "2025-09-03T01:55:44.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45110423,
-    "by": "zahlman",
-    "timeISO": "2025-09-02T23:26:10.000Z",
-    "textPlain": "> There is a pattern I’ve learned while using Zig which I’ve never seen used in any other language.I've done this in small applications in C (where nodes were already being statically allocated) and/or assembly (hacking on an existing binary).No idea about the effect on speed in general; I was trying to save a few bytes of storage in a place where that mattered.",
+    "id": 45112577,
+    "by": "nielsbot",
+    "timeISO": "2025-09-03T05:46:46.000Z",
+    "textPlain": "Wonder how this compares to combining pointers with indices (effectively):Allocate your nodes in contiguous memory, but use pointers to refer to them instead of indices. This would remove an indirect reference when resolving node references: dereference vs (storage_base_address + element_size * index) Resizing your storage does become potentially painful: you have to repoint all your inter-node pointers. But maybe an alternative there is to just add another contiguous (memory page-sized?) region for more nodes.Lots of trade offs to consider :)",
     "parent": 45110386,
     "depth": 1
   },
@@ -40,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45111814,
-    "by": "Zambyte",
-    "timeISO": "2025-09-03T02:53:58.000Z",
-    "textPlain": "It seems like this is pretty much reimplements std.heap.MemoryPool, no?https://ziglang.org/documentation/0.15.1/std/#std.heap.memor...",
+    "id": 45112476,
+    "by": "ajxs",
+    "timeISO": "2025-09-03T05:23:59.000Z",
+    "textPlain": "One disadvantage that I don't think I've seen anyone mention so far: You need to use an in-band value to represent the absence of a node. That may or may not be a problem for your particular implementation.",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
+    "id": 45110423,
+    "by": "zahlman",
+    "timeISO": "2025-09-02T23:26:10.000Z",
+    "textPlain": "> There is a pattern I’ve learned while using Zig which I’ve never seen used in any other language.I've done this in small applications in C (where nodes were already being statically allocated) and/or assembly (hacking on an existing binary).No idea about the effect on speed in general; I was trying to save a few bytes of storage in a place where that mattered.",
     "parent": 45110386,
     "depth": 1
   },
@@ -52,6 +68,14 @@
     "by": "quantified",
     "timeISO": "2025-09-03T00:05:33.000Z",
     "textPlain": "Reinventing malloc to some degree.",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
+    "id": 45111814,
+    "by": "Zambyte",
+    "timeISO": "2025-09-03T02:53:58.000Z",
+    "textPlain": "It seems like this is pretty much reimplements std.heap.MemoryPool, no?https://ziglang.org/documentation/0.15.1/std/#std.heap.memor...",
     "parent": 45110386,
     "depth": 1
   },
@@ -85,6 +109,46 @@
     "timeISO": "2025-09-03T04:04:01.000Z",
     "textPlain": "Data memory-dependent prefetchers like in Apple's newer chips I think only work with full pointers and not offsets, so it could be a decent perf hit.",
     "parent": 45111473,
+    "depth": 2
+  },
+  {
+    "id": 45112631,
+    "by": "Animats",
+    "timeISO": "2025-09-03T05:56:46.000Z",
+    "textPlain": "The trouble is, you've just replicated the problems of raw pointers. You can have dangling indices if the underlying object is reused or cleared. You can have aliasing, with two indices to the same object.It's a problem in practice. Of the three times I've ever had to use a debugger on Rust code, two came from code someone had written to do their own index allocation. They'd created a race condition that Rust would ordinary prevent.",
+    "parent": 45111204,
+    "depth": 2
+  },
+  {
+    "id": 45112462,
+    "by": "bombela",
+    "timeISO": "2025-09-03T05:21:01.000Z",
+    "textPlain": "You don't bypass the borrow checker. Instead you use it the way it wants to be used.",
+    "parent": 45111204,
+    "depth": 2
+  },
+  {
+    "id": 45112814,
+    "by": "munch117",
+    "timeISO": "2025-09-03T06:28:46.000Z",
+    "textPlain": "You have just reinvented the slab allocator.",
+    "parent": 45112577,
+    "depth": 2
+  },
+  {
+    "id": 45112556,
+    "by": "adrian_b",
+    "timeISO": "2025-09-03T05:43:14.000Z",
+    "textPlain": "A null index works fine (obviously, that location in the array must remain unused, but that does not necessarily waste memory, as the base of the array can point one word before its actual start, if checks for not using null indices are always done).",
+    "parent": 45112476,
+    "depth": 2
+  },
+  {
+    "id": 45112740,
+    "by": "adrian_b",
+    "timeISO": "2025-09-03T06:17:17.000Z",
+    "textPlain": "While the author has seen this pattern in Zig, this pattern was the normal way of writing programs in FORTRAN, decades before the appearance of the C language.The early versions of FORTRAN did not have dynamic memory allocation. Therefore the main program pre-allocated one or more work arrays, which were either known globally or they were passed as arguments to all procedures.Then wherever a C program might use malloc, an item would be allocated in a work array and the references between data structures would use the indices of the allocated items. Items could be freed as described in TFA, by putting them in a free list.The use of the data items allocated in work arrays in FORTRAN was made easier by the fact that the language allowed the aliasing of any chunk of memory to a variable of any type, either a scalar or an array of any rank and dimensions.So this suggestion just recommends the return to the old ways. Despite its limitations, when maximum speed is desired, FORTRAN remains unbeatable by any of its successors.",
+    "parent": 45110423,
     "depth": 2
   },
   {
