@@ -1,0 +1,122 @@
+[
+  {
+    "id": 45111036,
+    "by": "ot",
+    "timeISO": "2025-09-03T00:49:21.000Z",
+    "textPlain": "Utilization is not a lie, it is a measurement of a well-defined quantity, but people make assumptions to extrapolate capacity models from it, and that is where reality diverges from expectations.Hyperthreading (SMT) and Turbo (clock scaling) are only a part of the variables causing non-linearity, there are a number of other resources that are shared across cores and \"run out\" as load increases, like memory bandwidth, interconnect capacity, processor caches. Some bottlenecks might come even from the software, like spinlocks, which have non-linear impact on utilization.Furthermore, most CPU utilization metrics average over very long windows, from several seconds to a minute, but what really matters for the performance of a latency-sensitive server happens in the time-scale of tens to hundreds of milliseconds, and a multi-second average will not distinguish a bursty behavior from a smooth one. The latter has likely much more capacity to scale up.Unfortunately, the suggested approach is not that accurate either, because it hinges on two inherently unstable concepts> Benchmark how much work your server can do before having errors or unacceptable latency.The measurement of this is extremely noisy, as you want to detect the point where the server starts becoming unstable. Even if you look at a very simple queueing theory model, the derivatives close to saturation explode, so any nondeterministic noise is extremely amplified.> Report how much work your server is currently doing.There is rarely a stable definition of \"work\". Is it RPS? Request cost can vary even throughout the day. Is it instructions? Same, the typical IPC can vary.Ultimately, the confidence intervals you get from the load testing approach might be as large as what you can get from building an empirical model from utilization measurement, as long as you measure your utilization correctly.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45111202,
+    "by": "PaulKeeble",
+    "timeISO": "2025-09-03T01:15:41.000Z",
+    "textPlain": "This is bang on, you can't count the hyperthreads as double the performance, typically they are actually in practice only going to bring 15-30% if the job works well with it and their use will double the latency. Failing to account for loss in clockspeed as the core utilisation climbs is another way its not linear and in modern software for the desktop its really something to pay careful attention to.It should be possible from the information you can get on a CPU from the OS to better estimate utilisation involving at the very least these two factors. It becomes a bit more tricky to start to account for significantly going past the cache or available memory bandwidth and the potential drop in performance to existing threads that occurs from the increased pipeline stalls. But it can definitely be done better than it is currently.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45111071,
+    "by": "judge123",
+    "timeISO": "2025-09-03T00:53:33.000Z",
+    "textPlain": "This hits so close to home. I once tried to explain to a manager that a server at 60% utilization had zero room left, and they looked at me like I had two heads. I wish I had this article back then!",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45110953,
+    "by": "tgma",
+    "timeISO": "2025-09-03T00:38:50.000Z",
+    "textPlain": "The way they refer to cores in their system is confusing and non-standard. The author talks about a 5900X as a 24 core machine and discusses as if there are 24 cores, 12 of which are piggybacking on the other 12. In reality, there are 24 hyperthreads that are pretty much pairwise symmetric that execute on top of 12 cores with two sets of instruction pipeline sharing same underlying functional units.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45110975,
+    "by": "hinkley",
+    "timeISO": "2025-09-03T00:41:01.000Z",
+    "textPlain": "How many times has hyperthreading been an actual performance benefit in processors? I cannot count how many times an article has come out saying you'll get better performance out of your <insert processor here> by turning off hyperthreading in the BIOS.It's gotta be at least 2 out of every 3 chip generations going back to the original implementation, where you're better off without it than with.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45111124,
+    "by": "hinkley",
+    "timeISO": "2025-09-03T01:01:24.000Z",
+    "textPlain": "You also want to hit him with queueing theory.Up to a hair over 60% utilization the queuing delays on any work queue remain essentially negligible. At 70 they become noticeable, and at 80% they've doubled. And then it just turns into a shitshow from there on.The rule of thumb is 60% is zero, and 80% is the inflection point where delays go exponential.The biggest cluster I ran, we hit about 65% CPU at our target P95 time, which is pretty much right on the theoretical mark.",
+    "parent": 45111071,
+    "depth": 2
+  },
+  {
+    "id": 45111140,
+    "by": "saghm",
+    "timeISO": "2025-09-03T01:04:03.000Z",
+    "textPlain": "Years ago, when trying to explain hyper threading to my brother, who doesn't have any specialized technical knowledge, he came up with the analogy that it's like 2-ply toilet paper. You don't quite have 24 distinct things, but you have 12 that are roughly twice as useful as the individual ones, although you can't really separate them and expect them to work right.",
+    "parent": 45110953,
+    "depth": 2
+  },
+  {
+    "id": 45111244,
+    "by": "sroussey",
+    "timeISO": "2025-09-03T01:24:34.000Z",
+    "textPlain": "Will be interesting when (if?) Intel ships software defined cores which are the logical inverse of hyper threading.Instead of having a big core with two instruction pipelines sharing big ALUs etc, they have two (or more) cores that combine resources and become one core.Almost the same, yet quite different.https://patents.google.com/patent/EP4579444A1/en",
+    "parent": 45110953,
+    "depth": 2
+  },
+  {
+    "id": 45111224,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T01:20:15.000Z",
+    "textPlain": "Thanks for the feedback. I think you're right, so I changed a bunch of references and  updated the description of the processor to 12 core / 24 thread. In some cases, I still think \"cores\" is the right terminology though, since my OS (confusingly) reports utilization as-if I had 24 cores.",
+    "parent": 45110953,
+    "depth": 2
+  },
+  {
+    "id": 45111265,
+    "by": "tom_",
+    "timeISO": "2025-09-03T01:26:57.000Z",
+    "textPlain": "Total throughout has always seemed better with it switched on for me, even for stuff that isn't hyper threading friendly. You get a free 10% at least.",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45111032,
+    "by": "twoodfin",
+    "timeISO": "2025-09-03T00:48:50.000Z",
+    "textPlain": "For whatever it’s worth, operational database systems (many users/connections, unpredictable access patterns) are beneficiaries of modern hyperthreading.I’m familiar with one such system where the throughput benefit is ~15%, which is a big deal for a BIOS flag.IBM’s POWER would have been discontinued a decade ago were it not for transactional database systems, and that architecture is heavily invested in SMT, up to 8-way(!)",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45111137,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T01:02:50.000Z",
+    "textPlain": "To be fair, in most of these tests hyperthreading did provide a significant benefit (in the general CPU stress test, the hyperthreads increased performance by ~66%). It's just confusing that utilization metrics treat hyperthread usage the same as full physical cores.",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45110992,
+    "by": "tgma",
+    "timeISO": "2025-09-03T00:44:09.000Z",
+    "textPlain": "It has a lot to do with your workload as well as if not moreso than the chip architecture.The primary trade-off is the cache utilization when executing two sets of instruction streams.",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45111119,
+    "by": "duped",
+    "timeISO": "2025-09-03T01:00:40.000Z",
+    "textPlain": "For me today it's definitely a pessimation because I have enough well-meaning applications that spawn `nproc` worker threads. Which would be fine if they're the only process running, but they're not.",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45111127,
+    "by": "FpUser",
+    "timeISO": "2025-09-03T01:01:48.000Z",
+    "textPlain": "In the old days it had made the difference between my multimedia game like application not working at all with hyperthreading off to working just fine with it on.",
+    "parent": 45110975,
+    "depth": 2
+  }
+]
