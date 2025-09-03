@@ -1,13 +1,5 @@
 [
   {
-    "id": 45111995,
-    "by": "CCs",
-    "timeISO": "2025-09-03T03:29:36.000Z",
-    "textPlain": "Uses stress-ng for benchmarking, even though the stress-ng documentation says it is not suitable for benchmarking. It was written to max out one component until it burns. \nUsing a real app, like Memcached or Postgres would show more realistic numbers, closer to what people use in production. \nThe difference is not major, 50% utilization is closer to 80% in real load, but it breaks down faster. Stress-ng is nicely linear until 100%, memcached will have a hockey stick curve at the end.",
-    "parent": 45110688,
-    "depth": 1
-  },
-  {
     "id": 45111036,
     "by": "ot",
     "timeISO": "2025-09-03T00:49:21.000Z",
@@ -24,18 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45111071,
-    "by": "judge123",
-    "timeISO": "2025-09-03T00:53:33.000Z",
-    "textPlain": "This hits so close to home. I once tried to explain to a manager that a server at 60% utilization had zero room left, and they looked at me like I had two heads. I wish I had this article back then!",
+    "id": 45112179,
+    "by": "dragontamer",
+    "timeISO": "2025-09-03T04:09:00.000Z",
+    "textPlain": "There's many ways CPU utilization fails to work as expected.I didn't expect an article on this style. I was expecting the normal Linux/Windows utilization but wtf it's all RAM bottlenecked and the CPU is actually quiet and possibly down clocking thing.CPU Utilization is only how many cores are given threads to run by the OS (be it Windows or Linux). Those threads could be 100% blocked on memcpy but that's still CPU utilization.-------Hyperthreads help: if one thread is truly CPU bound (or even more specifically: AVX / Vector unit bound), while a 2nd thread is hyperthreaded together that's memcpy / RAM bound, you'll magically get more performance due to higher utilization of resources. (Load/store units are separate from AVX compute units).In any case, this is a perennial subject with always new discoveries about how CPU Utilization is far less intuitive than many think. Still kinda fun to learn about new perspectives on this matter in any case.",
     "parent": 45110688,
     "depth": 1
   },
   {
-    "id": 45111947,
-    "by": "N_Lens",
-    "timeISO": "2025-09-03T03:20:25.000Z",
-    "textPlain": "This has been my experience running production workloads as well. Anytime CPU% goes over 50-60% suddenly it'll spike to 100% rather quickly, and the app/service is unusable. Learned to scale earlier than first thought.",
+    "id": 45112072,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-09-03T03:44:49.000Z",
+    "textPlain": "The benchmark is basically application performance testing, which is the most accurate representation you can get. Test the specific app(s) your server is running, with real-world data/scenarios, and keep cranking up the requests, until the server falls over. Nothing else will give you as accurate an indication of your server's actual maximum performance with that app. Do that for every variable that's relevant (# requests/s, payload size, # parameters, etc), so you have multiple real-world maximum-performance indicators to configure your observability monitors for.One way to get closer to reliable performance is to apply cpu scheduler limits to what runs your applications to keep them below a given threshold. This way you can better ensure you can sustain a given amount of performance. You don't want to run at 100% cpu for long, especially if disk i/o becomes hampered, system load skyrockets, and availability starts to plummet. Two thousand servers with 5000ms ping times due to system load is not a fun day at the office.(And actually you'll never get a completely accurate view, as performance can change per-server. Rack two identical servers in two different racks, run the same app on each, and you may see different real-world performance. One rack may be hotter than the other, there could be hidden hardware or firmware differences, etc. Even within a server, if one CPU is just nearer a hotter component than on another server, for reasons)",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45111071,
+    "by": "judge123",
+    "timeISO": "2025-09-03T00:53:33.000Z",
+    "textPlain": "This hits so close to home. I once tried to explain to a manager that a server at 60% utilization had zero room left, and they looked at me like I had two heads. I wish I had this article back then!",
     "parent": 45110688,
     "depth": 1
   },
@@ -48,18 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45111928,
-    "by": "1gn15",
-    "timeISO": "2025-09-03T03:16:50.000Z",
-    "textPlain": "Love that this website is public domain. Thank you, Brendan!",
-    "parent": 45110688,
-    "depth": 1
-  },
-  {
-    "id": 45110975,
-    "by": "hinkley",
-    "timeISO": "2025-09-03T00:41:01.000Z",
-    "textPlain": "How many times has hyperthreading been an actual performance benefit in processors? I cannot count how many times an article has come out saying you'll get better performance out of your <insert processor here> by turning off hyperthreading in the BIOS.It's gotta be at least 2 out of every 3 chip generations going back to the original implementation, where you're better off without it than with.",
+    "id": 45111995,
+    "by": "CCs",
+    "timeISO": "2025-09-03T03:29:36.000Z",
+    "textPlain": "Uses stress-ng for benchmarking, even though the stress-ng documentation says it is not suitable for benchmarking. It was written to max out one component until it burns. \nUsing a real app, like Memcached or Postgres would show more realistic numbers, closer to what people use in production. \nThe difference is not major, 50% utilization is closer to 80% in real load, but it breaks down faster. Stress-ng is nicely linear until 100%, memcached will have a hockey stick curve at the end.",
     "parent": 45110688,
     "depth": 1
   },
@@ -72,10 +64,50 @@
     "depth": 1
   },
   {
+    "id": 45111947,
+    "by": "N_Lens",
+    "timeISO": "2025-09-03T03:20:25.000Z",
+    "textPlain": "This has been my experience running production workloads as well. Anytime CPU% goes over 50-60% suddenly it'll spike to 100% rather quickly, and the app/service is unusable. Learned to scale earlier than first thought.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45110975,
+    "by": "hinkley",
+    "timeISO": "2025-09-03T00:41:01.000Z",
+    "textPlain": "How many times has hyperthreading been an actual performance benefit in processors? I cannot count how many times an article has come out saying you'll get better performance out of your <insert processor here> by turning off hyperthreading in the BIOS.It's gotta be at least 2 out of every 3 chip generations going back to the original implementation, where you're better off without it than with.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45112065,
+    "by": "throwmeaway222",
+    "timeISO": "2025-09-03T03:43:44.000Z",
+    "textPlain": "Yeah, this is what we all talked about when hyperthreading was first invented in 2000 era.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45112035,
+    "by": "gbin",
+    "timeISO": "2025-09-03T03:37:49.000Z",
+    "textPlain": "Yeah and those tests don't even trigger some memory or cache contention ...",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
     "id": 45111815,
     "by": "pama",
     "timeISO": "2025-09-03T02:54:01.000Z",
     "textPlain": "Wait until you encounter GPU utilization. You could have two codes listing 100% utilization and have well over 100x performance difference from each other.  The name of these metrics creates natural assumptions that are just wrong. Luckily it is relatively easy to estimate the FLOP/s throughput for most GPU codes and then simply compare to the theoretical peak performance of the hardware.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45111928,
+    "by": "1gn15",
+    "timeISO": "2025-09-03T03:16:50.000Z",
+    "textPlain": "Love that this website is public domain. Thank you, Brendan!",
     "parent": 45110688,
     "depth": 1
   },
@@ -136,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45112120,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T03:54:04.000Z",
+    "textPlain": "The advantage of stress-ng is that it's easy to make it run with specific CPU utilization numbers. The tests where I run some number of workers at 100% utilization are interesting since they give such perfect graphs, but I think the version where I have 24 workers and increase their utilization slowly is more realistic for showing how production CPU utilization changes.",
+    "parent": 45111995,
+    "depth": 2
+  },
+  {
     "id": 45111676,
     "by": "loeg",
     "timeISO": "2025-09-03T02:28:39.000Z",
@@ -160,6 +200,14 @@
     "depth": 2
   },
   {
+    "id": 45111137,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T01:02:50.000Z",
+    "textPlain": "To be fair, in most of these tests hyperthreading did provide a significant benefit (in the general CPU stress test, the hyperthreads increased performance by ~66%). It's just confusing that utilization metrics treat hyperthread usage the same as full physical cores.",
+    "parent": 45110975,
+    "depth": 2
+  },
+  {
     "id": 45111415,
     "by": "esseph",
     "timeISO": "2025-09-03T01:48:25.000Z",
@@ -172,14 +220,6 @@
     "by": "toast0",
     "timeISO": "2025-09-03T01:41:20.000Z",
     "textPlain": "Going from 1 core to 2 hyperthreads was a big bonus in interactivity. But I think it was easy to get early systems to show worse throughput.I think there's two kinds of loads where hyperthreads aren't more likely to hurt than help. If you've got a tight loop that uses all the processor execution resources, you're not gaining anything by splitting that in two, it just makes things harder. Or if your load is mostly bound by memory bandwidth without a lot of compute... having more threads probably means you're that much more oversubscribed on i/o and caching.But a lot of loads are grab some stuff from memory and then do some compute, rinse and repeat. There's a lot of potential for idle time while waiting on a load, being able to run something else during that time makes a lot of sense.It's worth checking how your load performs with hyperthreads off, but I think default on is probably the right choice.",
-    "parent": 45110975,
-    "depth": 2
-  },
-  {
-    "id": 45111137,
-    "by": "BrendanLong",
-    "timeISO": "2025-09-03T01:02:50.000Z",
-    "textPlain": "To be fair, in most of these tests hyperthreading did provide a significant benefit (in the general CPU stress test, the hyperthreads increased performance by ~66%). It's just confusing that utilization metrics treat hyperthread usage the same as full physical cores.",
     "parent": 45110975,
     "depth": 2
   },
@@ -213,6 +253,14 @@
     "timeISO": "2025-09-03T01:01:48.000Z",
     "textPlain": "In the old days it had made the difference between my multimedia game like application not working at all with hyperthreading off to working just fine with it on.",
     "parent": 45110975,
+    "depth": 2
+  },
+  {
+    "id": 45112153,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T04:02:34.000Z",
+    "textPlain": "Yeah, the obvious thing with processors is to do something similar:(1) Measure MIPS with perf (2) Compare that to max MIPS for your processorUnfortunately, MIPS is too vague since the amount of work done depends on the instruction, and there's no good way to measure max MIPS for most processors. (╯°□°)╯︵ ┻━┻",
+    "parent": 45111815,
     "depth": 2
   },
   {

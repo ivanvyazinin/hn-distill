@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45111907,
-    "by": "zbentley",
-    "timeISO": "2025-09-03T03:12:45.000Z",
-    "textPlain": "I don't love Python's async API either, but I think a lot of its complained-about complexity arises from two things: making \"when does the coroutine start running\" a very explicit point in code (hence the Task/awaitable-function dichotomy), and how it chooses to handle async cancellation: via exceptions.And Python's async cancellation model is pretty nice! You can reason about interruptions, timeouts, and the like pretty well. It's not all roses: things can ignore/defer cancellations, and the various wrappers people layer on make it hard to tell where, exactly, Tasks get cancelled--awaitable functions are simple here, at least. But even given that, Python's approach is a decent happy medium between Node's dangling coroutines and Rust's no-cleanup-ever disappearing ones (glib descriptor: \"it's pre-emptive parallelism, but without the parallelism\").More than a little, I think, of the \"nobody does it this way\" weirdness and frustration in Python asyncio arises from that. That doesn't excuse the annoyances imposed by the resulting APIs, but it is good to know.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
     "id": 45106599,
     "by": "rybosome",
     "timeISO": "2025-09-02T17:50:26.000Z",
@@ -56,26 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45111934,
-    "by": "wodenokoto",
-    "timeISO": "2025-09-03T03:18:00.000Z",
-    "textPlain": "> If you call function get_thing_sync() versus await get_thing_async(), they take the same amount of time.No, if you call both function one will try and fetch a none responding url and the other will immediately raise an exception.",
+    "id": 45112139,
+    "by": "KingOfCoders",
+    "timeISO": "2025-09-03T03:59:18.000Z",
+    "textPlain": "I did a lot of Scala Futures and liked the concept, more than 'async' everywhere, because it was easier to reason what happens and functions were just functions. Since some years I use Go where this is even easier.But it took me some time to realize I can do the same idioms in Go as in Scala:  // Scala\n  f := Future(x)\n  // Do something else until you need f\n  ...\n  for r <- f { ... }\n\ncan be written as  c := channel \n  // Do something else until you need the result\n  ...\n  r<-c\n\nMy mind model was channel as a queue, but it can easily be used like channel as a future for one value.And `select` for more complicated versions.I miss the easy composition and delaying of futures though (f.map etc.)",
     "parent": 45106189,
     "depth": 1
   },
   {
-    "id": 45111856,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-09-03T03:02:31.000Z",
-    "textPlain": "Because it's a niche? You don't need async for most stuff Python is used for, it's a \"nice-to-have\", and it's annoying to add. If you have to have concurrency/threading/etc, there are other languages with better paradigms.The same thing happened with Perl and its weird threading (for different reasons, but still)... I guess Python didn't learn that lesson. Perl also gained async and coroutine support, but I think they were added a while after I left the community. I doubt many people use them today. Anyone used them and can comment on ease vs Python?",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
-    "id": 45111866,
-    "by": "breatheoften",
-    "timeISO": "2025-09-03T03:05:14.000Z",
-    "textPlain": "The problem with python's async is asyncio ...Structured concurrency libraries like anyio or trio are actually pretty nice -- \"stacks\" and stack traces are good things.  Python multi exception concept is weird --- but also I think probably good ish.It is still a pita to orchestrate around the gil/how terrible python multiprocessing side effects are wherever cpu bound workloads actually exist ...",
+    "id": 45111907,
+    "by": "zbentley",
+    "timeISO": "2025-09-03T03:12:45.000Z",
+    "textPlain": "I don't love Python's async API either, but I think a lot of its complained-about complexity arises from two things: making \"when does the coroutine start running\" a very explicit point in code (hence the Task/awaitable-function dichotomy), and how it chooses to handle async cancellation: via exceptions.And Python's async cancellation model is pretty nice! You can reason about interruptions, timeouts, and the like pretty well. It's not all roses: things can ignore/defer cancellations, and the various wrappers people layer on make it hard to tell where, exactly, Tasks get cancelled--awaitable functions are simple here, at least. But even given that, Python's approach is a decent happy medium between Node's dangling coroutines and Rust's no-cleanup-ever disappearing ones (glib descriptor: \"it's pre-emptive parallelism, but without the parallelism\").More than a little, I think, of the \"nobody does it this way\" weirdness and frustration in Python asyncio arises from that. That doesn't excuse the annoyances imposed by the resulting APIs, but it is good to know.",
     "parent": 45106189,
     "depth": 1
   },
@@ -88,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45111766,
-    "by": "dagenix",
-    "timeISO": "2025-09-03T02:45:00.000Z",
-    "textPlain": "The problem, IMO, with asyncio is that its way, way too complicated. In my experience, anyio (https://github.com/agronholm/anyio) provides a much better interface on top of asyncio. And since it can use asyncio as a backend, it maintains compatibility with the asyncio ecosystem. FastAPI, for example, uses anyio.One thing that I don't see being mentioned in any of the threads here talking about green threads is cancellation. A huge benefit, IMO, of anyio is that it makes cancellation really easy to handle. With asyncio, cancellation is pretty hard. And with green threads, cancellation is often impossible.",
+    "id": 45111856,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-09-03T03:02:31.000Z",
+    "textPlain": "Because it's a niche? You don't need async for most stuff Python is used for, it's a \"nice-to-have\", and it's annoying to add. If you have to have concurrency/threading/etc, there are other languages with better paradigms.The same thing happened with Perl and its weird threading (for different reasons, but still)... I guess Python didn't learn that lesson. Perl also gained async and coroutine support, but I think they were added a while after I left the community. I doubt many people use them today. Anyone used them and can comment on ease vs Python?",
     "parent": 45106189,
     "depth": 1
   },
@@ -104,26 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45111874,
-    "by": "est",
-    "timeISO": "2025-09-03T03:06:51.000Z",
-    "textPlain": "> Problem 3: Maintaining two APIs is hardWell I had a fix https://news.ycombinator.com/item?id=43982570",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
     "id": 45107491,
     "by": "languagehacker",
     "timeISO": "2025-09-02T18:57:01.000Z",
     "textPlain": "Wow, didn't even see much about how miserable using the sync_to_async and async_to_sync transformers are.In general, the architectures developed because of the GIL, like Celery and gunicorn and stuff like that, handles most of the problems we run into that async/await solves with slightly better horizontal scaling IMO. The problem with a lot of async code is that it tends not to think beyond the single machine that's running it, and by the time you do, you need to rearchitect things to scale better horizontally anyway.For most Python applications, especially with web development, just start with something like Celery and you're probably fine.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
-    "id": 45111886,
-    "by": "_moof",
-    "timeISO": "2025-09-03T03:08:31.000Z",
-    "textPlain": "Let me turn this question on its head: Python has had threading and multiprocessing for [mumbling] years. Why do I need asyncio?",
     "parent": 45106189,
     "depth": 1
   },
@@ -144,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45110221,
-    "by": "TheCondor",
-    "timeISO": "2025-09-02T22:59:24.000Z",
-    "textPlain": "I generally like Python.  I'm not a hater but I don't treat it like a religion either.Async Python is practically a new language.  I think for most devs, it's a larger than than 2 to 3 was.  One of the things that made python uptake easy was the vast number of libraries and bindings to C libraries.   With async you need new versions of that stuff,  you can definitely use synchronous libraries but then you get to debug why your stuff blocks.Async Python is a different debugging experience for most python engineers.   I support a small handful of async python services and think it would be an accellerator for our team to rewrite them on Go.When you hire python engineers,  most don't know async that well, if at all.If you have a mix of synchronous and asynchronous code in your org,  you can't easily intermix it.   Well you can, but it won't behave as you usually desire it to,  it's probably more desirable to treat them as different code bases.Not to be too controversial, but depending upon your vintage and they was you've learned to write software I think you can come to python and think async is divine manna.  I think there are many more devs that come to python from datascience or scripting or maybe as a first language and I think they have a harder time accepting the value and need of async.   Like I said above,  it's almost an entirely different language.",
+    "id": 45111766,
+    "by": "dagenix",
+    "timeISO": "2025-09-03T02:45:00.000Z",
+    "textPlain": "The problem, IMO, with asyncio is that its way, way too complicated. In my experience, anyio (https://github.com/agronholm/anyio) provides a much better interface on top of asyncio. And since it can use asyncio as a backend, it maintains compatibility with the asyncio ecosystem. FastAPI, for example, uses anyio.One thing that I don't see being mentioned in any of the threads here talking about green threads is cancellation. A huge benefit, IMO, of anyio is that it makes cancellation really easy to handle. With asyncio, cancellation is pretty hard. And with green threads, cancellation is often impossible.",
     "parent": 45106189,
     "depth": 1
   },
@@ -160,10 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45106819,
-    "by": "rdtsc",
-    "timeISO": "2025-09-02T18:04:54.000Z",
-    "textPlain": "I never liked async in Python. I feel like it's a bad design pattern, a lot of borrowed from Twisted at the time. I always liked gevent/eventlet based approach and will likely always stick to using that. At the time Go and Elixir/Erlang had green threads (lightweight procs / goroutines) and in general I think that makes for a cleaner code base.",
+    "id": 45110221,
+    "by": "TheCondor",
+    "timeISO": "2025-09-02T22:59:24.000Z",
+    "textPlain": "I generally like Python.  I'm not a hater but I don't treat it like a religion either.Async Python is practically a new language.  I think for most devs, it's a larger than than 2 to 3 was.  One of the things that made python uptake easy was the vast number of libraries and bindings to C libraries.   With async you need new versions of that stuff,  you can definitely use synchronous libraries but then you get to debug why your stuff blocks.Async Python is a different debugging experience for most python engineers.   I support a small handful of async python services and think it would be an accellerator for our team to rewrite them on Go.When you hire python engineers,  most don't know async that well, if at all.If you have a mix of synchronous and asynchronous code in your org,  you can't easily intermix it.   Well you can, but it won't behave as you usually desire it to,  it's probably more desirable to treat them as different code bases.Not to be too controversial, but depending upon your vintage and they was you've learned to write software I think you can come to python and think async is divine manna.  I think there are many more devs that come to python from datascience or scripting or maybe as a first language and I think they have a harder time accepting the value and need of async.   Like I said above,  it's almost an entirely different language.",
     "parent": 45106189,
     "depth": 1
   },
@@ -172,6 +140,46 @@
     "by": "kurtis_reed",
     "timeISO": "2025-09-02T21:05:51.000Z",
     "textPlain": "The premise of the article is wrong. Async in Python is popular. I'd expect most new web backends to use it.The article says SQLalchemy added async support in 2023 but actually it was 2020.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45111866,
+    "by": "breatheoften",
+    "timeISO": "2025-09-03T03:05:14.000Z",
+    "textPlain": "The problem with python's async is asyncio ...Structured concurrency libraries like anyio or trio are actually pretty nice -- \"stacks\" and stack traces are good things.  Python multi exception concept is weird --- but also I think probably good ish.It is still a pita to orchestrate around the gil/how terrible python multiprocessing side effects are wherever cpu bound workloads actually exist ...",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45106819,
+    "by": "rdtsc",
+    "timeISO": "2025-09-02T18:04:54.000Z",
+    "textPlain": "I never liked async in Python. I feel like it's a bad design pattern, a lot of borrowed from Twisted at the time. I always liked gevent/eventlet based approach and will likely always stick to using that. At the time Go and Elixir/Erlang had green threads (lightweight procs / goroutines) and in general I think that makes for a cleaner code base.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45112127,
+    "by": "Animats",
+    "timeISO": "2025-09-03T03:55:30.000Z",
+    "textPlain": "Python has had threads for 20 years. Why weren't they more popular?",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45111934,
+    "by": "wodenokoto",
+    "timeISO": "2025-09-03T03:18:00.000Z",
+    "textPlain": "> If you call function get_thing_sync() versus await get_thing_async(), they take the same amount of time.No, if you call both function one will try and fetch a none responding url and the other will immediately raise an exception.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45111874,
+    "by": "est",
+    "timeISO": "2025-09-03T03:06:51.000Z",
+    "textPlain": "> Problem 3: Maintaining two APIs is hardWell I had a fix https://news.ycombinator.com/item?id=43982570",
     "parent": 45106189,
     "depth": 1
   },
@@ -188,6 +196,14 @@
     "by": "bjt",
     "timeISO": "2025-09-02T21:02:19.000Z",
     "textPlain": "I was using gevent to get async benefits in Python 10+ years ago. It's a much nicer programming paradigm than async/await, in my opinion. Now working in Go where the same pattern is built into the language, I'm even more convinced.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45111886,
+    "by": "_moof",
+    "timeISO": "2025-09-03T03:08:31.000Z",
+    "textPlain": "Let me turn this question on its head: Python has had threading and multiprocessing for [mumbling] years. Why do I need asyncio?",
     "parent": 45106189,
     "depth": 1
   },
@@ -232,14 +248,6 @@
     "depth": 1
   },
   {
-    "id": 45110878,
-    "by": "matthew16550",
-    "timeISO": "2025-09-03T00:29:20.000Z",
-    "textPlain": "Pythons builtin async always confuses me.The Trio library felt easy to learn and just worked without much fuss.https://trio.readthedocs.io/",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
     "id": 45106376,
     "by": "giancarlostoro",
     "timeISO": "2025-09-02T17:36:32.000Z",
@@ -256,6 +264,14 @@
     "depth": 1
   },
   {
+    "id": 45110878,
+    "by": "matthew16550",
+    "timeISO": "2025-09-03T00:29:20.000Z",
+    "textPlain": "Pythons builtin async always confuses me.The Trio library felt easy to learn and just worked without much fuss.https://trio.readthedocs.io/",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
     "id": 45108361,
     "by": "lormayna",
     "timeISO": "2025-09-02T20:10:35.000Z",
@@ -264,10 +280,10 @@
     "depth": 1
   },
   {
-    "id": 45110534,
-    "by": "tonymet",
-    "timeISO": "2025-09-02T23:39:49.000Z",
-    "textPlain": "async only helps with io-wait concurrency, but not cpu-bound concurrency.async is popular in JS because the browser is often waiting on many requests.command-line tools are commonly computing something. even grep has to process the pattern matching so concurrent IO doesn't help a single-threaded pattern match.Sure there are applications where async would help a CLI app, but there are fewer than JS.Plus JS devs love rewriting code very 3 months.",
+    "id": 45107609,
+    "by": "the__alchemist",
+    "timeISO": "2025-09-02T19:05:41.000Z",
+    "textPlain": "The barrier it places in Rust's lib ecosystem is unpleasant; I'm glad it hasn't taken off in Python. I have written too many rust libs because the existing ones forced your code  to be Async.",
     "parent": 45106189,
     "depth": 1
   },
@@ -284,6 +300,14 @@
     "by": "ayaros",
     "timeISO": "2025-09-02T21:46:21.000Z",
     "textPlain": "I love JS's async. I don't know how anyone ever did anything useful in the language before it was introduced. I think something between a third and half of the functions and members in LisaGUI are probably async functions at this point.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45110534,
+    "by": "tonymet",
+    "timeISO": "2025-09-02T23:39:49.000Z",
+    "textPlain": "async only helps with io-wait concurrency, but not cpu-bound concurrency.async is popular in JS because the browser is often waiting on many requests.command-line tools are commonly computing something. even grep has to process the pattern matching so concurrent IO doesn't help a single-threaded pattern match.Sure there are applications where async would help a CLI app, but there are fewer than JS.Plus JS devs love rewriting code very 3 months.",
     "parent": 45106189,
     "depth": 1
   },
@@ -312,18 +336,18 @@
     "depth": 1
   },
   {
-    "id": 45109758,
-    "by": "didip",
-    "timeISO": "2025-09-02T22:08:27.000Z",
-    "textPlain": "It would have been a lot more popular if it has a shim that lets it pretend to be a regular thread. Folks don't like to perform a lot of rewrites.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
     "id": 45106550,
     "by": "rcarmo",
     "timeISO": "2025-09-02T17:47:02.000Z",
     "textPlain": "I've had no real issues with async, although I primarily use libraries like aiohttp and aiosqlite and even write my own helpers (https://github.com/rcarmo/aioazstorage is a good example).The vast majority of the Python code I wrote in the last 5-6 years uses asyncio, and most of the complaints I see about it (hard to debug, getting stuck, etc.) were -- at least in my case -- because there were some other libraries doing unexpected things (like threading or hard sleep()).Coming from a networking background, the way I can deal with I/O has been massively simplified, and coroutines are quite useful.But as always in HN, I'm prepared for that to be an unpopular opinion.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45109758,
+    "by": "didip",
+    "timeISO": "2025-09-02T22:08:27.000Z",
+    "textPlain": "It would have been a lot more popular if it has a shim that lets it pretend to be a regular thread. Folks don't like to perform a lot of rewrites.",
     "parent": 45106189,
     "depth": 1
   },
@@ -344,14 +368,6 @@
     "depth": 1
   },
   {
-    "id": 45110747,
-    "by": "liquidpele",
-    "timeISO": "2025-09-03T00:08:41.000Z",
-    "textPlain": "Because it’s terrible.  People don’t avoid non-terrible things.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
     "id": 45106756,
     "by": "bmandale",
     "timeISO": "2025-09-02T18:01:32.000Z",
@@ -360,10 +376,18 @@
     "depth": 1
   },
   {
-    "id": 45107609,
-    "by": "the__alchemist",
-    "timeISO": "2025-09-02T19:05:41.000Z",
-    "textPlain": "The barrier it places in Rust's lib ecosystem is unpleasant; I'm glad it hasn't taken off in Python. I have written too many rust libs because the existing ones forced your code  to be Async.",
+    "id": 45107724,
+    "by": "omnicognate",
+    "timeISO": "2025-09-02T19:16:41.000Z",
+    "textPlain": "For a counter-opinion that isn't getting stated much here, I think:* Asyncio is pretty good, and is usually the best choice for non-blocking I/O in python these days.* Asyncio doesn't add multi-core scaling to python. It's not a replacement for threads and doesn't lift the GIL-imposed scaling limitations. If these things are what you're after from asyncio you'll be disappointed, but they're not what it's trying to add and not adding them doesn't make it a failure.* \"Coloured functions\" is a nonsense argument and that article made the whole world  slightly more dumb.* The GIL is part of the reason for python's success. I hope nogil either somehow manages to succeed without compromising the benefits the GIL has brought (I'll be amazed if that happens) or fails entirely. Languages are tools and every tool in your toolbox doesn't have to eventually turn into a drill. If your use case requires in-process parallelisation of interpreted CPU-bound workloads across multiple cores, python is just the wrong thing to use.* It is indeed extremely annoying that we don't have async file access yet. I hope we get it soon.",
+    "parent": 45106189,
+    "depth": 1
+  },
+  {
+    "id": 45110747,
+    "by": "liquidpele",
+    "timeISO": "2025-09-03T00:08:41.000Z",
+    "textPlain": "Because it’s terrible.  People don’t avoid non-terrible things.",
     "parent": 45106189,
     "depth": 1
   },
@@ -372,30 +396,6 @@
     "by": "OhMeadhbh",
     "timeISO": "2025-09-02T20:49:19.000Z",
     "textPlain": "I'm not the biggest Python fan, but when I was forced to use it using async disabled a bunch of things... like the debugger.  Not a fan.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
-    "id": 45106670,
-    "by": "dekhn",
-    "timeISO": "2025-09-02T17:55:21.000Z",
-    "textPlain": "It added intrusive- codebase-wide- functionality that more or less could have been done with other (thread-based) approaches.AWSCLI was broken for over a year- we had to do a ton of work to deal with the various packaging issues.Don't break userspace.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
-    "id": 45106417,
-    "by": "tripletpeaks",
-    "timeISO": "2025-09-02T17:39:14.000Z",
-    "textPlain": "It’s probably related to the fact that when they added “await” to JavaScript, it seemed to become the most popular keyword in the language overnight, just comical amounts of it in the average new JavaScript file in the wild.",
-    "parent": 45106189,
-    "depth": 1
-  },
-  {
-    "id": 45106473,
-    "by": "dec0dedab0de",
-    "timeISO": "2025-09-02T17:42:22.000Z",
-    "textPlain": "It's had async way longer than 10 years.  multi-threading/processing, celery, twisted, others I can't remember.Asyncio means learning different syntax that buys me nothing over the existing tools.  Why would I bother?",
     "parent": 45106189,
     "depth": 1
   }

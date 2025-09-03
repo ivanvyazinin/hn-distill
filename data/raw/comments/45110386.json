@@ -1,13 +1,5 @@
 [
   {
-    "id": 45111784,
-    "by": "o11c",
-    "timeISO": "2025-09-03T02:47:14.000Z",
-    "textPlain": "Some minor disadvantages:* Indices are likely to increase register pressure slightly, as unoptimized code must keep around the base as well (and you can't assume optimization will happen). In many cases the base is stored in a struct so you'll also have to pay for an extra load stall.* With indices, you're likely to give up on type safety unless your language supports zero-overhead types and you bother to define and use appropriate wrappers. Note in particular that \"difference between two indices\" should be a different type than \"index\", just like for pointers.",
-    "parent": 45110386,
-    "depth": 1
-  },
-  {
     "id": 45111473,
     "by": "10000truths",
     "timeISO": "2025-09-03T01:55:44.000Z",
@@ -16,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 45111784,
+    "by": "o11c",
+    "timeISO": "2025-09-03T02:47:14.000Z",
+    "textPlain": "Some minor disadvantages:* Indices are likely to increase register pressure slightly, as unoptimized code must keep around the base as well (and you can't assume optimization will happen). In many cases the base is stored in a struct so you'll also have to pay for an extra load stall.* With indices, you're likely to give up on type safety unless your language supports zero-overhead types and you bother to define and use appropriate wrappers. Note in particular that \"difference between two indices\" should be a different type than \"index\", just like for pointers.",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
     "id": 45111204,
     "by": "skulk",
     "timeISO": "2025-09-03T01:16:28.000Z",
     "textPlain": "This is a very tempting and commonly used strategy in Rust to bypass the borrow checker. I've used it to implement tries/DFAs with great success (though I can't find the code anymore)",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
+    "id": 45112076,
+    "by": "adonovan",
+    "timeISO": "2025-09-03T03:45:01.000Z",
+    "textPlain": "One other benefit of indices is that they are ordered, whereas pointers in many languages (e.g. Go, but not C) are unordered. So you can binary search over an array of indices, for example, or use the relative sign of two indices to indicate a push or a pop operation in a balanced parenthesis tree.",
     "parent": 45110386,
     "depth": 1
   },
@@ -40,18 +48,26 @@
     "depth": 1
   },
   {
-    "id": 45111526,
-    "by": "adamnemecek",
-    "timeISO": "2025-09-03T02:04:45.000Z",
-    "textPlain": "Generational arenas is the name of the pattern.",
-    "parent": 45110386,
-    "depth": 1
-  },
-  {
     "id": 45110719,
     "by": "quantified",
     "timeISO": "2025-09-03T00:05:33.000Z",
     "textPlain": "Reinventing malloc to some degree.",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
+    "id": 45111687,
+    "by": "nayuki",
+    "timeISO": "2025-09-03T02:30:18.000Z",
+    "textPlain": "Managing your own buffer of object slots, allocating from them, and using integer indexes instead of typed object pointers - all of these are a small amount of extra work compared to using native language features.I'd like to point out that most of the benefits explained in the article are already given to you by default on the Java virtual machine, even if you designed tree object classes the straightforward way:> Smaller Nodes: A pointer costs 8 bytes to store on a modern 64-bit system, but unless your planning on storing over 4 billion nodes in memory, an index can be stored in just 4 bytes.You can use the compressed OOPs (ordinary object pointers) JVM option, which on 64-bit JVMs this drops the size of a pointer from 8 bytes to 4 bytes.> Faster Access: [...] nodes are stored contiguously in memory, the data structure will fit into fewer memory pages and more nodes will fit in the cpu’s cache line, which generally improves access times significantlyIf you are using a copying garbage collector (as opposed to reference counting or mark-and-sweep), then memory allocation is basically incrementing a pointer, and consecutively allocated nodes in time are consecutive in memory as well.> Less Allocation Overhead: [...] make a separate allocation for each individual node, one at a time. This is a very naive way of allocating memory, however, as each memory allocation comes with a small but significant overheadAlso not true for a garbage-collected memory system with bump allocation. The memory allocator only needs to keep a single pointer to keep track of where the next allocation needs to be. The memory system doesn't need to keep track of which blocks are in use or keep free lists - because those are implied by tracing all objects from the known roots. What I'm saying is, the amount of bookkeeping for a C-style malloc()+free() system is completely different than a copying garbage collector.> Instant Frees: [...] entire structure has to be traversed to find and individua",
+    "parent": 45110386,
+    "depth": 1
+  },
+  {
+    "id": 45111526,
+    "by": "adamnemecek",
+    "timeISO": "2025-09-03T02:04:45.000Z",
+    "textPlain": "Generational arenas is the name of the pattern.",
     "parent": 45110386,
     "depth": 1
   },
@@ -64,12 +80,12 @@
     "depth": 1
   },
   {
-    "id": 45111687,
-    "by": "nayuki",
-    "timeISO": "2025-09-03T02:30:18.000Z",
-    "textPlain": "Managing your own buffer of object slots, allocating from them, and using integer indexes instead of typed object pointers - all of these are a small amount of extra work compared to using native language features.I'd like to point out that most of the benefits explained in the article are already given to you by default on the Java virtual machine, even if you designed tree object classes the straightforward way:> Smaller Nodes: A pointer costs 8 bytes to store on a modern 64-bit system, but unless your planning on storing over 4 billion nodes in memory, an index can be stored in just 4 bytes.You can use the compressed OOPs (ordinary object pointers) JVM option, which on 64-bit JVMs this drops the size of a pointer from 8 bytes to 4 bytes.> Faster Access: [...] nodes are stored contiguously in memory, the data structure will fit into fewer memory pages and more nodes will fit in the cpu’s cache line, which generally improves access times significantlyIf you are using a copying garbage collector (as opposed to reference counting or mark-and-sweep), then memory allocation is basically incrementing a pointer, and consecutively allocated nodes in time are consecutive in memory as well.> Less Allocation Overhead: [...] make a separate allocation for each individual node, one at a time. This is a very naive way of allocating memory, however, as each memory allocation comes with a small but significant overheadAlso not true for a garbage-collected memory system with bump allocation. The memory allocator only needs to keep a single pointer to keep track of where the next allocation needs to be. The memory system doesn't need to keep track of which blocks are in use or keep free lists - because those are implied by tracing all objects from the known roots. What I'm saying is, the amount of bookkeeping for a C-style malloc()+free() system is completely different than a copying garbage collector.> Instant Frees: [...] entire structure has to be traversed to find and individua",
-    "parent": 45110386,
-    "depth": 1
+    "id": 45112164,
+    "by": "cma",
+    "timeISO": "2025-09-03T04:04:01.000Z",
+    "textPlain": "Data memory-dependent prefetchers like in Apple's newer chips I think only work with full pointers and not offsets, so it could be a decent perf hit.",
+    "parent": 45111473,
+    "depth": 2
   },
   {
     "id": 45111431,
