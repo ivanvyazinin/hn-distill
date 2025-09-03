@@ -8,10 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45114852,
-    "by": "freehorse",
-    "timeISO": "2025-09-03T12:20:02.000Z",
-    "textPlain": "Author discovers that performance does not scale proportionally to %CPU utilisation, and gets instead to the conclusion that %CPU utilisation is a lie.There are many reasons for the lack of a proportional relationship, even in the case where you do not have hyperthreading or downclocking (in which cases you just need to interpret %CPU utilisation in that context, rather than declare it \"a lie\"). Even in apple silicon where these are usually not an issue, you often do not get an exactly proportional scaling. There may be overheads when utilising multiple cores wrt how data is passed around, or resource bottlenecks other than CPU.",
+    "id": 45112377,
+    "by": "kqr",
+    "timeISO": "2025-09-03T04:57:35.000Z",
+    "textPlain": "It might be a lie, but it surely is a practical one. In my brief foray into site reliability engineering I used CPU utilisation (of CPU-bofund tasks) with queueing theory to choose how to scale servers before big events.The %CPU suggestions ran contrary to (and were much more conservative than) the \"old wisdom\" that would otherwise have been used. It worked out great at much lower cost than otherwise.What I'm trying to say is you shouldn't be afraid of using semi-crappy indicators just because they're semi-crappy. If it's the best you got it might be good enough anyway.In the case of CPU utilisation, though, the number in production shouldn't go above 40 % for many reasons. At 40 % there's usually still a little headroom. The mistake of the author was not using fundamentals of queueing theory to avoid high utilisation!",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45115415,
+    "by": "PathOfEclipse",
+    "timeISO": "2025-09-03T13:18:53.000Z",
+    "textPlain": "I think it was always a mistake to pretend hyperthreading doubles your core count. I always assumed it was just due to laziness; the operating system treats a hyperthreaded core as two \"virtual cores\" and schedules as two cores, so then every other piece of tooling sees double the number of actual cores. There's no good reason I know of that a CPU utilization tool shouldn't use real cores when calculating percentages. But, maybe that's hard to do given how the OS implements hyperthreading.",
     "parent": 45110688,
     "depth": 1
   },
@@ -24,18 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45112377,
-    "by": "kqr",
-    "timeISO": "2025-09-03T04:57:35.000Z",
-    "textPlain": "It might be a lie, but it surely is a practical one. In my brief foray into site reliability engineering I used CPU utilisation (of CPU-bofund tasks) with queueing theory to choose how to scale servers before big events.The %CPU suggestions ran contrary to (and were much more conservative than) the \"old wisdom\" that would otherwise have been used. It worked out great at much lower cost than otherwise.What I'm trying to say is you shouldn't be afraid of using semi-crappy indicators just because they're semi-crappy. If it's the best you got it might be good enough anyway.In the case of CPU utilisation, though, the number in production shouldn't go above 40 % for many reasons. At 40 % there's usually still a little headroom. The mistake of the author was not using fundamentals of queueing theory to avoid high utilisation!",
-    "parent": 45110688,
-    "depth": 1
-  },
-  {
-    "id": 45114840,
-    "by": "rollcat",
-    "timeISO": "2025-09-03T12:18:39.000Z",
-    "textPlain": "I'm surprised nobody has mentioned OpenBSD yet.They've been advocating against SMT for a long while, citing security risks and inconsistent performance gains. I don't know which HW/CPU bug in the long series of rowhammer, meltdown, spectre, etc prompted the action, but they've completely disabled SMT in the default installation at some point.The core idea by itself is fine: keep the ALUs busy. Maybe security-wise, the present trade-off is acceptable, if you can instruct the scheduler to put threads from the same security domain on the same physical core. (How to tell when two threads are not a threat to each other is left up as an exercise.)",
+    "id": 45114852,
+    "by": "freehorse",
+    "timeISO": "2025-09-03T12:20:02.000Z",
+    "textPlain": "Author discovers that performance does not scale proportionally to %CPU utilisation, and gets instead to the conclusion that %CPU utilisation is a lie.There are many reasons for the lack of a proportional relationship, even in the case where you do not have hyperthreading or downclocking (in which cases you just need to interpret %CPU utilisation in that context, rather than declare it \"a lie\"). Even in apple silicon where these are usually not an issue, you often do not get an exactly proportional scaling. There may be overheads when utilising multiple cores wrt how data is passed around, or resource bottlenecks other than CPU.",
     "parent": 45110688,
     "depth": 1
   },
@@ -56,18 +56,26 @@
     "depth": 1
   },
   {
-    "id": 45112179,
-    "by": "dragontamer",
-    "timeISO": "2025-09-03T04:09:00.000Z",
-    "textPlain": "There's many ways CPU utilization fails to work as expected.I didn't expect an article on this style. I was expecting the normal Linux/Windows utilization but wtf it's all RAM bottlenecked and the CPU is actually quiet and possibly down clocking thing.CPU Utilization is only how many cores are given threads to run by the OS (be it Windows or Linux). Those threads could be 100% blocked on memcpy but that's still CPU utilization.-------Hyperthreads help: if one thread is truly CPU bound (or even more specifically: AVX / Vector unit bound), while a 2nd thread is hyperthreaded together that's memcpy / RAM bound, you'll magically get more performance due to higher utilization of resources. (Load/store units are separate from AVX compute units).In any case, this is a perennial subject with always new discoveries about how CPU Utilization is far less intuitive than many think. Still kinda fun to learn about new perspectives on this matter in any case.",
-    "parent": 45110688,
-    "depth": 1
-  },
-  {
     "id": 45111071,
     "by": "judge123",
     "timeISO": "2025-09-03T00:53:33.000Z",
     "textPlain": "This hits so close to home. I once tried to explain to a manager that a server at 60% utilization had zero room left, and they looked at me like I had two heads. I wish I had this article back then!",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45114840,
+    "by": "rollcat",
+    "timeISO": "2025-09-03T12:18:39.000Z",
+    "textPlain": "I'm surprised nobody has mentioned OpenBSD yet.They've been advocating against SMT for a long while, citing security risks and inconsistent performance gains. I don't know which HW/CPU bug in the long series of rowhammer, meltdown, spectre, etc prompted the action, but they've completely disabled SMT in the default installation at some point.The core idea by itself is fine: keep the ALUs busy. Maybe security-wise, the present trade-off is acceptable, if you can instruct the scheduler to put threads from the same security domain on the same physical core. (How to tell when two threads are not a threat to each other is left up as an exercise.)",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45112179,
+    "by": "dragontamer",
+    "timeISO": "2025-09-03T04:09:00.000Z",
+    "textPlain": "There's many ways CPU utilization fails to work as expected.I didn't expect an article on this style. I was expecting the normal Linux/Windows utilization but wtf it's all RAM bottlenecked and the CPU is actually quiet and possibly down clocking thing.CPU Utilization is only how many cores are given threads to run by the OS (be it Windows or Linux). Those threads could be 100% blocked on memcpy but that's still CPU utilization.-------Hyperthreads help: if one thread is truly CPU bound (or even more specifically: AVX / Vector unit bound), while a 2nd thread is hyperthreaded together that's memcpy / RAM bound, you'll magically get more performance due to higher utilization of resources. (Load/store units are separate from AVX compute units).In any case, this is a perennial subject with always new discoveries about how CPU Utilization is far less intuitive than many think. Still kinda fun to learn about new perspectives on this matter in any case.",
     "parent": 45110688,
     "depth": 1
   },
@@ -240,6 +248,14 @@
     "depth": 2
   },
   {
+    "id": 45115059,
+    "by": "tracker1",
+    "timeISO": "2025-09-03T12:45:05.000Z",
+    "textPlain": "> There is rarely a stable definition of \"work\". Is it RPS? Request cost can vary even throughout the day. Is it instructions? Same, the typical IPC can vary.I think this is probably one of the most important points...  similarly, is this public facing work dealing with any kind of user request, or is it simply crunching numbers/data to build an AI model from a stable backlog/queue?My take has always been with modern multi-core, hyper-threaded CPUs that are burstable is to consider ~60% a \"loaded\" server.  That should have work split if it's that way for any significant portion of a day.  Mostly dealing with user-facing services.  So bursts and higher traffic portions of the day are dramatically different from lower utilization portions of the day.A decade ago, this lead to a lot of work for cloud provisioning on demand for the heavier load times.  Today it's a bit more complicated when you have servers with 100+ cores as an option for under $30k (guestimate based on $10k CPU price).  Today, I'd lean to over-provisioning dedicated server hardware and supplement with cloud services (and/or self-cloud-like on K8s) as pragmatically as reasonable... depending on the services of course.  I'm not currently in a position where I have this level of input though.Just looking at how, as an example, StackOverflow scaled in the early days is even more possible/prudent today to a much larger extent...  You can go a very long way with a half/full rack and a 10gb uplink in a colo data center or two.In any case, for me... >= 65% CPU load for >= 30m/day means it's at 100% effective utilization, and needs expansion relatively soon.  Just my own take.",
+    "parent": 45111036,
+    "depth": 2
+  },
+  {
     "id": 45112375,
     "by": "jimmySixDOF",
     "timeISO": "2025-09-03T04:57:09.000Z",
@@ -253,30 +269,6 @@
     "timeISO": "2025-09-03T03:00:22.000Z",
     "textPlain": "What about 2 workloads that both register 100% CPU usage, but one workload draws significantly more power and heats the CPU up way more? Seems like that workload is utilizing more of the CPU, more of the transistors or something.",
     "parent": 45111036,
-    "depth": 2
-  },
-  {
-    "id": 45114920,
-    "by": "saagarjha",
-    "timeISO": "2025-09-03T12:29:33.000Z",
-    "textPlain": "Apple silicon downclocks quite a lot especially if you have a passively cooled machine",
-    "parent": 45114852,
-    "depth": 2
-  },
-  {
-    "id": 45113770,
-    "by": "4gotunameagain",
-    "timeISO": "2025-09-03T09:18:29.000Z",
-    "textPlain": "What's up with Brendans and CPU utilisation concerns, any Brendan to shine some light ?",
-    "parent": 45112861,
-    "depth": 2
-  },
-  {
-    "id": 45114933,
-    "by": "saagarjha",
-    "timeISO": "2025-09-03T12:31:27.000Z",
-    "textPlain": "40% seems quite lightly utilized tbh",
-    "parent": 45112377,
     "depth": 2
   },
   {
@@ -296,6 +288,14 @@
     "depth": 2
   },
   {
+    "id": 45114933,
+    "by": "saagarjha",
+    "timeISO": "2025-09-03T12:31:27.000Z",
+    "textPlain": "40% seems quite lightly utilized tbh",
+    "parent": 45112377,
+    "depth": 2
+  },
+  {
     "id": 45113071,
     "by": "zekrioca",
     "timeISO": "2025-09-03T07:10:48.000Z",
@@ -304,11 +304,19 @@
     "depth": 2
   },
   {
-    "id": 45114925,
+    "id": 45113770,
+    "by": "4gotunameagain",
+    "timeISO": "2025-09-03T09:18:29.000Z",
+    "textPlain": "What's up with Brendans and CPU utilisation concerns, any Brendan to shine some light ?",
+    "parent": 45112861,
+    "depth": 2
+  },
+  {
+    "id": 45114920,
     "by": "saagarjha",
-    "timeISO": "2025-09-03T12:30:30.000Z",
-    "textPlain": "The security argument might make sense but OpenBSD is not really the place to take performance advice from",
-    "parent": 45114840,
+    "timeISO": "2025-09-03T12:29:33.000Z",
+    "textPlain": "Apple silicon downclocks quite a lot especially if you have a passively cooled machine",
+    "parent": 45114852,
     "depth": 2
   },
   {
@@ -360,19 +368,11 @@
     "depth": 2
   },
   {
-    "id": 45111124,
-    "by": "hinkley",
-    "timeISO": "2025-09-03T01:01:24.000Z",
-    "textPlain": "You also want to hit him with queueing theory.Up to a hair over 60% utilization the queuing delays on any work queue remain essentially negligible. At 70 they become noticeable, and at 80% they've doubled. And then it just turns into a shitshow from there on.The rule of thumb is 60% is zero, and 80% is the inflection point where delays go exponential.The biggest cluster I ran, we hit about 65% CPU at our target P95 time, which is pretty much right on the theoretical mark.",
-    "parent": 45111071,
-    "depth": 2
-  },
-  {
-    "id": 45113906,
-    "by": "PunchyHamster",
-    "timeISO": "2025-09-03T09:42:29.000Z",
-    "textPlain": "that entirely depends on workload. especially now when average server CPUs start at 32 cores",
-    "parent": 45111071,
+    "id": 45114925,
+    "by": "saagarjha",
+    "timeISO": "2025-09-03T12:30:30.000Z",
+    "textPlain": "The security argument might make sense but OpenBSD is not really the place to take performance advice from",
+    "parent": 45114840,
     "depth": 2
   },
   {
