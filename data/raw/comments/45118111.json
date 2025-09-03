@@ -1,5 +1,13 @@
 [
   {
+    "id": 45120978,
+    "by": "formalsystem",
+    "timeISO": "2025-09-03T22:18:37.000Z",
+    "textPlain": "Hi! I work on PyTorch and there are many things that make me suspicious about these results. My TL;DR is unless we get a zip file of all the kernels with how they're benchmarked results like this are almost impossible to verify1. I don't have an M4 but I have an M1 Pro and I tried running the claimed 18x speedup VisionAttention attention example and I get close to identical runtimes. This example has more issues the main optimization the LLM is doing is a fusion and so not comparing to torch.compile is a bit sus. The numerics are off as well and I suspect the atols were way too big. Finally MultiHeadAttention is a deprecated API so using neither SDPA or torch.compile is a weird choice \n2. In general 18x (and even some 100x speedups claimed near the end) are just a smell that some kernel is incorrect, the typical way you can get speedups like this is you don't warmup or you forget to synchronize. PyTorch has a lot of benchmarking footguns  \n3. Speaking of footguns, the shapes I saw in the examples were tiny, in that regime you're more often measuring noise as the primary bottleneck is not compute or memory but overhead\n4. Generating many random shapes is also not so safe, some input distributions can make certain kernels trivial for example torch.randn() by default generates samples from a normal distribution with mean 0 and variance 1 and so if you take the mean of a large vector you're almost guaranteed to just get 0 esp if your tolerance is too high\n5. KernelBench levels measure vastly different things and if you want to compare to PyTorch operators you want to focus on Level 1, Level 2 is fusions and so the right baseline is torch.compile and more reliable on nightlies. The Mamba 2 example (which I didn't run) also acknowledges that the primary thing it does is fusions which assuming everything is correct would still be a strange baselineSo please for everyone's sanity if you find a kernel that's 10-100x faster please share the exact code and benchmarking methodo",
+    "parent": 45118111,
+    "depth": 1
+  },
+  {
     "id": 45119741,
     "by": "turbo_wombat",
     "timeISO": "2025-09-03T19:48:35.000Z",
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45120311,
-    "by": "magicalist",
-    "timeISO": "2025-09-03T20:54:42.000Z",
-    "textPlain": "This is cool it works so well (less the performance claims and more the correct translations).Not to take away from the nice writeup, but for anyone not getting far enough into the writeup, this is essentially taking https://github.com/ScalingIntelligence/KernelBench and seeing if it can generate Metal kernels in addition to the CUDA kernels the benchmark is written for. The dataset was released in November 2024, it looks like, with a paper on arXiv in February and a bunch of discussion at the time[1], so worth keeping likelihood of inclusion in training data in mind when comparing models.The different levels are interesting. Level 1 and 3 are successfully (5-shot) translated to Metal kernels by gpt5 97% and 88% of the time , but in both cases, the majority of generated kernels are slower than the reference compiled pytorch versions. The speculation about more simple op fusion opportunities in the Level 2 kernels vs the very simple Level 1 kernels and the complex architecture Level 3 kernels seems plausible. From the KernelBench paper, it looks like Level 2 kernels were mostly automatically generated from randomly picking operators and then getting an LLM to generate a kernel combining them, while Level 1 were mostly hand written and Level 3 came from well-known ML architectures.The swarm part seemed a bit of a stretch. They fired off requests to 8 different models to do the translation, and the \"supervisor\" benchmarked the returned kernels and picked the fastest one. Technically a swarm, I guess, but feels like we're devaluing the term :)The correctness testing used made my eye twitch a bit:> We tested the generated kernel's output against the default implementation's output on 100 random inputs. We set a 0.01 tolerance for both relative and absolute. Let a be the generated kernel output, and b be the reference kernel output. Outputs were considered equal if for every element in the output, absolute(a - b) ≤ (atol + rtol  absolute(b)) held true.*For a numerical ker",
-    "parent": 45118111,
-    "depth": 1
-  },
-  {
     "id": 45119495,
     "by": "nikolayasdf123",
     "timeISO": "2025-09-03T19:19:41.000Z",
     "textPlain": "> non 100% correctness of kernelswouldn't model not work properly if kernels are even slightly off?wasn't kernels a part of training stack for models? am I missing anything?",
+    "parent": 45118111,
+    "depth": 1
+  },
+  {
+    "id": 45120311,
+    "by": "magicalist",
+    "timeISO": "2025-09-03T20:54:42.000Z",
+    "textPlain": "This is cool it works so well (less the performance claims and more the correct translations).Not to take away from the nice writeup, but for anyone not getting far enough into the writeup, this is essentially taking https://github.com/ScalingIntelligence/KernelBench and seeing if it can generate Metal kernels in addition to the CUDA kernels the benchmark is written for. The dataset was released in November 2024, it looks like, with a paper on arXiv in February and a bunch of discussion at the time[1], so worth keeping likelihood of inclusion in training data in mind when comparing models.The different levels are interesting. Level 1 and 3 are successfully (5-shot) translated to Metal kernels by gpt5 97% and 88% of the time , but in both cases, the majority of generated kernels are slower than the reference compiled pytorch versions. The speculation about more simple op fusion opportunities in the Level 2 kernels vs the very simple Level 1 kernels and the complex architecture Level 3 kernels seems plausible. From the KernelBench paper, it looks like Level 2 kernels were mostly automatically generated from randomly picking operators and then getting an LLM to generate a kernel combining them, while Level 1 were mostly hand written and Level 3 came from well-known ML architectures.The swarm part seemed a bit of a stretch. They fired off requests to 8 different models to do the translation, and the \"supervisor\" benchmarked the returned kernels and picked the fastest one. Technically a swarm, I guess, but feels like we're devaluing the term :)The correctness testing used made my eye twitch a bit:> We tested the generated kernel's output against the default implementation's output on 100 random inputs. We set a 0.01 tolerance for both relative and absolute. Let a be the generated kernel output, and b be the reference kernel output. Outputs were considered equal if for every element in the output, absolute(a - b) ≤ (atol + rtol  absolute(b)) held true.*For a numerical ker",
     "parent": 45118111,
     "depth": 1
   },
@@ -56,11 +64,27 @@
     "depth": 1
   },
   {
+    "id": 45120646,
+    "by": "CapsAdmin",
+    "timeISO": "2025-09-03T21:34:05.000Z",
+    "textPlain": "I have never really worked with pytorch professionally, but it feels to me a lot of the open source, especially generative oriented projects, just use pytorch like this. It makes hacking on the models a whole lot easier.comfyui is a good example of a project like this.",
+    "parent": 45119741,
+    "depth": 2
+  },
+  {
     "id": 45120488,
     "by": "nserrino",
     "timeISO": "2025-09-03T21:15:56.000Z",
     "textPlain": "PyTorch is the baseline because that's what people prototype in, and the most common reference point. The aim here is to show that you can start from prototype code and automatically produce lower-level kernels (in this case Metal) that are more usable in real deployments, without additional work from the developer. Frontier models are capable at generating efficient Metal kernels automatically/immediately, and will only get better. We expect to see significant improvements as we refine the approach, but it's enough to show this seems to be a tractable problem for AI.",
     "parent": 45119741,
+    "depth": 2
+  },
+  {
+    "id": 45120295,
+    "by": "moelf",
+    "timeISO": "2025-09-03T20:52:34.000Z",
+    "textPlain": ">I can't help but think we should bet on sth like Mojo instead for the long run.JAX or Julia hopefully.",
+    "parent": 45119420,
     "depth": 2
   },
   {
@@ -72,11 +96,11 @@
     "depth": 2
   },
   {
-    "id": 45120295,
-    "by": "moelf",
-    "timeISO": "2025-09-03T20:52:34.000Z",
-    "textPlain": ">I can't help but think we should bet on sth like Mojo instead for the long run.JAX or Julia hopefully.",
-    "parent": 45119420,
+    "id": 45120966,
+    "by": "arjvik",
+    "timeISO": "2025-09-03T22:15:40.000Z",
+    "textPlain": "I believe their speedup is computed _assuming they can easily fix the correctness bugs in the kernels_.In practice, with slight differences the model will feel almost lobotomized.",
+    "parent": 45119495,
     "depth": 2
   },
   {
