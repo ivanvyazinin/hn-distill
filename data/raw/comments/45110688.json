@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45111202,
-    "by": "PaulKeeble",
-    "timeISO": "2025-09-03T01:15:41.000Z",
-    "textPlain": "This is bang on, you can't count the hyperthreads as double the performance, typically they are actually in practice only going to bring 15-30% if the job works well with it and their use will double the latency. Failing to account for loss in clockspeed as the core utilisation climbs is another way its not linear and in modern software for the desktop its really something to pay careful attention to.It should be possible from the information you can get on a CPU from the OS to better estimate utilisation involving at the very least these two factors. It becomes a bit more tricky to start to account for significantly going past the cache or available memory bandwidth and the potential drop in performance to existing threads that occurs from the increased pipeline stalls. But it can definitely be done better than it is currently.",
+    "id": 45112377,
+    "by": "kqr",
+    "timeISO": "2025-09-03T04:57:35.000Z",
+    "textPlain": "It might be a lie, but it surely is a practical one. In my brief foray into site reliability engineering I used CPU utilisation (of CPU-bofund tasks) with queueing theory to choose how to scale servers before big events.The %CPU suggestions ran contrary to (and were much more conservative than) the \"old wisdom\" that would otherwise have been used. It worked out great at much lower cost than otherwise.What I'm trying to say is you shouldn't be afraid of using semi-crappy indicators just because they're semi-crappy. If it's the best you got it might be good enough anyway.In the case of CPU utilisation, though, the number in production shouldn't go above 40 % for many reasons. At 40 % there's usually still a little headroom. The mistake of the author was not using fundamentals of queueing theory to avoid high utilisation!",
     "parent": 45110688,
     "depth": 1
   },
@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45112072,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-09-03T03:44:49.000Z",
-    "textPlain": "The benchmark is basically application performance testing, which is the most accurate representation you can get. Test the specific app(s) your server is running, with real-world data/scenarios, and keep cranking up the requests, until the server falls over. Nothing else will give you as accurate an indication of your server's actual maximum performance with that app. Do that for every variable that's relevant (# requests/s, payload size, # parameters, etc), so you have multiple real-world maximum-performance indicators to configure your observability monitors for.One way to get closer to reliable performance is to apply cpu scheduler limits to what runs your applications to keep them below a given threshold. This way you can better ensure you can sustain a given amount of performance. You don't want to run at 100% cpu for long, especially if disk i/o becomes hampered, system load skyrockets, and availability starts to plummet. Two thousand servers with 5000ms ping times due to system load is not a fun day at the office.(And actually you'll never get a completely accurate view, as performance can change per-server. Rack two identical servers in two different racks, run the same app on each, and you may see different real-world performance. One rack may be hotter than the other, there could be hidden hardware or firmware differences, etc. Even within a server, if one CPU is just nearer a hotter component than on another server, for reasons)",
+    "id": 45111202,
+    "by": "PaulKeeble",
+    "timeISO": "2025-09-03T01:15:41.000Z",
+    "textPlain": "This is bang on, you can't count the hyperthreads as double the performance, typically they are actually in practice only going to bring 15-30% if the job works well with it and their use will double the latency. Failing to account for loss in clockspeed as the core utilisation climbs is another way its not linear and in modern software for the desktop its really something to pay careful attention to.It should be possible from the information you can get on a CPU from the OS to better estimate utilisation involving at the very least these two factors. It becomes a bit more tricky to start to account for significantly going past the cache or available memory bandwidth and the potential drop in performance to existing threads that occurs from the increased pipeline stalls. But it can definitely be done better than it is currently.",
     "parent": 45110688,
     "depth": 1
   },
@@ -48,10 +48,26 @@
     "depth": 1
   },
   {
+    "id": 45112072,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-09-03T03:44:49.000Z",
+    "textPlain": "The benchmark is basically application performance testing, which is the most accurate representation you can get. Test the specific app(s) your server is running, with real-world data/scenarios, and keep cranking up the requests, until the server falls over. Nothing else will give you as accurate an indication of your server's actual maximum performance with that app. Do that for every variable that's relevant (# requests/s, payload size, # parameters, etc), so you have multiple real-world maximum-performance indicators to configure your observability monitors for.One way to get closer to reliable performance is to apply cpu scheduler limits to what runs your applications to keep them below a given threshold. This way you can better ensure you can sustain a given amount of performance. You don't want to run at 100% cpu for long, especially if disk i/o becomes hampered, system load skyrockets, and availability starts to plummet. Two thousand servers with 5000ms ping times due to system load is not a fun day at the office.(And actually you'll never get a completely accurate view, as performance can change per-server. Rack two identical servers in two different racks, run the same app on each, and you may see different real-world performance. One rack may be hotter than the other, there could be hidden hardware or firmware differences, etc. Even within a server, if one CPU is just nearer a hotter component than on another server, for reasons)",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
     "id": 45111995,
     "by": "CCs",
     "timeISO": "2025-09-03T03:29:36.000Z",
     "textPlain": "Uses stress-ng for benchmarking, even though the stress-ng documentation says it is not suitable for benchmarking. It was written to max out one component until it burns. \nUsing a real app, like Memcached or Postgres would show more realistic numbers, closer to what people use in production. \nThe difference is not major, 50% utilization is closer to 80% in real load, but it breaks down faster. Stress-ng is nicely linear until 100%, memcached will have a hockey stick curve at the end.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
+    "id": 45112336,
+    "by": "smallstepforman",
+    "timeISO": "2025-09-03T04:47:37.000Z",
+    "textPlain": "Read kernel code to see how CPU utilisation is calculated. In essence, count scheduled threads to execute and divide by number of cores. Any latency (eg. wait for memory) is still calculated as busy core.",
     "parent": 45110688,
     "depth": 1
   },
@@ -64,6 +80,14 @@
     "depth": 1
   },
   {
+    "id": 45110975,
+    "by": "hinkley",
+    "timeISO": "2025-09-03T00:41:01.000Z",
+    "textPlain": "How many times has hyperthreading been an actual performance benefit in processors? I cannot count how many times an article has come out saying you'll get better performance out of your <insert processor here> by turning off hyperthreading in the BIOS.It's gotta be at least 2 out of every 3 chip generations going back to the original implementation, where you're better off without it than with.",
+    "parent": 45110688,
+    "depth": 1
+  },
+  {
     "id": 45111947,
     "by": "N_Lens",
     "timeISO": "2025-09-03T03:20:25.000Z",
@@ -72,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45110975,
-    "by": "hinkley",
-    "timeISO": "2025-09-03T00:41:01.000Z",
-    "textPlain": "How many times has hyperthreading been an actual performance benefit in processors? I cannot count how many times an article has come out saying you'll get better performance out of your <insert processor here> by turning off hyperthreading in the BIOS.It's gotta be at least 2 out of every 3 chip generations going back to the original implementation, where you're better off without it than with.",
+    "id": 45111815,
+    "by": "pama",
+    "timeISO": "2025-09-03T02:54:01.000Z",
+    "textPlain": "Wait until you encounter GPU utilization. You could have two codes listing 100% utilization and have well over 100x performance difference from each other.  The name of these metrics creates natural assumptions that are just wrong. Luckily it is relatively easy to estimate the FLOP/s throughput for most GPU codes and then simply compare to the theoretical peak performance of the hardware.",
     "parent": 45110688,
     "depth": 1
   },
@@ -96,14 +120,6 @@
     "depth": 1
   },
   {
-    "id": 45111815,
-    "by": "pama",
-    "timeISO": "2025-09-03T02:54:01.000Z",
-    "textPlain": "Wait until you encounter GPU utilization. You could have two codes listing 100% utilization and have well over 100x performance difference from each other.  The name of these metrics creates natural assumptions that are just wrong. Luckily it is relatively easy to estimate the FLOP/s throughput for most GPU codes and then simply compare to the theoretical peak performance of the hardware.",
-    "parent": 45110688,
-    "depth": 1
-  },
-  {
     "id": 45111928,
     "by": "1gn15",
     "timeISO": "2025-09-03T03:16:50.000Z",
@@ -116,6 +132,14 @@
     "by": "eklitzke",
     "timeISO": "2025-09-03T03:12:44.000Z",
     "textPlain": "I agree. If you actually know what you're doing you can use perf and/or ftrace to get highly detailed processor metrics over short periods of time, and you can see the effects of things like CPU stalls from cache misses, CPU stalls from memory accesses, scheduler effects, and many other things. But most of these metrics are not very actionable anyway (the vast majority of people are not going to know what to do with their IPC or cache hit or branch hit numbers).What most people care about is some combination of latency and utilization. As a very rough rule of thumb, for many workloads you can get up to about 80% CPU utilization before you start seeing serious impacts on workload latency. Beyond that you can increase utilization but you start seeing your workload latency suffer from all of the effects you mentioned.To know how much latency is impacted by utilization you need to measure your specific workload. Also, how much you care about latency depends on what you're doing. In many cases people care much more about throughput than latency, so if that's the top metric then optimize for that. If you care about application latency as well as throughput then you need to measure both of those and decide what tradeoffs are acceptable.",
+    "parent": 45111036,
+    "depth": 2
+  },
+  {
+    "id": 45112375,
+    "by": "jimmySixDOF",
+    "timeISO": "2025-09-03T04:57:09.000Z",
+    "textPlain": "IEEE Hot Interconnects just wrapped up and they discussed latency performance tuning for Ultra Ethernet where it looks smooth on 2- or 5- sec view but at 100ms you see the obvious frame burst effects.  If you don't match your profiling to the workload a false negative compounds your original problem by thinking you tested this so better look elsewhere.",
     "parent": 45111036,
     "depth": 2
   },
@@ -173,6 +197,14 @@
     "timeISO": "2025-09-03T03:54:04.000Z",
     "textPlain": "The advantage of stress-ng is that it's easy to make it run with specific CPU utilization numbers. The tests where I run some number of workers at 100% utilization are interesting since they give such perfect graphs, but I think the version where I have 24 workers and increase their utilization slowly is more realistic for showing how production CPU utilization changes.",
     "parent": 45111995,
+    "depth": 2
+  },
+  {
+    "id": 45112442,
+    "by": "bionsystem",
+    "timeISO": "2025-09-03T05:15:54.000Z",
+    "textPlain": "Happened to me on a different topic, felt bad for way too long ; in hindsight I'm pretty sure I dodged a bullet.",
+    "parent": 45111841,
     "depth": 2
   },
   {
@@ -256,18 +288,18 @@
     "depth": 2
   },
   {
-    "id": 45112153,
-    "by": "BrendanLong",
-    "timeISO": "2025-09-03T04:02:34.000Z",
-    "textPlain": "Yeah, the obvious thing with processors is to do something similar:(1) Measure MIPS with perf (2) Compare that to max MIPS for your processorUnfortunately, MIPS is too vague since the amount of work done depends on the instruction, and there's no good way to measure max MIPS for most processors. (╯°□°)╯︵ ┻━┻",
-    "parent": 45111815,
-    "depth": 2
-  },
-  {
     "id": 45111952,
     "by": "spindump8930",
     "timeISO": "2025-09-03T03:21:06.000Z",
     "textPlain": "Don't forget that theoretical peak performance is (probably) half the performance listed on the nvidia datasheet because they used the \"with sparsity\" numbers! I've seen this bite folks who miss the * on the figure or aren't used to reading those spec sheets.",
+    "parent": 45111815,
+    "depth": 2
+  },
+  {
+    "id": 45112153,
+    "by": "BrendanLong",
+    "timeISO": "2025-09-03T04:02:34.000Z",
+    "textPlain": "Yeah, the obvious thing with processors is to do something similar:(1) Measure MIPS with perf (2) Compare that to max MIPS for your processorUnfortunately, MIPS is too vague since the amount of work done depends on the instruction, and there's no good way to measure max MIPS for most processors. (╯°□°)╯︵ ┻━┻",
     "parent": 45111815,
     "depth": 2
   }
