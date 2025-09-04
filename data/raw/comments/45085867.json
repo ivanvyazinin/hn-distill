@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45127470,
-    "by": "Aardwolf",
-    "timeISO": "2025-09-04T14:09:52.000Z",
-    "textPlain": "Xorshift128+ is not a cryptographic rng though, so at least this isn't a cryptographic attack...Should programming languages use cryptographic rngs like a ChaCha20 based one in their standard libraries to stop accidental use of non cryptographic rngs for cryptographic purposes? But that comes at the cost of speed",
+    "id": 45126642,
+    "by": "viraptor",
+    "timeISO": "2025-09-04T12:47:06.000Z",
+    "textPlain": "> I couldn’t believe that z3 was the best one can doIt probably never is, but if you don't care about a nice solution or don't care about anything past \"is it possible?\", then z3 and smt2 are amazing. You often don't even need to understand the whole problem. \"take constraints, give solution\" works great in those situations.",
     "parent": 45085867,
     "depth": 1
   },
@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45126642,
-    "by": "viraptor",
-    "timeISO": "2025-09-04T12:47:06.000Z",
-    "textPlain": "> I couldn’t believe that z3 was the best one can doIt probably never is, but if you don't care about a nice solution or don't care about anything past \"is it possible?\", then z3 and smt2 are amazing. You often don't even need to understand the whole problem. \"take constraints, give solution\" works great in those situations.",
+    "id": 45127470,
+    "by": "Aardwolf",
+    "timeISO": "2025-09-04T14:09:52.000Z",
+    "textPlain": "Xorshift128+ is not a cryptographic rng though, so at least this isn't a cryptographic attack...Should programming languages use cryptographic rngs like a ChaCha20 based one in their standard libraries to stop accidental use of non cryptographic rngs for cryptographic purposes? But that comes at the cost of speed",
     "parent": 45085867,
     "depth": 1
   },
@@ -53,6 +53,46 @@
     "timeISO": "2025-09-04T13:40:05.000Z",
     "textPlain": "I've tried to use Z3 to find hash collisions in a simple hash, and it was amazingly bad at it. It took forever, whereas just trying random values until some were (multi)colliding was sub-second :-)",
     "parent": 45126642,
+    "depth": 2
+  },
+  {
+    "id": 45128081,
+    "by": "bazzargh",
+    "timeISO": "2025-09-04T15:02:18.000Z",
+    "textPlain": "A word of caution. A few years ago we had a production impact event where customers were getting identical cookies (and so started seeing each others sessions). When I took a look at the code, what I found was that they were doing something very like your code - using a time() based seed and an PRNG.Whenever we deployed new nginx configs, those servers would roll out and restart, getting _similar_ time() results in the seed. But the individual nginx workers? Their seeds were nearly identical. Not every call to the PRNG was meant for UUIDs, but enough were that disaster was inevitable.The solution is to use a library that leverages libuuid (via ffi or otherwise). A \"native lua\" implementation is always going to miss the entropy sources available in your server and generate clashes if it's seeded with time(). (eg https://github.com/Kong/lua-uuid, https://github.com/bungle/lua-resty-uuid)",
+    "parent": 45127193,
+    "depth": 2
+  },
+  {
+    "id": 45127961,
+    "by": "kbolino",
+    "timeISO": "2025-09-04T14:52:22.000Z",
+    "textPlain": "Go has taken exactly this stance, at least since Go 1.22 from 18 months ago.They settled on 8 rounds of ChaCha with 300 bytes of internal state to amortize the latency. The end result is something only 1.5-2x slower than (their particular flavor of) PCG [1]. It was deemed good enough to become the default.[1]: https://go.dev/blog/chacha8rand#performance",
+    "parent": 45127470,
+    "depth": 2
+  },
+  {
+    "id": 45127837,
+    "by": "chaboud",
+    "timeISO": "2025-09-04T14:41:16.000Z",
+    "textPlain": "Perhaps put a warning in the name since the folks who don’t read the docs are the ones you’re trying to protect?For example:\nMath.RandomNotCrypto()When someone uses that in production for cryptographic purposes (and, yes someone is going to do that), they have to wear a dunce cap to the office for a month.",
+    "parent": 45127470,
+    "depth": 2
+  },
+  {
+    "id": 45127744,
+    "by": "kstrauser",
+    "timeISO": "2025-09-04T14:34:28.000Z",
+    "textPlain": "I think some naming conventions could go a long way. If you want to import `fast_unsafe_random`, you might think twice.",
+    "parent": 45127470,
+    "depth": 2
+  },
+  {
+    "id": 45127992,
+    "by": "tptacek",
+    "timeISO": "2025-09-04T14:54:15.000Z",
+    "textPlain": "It is a cryptographic attack, just against an algorithm that isn't cryptographically strong. There's a lot of value in those.",
+    "parent": 45127470,
     "depth": 2
   },
   {
