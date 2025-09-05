@@ -1,10 +1,114 @@
 [
   {
+    "id": 45133765,
+    "by": "bawolff",
+    "timeISO": "2025-09-05T00:26:47.000Z",
+    "textPlain": "Shouldn't you also compare to mmap with huge page option? My understanding is its presicely meant for this circumstance. I don't think its a fair comparison without it.Respectfully, the title feels a little clickbaity to me. Both methods are still ultimately reading out of memory, they are just using different i/o methods.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133595,
+    "by": "hsn915",
+    "timeISO": "2025-09-04T23:56:10.000Z",
+    "textPlain": "Shouldn't this be \"io_uring is faster than mmap\"?I guess that would not get much engagement though!That said, cool write up and experiment.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133648,
+    "by": "titanomachy",
+    "timeISO": "2025-09-05T00:05:23.000Z",
+    "textPlain": "Very interesting article, thanks for publishing these tests!Is the manual loop unrolling really necessary to get vectorized machine code? I would have guessed that the highest optimization levels in LLVM would be able to figure it out from the basic code. That's a very uneducated guess, though.Also, curious if you tried using the MAP_POPULATE option with mmap. Could that improve the bandwidth of the naive in-memory solution?> humanity doesn't have the silicon fabs or the power plants to support this for every moron vibe coder out there making an app.lol. I bet if someone took the time to make a high-quality well-documented fast-IO library based on your io_uring solution, it would get use.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133940,
+    "by": "userbinator",
+    "timeISO": "2025-09-05T00:56:11.000Z",
+    "textPlain": "...for sufficiently solid values of \"disk\" ;-)",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133560,
+    "by": "inetknght",
+    "timeISO": "2025-09-04T23:52:07.000Z",
+    "textPlain": "Nice write-up with good information, but not the best. Comments below.Are you using linux? I assume so since stating use of mmap() and mention using EPYC hardware (which counts out macOS). I suppose you could use any other *nix though.> We'll use a 50GB dataset for most benchmarking here, because when I started this I thought the test system only had 64GB and it stuck.*So the OS will (or could) prefetch the file into memory. OK.> Our expectation is that the second run will be faster because the data is already in memory and as everyone knows, memory is fast.*Indeed.> We're gonna make it very obvious to the compiler that it's safe to use vector instructions which could process our integers up to 8x faster.There are even-wider vector instructions by the way. But, you mention another page down:> NOTE: These are 128-bit vector instructions, but I expected 256-bit. I dug deeper here and found claims that Gen1 EPYC had unoptimized 256-bit instructions. I forced the compiler to use 256-bit instructions and found it was actually slower. Looks like the compiler was smart enough to know that here.Yup, indeed :)Also note that AVX2 and/or AVX512 instructions are notorious for causing thermal throttling on certain (older by now?) CPUs.> Consider how the default mmap() mechanism works, it is a background IO pipeline to transparently fetch the data from disk. When you read the empty buffer from userspace it triggers a fault, the kernel handles the fault by reading the data from the filesystem, which then queues up IO from disk. Unfortunately these legacy mechanisms just aren't set up for serious high performance IO. Note that at 610MB/s it's faster than what a disk SATA can do. On the other hand, it only managed 10% of our disk's potential. Clearly we're going to have to do something else.In the worst case, that's true. But you can also get the kernel to prefetch the data.See several of the flags, but if you're doing sequential reading you can use MAP_POPULATE [0] which tells the ",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45133330,
     "by": "jared_hulbert",
     "timeISO": "2025-09-04T23:18:30.000Z",
     "textPlain": "Cool.  Original author here.  AMA.",
     "parent": 45132710,
     "depth": 1
+  },
+  {
+    "id": 45134007,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:06:31.000Z",
+    "textPlain": "The original blog post title is intentionally clickbaity.  You know, to bait people into clicking.  Also I do want to challenge people to really think here.Seeing if the cached file data can be accessed quickly is the point of the experiment.  I can't get mmap() to open a file with huge pages.void* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0); doesn't work.You can can see my code here https://github.com/bitflux-ai/blog_notes.  Any ideas?",
+    "parent": 45133765,
+    "depth": 2
+  },
+  {
+    "id": 45133612,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T00:00:07.000Z",
+    "textPlain": "Lol.  Thanks.",
+    "parent": 45133595,
+    "depth": 2
+  },
+  {
+    "id": 45134075,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:14:34.000Z",
+    "textPlain": "I worked on SSDs for years.  Too many people are suffering from insufficiently solid values of \"disk\" IMHO.",
+    "parent": 45133940,
+    "depth": 2
+  },
+  {
+    "id": 45134043,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:10:57.000Z",
+    "textPlain": "int fd = open(filename, O_RDONLY);\nvoid* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0);This doesn't work with a file on my ext4 volume. What am I missing?",
+    "parent": 45133560,
+    "depth": 2
+  },
+  {
+    "id": 45133597,
+    "by": "nchmy",
+    "timeISO": "2025-09-04T23:56:46.000Z",
+    "textPlain": "I just saw this post so am starting with Part 1. Could you replace the charts with ones on some sort of log scale? It makes it look like nothing happened til 2010, but I'd wager its just an optical illusion...And, even better, put all the lines on the same chart, or at least with the same y axis scale (perhaps make them all relative to their base on the left), so that we can the relative rate of growth?",
+    "parent": 45133330,
+    "depth": 2
+  },
+  {
+    "id": 45133666,
+    "by": "john-h-k",
+    "timeISO": "2025-09-05T00:10:08.000Z",
+    "textPlain": "You mention modern server CPUs have capability to “read direct to L3, skipping memory”. Can you elaborate on this?",
+    "parent": 45133330,
+    "depth": 2
+  },
+  {
+    "id": 45133764,
+    "by": "comradesmith",
+    "timeISO": "2025-09-05T00:26:47.000Z",
+    "textPlain": "Thanks for the article. What about using file reads from a mounted ramdisk?",
+    "parent": 45133330,
+    "depth": 2
+  },
+  {
+    "id": 45133433,
+    "by": "Jap2-0",
+    "timeISO": "2025-09-04T23:33:52.000Z",
+    "textPlain": "Would huge pages help with the mmap case?",
+    "parent": 45133330,
+    "depth": 2
   }
 ]
