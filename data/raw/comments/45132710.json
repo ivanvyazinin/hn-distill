@@ -16,26 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45133648,
-    "by": "titanomachy",
-    "timeISO": "2025-09-05T00:05:23.000Z",
-    "textPlain": "Very interesting article, thanks for publishing these tests!Is the manual loop unrolling really necessary to get vectorized machine code? I would have guessed that the highest optimization levels in LLVM would be able to figure it out from the basic code. That's a very uneducated guess, though.Also, curious if you tried using the MAP_POPULATE option with mmap. Could that improve the bandwidth of the naive in-memory solution?> humanity doesn't have the silicon fabs or the power plants to support this for every moron vibe coder out there making an app.lol. I bet if someone took the time to make a high-quality well-documented fast-IO library based on your io_uring solution, it would get use.",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
-    "id": 45133940,
-    "by": "userbinator",
-    "timeISO": "2025-09-05T00:56:11.000Z",
-    "textPlain": "...for sufficiently solid values of \"disk\" ;-)",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45133560,
     "by": "inetknght",
     "timeISO": "2025-09-04T23:52:07.000Z",
     "textPlain": "Nice write-up with good information, but not the best. Comments below.Are you using linux? I assume so since stating use of mmap() and mention using EPYC hardware (which counts out macOS). I suppose you could use any other *nix though.> We'll use a 50GB dataset for most benchmarking here, because when I started this I thought the test system only had 64GB and it stuck.*So the OS will (or could) prefetch the file into memory. OK.> Our expectation is that the second run will be faster because the data is already in memory and as everyone knows, memory is fast.*Indeed.> We're gonna make it very obvious to the compiler that it's safe to use vector instructions which could process our integers up to 8x faster.There are even-wider vector instructions by the way. But, you mention another page down:> NOTE: These are 128-bit vector instructions, but I expected 256-bit. I dug deeper here and found claims that Gen1 EPYC had unoptimized 256-bit instructions. I forced the compiler to use 256-bit instructions and found it was actually slower. Looks like the compiler was smart enough to know that here.Yup, indeed :)Also note that AVX2 and/or AVX512 instructions are notorious for causing thermal throttling on certain (older by now?) CPUs.> Consider how the default mmap() mechanism works, it is a background IO pipeline to transparently fetch the data from disk. When you read the empty buffer from userspace it triggers a fault, the kernel handles the fault by reading the data from the filesystem, which then queues up IO from disk. Unfortunately these legacy mechanisms just aren't set up for serious high performance IO. Note that at 610MB/s it's faster than what a disk SATA can do. On the other hand, it only managed 10% of our disk's potential. Clearly we're going to have to do something else.In the worst case, that's true. But you can also get the kernel to prefetch the data.See several of the flags, but if you're doing sequential reading you can use MAP_POPULATE [0] which tells the ",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133648,
+    "by": "titanomachy",
+    "timeISO": "2025-09-05T00:05:23.000Z",
+    "textPlain": "Very interesting article, thanks for publishing these tests!Is the manual loop unrolling really necessary to get vectorized machine code? I would have guessed that the highest optimization levels in LLVM would be able to figure it out from the basic code. That's a very uneducated guess, though.Also, curious if you tried using the MAP_POPULATE option with mmap. Could that improve the bandwidth of the naive in-memory solution?> humanity doesn't have the silicon fabs or the power plants to support this for every moron vibe coder out there making an app.lol. I bet if someone took the time to make a high-quality well-documented fast-IO library based on your io_uring solution, it would get use.",
     "parent": 45132710,
     "depth": 1
   },
@@ -48,11 +40,27 @@
     "depth": 1
   },
   {
+    "id": 45133940,
+    "by": "userbinator",
+    "timeISO": "2025-09-05T00:56:11.000Z",
+    "textPlain": "...for sufficiently solid values of \"disk\" ;-)",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45134007,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T01:06:31.000Z",
     "textPlain": "The original blog post title is intentionally clickbaity.  You know, to bait people into clicking.  Also I do want to challenge people to really think here.Seeing if the cached file data can be accessed quickly is the point of the experiment.  I can't get mmap() to open a file with huge pages.void* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0); doesn't work.You can can see my code here https://github.com/bitflux-ai/blog_notes.  Any ideas?",
     "parent": 45133765,
+    "depth": 2
+  },
+  {
+    "id": 45134589,
+    "by": "dang",
+    "timeISO": "2025-09-05T02:58:41.000Z",
+    "textPlain": "Let's use that. Since HN's guidelines say \"\"Please use the original title, unless it is misleading or linkbait\", that \"unless\" clause seems to kick in here, so I've changed the title above. Thanks!If anyone can suggest a better title (i.e. more accurate and neutral) we can change it again.",
+    "parent": 45133595,
     "depth": 2
   },
   {
@@ -64,19 +72,19 @@
     "depth": 2
   },
   {
-    "id": 45134075,
-    "by": "jared_hulbert",
-    "timeISO": "2025-09-05T01:14:34.000Z",
-    "textPlain": "I worked on SSDs for years.  Too many people are suffering from insufficiently solid values of \"disk\" IMHO.",
-    "parent": 45133940,
-    "depth": 2
-  },
-  {
     "id": 45134043,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T01:10:57.000Z",
     "textPlain": "int fd = open(filename, O_RDONLY);\nvoid* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0);This doesn't work with a file on my ext4 volume. What am I missing?",
     "parent": 45133560,
+    "depth": 2
+  },
+  {
+    "id": 45134258,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:46:28.000Z",
+    "textPlain": "YES!  gcc and clang don't like to optimize this.  But they do if you hardcode the size_bytes to an aligned value. It kind of makes sense, what if a user passes size_bytes as 3?  With enough effort the compilers could handle this, but it's a lot to ask.I just ran MAP_POPULATE the results are interesting.It speeds up the counting loop.  Same speed or higher as the my read() to a malloced buffer tests.HOWEVER...  It takes a longer time overall to do the population of the buffer.  The end result is it's 2.5 seconds slower to run the full test when compared to the original.  I did not guess that one correctly.time ./count_10_unrolled ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 5.39 GB/s\n./count_10_unrolled ./mnt/datafile.bin 53687091200  5.58s user 6.39s system 99% cpu 11.972 total\n time ./count_10_populate ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 8.99 GB/s\n./count_10_populate ./mnt/datafile.bin 53687091200  5.56s user 8.99s system 99% cpu 14.551 total",
+    "parent": 45133648,
     "depth": 2
   },
   {
@@ -109,6 +117,14 @@
     "timeISO": "2025-09-04T23:33:52.000Z",
     "textPlain": "Would huge pages help with the mmap case?",
     "parent": 45133330,
+    "depth": 2
+  },
+  {
+    "id": 45134075,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:14:34.000Z",
+    "textPlain": "I worked on SSDs for years.  Too many people are suffering from insufficiently solid values of \"disk\" IMHO.",
+    "parent": 45133940,
     "depth": 2
   }
 ]

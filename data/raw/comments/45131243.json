@@ -64,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45134524,
+    "by": "brucehoult",
+    "timeISO": "2025-09-05T02:43:55.000Z",
+    "textPlain": "As others have pointed out, Apple Pascal was a bytecode interpreter, not compiled to native 6502 code.Even worse, the bytecode was standard UCSD Pascal, designed for mainframes, and not really how you'd design bytecode if you knew you were going to implement it on a 6502.We can actually compile Pascal / C style languages to the 6502 pretty well these days. The way to do it is treat it the same as a RISC machine with a lot of registers (let's say 32 2-byte pairs in zero page, leaving 75% of ZP for globals and a handful of important runtime functions that benefit from self-modifying code). Split the 32 pseudo-registers up into A, S, T registers the same as you do for any RISC (or x86_64 for that matter).It's problem to handle recursion. Just the same as any function call, put anything you still want after the function call into S registers, and in the called function if it needs to use S registers then it needs to save them on a stack (NOT the 256 byte hardware stack) first and restore them after. For more than one or two saved registers it's better to use a runtime function for this -- 12 cycles overhead, but lots of bytes of code saved. RISC-V's -msave-restore provides a good model for this.You can make a nice set of 2-address arithmetic routines between 16 or 32 bit Zero-Page registers by using the X and Y registers to pass which locations to work on.    add16:\n        clc\n        lda 0,x\n        adc 0,y\n        sta 0,x\n        lda 1,x\n        adc 1,y\n        sta 1,x\n        ret\n    \n        ...\n        ldx #dst\n        ldy #src\n        jsr add16\n\nThis reduces the call site from 13 bytes to 7 bytes (and you can often reuse an X or Y), while increasing the execution time for an inline add from 20 cycles to 42 (1 cycle extra per instruction for the indexed addressing = 6, 4 cycles for loading X and Y, 12 cycles for the jsr/ret)For 32 bit arithmetic the time overhead is much reduced. For floating point it would be negligable!There is no convenient way to make 3-addres",
+    "parent": 45132286,
+    "depth": 2
+  },
+  {
     "id": 45133100,
     "by": "sema4hacker",
     "timeISO": "2025-09-04T22:45:47.000Z",
