@@ -1,0 +1,346 @@
+[
+  {
+    "id": 45140032,
+    "by": "lalaithion",
+    "timeISO": "2025-09-05T15:58:17.000Z",
+    "textPlain": "Protocol buffers suck but so does everything else. Name another serialization declaration format that both (a) defines which changes can be make backwards-compatibly, and (b) has a linter that enforces backwards compatible changes.Just with those two criteria you’re down to, like, six formats at most, of which Protocol Buffers is the most widely used.And I know the article says no one uses the backwards compatible stuff but that’s bizarre to me – setting up N clients and a server that use protocol buffers to communicate and then being able to add fields to the schema and then deploy the servers and clients in any order is way nicer than it is with some other formats that force you to babysit deployment order.The reason why protos suck is because remote procedure calls suck, and protos expose that suckage instead of trying to hide it until you trip on it. I hope the people working on protos, and other alternatives, continue to improve them, but they’re not worse than not using them today.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140068,
+    "by": "mountainriver",
+    "timeISO": "2025-09-05T16:01:08.000Z",
+    "textPlain": "> Protobuffers correspond to the data you want to send over the wire, which is often related but not identical to the actual data the application would like to work withThis sums up a lot of the issues I’ve seen with protobuf as well. It’s not an expressive enough language to be the core data model, yet people use it that way.In general, if you don’t have extreme network needs, then protobuf seems to cause more harm than good. I’ve watched Go teams spend months of time implementing proto based systems with little to no gain over just REST.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140085,
+    "by": "xmddmx",
+    "timeISO": "2025-09-05T16:02:25.000Z",
+    "textPlain": "I share the author's sentiment.  I hate these things.True story: trying to reverse engineer macOS Photos.app sqlite database format to extract human-readable location data from an image.I eventually figured it out, but it was:A base64 encoded\nBinary Plist format\nwith one field containing a ProtoBuffer\nwhich contained another protobuffer\nwhich contained a unicode string\nwhich contained improperly encoded data (for example, U+2013 EN DASH was  encoded as \\342\\200\\223)This could have been a simple JSON string.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140140,
+    "by": "iamdelirium",
+    "timeISO": "2025-09-05T16:06:26.000Z",
+    "textPlain": "Yeah, oneOf fields can be repeated but you can just wrap them in a message.  It's not as pretty but I've never had any issues with this.The fact that the author is arguing for making all messages required means they don't understand the reasoning for why all fields are optional.  This breaks systems (there are are postmortems outlining this) then there are proto mismatches .",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45139989,
+    "by": "ndr",
+    "timeISO": "2025-09-05T15:54:56.000Z",
+    "textPlain": "Not even before the first line ends you get \"They’re clearly written by amateurs\".This is a rage bait, not worth the read.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140080,
+    "by": "BugsJustFindMe",
+    "timeISO": "2025-09-05T16:02:00.000Z",
+    "textPlain": "I went into this article expecting to agree with part of it. I came away agreeing with all of it. And I want to point out that Go also shares some of these catastrophic data decisions (automatic struct zero values that silently do the wrong thing by default).",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140285,
+    "by": "pshirshov",
+    "timeISO": "2025-09-05T16:18:55.000Z",
+    "textPlain": "I've created several IDL compilers addressing all issues of protobuf and others.This particular one provides strongest backward compatibility guarantees with automatic conversion derivation where possible: https://github.com/7mind/baboonProtobuf is dated, it's not that hard to make better things.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140272,
+    "by": "briandw",
+    "timeISO": "2025-09-05T16:17:26.000Z",
+    "textPlain": "[delayed]",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140259,
+    "by": "wrsh07",
+    "timeISO": "2025-09-05T16:16:17.000Z",
+    "textPlain": "> This insane list of restrictions is the result of unprincipled design choices and bolting on features after the factI'm not very upset that protobuf evolved to be slightly more ergonomic. Bolting on features after you build the prototype is how you improve things.Unfortunately, they really did design themselves into a corner (not unlike python 2). Again, I can't be too upset. They didn't have the benefit of hindsight or other high performance libraries that we have today.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140132,
+    "by": "vander_elst",
+    "timeISO": "2025-09-05T16:06:01.000Z",
+    "textPlain": "Always initializing with a default and no algebraic types is an always loaded foot gun. I wonder if the people behind golang took inspiration from this.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140026,
+    "by": "dano",
+    "timeISO": "2025-09-05T15:57:47.000Z",
+    "textPlain": "It is a 7 year old article without specifying alternatives to an \"already solved problem.\"So HN, what are the best alternatives available today and why?",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140182,
+    "by": "ants_everywhere",
+    "timeISO": "2025-09-05T16:10:04.000Z",
+    "textPlain": "> Maintain a separate type that describes the data you actually want, and ensure that the two evolve simultaneously.I don't actually want to do this, because then you have N + 1 implementations of each data type, where N = number of programming languages touching the data, and  + 1 for the proto implementation.What I personally want to do is use a language-agnostic IDL to describe the types that my programs use. Within Google you can even do things like just store them in the database.The practical alternative is to use JSON everywhere, possibly with some additional tooling to generate code from a JSON schema. JSON is IMO not as nice to work with. The fact that it's also slower probably doesn't matter to most codebases.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45139990,
+    "by": "bbkane",
+    "timeISO": "2025-09-05T15:54:59.000Z",
+    "textPlain": "The author makes good arguments; I wish they'd offered some alternatives.Despite issues, protobufs solve real problems and (imo) bring more value than cost to a project. In particular, I'd much rather work with protobufs and their generated ser/de than untyped json",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140241,
+    "by": "MountainTheme12",
+    "timeISO": "2025-09-05T16:15:01.000Z",
+    "textPlain": "I agree with the author that protobuf is bad and I ran into many of the issues mentioned. It's pretty much mandatory to add version fields to do backwards compatibility properly.Recently, however, I had the displeasure of working with FlatBuffers. It's worse.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140266,
+    "by": "techbrovanguard",
+    "timeISO": "2025-09-05T16:16:51.000Z",
+    "textPlain": "i used protobuffers a lot at $previous_job and i agree with the entire article. i feel the author’s pain in my bones. protobuffers are so awful i can’t imagine google associating itself with such an amateur, ad hoc, ill-defined, user hostile, time wasting piece of shit.the fact that protobuffers wasn’t immediately relegated to the dustbin shows just how low the bar is for serialization formats.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140324,
+    "by": "defraudbah",
+    "timeISO": "2025-09-05T16:21:51.000Z",
+    "textPlain": "you are absolutely right!what alternative do we have? sending json and base64 strings",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140109,
+    "by": "mkl95",
+    "timeISO": "2025-09-05T16:04:29.000Z",
+    "textPlain": "If you mostly write software with Go you'll likely enjoy working with protocol buffers. If you use the Python or Ruby wrappers you'd wish you had picked another tech.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45139987,
+    "by": "taeric",
+    "timeISO": "2025-09-05T15:54:30.000Z",
+    "textPlain": "I'm more than a little curious what event caused such a strong objection to protobuffers. :DI do tend to agree that they are bad.  I also agree that people put a little too much credence in \"came from Google.\"  I can't bring myself to have this much anger towards it.  Had to have been something that sparked this.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140267,
+    "by": "fmbb",
+    "timeISO": "2025-09-05T16:16:52.000Z",
+    "textPlain": "Well, worse is better.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140178,
+    "by": "nu11ptr",
+    "timeISO": "2025-09-05T16:09:39.000Z",
+    "textPlain": "Should have (2018) call out",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140069,
+    "by": "jt2190",
+    "timeISO": "2025-09-05T16:01:08.000Z",
+    "textPlain": "(2018)",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140040,
+    "by": "Analemma_",
+    "timeISO": "2025-09-05T15:58:40.000Z",
+    "textPlain": "The \"no enums as map keys\" thing enrages me constantly. Every protobuf project I've ever worked with either has stringly-typed maps all over the place because of this, or has to write its own function to parse Map<String, V> into Map<K, V> from the enums and then remember to call that right after deserialization, completely defeating the purpose of autogenerated types and deserializers. Why does Google put up with this? Surely it's the same inside their codebase.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140019,
+    "by": "jeffbee",
+    "timeISO": "2025-09-05T15:57:27.000Z",
+    "textPlain": "Type system fans are so irritating. The author doesn't engage with the point of protocol buffers, which is that they are thin adapters between the union of things that common languages can represent with their type systems and a reasonably efficient marshaling scheme that can be compact on the wire.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140125,
+    "by": "jitl",
+    "timeISO": "2025-09-05T16:05:31.000Z",
+    "textPlain": "Not widely used but I like Typical's approachhttps://github.com/stepchowfun/typical> Typical offers a new solution (\"asymmetric\" fields) to the classic problem of how to safely add or remove fields in record types without breaking compatibility. The concept of asymmetric fields also solves the dual problem of how to preserve compatibility when adding or removing cases in sum types.",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140264,
+    "by": "mgaunard",
+    "timeISO": "2025-09-05T16:16:45.000Z",
+    "textPlain": "in the systems I built I didn't bother with backwards compatibility.If you make any change, it's a new message type.For compatibility you can coerce the new message to the old message and dual-publish.",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140242,
+    "by": "mattnewton",
+    "timeISO": "2025-09-05T16:15:11.000Z",
+    "textPlain": "Exactly, I think of protobuffers like I think of Java or Go - at least they weren’t writing it in C++.Dragging your org away from using poorly specified json is often worth these papercuts IMO.",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140314,
+    "by": "tomrod",
+    "timeISO": "2025-09-05T16:20:59.000Z",
+    "textPlain": "> Name another serialization declaration format that both (a) defines which changes can be make backwards-compatibly, and (b) has a linter that enforces backwards compatible changes.ASCII text (tongue in cheek here)",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140210,
+    "by": "jnwatson",
+    "timeISO": "2025-09-05T16:12:23.000Z",
+    "textPlain": "ASN.1 implements message versioning in an extremely precise way. Implementing a linter would be trivial.",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140129,
+    "by": "noitpmeder",
+    "timeISO": "2025-09-05T16:05:58.000Z",
+    "textPlain": "Not that I love it -- but SBE (Simple Binary Encoding) is a _decent_ solution in the realm of backwards/forwards compatibility.",
+    "parent": 45140032,
+    "depth": 2
+  },
+  {
+    "id": 45140104,
+    "by": "BugsJustFindMe",
+    "timeISO": "2025-09-05T16:04:11.000Z",
+    "textPlain": "If only the article offered both detailed analyses of the problems and also solutions. Wait, it does! You should try reading it.",
+    "parent": 45139989,
+    "depth": 2
+  },
+  {
+    "id": 45140034,
+    "by": "jilles",
+    "timeISO": "2025-09-05T15:58:20.000Z",
+    "textPlain": "The best way to get your point across is by starting with ad-hominem attacks to assert your superior intelligence.",
+    "parent": 45139989,
+    "depth": 2
+  },
+  {
+    "id": 45140045,
+    "by": "jeffbee",
+    "timeISO": "2025-09-05T15:58:59.000Z",
+    "textPlain": "Yep, the article opens with a Hall of Fame-grade compound fallacy: a strawman refutation of a hypothetical ad hominem that nobody has argued.You can kinda see how this author got bounced out of several major tech firms in one year or less, each, according to their linkedin.",
+    "parent": 45139989,
+    "depth": 2
+  },
+  {
+    "id": 45140199,
+    "by": "IncreasePosts",
+    "timeISO": "2025-09-05T16:11:28.000Z",
+    "textPlain": "It's written by amateurs, but solves problems that only Google(one of the biggest/most advanced tech companies in the world) has.",
+    "parent": 45139989,
+    "depth": 2
+  },
+  {
+    "id": 45140163,
+    "by": "wrsh07",
+    "timeISO": "2025-09-05T16:08:11.000Z",
+    "textPlain": "The simplest way to understand go is that it is a language that integrates some of Google's best cpp features (their lightweight threads and other multi threading primitives are the highlights)Beyond that it is a very simple language. But yes, 100%, for better and worse, it is deeply inspired by Google's codebase and needs",
+    "parent": 45140132,
+    "depth": 2
+  },
+  {
+    "id": 45140181,
+    "by": "gsliepen",
+    "timeISO": "2025-09-05T16:09:59.000Z",
+    "textPlain": "Something like MessagePack or CBOR, and if you want versioning, just have a version field at the start. You don't require a schema to pack/unpack, which I personally think is a good thing.",
+    "parent": 45140026,
+    "depth": 2
+  },
+  {
+    "id": 45140237,
+    "by": "rapsey",
+    "timeISO": "2025-09-05T16:14:49.000Z",
+    "textPlain": "There are none, protobufs are great.",
+    "parent": 45140026,
+    "depth": 2
+  },
+  {
+    "id": 45140320,
+    "by": "jonathrg",
+    "timeISO": "2025-09-05T16:21:30.000Z",
+    "textPlain": "The generated types in go are horrible to work with. You can't store instances of them anywhere, or pass them by value, because they contain a bunch of state and pointers (including a [0]sync.Mutex just to explicitly prohibit copying). So you have to pass around pointers at all times, making ownership and lifetime much more complicated than it needs to be. A message definition like this    message AppLogMessage {\n        sint32 Value1 = 1;\n        double Value2 = 2;\n    }\n\nbecomes type Example struct {\n        state protoimpl.MessageState \n        xxx_hidden_Value1 int32                  \n        xxx_hidden_Value2 float64                  \n        xxx_hidden_unknownFields protoimpl.UnknownFields\n        sizeCache protoimpl.SizeCache\n    }\n\nFor [place of work] where we use protobuf I ended up making a plugin to generate structs that don't do any of the nonsense (essentially automating Option 1 in the article):    type ExamplePOD struct {\n        Value1 int32\n        Value2 float64\n    }\n\nwith converters between the two versions.",
+    "parent": 45140109,
+    "depth": 2
+  },
+  {
+    "id": 45140356,
+    "by": "mike_hearn",
+    "timeISO": "2025-09-05T16:24:02.000Z",
+    "textPlain": "He says that in the article; he had to work on a \"compiler\" project that was much harder than it should have been because of protobuf's design choices.",
+    "parent": 45139987,
+    "depth": 2
+  },
+  {
+    "id": 45140139,
+    "by": "rimunroe",
+    "timeISO": "2025-09-05T16:06:25.000Z",
+    "textPlain": "I'm just a frontend developer so most of my exposure is just as an API consumer and not someone working on the service side of things. That said:A few years ago I moved to a large company where protobufs were the standard way APIs were defined. When I first started working with the generated TypeScript code, I was confused as to why almost all fields on generated object types were marked as optional. I assumed it was due to the way people were choosing to define the API at first, but then I learned this was an intentional design choice on the part of protobufs.We ended up having to write our own code to parse the responses from the \"helpfully\" generated TypeScript client's responses. This meant we had to also handle rejecting nonsensical responses where an actually required field wasn't present, which is exactly the sort of thing I'd want generated clients to do. I would expect having to do some transformation myself, but not to that degree. The generated client was essentially useless to us, and the protocol's looseness offered no discernible benefit over any other API format I've used.I imagine some of my other complaints could be solved with better codegen tools, but I think fundamentally the looseness of the type system is a fatal issue for me.",
+    "parent": 45139987,
+    "depth": 2
+  },
+  {
+    "id": 45140258,
+    "by": "thinkharderdev",
+    "timeISO": "2025-09-05T16:16:16.000Z",
+    "textPlain": "I feel like I could have written an article like this at various points. Probably while spending two hours trying to figure out a way to represent some protobuf type in a sane way internally.",
+    "parent": 45139987,
+    "depth": 2
+  },
+  {
+    "id": 45140087,
+    "by": "mrits",
+    "timeISO": "2025-09-05T16:02:27.000Z",
+    "textPlain": "I've used them almost daily for 15 years. They are way down the list of things I'd want improved. It has been interesting to see the protobuffers killers die out every few years though",
+    "parent": 45139987,
+    "depth": 2
+  },
+  {
+    "id": 45140162,
+    "by": "Arainach",
+    "timeISO": "2025-09-05T16:07:59.000Z",
+    "textPlain": "Maps are not a good fit for a wire protocol in my experience. Different languages often have different quirks around them, and they're non-trivial to represent in a type-safe way.If a Map is truly necessary I find it better to just send a repeated Message { Key K, Value V } and then convert that to a map in the receiving end.",
+    "parent": 45140040,
+    "depth": 2
+  },
+  {
+    "id": 45140076,
+    "by": "riku_iki",
+    "timeISO": "2025-09-05T16:01:45.000Z",
+    "textPlain": "And v1 and v2 protos didn't even have maps.Also, why you use string as a key and not int?",
+    "parent": 45140040,
+    "depth": 2
+  }
+]
