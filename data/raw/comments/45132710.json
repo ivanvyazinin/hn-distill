@@ -1,5 +1,13 @@
 [
   {
+    "id": 45135399,
+    "by": "ayende",
+    "timeISO": "2025-09-05T05:57:35.000Z",
+    "textPlain": "This is wrong, because your mmap code is being stalled for page faults (including soft page faults that you have when the data is in memory, but not mapped to your process).The io_uring code looks like it is doing all the fetch work in the background (with 6 threads), then just handing the completed buffers to the counter.Do the same with 6 threads that would first read the first byte on each page and then hand that page section to the counter, you'll find similar performance.And you can use both madvice / huge pages to control the mmap behavior",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45133765,
     "by": "bawolff",
     "timeISO": "2025-09-05T00:26:47.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45134914,
-    "by": "lowbloodsugar",
-    "timeISO": "2025-09-05T04:11:00.000Z",
-    "textPlain": "Someone who’s read it in more detail, it looks like the uring code is optimized for async, while the mmap code doesn’t do any prefetching so just chokes when the OS has to do work?",
+    "id": 45134666,
+    "by": "juancn",
+    "timeISO": "2025-09-05T03:14:03.000Z",
+    "textPlain": "Because PCIe bandwidth is higher than memory bandwidth\n\nThis doesn't sound right, a PCIe 5.0 x16 slot offers up to 64 GB/s. That's fully saturated, a fairly old Xeon server can sustain >100 GB/s memory reads per numa node without much trouble.Some newer HBM enabled, like a Xeon Max 9480 can go over 1.6TBs for HBM (up to 64GB) and \nDDR5 can reach > 300 GB/s.Even saturating all PCIe lanes (196 on a dual socket Xeon 6), you could at most theoretically get ~784GB/s, which coincidentally is the max memory bandwidth of such CPUs (12 Channels x 8,800 MT/s = 105,600 MT/s total bandwidth or roughly ~784GB/s).I mean, solid state IO is getting really close, but it's not so fast on non-sequential access patterns.I agree that many workloads could be shifted to SSDs but it's still quite nuanced.",
     "parent": 45132710,
     "depth": 1
   },
@@ -40,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45134666,
-    "by": "juancn",
-    "timeISO": "2025-09-05T03:14:03.000Z",
-    "textPlain": "Because PCIe bandwidth is higher than memory bandwidth\n\nThis doesn't sound right, a PCIe 5.0 x16 slot offers up to 64 GB/s. That's fully saturated, a fairly old Xeon server can sustain >100 GB/s memory reads per numa node without much trouble.Some newer HBM enabled, like a Xeon Max 9480 can go over 1.6TBs for HBM (up to 64GB) and \nDDR5 can reach > 300 GB/s.Even saturating all PCIe lanes (196 on a dual socket Xeon 6), you could at most theoretically get ~784GB/s, which coincidentally is the max memory bandwidth of such CPUs (12 Channels x 8,800 MT/s = 105,600 MT/s total bandwidth or roughly ~784GB/s).I mean, solid state IO is getting really close, but it's not so fast on non-sequential access patterns.I agree that many workloads could be shifted to SSDs but it's still quite nuanced.",
+    "id": 45135241,
+    "by": "pixelpoet",
+    "timeISO": "2025-09-05T05:29:27.000Z",
+    "textPlain": "> A few notes for the \"um actually\" haters commenting on Hacker NewsStay classy; any criticism is of course \"hating\", right?The fact that your title is clickbaity and your results suspect should encourage you to get the most accurate picture, not shoot the messenger.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45134914,
+    "by": "lowbloodsugar",
+    "timeISO": "2025-09-05T04:11:00.000Z",
+    "textPlain": "Someone who’s read it in more detail, it looks like the uring code is optimized for async, while the mmap code doesn’t do any prefetching so just chokes when the OS has to do work?",
     "parent": 45132710,
     "depth": 1
   },
@@ -88,6 +104,14 @@
     "depth": 2
   },
   {
+    "id": 45135433,
+    "by": "AnthonyMouse",
+    "timeISO": "2025-09-05T06:06:45.000Z",
+    "textPlain": "> Wait, PCIe bandwidth is higher than memory bandwidth now?Hmm.Somebody make me a PCIe card with RDIMM slots on it.",
+    "parent": 45134728,
+    "depth": 2
+  },
+  {
     "id": 45134790,
     "by": "DiabloD3",
     "timeISO": "2025-09-05T03:41:59.000Z",
@@ -120,19 +144,19 @@
     "depth": 2
   },
   {
-    "id": 45135160,
-    "by": "wahern",
-    "timeISO": "2025-09-05T05:08:03.000Z",
-    "textPlain": "My first thought is that what's different here isn't async, per se, but parallelism. io_uring uses a kernel thread pool to service I/O requests, so you actually end up with multiple threads running in parallel handling bookkeeping work. AFAIU, SSD controllers also can service requests in parallel, even if the request stream is serialized. These two sources of parallelism is why the I/O results come back out-of-order.Generic readahead, which is what the mmap case is relying on, benefits from at least one async thread running in parallel, but I suspect for any particular file you effectively get at most one thread running in parallel to fill the page cache.What may also be important is the VM management. The splice and vmsplice syscalls came about because someone requested that Linux adopt a FreeBSD optimization--for sufficiently sized write calls (i.e. page size or larger), the OS would mark the page(s) CoW and zero-copy the data to disk or the network. But Linus measured that the cost of fiddling with VM page attributes on each call was too costly and erased most of the zero-copy benefit. So another thing to take note of is that the io_uring case doesn't induce any page faults at all or required any costly VM fiddling (the shared io_uring buffers are installed upfront), whereas in the mmap case there are many page faults and fixups, possibly as many as once for every single 4K page. The io_uring case may even result in additional data copies, but less than the cost of VM fiddling, which is even greater now than 20 years ago.",
-    "parent": 45134914,
-    "depth": 2
-  },
-  {
     "id": 45134692,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T03:18:35.000Z",
     "textPlain": "Not by a ton but if you add up the DDR5 channel bandwidth and the PCIe lanes most systems the PCIe bandwidth is higher.  Yes.  HBM and L3 cache will be higher than the PCIe.",
     "parent": 45134666,
+    "depth": 2
+  },
+  {
+    "id": 45135160,
+    "by": "wahern",
+    "timeISO": "2025-09-05T05:08:03.000Z",
+    "textPlain": "My first thought is that what's different here isn't async, per se, but parallelism. io_uring uses a kernel thread pool to service I/O requests, so you actually end up with multiple threads running in parallel handling bookkeeping work. AFAIU, SSD controllers also can service requests in parallel, even if the request stream is serialized. These two sources of parallelism is why the I/O results come back out-of-order.Generic readahead, which is what the mmap case is relying on, benefits from at least one async thread running in parallel, but I suspect for any particular file you effectively get at most one thread running in parallel to fill the page cache.What may also be important is the VM management. The splice and vmsplice syscalls came about because someone requested that Linux adopt a FreeBSD optimization--for sufficiently sized write calls (i.e. page size or larger), the OS would mark the page(s) CoW and zero-copy the data to disk or the network. But Linus measured that the cost of fiddling with VM page attributes on each call was too costly and erased most of the zero-copy benefit. So another thing to take note of is that the io_uring case doesn't induce any page faults at all or require any costly VM fiddling (the shared io_uring buffers are installed upfront), whereas in the mmap case there are many page faults and fixups, possibly as many as one for every 4K page. The io_uring case may even result in additional data copies, but with less cost than the VM fiddling, which is even greater now than 20 years ago.",
+    "parent": 45134914,
     "depth": 2
   },
   {
@@ -149,6 +173,14 @@
     "timeISO": "2025-09-05T01:10:57.000Z",
     "textPlain": "int fd = open(filename, O_RDONLY);\nvoid* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0);This doesn't work with a file on my ext4 volume. What am I missing?",
     "parent": 45133560,
+    "depth": 2
+  },
+  {
+    "id": 45135337,
+    "by": "whizzter",
+    "timeISO": "2025-09-05T05:47:26.000Z",
+    "textPlain": "Like people mention, hugetlb,etc could be an improvement, but the core issue holding it it down probably has to do with mmap, 4k pages and paging behaviours, mmap will cause faults for each \"small\" 4k page not in memory, causing a kernel jump and then whatever machinery to fill in the page-cache (and bring up data from disk with the associated latency).This in contrast with the io_uring worker method where you keep the thread busy by submitting requests and letting the kernel do the work without expensive crossings.The 2g fully in-mem shows the CPU's real perf, the dip to 50gb is interesting, perhaps when going over 50% memory the Linux kernel evicts pages or something similar that is hurting perf, maybe plot a graph of perf vs test-size to see if there is an obvious cliff.",
+    "parent": 45133330,
     "depth": 2
   },
   {
