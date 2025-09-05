@@ -1,0 +1,8 @@
+{
+  "id": 45126950,
+  "lang": "ru",
+  "summary": "**Краткий обзор**  \nHypr MCP создал **MCP Server Gateway** — обратный прокси, который добавляет к любому MCP-серверу OAuth2-аутентификацию по спецификации MCP без изменения кода.  \n\n**Проблема**  \nMCP требует:  \n- ASM (метаданные сервера авторизации)  \n- DCR (динамическая регистрация клиентов)  \n- PRS (защищённый ресурс-сервер)  \n\nСуществующие IdP (Keycloak, Dex, OAuth2-Proxy) либо не поддерживают DCR/ASM, либо не выставляют нужные CORS-заголовки.\n\n**Решение**  \nGateway на базе Dex:  \n- Dex реализует OIDC (≈ OAuth2) через gRPC.  \n- Gateway дополняет ASM, DCR, CORS.  \n- Сервер-пользователь просто проксируется; клиенты получают полноценный OAuth2-флоу без предварительной конфигурации.\n\n**Как работает**  \n1. MCP-клиент запрашивает `/.well-known/oauth-authorization-server` у Gateway → получает ASM.  \n2. Регистрирует клиента через `/register` (DCR).  \n3. Проходит стандартный OAuth2-код-флоу.  \n4. Далее обращается к MCP-методам через Gateway с токеном.\n\n**Плюсы**  \n- Ноль изменений в MCP-сервере.  \n- Поддержка любого OIDC-провайдера (Google, Azure AD, Okta) за счёт Dex.  \n- Готовый Docker-образ и Helm-чарт.\n\n**Быстрый старт**  \n```bash\ndocker run -p 8080:8080 \\\n  -e UPSTREAM=http://my-mcp:3000 \\\n  -e DEX_ISSUER=https://accounts.google.com \\\n  hyprmcp/mcp-gateway\n```\nКлиент указывает `http://localhost:8080/sse` и сразу работает через OAuth2.",
+  "inputHash": "8a238e60fd43516653d017c49f083e6732843a78aef9d024186bff6160b781ee",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-09-05T07:21:59.161Z"
+}

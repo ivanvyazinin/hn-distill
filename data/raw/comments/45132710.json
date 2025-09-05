@@ -40,14 +40,6 @@
     "depth": 1
   },
   {
-    "id": 45134800,
-    "by": "themafia",
-    "timeISO": "2025-09-05T03:43:05.000Z",
-    "textPlain": "no madvise() call with MADV_SEQUENTIAL?",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45135241,
     "by": "pixelpoet",
     "timeISO": "2025-09-05T05:29:27.000Z",
@@ -56,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45134914,
-    "by": "lowbloodsugar",
-    "timeISO": "2025-09-05T04:11:00.000Z",
-    "textPlain": "Someone who’s read it in more detail, it looks like the uring code is optimized for async, while the mmap code doesn’t do any prefetching so just chokes when the OS has to do work?",
+    "id": 45134800,
+    "by": "themafia",
+    "timeISO": "2025-09-05T03:43:05.000Z",
+    "textPlain": "no madvise() call with MADV_SEQUENTIAL?",
     "parent": 45132710,
     "depth": 1
   },
@@ -80,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45134914,
+    "by": "lowbloodsugar",
+    "timeISO": "2025-09-05T04:11:00.000Z",
+    "textPlain": "Someone who’s read it in more detail, it looks like the uring code is optimized for async, while the mmap code doesn’t do any prefetching so just chokes when the OS has to do work?",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45133330,
     "by": "jared_hulbert",
     "timeISO": "2025-09-04T23:18:30.000Z",
@@ -94,6 +94,14 @@
     "textPlain": "...for sufficiently solid values of \"disk\" ;-)",
     "parent": 45132710,
     "depth": 1
+  },
+  {
+    "id": 45135629,
+    "by": "lucketone",
+    "timeISO": "2025-09-05T06:45:37.000Z",
+    "textPlain": "It would seem you summarised whole post.That’s the point: “mmap” is slow because it is serial.",
+    "parent": 45135399,
+    "depth": 2
   },
   {
     "id": 45134007,
@@ -152,14 +160,6 @@
     "depth": 2
   },
   {
-    "id": 45135160,
-    "by": "wahern",
-    "timeISO": "2025-09-05T05:08:03.000Z",
-    "textPlain": "My first thought is that what's different here isn't async, per se, but parallelism. io_uring uses a kernel thread pool to service I/O requests, so you actually end up with multiple threads running in parallel handling bookkeeping work. AFAIU, SSD controllers also can service requests in parallel, even if the request stream is serialized. These two sources of parallelism is why the I/O results come back out-of-order.Generic readahead, which is what the mmap case is relying on, benefits from at least one async thread running in parallel, but I suspect for any particular file you effectively get at most one thread running in parallel to fill the page cache.What may also be important is the VM management. The splice and vmsplice syscalls came about because someone requested that Linux adopt a FreeBSD optimization--for sufficiently sized write calls (i.e. page size or larger), the OS would mark the page(s) CoW and zero-copy the data to disk or the network. But Linus measured that the cost of fiddling with VM page attributes on each call was too costly and erased most of the zero-copy benefit. So another thing to take note of is that the io_uring case doesn't induce any page faults at all or require any costly VM fiddling (the shared io_uring buffers are installed upfront), whereas in the mmap case there are many page faults and fixups, possibly as many as one for every 4K page. The io_uring case may even result in additional data copies, but with less cost than the VM fiddling, which is even greater now than 20 years ago.",
-    "parent": 45134914,
-    "depth": 2
-  },
-  {
     "id": 45134258,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T01:46:28.000Z",
@@ -173,6 +173,14 @@
     "timeISO": "2025-09-05T01:10:57.000Z",
     "textPlain": "int fd = open(filename, O_RDONLY);\nvoid* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0);This doesn't work with a file on my ext4 volume. What am I missing?",
     "parent": 45133560,
+    "depth": 2
+  },
+  {
+    "id": 45135160,
+    "by": "wahern",
+    "timeISO": "2025-09-05T05:08:03.000Z",
+    "textPlain": "My first thought is that what's different here isn't async, per se, but parallelism. io_uring uses a kernel thread pool to service I/O requests, so you actually end up with multiple threads running in parallel handling bookkeeping work. AFAIU, SSD controllers also can service requests in parallel, even if the request stream is serialized. These two sources of parallelism is why the I/O results come back out-of-order.Generic readahead, which is what the mmap case is relying on, benefits from at least one async thread running in parallel, but I suspect for any particular file you effectively get at most one thread running in parallel to fill the page cache.What may also be important is the VM management. The splice and vmsplice syscalls came about because someone requested that Linux adopt a FreeBSD optimization--for sufficiently sized write calls (i.e. page size or larger), the OS would mark the page(s) CoW and zero-copy the data to disk or the network. But Linus measured that the cost of fiddling with VM page attributes on each call was too costly and erased most of the zero-copy benefit. So another thing to take note of is that the io_uring case doesn't induce any page faults at all or require any costly VM fiddling (the shared io_uring buffers are installed upfront), whereas in the mmap case there are many page faults and fixups, possibly as many as one for every 4K page. The io_uring case may even result in additional data copies, but with less cost than the VM fiddling, which is even greater now than 20 years ago.",
+    "parent": 45134914,
     "depth": 2
   },
   {
