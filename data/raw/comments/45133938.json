@@ -1,9 +1,9 @@
 [
   {
-    "id": 45134958,
-    "by": "gleenn",
-    "timeISO": "2025-09-05T04:20:46.000Z",
-    "textPlain": "> The only \"pause\" threads experience is the callback executed in response to the soft handshake, which does work bounded by that thread's stack height.So this is probably not great for functional/deeply-recursive code I guess?",
+    "id": 45135095,
+    "by": "kragen",
+    "timeISO": "2025-09-05T04:55:22.000Z",
+    "textPlain": "Hmm,  Fil-C seems potentially really important; there's a lot of software that only exists in the form of C code which it's important to preserve access to, even if the tradeoffs made by conventional C compilers (accepting large risks of security problems in exchange for a small improvement in single-core performance) have largely become obsolete.The list of supported software is astounding: CPython, SQLite, OpenSSH, ICU, CMake, Perl5, and Bash, for example.  There are a lot of things in that list that nobody is likely to ever rewrite in Rust.I wonder if it's feasible to use Fil-C to do multitasking between mutually untrusted processes on a computer without an MMU?  They're making all the right noises about capability security and nonblocking synchronization and whatnot.Does anyone have experience using it in practice?  I see that \nhttps://news.ycombinator.com/item?id=45134852 reports a 4× slowdown or better.The name is hilarious.  Feelthay!  Feelthay!",
     "parent": 45133938,
     "depth": 1
   },
@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45134940,
-    "by": "Quitschquat",
-    "timeISO": "2025-09-05T04:17:02.000Z",
-    "textPlain": "I love garbage collector design and impl. It’s one of those “go to” thing to do when learning a new language.Never heard of this one, looking forward to diving in this weekend.",
+    "id": 45134476,
+    "by": "pcfwik",
+    "timeISO": "2025-09-05T02:33:18.000Z",
+    "textPlain": "Given the goal is to work with existing C programs (which already have free(...) calls \"carefully\" placed), and you're already keeping separate bounds info for every pointer, I wonder why you chose to go with a full GC rather than lock-and-key style temporal checking[1]? The latter would make memory usage more predictable and avoid the performance overhead and scheduling headaches of a GC.Perhaps storing the key would take too much space, or checking it would take too much time, or storing it would cause race condition issues in a multithreaded setting?[1] https://acg.cis.upenn.edu/papers/ismm10_cets.pdf",
     "parent": 45133938,
     "depth": 1
   },
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45134476,
-    "by": "pcfwik",
-    "timeISO": "2025-09-05T02:33:18.000Z",
-    "textPlain": "Given the goal is to work with existing C programs (which already have free(...) calls \"carefully\" placed), and you're already keeping separate bounds info for every pointer, I wonder why you chose to go with a full GC rather than lock-and-key style temporal checking[1]? The latter would make memory usage more predictable and avoid the performance overhead and scheduling headaches of a GC.Perhaps storing the key would take too much space, or checking it would take too much time, or storing it would cause race condition issues in a multithreaded setting?[1] https://acg.cis.upenn.edu/papers/ismm10_cets.pdf",
+    "id": 45135042,
+    "by": "AndyKelley",
+    "timeISO": "2025-09-05T04:44:35.000Z",
+    "textPlain": "Super cool project. Sorry if you explained this already, I don't know what \"Dijkstra accurate\" means. How does it know if an object is truly available to be reclaimed, given that pointers can be converted to integers?",
     "parent": 45133938,
     "depth": 1
   },
@@ -52,6 +52,22 @@
     "by": "o11c",
     "timeISO": "2025-09-05T03:44:43.000Z",
     "textPlain": "Note that the \"safepointing\" logic is exactly the same thing that's needed in refcounting to atomic replace a field.This article glosses over what I consider the hardest part - the enter/exit functionality around native functions may that block (but which must touch the allocator).",
+    "parent": 45133938,
+    "depth": 1
+  },
+  {
+    "id": 45134940,
+    "by": "Quitschquat",
+    "timeISO": "2025-09-05T04:17:02.000Z",
+    "textPlain": "I love garbage collector design and impl. It’s one of those “go to” thing to do when learning a new language.Never heard of this one, looking forward to diving in this weekend.",
+    "parent": 45133938,
+    "depth": 1
+  },
+  {
+    "id": 45134958,
+    "by": "gleenn",
+    "timeISO": "2025-09-05T04:20:46.000Z",
+    "textPlain": "> The only \"pause\" threads experience is the callback executed in response to the soft handshake, which does work bounded by that thread's stack height.So this is probably not great for functional/deeply-recursive code I guess?",
     "parent": 45133938,
     "depth": 1
   },
@@ -88,11 +104,11 @@
     "depth": 1
   },
   {
-    "id": 45134968,
+    "id": 45135151,
     "by": "pizlonator",
-    "timeISO": "2025-09-05T04:22:51.000Z",
-    "textPlain": "Meh.The stack scan is really fast. There's not a lot of logic in there. If you max out the stack height limit (megabytes of stack?) then maybe that means milliseconds of work to scan that stack. That's still not bad.",
-    "parent": 45134958,
+    "timeISO": "2025-09-05T05:05:10.000Z",
+    "textPlain": "> I wonder if it's feasible to use Fil-C to do multitasking between mutually untrusted processes on a computer without an MMU?You could. That said, FUGC’s guts rely on OS features that in turn rely on an MMU.But you could make a version of FUGC that has no such dependency.As for perf - 4x is the worst case and that number is out there because I reported it. And I report worst case perf because that’s how obsessive I am about realistically measuring, and then fanatically resolving, perf issuesFact is, I can live on the Fil-C versions of a lot of my favorite software and not tell the difference",
+    "parent": 45135095,
     "depth": 2
   },
   {
@@ -101,14 +117,6 @@
     "timeISO": "2025-09-05T03:52:31.000Z",
     "textPlain": "What do the benchmarks look like? My main concern with this approach would be that the performance envelope would eliminate it for the use-cases where C/C++ are still popular. If throughput/latency/footprint are too similar to using Go or what have you, there end up being far fewer situations in which you would reach for it.",
     "parent": 45134578,
-    "depth": 2
-  },
-  {
-    "id": 45134632,
-    "by": "pizlonator",
-    "timeISO": "2025-09-05T03:05:50.000Z",
-    "textPlain": "Yeah that’s a common optimization for poll checks. I think most production JVMs do that.I’m very far from doing those kinds of low level optimizations because I have a large pile of very high level and very basic optimizations still left to do!",
-    "parent": 45134618,
     "depth": 2
   },
   {
@@ -128,11 +136,35 @@
     "depth": 2
   },
   {
+    "id": 45134632,
+    "by": "pizlonator",
+    "timeISO": "2025-09-05T03:05:50.000Z",
+    "textPlain": "Yeah that’s a common optimization for poll checks. I think most production JVMs do that.I’m very far from doing those kinds of low level optimizations because I have a large pile of very high level and very basic optimizations still left to do!",
+    "parent": 45134618,
+    "depth": 2
+  },
+  {
+    "id": 45135053,
+    "by": "pizlonator",
+    "timeISO": "2025-09-05T04:47:03.000Z",
+    "textPlain": "> given that pointers can be converted to integers?Because if they get converted to integers and then stored to the heap then they lose their capability. So accesses to them will trap and the GC doesn’t need to care about them.Also it’s not “Dijkstra accurate”. It’s a Dijkstra collector in the sense that it uses a Dijkstra barrier. And it’s an accurate collector. But these are orthogonal things",
+    "parent": 45135042,
+    "depth": 2
+  },
+  {
     "id": 45134826,
     "by": "pizlonator",
     "timeISO": "2025-09-05T03:50:08.000Z",
     "textPlain": "> Note that the \"safepointing\" logic is exactly the same thing that's needed in refcounting to atomic replace a field.No it's not, not even close.> This article glosses over what I consider the hardest part - the enter/exit functionality around native functions may that block (but which must touch the allocator).Yeah, that part is hard, and maybe I'll describe it in another post.Look for `filc_enter` and `filc_exit` in https://github.com/pizlonator/fil-c/blob/deluge/libpas/src/l...",
     "parent": 45134804,
+    "depth": 2
+  },
+  {
+    "id": 45134968,
+    "by": "pizlonator",
+    "timeISO": "2025-09-05T04:22:51.000Z",
+    "textPlain": "Meh.The stack scan is really fast. There's not a lot of logic in there. If you max out the stack height limit (megabytes of stack?) then maybe that means milliseconds of work to scan that stack. That's still not bad.",
+    "parent": 45134958,
     "depth": 2
   },
   {
