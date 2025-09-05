@@ -1,25 +1,25 @@
 [
   {
-    "id": 45141819,
-    "by": "guerrilla",
-    "timeISO": "2025-09-05T18:20:34.000Z",
-    "textPlain": "This is silly. Types are specifications of programs and data. The only reason that isn't obvious is because most of our type systems are rudimentary. It becomes obvious once you pick up anything with a bit more power (Haskell with extensions or any dependently typed programming languages). A type system is not just another ad-hoc solution, it's fundamental and essential to what we're doing. This is obvious if you know the (pre-computer) history of type theory: Types specify sets of objects intensionally. Types describe what our program should do and are also a very clear form of documentation. On top of that, you can't even get rid of types if you wanted. The best you can do is make them implicit. You have to make a decision about how to interpret data in the end, and that's typing. Even assembly language and machine code has types. Even electronics have types, we just don't think of it that way (but look at the 7400-series ICs if you want explicit examples).This post is written by someone rather naive of computer science. Their description of a \"function\" betrays that. The failure to recognize UNIX pipelines as function composition also betrays that and so does the whole \"black boxes\" paragraph.",
+    "id": 45142572,
+    "by": "jameshart",
+    "timeISO": "2025-09-05T19:23:31.000Z",
+    "textPlain": "All programmers need to try assembly programming just once.Just a program counter, a stack, a flat addressable block of memory, and some registers.You’ll very quickly learn how hard it is to program when you have complete responsibility for making sure that the state of the system is exactly as expected before a routine is called, and that it’s restored on return.Every language tool we’ve built on top of that is to help programmers keep track of what data they stored where, what state things should be in before particular bits of code are run, and making it harder to make dumb mistakes like running some code that will only work on data of one sort on data of a totally different structure.Of course types are a solution. You just have no idea what the problem was.",
     "parent": 45135391,
     "depth": 1
   },
   {
-    "id": 45142085,
-    "by": "crazygringo",
-    "timeISO": "2025-09-05T18:41:04.000Z",
-    "textPlain": "> Why do we need type checking at all? The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.”No it's not.Type checking is a first line of defense against bugs. That's all.It's just making sure you're not accidentally passing invalid data or performing an invalid operation.And since the article gets the premise wrong, its conclusion that reducing complexity will make type checking \"largely irrelevant\" is therefore also wrong.",
+    "id": 45142662,
+    "by": "mnahkies",
+    "timeISO": "2025-09-05T19:31:26.000Z",
+    "textPlain": "> make complexity manageable: strict isolation between components, explicit timing constraints, and simple, well-defined interfaces.Maybe I'm missing something, but those simple well defined interfaces are the types?I've worked with large javascript codebases before typescript came on the scene, and functions with a single params object were rife, which combined with casual mutation plus nested async callbacks made for a mess that was very difficult to get confidence on what was actually being passed to a given function (presumably easier if you'd written it instead of joining later)A type system so that you can define those interfaces (and check they're adhered to) feels pretty essential to me.",
     "parent": 45135391,
     "depth": 1
   },
   {
-    "id": 45142441,
-    "by": "rpearl",
-    "timeISO": "2025-09-05T19:12:26.000Z",
-    "textPlain": "> Instead of worrying about how changes in one module might ripple through dozens of dependencies, you can focus on the explicit contracts between componentsThat's a great idea! I'd like to suggest that we make programming languages have this as a first class concept: as part of writing a module, you write down a static description of the explicit contract. You might even encode effects and error states into that description!Then, you know that if you stick to that contract, nothing ripples through the dependencies, but if you change it, there's things you need to go update elsewhere.You can even readily swap in different components that have that same external contract! And since it's static, we can check it before the program even runs.\"external contract\" is kind of clunky. What if we called it a \"type\"?",
+    "id": 45143166,
+    "by": "K0nserv",
+    "timeISO": "2025-09-05T20:19:52.000Z",
+    "textPlain": "I find the author's description of hardware design, of which I know very little, to match how static typing work. You are explicit about the interface in order to compose while treating individual parts like black boxes.On static type checking in general my view is: Programming is principally about dealing with invariants. The author is correct to point out that humans are bad at reasoning about more than 7 things at once. Those things we often reason about are invariants and type systems helps us ensure we never violate them. I think even 7 invariants is too many, in C it's common enough to mess up a single invariant (only access this memory while it's alive) that it has caused thousands of CVEs.Ultimately, why would I not use a tool that helps me get the invariants right more of the time, thus reducing cognitive load?",
     "parent": 45135391,
     "depth": 1
   },
@@ -32,10 +32,50 @@
     "depth": 1
   },
   {
+    "id": 45142102,
+    "by": "wrs",
+    "timeISO": "2025-09-05T18:42:57.000Z",
+    "textPlain": "> you can reason about each component in isolation> you can focus on the explicit contracts between components> you can design systems where problematic interactions are structurally impossibleIn other words, exactly what a strong type system gives you?My impression from doing my own amateurish hardware projects and knowing some real hardware engineers is that they would KILL for something like the type systems we have in software. In fact there are plenty of hardware description language projects that try to strengthen the type system of the HDL to catch errors early.If you think a Rails test suite is bad, look at a Verilog test suite sometime.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142651,
+    "by": "toolslive",
+    "timeISO": "2025-09-05T19:30:23.000Z",
+    "textPlain": ">functional programming languages ... break down when you try to coordinate between components, especially when those components are distributed ...I think the exact opposite. Having spent more than a decade in distributed systems, I became convinced functional programming (and pure functions) are essential for survival in distributed systems.Back then I wrote down my insights here (amazed that the site still exists)https://incubaid.wordpress.com/2012/03/28/the-game-of-distri...",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
     "id": 45142305,
     "by": "nonethewiser",
     "timeISO": "2025-09-05T19:00:00.000Z",
-    "textPlain": ">The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.” This sounds reasonable until you realize what we’re actually admitting: that we’ve designed our systems to be inherently incomprehensible to human reasoning. We’ve created architectures so tangled, so dependent on invisible connections and implicit behaviors, that we need automated tools just to verify that our programs won’t crash in obvious ways.A few thoughts...1. Some things are complicated. Of course we should elminate needless complexity - but not all complexity is needless.2. If your system has huge thing 1 connected to huge thing 2, then you have to understand 2 huge things and a little glue. If you instead have a system comprised of small thing 1 connected to small thing 2, ... connected to small thing 100, you now how to understand 100 small things and 99 connections. The nature of these things and connections matter but you can't just keep dividing things to simplify them. John Carmack's email about inlining code springs to mind: http://number-none.com/blow/john_carmack_on_inlined_code.htm...3. A complex system that works is invariably found to have evolved from a simple system that worked. The inverse proposition also appears to be true: A complex system designed from scratch never works and cannot be made to work. You have to start over, beginning with a working simple system.I would love to see the author take a complex system where Typescript (for example) is \"necessary\" and refactor it to JavaScript.",
+    "textPlain": ">The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.” This sounds reasonable until you realize what we’re actually admitting: that we’ve designed our systems to be inherently incomprehensible to human reasoning. We’ve created architectures so tangled, so dependent on invisible connections and implicit behaviors, that we need automated tools just to verify that our programs won’t crash in obvious ways.A few thoughts...1. Some things are complicated. Of course we should elminate needless complexity - but not all complexity is needless.2. If your system has huge thing 1 connected to huge thing 2, then you have to understand 2 huge things and a little glue. If you instead have a system comprised of small thing 1 connected to small thing 2, ... connected to small thing 100, you now how to understand 100 small things and 99 connections. The nature of these things and connections matter but you can't just keep dividing things to simplify them. John Carmack's email about inlining code springs to mind: http://number-none.com/blow/john_carmack_on_inlined_code.htm...3. \"A complex system that works is invariably found to have evolved from a simple system that worked. The inverse proposition also appears to be true: A complex system designed from scratch never works and cannot be made to work. You have to start over, beginning with a working simple system.\" - https://en.wikipedia.org/wiki/John_Gall_(author)I would love to see the author take a complex system where Typescript (for example) is \"necessary\" and refactor it to JavaScript.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142566,
+    "by": "lambdaone",
+    "timeISO": "2025-09-05T19:22:58.000Z",
+    "textPlain": "What I find most amusing in this article is that its author states with great confidence that electronic systems designers don't use anything like rule checkers or typing, when the EDA industry is well-known for its extensive use of validation tools, and the design of large-scale complex modern electronic systems is almost impossible without it.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45143037,
+    "by": "jsmith45",
+    "timeISO": "2025-09-05T20:08:23.000Z",
+    "textPlain": "I can get by with a weakly typed language for a small program I maintain myself, but if I am making something like a library, lack of type checking can be a huge problem.In something like JavaScript, I might write a function or class or whatever with the full expectation that some parameter is a string. However, if I don't check the runtime type, and throw if it is unexpected, then it is very easy for me to write this function in a way where it currently technically might work with some other datatype. Publish this, and some random user will likely notice this and that using that function with an unintended datatype.Later on I make some change that relies on the parameter being a string (which is how I always imagined it), and publish, and boom, I broke a user of the software, and my intended bugfix or minor point release was really a semver breaking change, and I should have incremented the major version.I'd bet big money that many JavaScript libraries that are not fanatical about runtime checking all parameters end up making accidental breaking changes like that, but with something like typescript, this simply won't happen, as passing parameters incompatible with my declared types, although technically possible, is obviously unsupported, and may break at any time.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142341,
+    "by": "andrewstuart",
+    "timeISO": "2025-09-05T19:03:30.000Z",
+    "textPlain": ">> Instead of worrying about how changes in one module might ripple through dozens of dependencies, you can focus on the explicit contracts between components.So, typing.",
     "parent": 45135391,
     "depth": 1
   },
@@ -56,18 +96,66 @@
     "depth": 1
   },
   {
-    "id": 45142341,
-    "by": "andrewstuart",
-    "timeISO": "2025-09-05T19:03:30.000Z",
-    "textPlain": ">> Instead of worrying about how changes in one module might ripple through dozens of dependencies, you can focus on the explicit contracts between components.So, typing.",
+    "id": 45143029,
+    "by": "valcron1000",
+    "timeISO": "2025-09-05T20:07:47.000Z",
+    "textPlain": "> that data flowing between them consists of simple, agreed-upon formats> HTTP servers and clients, email systems, DNS resolvers—they all interoperate based on simple protocolsYeah, massive disagree with this. There is absolutely nothing \"simple\" about these protocols. Try to compose 3/4 UNIX programs together and you necessarily need to run it to see if it even makes sense. Don't get me started on HTTP.It boils my blood to read \"simple\" in the context of software engineering",
     "parent": 45135391,
     "depth": 1
   },
   {
-    "id": 45142102,
-    "by": "wrs",
-    "timeISO": "2025-09-05T18:42:57.000Z",
-    "textPlain": "> you can reason about each component in isolation> you can focus on the explicit contracts between components> you can design systems where problematic interactions are structurally impossibleIn other words, exactly what a strong type system gives you?BTW, my impression of doing my own amateurish hardware projects and knowing some real hardware engineers is that they would KILL for something like the type systems we have in software. In fact there are plenty of hardware description language projects that try to strengthen the type system of the HDL.",
+    "id": 45143156,
+    "by": "_moof",
+    "timeISO": "2025-09-05T20:19:05.000Z",
+    "textPlain": "> Type checking, in other words, is not a solution to complexity—it’s a confession that we’ve created unnecessary complexity in the first place.I'm sorry, but this is ridiculous. Yes, type checking is a tool for managing complexity (among other things). But to make the leap from there to \"this complexity is unnecessary\" has absolutely no basis.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45141715,
+    "by": "TheCleric",
+    "timeISO": "2025-09-05T18:12:10.000Z",
+    "textPlain": "Maybe I’m in the minority but I’ve never associated a type system with scale/maintainability directly.I treat them as I would unit testing: a useful tool to catch bugs early and if you’re skipping it, it should be an intentional decision where you’ve accepted the trade offs.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142279,
+    "by": "DarkNova6",
+    "timeISO": "2025-09-05T18:57:45.000Z",
+    "textPlain": "Ahahahahaha.Remember when the world went insane and wanted JS (not TS) to run literally everywhere?Now we live in a world where TS, Python and even PHP admitted the mistake of unrestrained types. People who didn’t get the memo are highly questionable, probably facing solo-dev hacker mindset syndrome.I am not sorry for having strong opinions.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45141919,
+    "by": "exac",
+    "timeISO": "2025-09-05T18:27:52.000Z",
+    "textPlain": "> The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.”This is not accepted wisdom at all.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142799,
+    "by": "tern",
+    "timeISO": "2025-09-05T19:44:01.000Z",
+    "textPlain": "I think every comment on this article so far is misunderstanding the argument, which seems optimistic to me—he may be rightly pointing at a dogma.I learned electronics and dataflow languages before I learned traditional languages, and learning how modern systems were architected was horrifying to me. The level of separation of components is nowhere close to what's possible, because—as the author points out—the default level of abstraction in modern programming languages is the function.Don't read this article as a critique of types (as in: typed vs untyped), but as a finger pointing at a higher level of abstraction that isn't a first-class concept in the tooling used to architect large systems today.All that said, I have come across many people beating this drum over the years—usually Alan Kay or Ted Nelson types—and I suspect there's something they're missing as well.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142230,
+    "by": "kingstnap",
+    "timeISO": "2025-09-05T18:53:48.000Z",
+    "textPlain": "Extremely poor takes.I distinctly remeber back in 2017 or so I was using tensorflow to train a CNN.At the time Python really hadn't gotten its shit together with regards to typing.Googles Tensorflow documentation was heavily filled with completely useless high level nonsense like this.  from tensorflow.datasets import mnist\n  from tensorflow.models import alexnet\n  alexnet.train(mnist)\n\nOr something like this. Useful maybe if you wanna put \"wrote a machine learning classifer\" on your resume or something. But not useful.But the biggest pain of all was that I had no clue what I was supposed to put into any of these functions. The documentation was the function name and arguments names. I ended up just opening Python in interactive mode and calling type on various intermediates running through examples and writing it down.When you want others to actually be able to use your code you NEED to specify in what actually are your inputs in a clear and unambiguous way. This is fundamentally why typing is vital and usedul even in small codebases. Argument names (or even worse just being like *args, **kwargs just doesn't work.This is why if you open up any half decent Python library now they actually tell you what you need to provide and what to expect out. Without it you cannot reason about what to do.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45143134,
+    "by": "feoren",
+    "timeISO": "2025-09-05T20:17:31.000Z",
+    "textPlain": "> electronics engineers routinely design systems with millions of components, intricate timing relationships, and complex interactions between subsystems. Yet they don’t rely on anything analogous to our type checkers.Bullshit, they absolutely do. They have circuit-design software with all sorts of verification tools. Go search \"circuit verification\". And EEs would jump at any additional opportunity to check their circuits for common errors before having to run them, just as every other engineering discipline would jump on the opportunity for better checking of common issues.Sure, we should be writing more \"obviously correct\" systems. Type-checking helps you do that. What is the problem?",
     "parent": 45135391,
     "depth": 1
   },
@@ -88,6 +176,46 @@
     "depth": 1
   },
   {
+    "id": 45142277,
+    "by": "ppeetteerr",
+    "timeISO": "2025-09-05T18:57:37.000Z",
+    "textPlain": "Why have stair railing when the real problem are buildings with multiple floors?",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142957,
+    "by": "bsaul",
+    "timeISO": "2025-09-05T20:00:27.000Z",
+    "textPlain": "lots of negativity here. I found that POV very interesting. I'll rephrase like this: programmers tend to focus on micro-issues, but with large codebase the main problems are finding the correct abstractions and designs to manage the complexity, which themselves aren't described at all by types (a perfectly type safe program can be an absolute buggy over-engineered mess).",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142726,
+    "by": "vim-guru",
+    "timeISO": "2025-09-05T19:36:38.000Z",
+    "textPlain": "I agree with the author. I've written my fair share of typed code, but it is way more valuable to probe your program while running. I feel Jack Rusher puts it quite nicely in this talk: https://youtu.be/8Ab3ArE8W3s?t=1477",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45141951,
+    "by": "moomin",
+    "timeISO": "2025-09-05T18:30:27.000Z",
+    "textPlain": "All of the examples in the article of “simplicity” involve the orchestration of complex platforms that are, for the most part, written using types. Try writing a browser that can pass Acid2 in Ruby and then try to convince anyone that what you’ve done is in any sense better than the Chromium codebase in all its complex glory.Maybe the truth is that our job as developers is to manage the inherent complexity of the world we live in.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142529,
+    "by": "b_e_n_t_o_n",
+    "timeISO": "2025-09-05T19:20:20.000Z",
+    "textPlain": "I feel like the opposite is true - we don't need type systems because our programs are complex, our programs are complex because we use powerful type systems. The code I write in Typescript is usually more complex than what I would have written in Go or JS.That being said, clearly there is a ton of value in automatically verifying interfaces are implemented correctly. Even dynamic languages like Clojure have Spec. I think that's a good balance.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
     "id": 45142340,
     "by": "frou_dh",
     "timeISO": "2025-09-05T19:03:22.000Z",
@@ -96,34 +224,10 @@
     "depth": 1
   },
   {
-    "id": 45141919,
-    "by": "exac",
-    "timeISO": "2025-09-05T18:27:52.000Z",
-    "textPlain": "> The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.”This is not accepted wisdom at all.",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45142279,
-    "by": "DarkNova6",
-    "timeISO": "2025-09-05T18:57:45.000Z",
-    "textPlain": "Ahahahahaha.Remember when the world went insane and wanted JS (not TS) to run literally everywhere?Now we live in a world where TS, Python and even PHP admitted the mistake of unrestrained types. People who didn’t get the memo are highly questionable, probably facing solo-dev hacker mindset syndrome.I am not sorry for having strong opinions.",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45141715,
-    "by": "TheCleric",
-    "timeISO": "2025-09-05T18:12:10.000Z",
-    "textPlain": "Maybe I’m in the minority but I’ve never associated a type system with scale/maintainability directly.I treat them as I would unit testing: a useful tool to catch bugs early and if you’re skipping it, it should be an intentional decision where you’ve accepted the trade offs.",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45142277,
-    "by": "ppeetteerr",
-    "timeISO": "2025-09-05T18:57:37.000Z",
-    "textPlain": "Why have stair railing when the real problem are buildings with multiple floors?",
+    "id": 45135654,
+    "by": "stephenlf",
+    "timeISO": "2025-09-05T06:49:04.000Z",
+    "textPlain": "Horrendous take. Humans can reason about (some) hardware chips because they are space-constrained. The analogous solution in software would be to limit the size of your programs to a human-readable size—18k loc or so.The author seems to like black boxes. Unix corelib is a collection of black boxes[1]. So are docker containers[2]. Do you know what else are black boxes? TYPES. Specifically interfaces. Types let you compartmentalize your software into as many black boxes as you want, then compose them.———[1] Try building any non trivial service by composing Unix corelib tools, docker containers, or REST APIs. You’re in for a world of hurt.[2] Docker containers aren’t even really isolated. The JupyterHub DockerSpawner image spins up and tears down other docker containers at will. The whole thing is a mess of state. There’s no composition—just the container equivalent of `goto`",
     "parent": 45135391,
     "depth": 1
   },
@@ -144,38 +248,6 @@
     "depth": 1
   },
   {
-    "id": 45142230,
-    "by": "kingstnap",
-    "timeISO": "2025-09-05T18:53:48.000Z",
-    "textPlain": "Extremely poor takes.I distinctly remeber back in 2017 or so I was using tensorflow to train a CNN.At the time Python really hadn't gotten its shit together with regards to typing.Googles Tensorflow documentation was heavily filled with completely useless high level nonsense like this.  from tensorflow.datasets import mnist\n  from tensorflow.models import alexnet\n  alexnet.train(mnist)\n\nOr something like this. Useful maybe if you wanna put \"wrote a machine learning classifer\" on your resume or something. But not useful.But the biggest pain of all was that I had no clue what I was supposed to put into any of these functions. The documentation was the function name and arguments names. I ended up just opening Python in interactive mode and calling type on various intermediates running through examples and writing it down.When you want others to actually be able to use your code you NEED to specify in what actually are your inputs in a clear and unambiguous way. This is fundamentally why typing is vital and usedul even in small codebases. Argument names (or even worse just being like *args, **kwargs just doesn't work.This is why if you open up any half decent Python library now they actually tell you what you need to provide and what to expect out. Without it you cannot reason about what to do.",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45141951,
-    "by": "moomin",
-    "timeISO": "2025-09-05T18:30:27.000Z",
-    "textPlain": "All of the examples in the article of “simplicity” involve the orchestration of complex platforms that are, for the most part, written using types. Try writing a browser that can pass Acid2 in Ruby and then try to convince anyone that what you’ve done is in any sense better than the Chromium codebase in all its complex glory.Maybe the truth is that our job as developers is to manage the inherent complexity of the world we live in.",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45142368,
-    "by": "jgdxno",
-    "timeISO": "2025-09-05T19:05:53.000Z",
-    "textPlain": "I've always viewed type systems as adding constraints on and descriptions to the data and logic in the system.Which is exactly what you find a ton of in electrical engineering (e.g. IEEE C37.2 and gazillion more).",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
-    "id": 45135654,
-    "by": "stephenlf",
-    "timeISO": "2025-09-05T06:49:04.000Z",
-    "textPlain": "Horrendous take. Humans can reason about (some) hardware chips because they are space-constrained. The analogous solution in software would be to limit the size of your programs to a human-readable size—18k loc or so.The author seems to like black boxes. Unix corelib is a collection of black boxes[1]. So are docker containers[2]. Do you know what else are black boxes? TYPES. Specifically interfaces. Types let you compartmentalize your software into as many black boxes as you want, then compose them.———[1] Try building any non trivial service by composing Unix corelib tools, docker containers, or REST APIs. You’re in for a world of hurt.[2] Docker containers aren’t even really isolated. The JupyterHub DockerSpawner image spins up and tears down other docker containers at will. The whole thing is a mess of state. There’s no composition—just the container equivalent of `goto`",
-    "parent": 45135391,
-    "depth": 1
-  },
-  {
     "id": 45141875,
     "by": "markbnj",
     "timeISO": "2025-09-05T18:24:05.000Z",
@@ -184,10 +256,10 @@
     "depth": 1
   },
   {
-    "id": 45142207,
-    "by": "ramon156",
-    "timeISO": "2025-09-05T18:51:53.000Z",
-    "textPlain": "Insert that one kxcd meme\"You don't need x, real programmers use y!\"",
+    "id": 45142979,
+    "by": "abathologist",
+    "timeISO": "2025-09-05T20:03:20.000Z",
+    "textPlain": "\"Actually, proving things is bad. We should arrange the world so that everything is self evident.\"",
     "parent": 45135391,
     "depth": 1
   },
@@ -200,10 +272,90 @@
     "depth": 1
   },
   {
+    "id": 45142085,
+    "by": "crazygringo",
+    "timeISO": "2025-09-05T18:41:04.000Z",
+    "textPlain": "> Why do we need type checking at all? The standard answer is scale. “Small programs don’t need types,” the reasoning goes, “but large programs become unmaintainable without them.”No it's not.Type checking is a first line of defense against bugs. That's all.It's just making sure you're not accidentally passing invalid data or performing an invalid operation.And since the article gets the premise wrong, its conclusion that reducing complexity will make type checking \"largely irrelevant\" is therefore also wrong.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142368,
+    "by": "jgdxno",
+    "timeISO": "2025-09-05T19:05:53.000Z",
+    "textPlain": "I've always viewed type systems as adding constraints on and descriptions to the data and logic in the system.Which is exactly what you find a ton of in electrical engineering (e.g. IEEE C37.2 and gazillion more).",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142207,
+    "by": "ramon156",
+    "timeISO": "2025-09-05T18:51:53.000Z",
+    "textPlain": "Insert that one kxcd meme\"You don't need x, real programmers use y!\"",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142441,
+    "by": "rpearl",
+    "timeISO": "2025-09-05T19:12:26.000Z",
+    "textPlain": "> Instead of worrying about how changes in one module might ripple through dozens of dependencies, you can focus on the explicit contracts between componentsThat's a great idea! I'd like to suggest that we make programming languages have this as a first class concept: as part of writing a module, you write down a static description of the explicit contract. You might even encode effects and error states into that description!Then, you know that if you stick to that contract, nothing ripples through the dependencies, but if you change it, there's things you need to go update elsewhere.You can even readily swap in different components that have that same external contract! And since it's static, we can check it before the program even runs.\"external contract\" is kind of clunky. What if we called it a \"type\"?",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142907,
+    "by": "metalliqaz",
+    "timeISO": "2025-09-05T19:54:22.000Z",
+    "textPlain": "That's the first time I've seen the Borrow Checker referred to as a \"type system\"",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
     "id": 45141823,
     "by": "Ygg2",
     "timeISO": "2025-09-05T18:20:43.000Z",
     "textPlain": "> electronics engineers routinely design systems with millions of components, intricate timing relationships, and complex interactions between subsystems. Yet they don’t rely on anything analogous to our type checkers.Disclaimer: not hardware engineer.However as a junior in college we had several classes using VHDL and later Verilog. They have types. They are used to simulate design before committing it to board.I would be surprised people brute force it often.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45143016,
+    "by": "ratelimitsteve",
+    "timeISO": "2025-09-05T20:07:04.000Z",
+    "textPlain": "is typing not interface definition? It's just defining the shape of data that goes in and the shape of data that comes out. Black box/contract orientation has been a principle of software design for as long as I've been doing it, for all of the reasons this article cites when claiming that the linux CLI is superior: one component doesn't care at all what another subcomponent it needs does, just what that subcomponent requires in order to do it and what the calling component can expect back from the subcomponent. Types are just explicitly defining the inputs and outputs and ensuring there's an automated way to catch it if they change.I do agree with how the article talks about time though. It seems as though in software there has been an implicit assumption that timing things isn't a consideration and it's because the early principles of the craft were developed on single threaded systems and we were all taught as late as the 90s that coding is just writing a list of instructions to be followed in order.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45141819,
+    "by": "guerrilla",
+    "timeISO": "2025-09-05T18:20:34.000Z",
+    "textPlain": "This is silly. Types are specifications of programs and data. The only reason that isn't obvious is because most of our type systems are rudimentary. It becomes obvious once you pick up anything with a bit more power (Haskell with extensions or any dependently typed programming languages). A type system is not just another ad-hoc solution, it's fundamental and essential to what we're doing. This is obvious if you know the (pre-computer) history of type theory: Types specify sets of objects intensionally. Types describe what our program should do and are also a very clear form of documentation. On top of that, you can't even get rid of types if you wanted. The best you can do is make them implicit. You have to make a decision about how to interpret data in the end, and that's typing. Even assembly language and machine code has types. Even electronics have types, we just don't think of it that way (but look at the 7400-series ICs if you want explicit examples).This post is written by someone rather naive of computer science. Their description of a \"function\" betrays that. The failure to recognize UNIX pipelines as function composition also betrays that and so does the whole \"black boxes\" paragraph.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142618,
+    "by": "kazinator",
+    "timeISO": "2025-09-05T19:28:00.000Z",
+    "textPlain": "I do not find this argumentation compelling:> We’ve created architectures so tangled, so dependent on invisible connections and implicit behaviors, that we need automated tools just to verify that our programs won’t crash in obvious ways.> Type checking, in other words, is not a solution to complexity—it’s a confession that we’ve created unnecessary complexity in the first place.I don't buy the idea that (1) we can always easily identify unnecessary complexity, separating it from necessary complexity; (2) reduce the system to just the necessary complexity, such that: (3) the remaining necessary complexity is always low, and easy to understand (i.e. not \"incomprehensible to human reasoning\", having few or no \"implicit behaviors\", so that we don't \"need automated tools just to verify that\" it \"won't crash in obvious ways\").The idea that we can implement arbitrary systems to handle our complex requirements, while keeping the implementation complexity capped below a constant simply by not admitting any \"unnecessary complexity\" is not believable.This is simply not a mature argument about software engineering and therefore not an effective argument against type checking.> The problem isn’t that software is inherently more complex than hardware.It positively is. The built electronic circuit closely mimics the schematic. The behavior of the electronic circuit consists of local states that are confined to the circuit components. For instance, in the schematic you have a capacitor and a neighboring resistor, as symbols? Then in the manufactured circuit, you have the same: a capacitor component connected to a neighboring resistor component. Now those things have a run-time behavior in response to the changing voltage applied. But that run-time behavior is locally contained in those components. All we need to imagine the behavior is to take the changing quantities like the capacitor's charge, current through the capacitor, voltage drop across the resistor and superimpose these ",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142592,
+    "by": "zzzeek",
+    "timeISO": "2025-09-05T19:25:32.000Z",
+    "textPlain": "\"Type checking is an antipattern\" because it admits that our software has more than seven dependencies, which is cognitively unacceptable\"Type checking is an antipattern\" because electrical engineers designing CPUs have nothing like type checking to rely uponThese two statements alone seem, to be charitable, wrong.   But together, I have a sneaky feeling that a running CPU is at least as cognitively overwhelming as a modern software application.  Which would mean cognitively overwhelming systems are not an antipattern.   Or that CPU designers are also engaging in an active antipattern.  So these arguments would appear to contradict each other in any case.Overall a post like this that makes huge grandiose claims and ends with basically nothing to show at the end rings pretty hollow.   Yes complexity is inconvenient but handwaving \"there should be systems that are simple ! easy to understand!\"  yeah thanks!  show us one?   Oh, the mainboard of an iPhone, that's easy to understand?   It literally requires software to figure out how to lay out all the tiny components on both sides like that.    It is...not simple at all.",
+    "parent": 45135391,
+    "depth": 1
+  },
+  {
+    "id": 45142559,
+    "by": "gdsdfe",
+    "timeISO": "2025-09-05T19:22:37.000Z",
+    "textPlain": "why cant we downvote links ? this is an absolute waste of time.",
     "parent": 45135391,
     "depth": 1
   },
@@ -216,67 +368,35 @@
     "depth": 1
   },
   {
-    "id": 45142293,
-    "by": "motorest",
-    "timeISO": "2025-09-05T18:58:29.000Z",
-    "textPlain": "> This is silly.Yes, the article is deeply unserious and perhaps even in \"not even wrong\" territory. The poor blogger tried to put up a strawman on how type checking was a cognitive load issue, completely ignoring how interfaces matter and comply with them is a necessary condition for robust bug-free code.",
-    "parent": 45141819,
+    "id": 45142961,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-09-05T20:00:55.000Z",
+    "textPlain": "When I was taking my compilers class at uni, I realised very quickly that the most irritating part was the sheer volume of book-keeping.Things like the ABI itself, which includes register saving/restore, function call stack setup, to the linker and loader, ensuring the right sections go to the right places and are correctly sized, and then at load time ensuring relative addresses are correctly relocated, all branch target labels are resolved to these relocated addresses, it was such a pain.All of this book-keeping was a genuinely the most time-consuming part of the assignments; the actual compiler ideas and implementation being relatively manageable.Funnily enough the compiler implementation was done in OCaml.",
+    "parent": 45142572,
     "depth": 2
   },
   {
-    "id": 45142327,
-    "by": "motorest",
-    "timeISO": "2025-09-05T19:02:11.000Z",
-    "textPlain": "> Type checking is a first line of defense against bugs. That's all.Exactly, and it goes way beyond that point. Static type checking turns expensive, hard-to-catch bugs that manifest only at runtime when exercising specific code paths into cheap, trivial to spot bugs that you spot at compile time.On top of that, nowadays it greatly improved developer experience as IDEs use type hints to detect and avoid bugs even before you compile the code, and even helps autocomplete code you are typing.We've been through this before. Haven't we learned this yet?",
-    "parent": 45142085,
+    "id": 45143148,
+    "by": "ratelimitsteve",
+    "timeISO": "2025-09-05T20:18:26.000Z",
+    "textPlain": "https://computersystemsbook.com/If anyone is interested in learning assembly, this was the book and simulator I used as an undergrad. It's not exactly bytecode that will run on an actual processor but it will help you understand the bare metal things a CPU has to do in order to actually operate upon data and it's kinda eye opening when compared to what modern coding is actually like nowadays.",
+    "parent": 45142572,
     "depth": 2
   },
   {
-    "id": 45142430,
-    "by": "jameson",
-    "timeISO": "2025-09-05T19:11:50.000Z",
-    "textPlain": "Right. Also same rationale goes to compile time vs runtime time checks -- catching type bugs before the program is executed",
-    "parent": 45142085,
+    "id": 45142939,
+    "by": "ndriscoll",
+    "timeISO": "2025-09-05T19:57:38.000Z",
+    "textPlain": "And part of why functional programming works so well is exactly that you don't need to care about things like control flow and interactions. You're just expanding definitions. Those definitions are local/isolated, and compose in regular ways.",
+    "parent": 45142651,
     "depth": 2
   },
   {
-    "id": 45142289,
-    "by": "Disposal8433",
-    "timeISO": "2025-09-05T18:58:12.000Z",
-    "textPlain": "He's even more wrong when the Python typing system allows us to catch bugs in small scripts.",
-    "parent": 45141919,
-    "depth": 2
-  },
-  {
-    "id": 45142241,
-    "by": "guerrilla",
-    "timeISO": "2025-09-05T18:54:43.000Z",
-    "textPlain": "It's worse than that. Even ruby has types. They're just implicit and only checked at runtime.",
-    "parent": 45141951,
-    "depth": 2
-  },
-  {
-    "id": 45141832,
-    "by": "guerrilla",
-    "timeISO": "2025-09-05T18:21:21.000Z",
-    "textPlain": "> Do you know what else are black boxes? TYPES.Indeed. This person doesn't even know what types or functions are.",
-    "parent": 45135654,
-    "depth": 2
-  },
-  {
-    "id": 45142455,
-    "by": "jameshart",
-    "timeISO": "2025-09-05T19:13:54.000Z",
-    "textPlain": "Physics provides a cruel form of type checking that electronics engineers have to deal with, in a way that software doesn’t. Put the wrong voltage on a trace and the type checker fails in a puff of smoke.Since software won’t be subjected to physics, we have to introduce our own laws to constrain reality. Type checkers are exactly that.",
-    "parent": 45141823,
-    "depth": 2
-  },
-  {
-    "id": 45142129,
-    "by": "aurumque",
-    "timeISO": "2025-09-05T18:45:01.000Z",
-    "textPlain": "Right. Try building thousands of transistors without rigorous EDA and basic checking in VHDL. This article is such a bad take.",
-    "parent": 45141823,
+    "id": 45142848,
+    "by": "zamalek",
+    "timeISO": "2025-09-05T19:49:15.000Z",
+    "textPlain": "Even with my limited knowledge about FP I am pretty sure I would only grow more in agreement as I learn more. My only exposure to functional is via Nix and Rust (I promise I'll learn OCaml soon). One thing that I've really come to appreciate is the concept of \"making invalid states unrepresentable,\" a trick that is harder than it should be (though not impossible) in \"less functional\" languages. Coming back to distributed systems, I have wondered what a functional database would look like. Mutations as pure functions, DUs in tuples, could we store a function, etc.",
+    "parent": 45142651,
     "depth": 2
   }
 ]

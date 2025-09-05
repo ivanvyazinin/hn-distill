@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45136365,
-    "by": "nextaccountic",
-    "timeISO": "2025-09-05T08:42:55.000Z",
-    "textPlain": "The real difference is that with io_uring and O_DIRECT you manage the cache yourself (and can't share with other processes, and the OS can't reclaim the cache automatically if under memory pressure), and with mmap this is managed by the OS.If Linux had an API to say \"manage this buffer you handled me from io_uring as if it were a VFS page cache (and as such it can be shared with other processes, like mmap), if you want it back just call this callback (so I can cleanup my references to it) and you are good to go\", then io_uring could really replace mmap.What Linux has currently is PSI, which lets the OS reclaim memory when needed but doesn't help with the buffer sharing thing",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45133765,
     "by": "bawolff",
     "timeISO": "2025-09-05T00:26:47.000Z",
@@ -24,18 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45140882,
-    "by": "johnisgood",
-    "timeISO": "2025-09-05T17:05:42.000Z",
-    "textPlain": "splice / vmsplice with pipes would probably be the fastest for  the use case of file -> pipe -> user-space -> CPU processing. Problem is, you eventually have to access user-space memory to count integers, which  breaks the zero-copy advantage for this workload. It probably won't beat the already vectorized O_DIRECT method.What about direct-access hardware with DMA to CPU caches (NUMA-aware / cache-pinned)? PCIe NVMe controllers can use DMA to user-space buffers (O_DIRECT or SPDK) and if buffers are pinned to CPU local caches, then you can avoid main memory latency. It does require SPDK (Storage Performance Development Kit) or similar user-space NVMe drivers, however. IMO this is likely faster than io_uring + O_DIRECT, especially on large datasets, the only problem is that it requires specialized user-space NVMe stacks and careful buffer alignment.You could also aggressively unroll loops and use prefetch instructions to hide memory latency, i.e. SIMD / AVX512 vectorization with prefetching. The blog post used AVX2 (128/256-bit) but on a modern CPU, AVX512 can process 512 bits (16 integers) per instruction and manual prefetching of data can reduce L1/L2 cache misses. I think this could beat AVX counting from the blog.As for MAP_HUGETLB, 4KB page faults add overhead with a normal mmap. You want to map large pages (2 MB / 1 GB) which means fewer page table walks and reduced TLB misses reduced, meaning on a 50 GB dataset, using hugepages can reduce kernel overhead and speed up mmap-based counting, but it is still likely slightly slower than O_DIRECT + vectorized counting, so disregard.TL;DR:I think the faster practical CPU method is: O_DIRECT + aligned buffer + AVX512 + unrolled counting + NUMA-aware allocation.Theoretically fastest (requires specialized setup): SPDK / DMA -> CPU caches + AVX512, bypassing main memory.Mmap or page-cache approaches are neat but always slower for large sequential workloads.Just my two cents. Thoughts?",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
-    "id": 45138624,
-    "by": "daniele_dll",
-    "timeISO": "2025-09-05T13:54:44.000Z",
-    "textPlain": "It's always nice to see someone discovering that mmap is not built for performance but for easyness of data-on-disk management with reasonable speed.",
+    "id": 45136365,
+    "by": "nextaccountic",
+    "timeISO": "2025-09-05T08:42:55.000Z",
+    "textPlain": "The real difference is that with io_uring and O_DIRECT you manage the cache yourself (and can't share with other processes, and the OS can't reclaim the cache automatically if under memory pressure), and with mmap this is managed by the OS.If Linux had an API to say \"manage this buffer you handled me from io_uring as if it were a VFS page cache (and as such it can be shared with other processes, like mmap), if you want it back just call this callback (so I can cleanup my references to it) and you are good to go\", then io_uring could really replace mmap.What Linux has currently is PSI, which lets the OS reclaim memory when needed but doesn't help with the buffer sharing thing",
     "parent": 45132710,
     "depth": 1
   },
@@ -44,14 +28,6 @@
     "by": "modeless",
     "timeISO": "2025-09-05T03:25:54.000Z",
     "textPlain": "Wait, PCIe bandwidth is higher than memory bandwidth now? That's bonkers, when did that happen? I haven't been keeping up.Just looked at the i9-14900k and I guess it's true, but only if you add all the PCIe lanes together. I'm sure there are other chips where it's even more true. Crazy!",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
-    "id": 45140699,
-    "by": "yencabulator",
-    "timeISO": "2025-09-05T16:49:44.000Z",
-    "textPlain": ">  Memory is slow, Disk is fast - Part 2.Bullshit clickbait title. More like \"naive algorithm is slower than prefetching\". Hidden at the end of the article:  >  Memory is slow - when you use it oldschool.\n  >  Disk is fast - when you are clever with it.\n\nThe author spent a lot of time benchmarking a thing completely unrelated to the premise of the article. And the only conclusion to be drawn from the benchmark is utterly unsurprising.---Linux mmap behavior has two features that can hurt, but this article does not deliver that sermon well. Here's what to worry about with mmap:- for reads, cache misses are unpredictable, and stall more expensive resources than an outstanding io_uring request\n- for writes, the atomicity story is very hard to get right, and unpredictable writeback delay stalls more expensive resources than an outstanding io_uring request (very few real world production systems with durability write through mmap; you can use conventional write APIs with read-side mmap)",
     "parent": 45132710,
     "depth": 1
   },
@@ -80,6 +56,22 @@
     "depth": 1
   },
   {
+    "id": 45138624,
+    "by": "daniele_dll",
+    "timeISO": "2025-09-05T13:54:44.000Z",
+    "textPlain": "It's always nice to see someone discovering that mmap is not built for performance but for easyness of data-on-disk management with reasonable speed.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45140699,
+    "by": "yencabulator",
+    "timeISO": "2025-09-05T16:49:44.000Z",
+    "textPlain": ">  Memory is slow, Disk is fast - Part 2.Bullshit clickbait title. More like \"naive algorithm is slower than prefetching\". Hidden at the end of the article:  >  Memory is slow - when you use it oldschool.\n  >  Disk is fast - when you are clever with it.\n\nThe author spent a lot of time benchmarking a thing completely unrelated to the premise of the article. And the only conclusion to be drawn from the benchmark is utterly unsurprising.---Linux mmap behavior has two features that can hurt, but this article does not deliver that sermon well. Here's what to worry about with mmap:- for reads, cache misses are unpredictable, and stall more expensive resources than an outstanding io_uring request\n- for writes, the atomicity story is very hard to get right, and unpredictable writeback delay stalls more expensive resources than an outstanding io_uring request (very few real world production systems with durability write through mmap; you can use conventional write APIs with read-side mmap)",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45134666,
     "by": "juancn",
     "timeISO": "2025-09-05T03:14:03.000Z",
@@ -104,14 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45137573,
-    "by": "worldsavior",
-    "timeISO": "2025-09-05T12:03:50.000Z",
-    "textPlain": "Probably off-topic, but could someone tell me what is the current status of io_uring from a security standpoint? It's still disabled on Android and some Linux distros, but it's being said it's safe now.",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45135241,
     "by": "pixelpoet",
     "timeISO": "2025-09-05T05:29:27.000Z",
@@ -124,6 +108,22 @@
     "by": "titanomachy",
     "timeISO": "2025-09-05T00:05:23.000Z",
     "textPlain": "Very interesting article, thanks for publishing these tests!Is the manual loop unrolling really necessary to get vectorized machine code? I would have guessed that the highest optimization levels in LLVM would be able to figure it out from the basic code. That's a very uneducated guess, though.Also, curious if you tried using the MAP_POPULATE option with mmap. Could that improve the bandwidth of the naive in-memory solution?> humanity doesn't have the silicon fabs or the power plants to support this for every moron vibe coder out there making an app.lol. I bet if someone took the time to make a high-quality well-documented fast-IO library based on your io_uring solution, it would get use.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45137573,
+    "by": "worldsavior",
+    "timeISO": "2025-09-05T12:03:50.000Z",
+    "textPlain": "Probably off-topic, but could someone tell me what is the current status of io_uring from a security standpoint? It's still disabled on Android and some Linux distros, but it's being said it's safe now.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45140882,
+    "by": "johnisgood",
+    "timeISO": "2025-09-05T17:05:42.000Z",
+    "textPlain": "splice / vmsplice with pipes would probably be the fastest for  the use case of file -> pipe -> user-space -> CPU processing. Problem is, you eventually have to access user-space memory to count integers, which  breaks the zero-copy advantage for this workload. It probably won't beat the already vectorized O_DIRECT method.What about direct-access hardware with DMA to CPU caches (NUMA-aware / cache-pinned)? PCIe NVMe controllers can use DMA to user-space buffers (O_DIRECT or SPDK) and if buffers are pinned to CPU local caches, then you can avoid main memory latency. It does require SPDK (Storage Performance Development Kit) or similar user-space NVMe drivers, however. IMO this is likely faster than io_uring + O_DIRECT, especially on large datasets, the only problem is that it requires specialized user-space NVMe stacks and careful buffer alignment.You could also aggressively unroll loops and use prefetch instructions to hide memory latency, i.e. SIMD / AVX512 vectorization with prefetching. The blog post used AVX2 (128/256-bit) but on a modern CPU, AVX512 can process 512 bits (16 integers) per instruction and manual prefetching of data can reduce L1/L2 cache misses. I think this could beat AVX counting from the blog.As for MAP_HUGETLB, 4KB page faults add overhead with a normal mmap. You want to map large pages (2 MB / 1 GB) which means fewer page table walks and reduced TLB misses reduced, meaning on a 50 GB dataset, using hugepages can reduce kernel overhead and speed up mmap-based counting, but it is still likely slightly slower than O_DIRECT + vectorized counting, so disregard.TL;DR:I think the faster practical CPU method is: O_DIRECT + aligned buffer + AVX512 + unrolled counting + NUMA-aware allocation.Theoretically fastest (requires specialized setup): SPDK / DMA -> CPU caches + AVX512, bypassing main memory.Mmap or page-cache approaches are neat but always slower for large sequential workloads.Just my two cents. Thoughts?",
     "parent": 45132710,
     "depth": 1
   },
@@ -152,18 +152,18 @@
     "depth": 1
   },
   {
-    "id": 45133330,
-    "by": "jared_hulbert",
-    "timeISO": "2025-09-04T23:18:30.000Z",
-    "textPlain": "Cool.  Original author here.  AMA.",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45133940,
     "by": "userbinator",
     "timeISO": "2025-09-05T00:56:11.000Z",
     "textPlain": "...for sufficiently solid values of \"disk\" ;-)",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45133330,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-04T23:18:30.000Z",
+    "textPlain": "Cool.  Original author here.  AMA.",
     "parent": 45132710,
     "depth": 1
   },
@@ -200,14 +200,6 @@
     "depth": 2
   },
   {
-    "id": 45140261,
-    "by": "touisteur",
-    "timeISO": "2025-09-05T16:16:32.000Z",
-    "textPlain": "Yes Linus has been ranting for decades against O_DIRECT saying similar things (aka better hints on pages and cache usage).The notorious archive of Linus rants on [0] starts with \"The thing that has always disturbed me about O_DIRECT is that the whole interface is just stupid, and was probably designed by a deranged monkey on some serious mind-controlling substances\". It gets better afterwards, though I'm not clear whether his articulated vision is implemented yet.[0] https://yarchive.net/comp/linux/o_direct.html",
-    "parent": 45136365,
-    "depth": 2
-  },
-  {
     "id": 45134007,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T01:06:31.000Z",
@@ -221,6 +213,14 @@
     "timeISO": "2025-09-05T14:09:28.000Z",
     "textPlain": "You don't need hugepages for basic 5GB/s sequential scans. I don't know the exact circumstances that would cause TLB pressure, but this is not it.You can maybe reduce the number of page faults, but you can do that by walking the mapped address space once before the actual benchmark too.",
     "parent": 45133765,
+    "depth": 2
+  },
+  {
+    "id": 45140261,
+    "by": "touisteur",
+    "timeISO": "2025-09-05T16:16:32.000Z",
+    "textPlain": "Yes Linus has been ranting for decades against O_DIRECT saying similar things (aka better hints on pages and cache usage).The notorious archive of Linus rants on [0] starts with \"The thing that has always disturbed me about O_DIRECT is that the whole interface is just stupid, and was probably designed by a deranged monkey on some serious mind-controlling substances\". It gets better afterwards, though I'm not clear whether his articulated vision is implemented yet.[0] https://yarchive.net/comp/linux/o_direct.html",
+    "parent": 45136365,
     "depth": 2
   },
   {
@@ -296,19 +296,11 @@
     "depth": 2
   },
   {
-    "id": 45140562,
-    "by": "yencabulator",
-    "timeISO": "2025-09-05T16:38:52.000Z",
-    "textPlain": "It's a complex shared-memory protocol implemented in C. It'll take a while to settle down fully, and it's still getting new features. If you're targeted by state-level actors, contain or avoid; if not, upgrade regularly.It's all a question of risk management; for example, Google has historically used container-based sandboxes for their own code (even before Linux containers were a thing), and there an io_uring vulnerability could expose them to attacks by any swdev employee. And for real performance where needed the big boys are bypassing the kernel networking and block I/O stacks anyway (load balancers, ML, ...).I think the real question to ask is why are you running hostile code outside a dedicated VM? Lots of places will happily give you root inside a VM, and in that context io_uring attacks are irrelevant. That trust boundary is probably just as complex (KVM, virtio, very similar ringbuffers as io_uring really), but the trusted side these days is often Rust and more trustworthy.For \"non-hostile code\", frankly other attacks are typically simpler. That's likely the stuff your devs run on their workstations all the time. It likely has direct access to the family jewels and networking at the same time, without needing to use any exploit.The real fix is to slowly push the industry off of C/C++, and figure out how to use formal methods to reason about shared-memory protocols better. For example, if your \"received buffer\" abstraction only lets you read every byte exactly once, you can't be vulnerable to TOCTOU. That'd be pretty easy to do safely but the whole reason a shared-memory protocols was used in the first place was performance, and that trade-off is a lot less trivial.",
-    "parent": 45137573,
-    "depth": 2
-  },
-  {
-    "id": 45138799,
-    "by": "p_l",
-    "timeISO": "2025-09-05T14:08:50.000Z",
-    "textPlain": "It's more that io_uring has not enough integration with LSMs and the like, so for example on Android it's disabled because Android heavily uses SElinux which would be bypassed by io_uring",
-    "parent": 45137573,
+    "id": 45141994,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T18:33:03.000Z",
+    "textPlain": "The io_uring solution avoids this whole effort of mapping.  It doesn't have to map the already-in-RAM pages at all.  It reuses a small set of buffers. So there is a lot of random cache-miss prone work that mmap() has to do that the io_uring solution avoids.  If mmap() does this in the background it would cache up with io_uring.  I'd then have to get a couple more drives to get io_uring to catch up.  With enough drives I'd bet they'd be closer than you think.  I still think I could get the io_uring to be faster than the mmap() even if the count never faulted, mostly because the io_uring has a smaller TLB footprint and can fit in L3 cache.  But it'd be tough.",
+    "parent": 45136753,
     "depth": 2
   },
   {
@@ -336,6 +328,22 @@
     "depth": 2
   },
   {
+    "id": 45138799,
+    "by": "p_l",
+    "timeISO": "2025-09-05T14:08:50.000Z",
+    "textPlain": "It's more that io_uring has not enough integration with LSMs and the like, so for example on Android it's disabled because Android heavily uses SElinux which would be bypassed by io_uring",
+    "parent": 45137573,
+    "depth": 2
+  },
+  {
+    "id": 45140562,
+    "by": "yencabulator",
+    "timeISO": "2025-09-05T16:38:52.000Z",
+    "textPlain": "It's a complex shared-memory protocol implemented in C. It'll take a while to settle down fully, and it's still getting new features. If you're targeted by state-level actors, contain or avoid; if not, upgrade regularly.It's all a question of risk management; for example, Google has historically used container-based sandboxes for their own code (even before Linux containers were a thing), and there an io_uring vulnerability could expose them to attacks by any swdev employee. And for real performance where needed the big boys are bypassing the kernel networking and block I/O stacks anyway (load balancers, ML, ...).I think the real question to ask is why are you running hostile code outside a dedicated VM? Lots of places will happily give you root inside a VM, and in that context io_uring attacks are irrelevant. That trust boundary is probably just as complex (KVM, virtio, very similar ringbuffers as io_uring really), but the trusted side these days is often Rust and more trustworthy.For \"non-hostile code\", frankly other attacks are typically simpler. That's likely the stuff your devs run on their workstations all the time. It likely has direct access to the family jewels and networking at the same time, without needing to use any exploit.The real fix is to slowly push the industry off of C/C++, and figure out how to use formal methods to reason about shared-memory protocols better. For example, if your \"received buffer\" abstraction only lets you read every byte exactly once, you can't be vulnerable to TOCTOU. That'd be pretty easy to do safely but the whole reason a shared-memory protocols was used in the first place was performance, and that trade-off is a lot less trivial.",
+    "parent": 45137573,
+    "depth": 2
+  },
+  {
     "id": 45134043,
     "by": "jared_hulbert",
     "timeISO": "2025-09-05T01:10:57.000Z",
@@ -349,6 +357,14 @@
     "timeISO": "2025-09-05T05:08:03.000Z",
     "textPlain": "My first thought is that what's different here isn't async, per se, but parallelism. io_uring uses a kernel thread pool to service I/O requests, so you actually end up with multiple threads running in parallel handling bookkeeping work. AFAIU, SSD controllers also can service requests in parallel, even if the request stream is serialized. These two sources of parallelism is why the I/O results come back out-of-order.Generic readahead, which is what the mmap case is relying on, benefits from at least one async thread running in parallel, but I suspect for any particular file you effectively get at most one thread running in parallel to fill the page cache.What may also be important is the VM management. The splice and vmsplice syscalls came about because someone requested that Linux adopt a FreeBSD optimization--for sufficiently sized write calls (i.e. page size or larger), the OS would mark the page(s) CoW and zero-copy the data to disk or the network. But Linus measured that the cost of fiddling with VM page attributes on each call was too costly and erased most of the zero-copy benefit. So another thing to take note of is that the io_uring case doesn't induce any page faults at all or require any costly VM fiddling (the shared io_uring buffers are installed upfront), whereas in the mmap case there are many page faults and fixups, possibly as many as one for every 4K page. The io_uring case may even result in additional data copies, but with less cost than the VM fiddling, which is even greater now than 20 years ago.",
     "parent": 45134914,
+    "depth": 2
+  },
+  {
+    "id": 45134075,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:14:34.000Z",
+    "textPlain": "I worked on SSDs for years.  Too many people are suffering from insufficiently solid values of \"disk\" IMHO.",
+    "parent": 45133940,
     "depth": 2
   },
   {
@@ -381,22 +397,6 @@
     "timeISO": "2025-09-04T23:33:52.000Z",
     "textPlain": "Would huge pages help with the mmap case?",
     "parent": 45133330,
-    "depth": 2
-  },
-  {
-    "id": 45133764,
-    "by": "comradesmith",
-    "timeISO": "2025-09-05T00:26:47.000Z",
-    "textPlain": "Thanks for the article. What about using file reads from a mounted ramdisk?",
-    "parent": 45133330,
-    "depth": 2
-  },
-  {
-    "id": 45134075,
-    "by": "jared_hulbert",
-    "timeISO": "2025-09-05T01:14:34.000Z",
-    "textPlain": "I worked on SSDs for years.  Too many people are suffering from insufficiently solid values of \"disk\" IMHO.",
-    "parent": 45133940,
     "depth": 2
   }
 ]
