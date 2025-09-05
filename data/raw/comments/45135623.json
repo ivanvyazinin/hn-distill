@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45136745,
-    "by": "greggyb",
-    "timeISO": "2025-09-05T09:43:45.000Z",
-    "textPlain": "Coming from a data engineering and business analytics background, the terms \"structured\" and \"unstructured\" seem to be swapped in meaning here.I'd expect to talk about anything in a DB as \"structured data\". Flexible serialization formats such as JSON or XML are \"semi-structured\". And something from e.g., an office document is \"unstructured\".This is not a complaint or criticism. I understand the article just fine. It's just interesting how different perspectives can affect what words mean (:",
-    "parent": 45135623,
-    "depth": 1
-  },
-  {
     "id": 45137135,
     "by": "stared",
     "timeISO": "2025-09-05T10:46:26.000Z",
@@ -24,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 45136745,
+    "by": "greggyb",
+    "timeISO": "2025-09-05T09:43:45.000Z",
+    "textPlain": "Coming from a data engineering and business analytics background, the terms \"structured\" and \"unstructured\" seem to be swapped in meaning here.I'd expect to talk about anything in a DB as \"structured data\". Flexible serialization formats such as JSON or XML are \"semi-structured\". And something from e.g., an office document is \"unstructured\".This is not a complaint or criticism. I understand the article just fine. It's just interesting how different perspectives can affect what words mean (:",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
     "id": 45137627,
     "by": "andyferris",
     "timeISO": "2025-09-05T12:13:00.000Z",
     "textPlain": "Yes - I have to agree.Codd was right in that if you want transactional semantics that are both quick and flexible, you'll need to _store_ your data in normalized relations. The system of record is unwieldly otherwise.The article is right that this idea was taken too far - queries do not need to be restricted to flat relations. In fact the application, for any given view, loves heirarchical orginization. It's my opinion that application views have more in common with analytics (OLAP) except perhaps latency requirements - they need internally consistent snapshots (and ideally the corresponding trx id) but it's the \"command\" in CQRS that demands the normalized OLTP database (and so long as the view can pass along the trx id as a kind of \"lease\" version for any causally connected user command, as in git push --force-with-lease, the two together work quite well).This issue is of course that SQL eshews hierarchical data even in ephemeral queries. It's really unfortuante that we generate jsonb aggregates to do this instead of first-class nested relations a la Dee [1] / \"third manifesto\" [2]. Jamie Brandon has clearly been thinking about this a long time and I generally find myself nodding along with the conclusions, but IMO the issue is that SQL poorly expresses nested relations and this has been the root cause of object-relation impedence since (AFAICT) before either of us were born.[1] https://github.com/ggaughan/dee\n[2] https://www.dcs.warwick.ac.uk/~hugh/TTM/DTATRM.pdf",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
+    "id": 45137571,
+    "by": "mrkeen",
+    "timeISO": "2025-09-05T12:03:41.000Z",
+    "textPlain": "The author didn't see fit to mention that you just flip the arrows.Classes/Structs know about their children.Relations know about their parents.  If you want crazier m*n relationships you use an association table.Did the author just not know?  Or he didn't see it worthy of dismissal?> Doing this transformation by hand is tedious and error-prone. We call this tedium \"the object-relational mismatch\" but it isn't really about objects or relations.It really is.> The fundamental problem is that fitting complex relationships to human vision usually requires constructing some visual hierarchy, but different tasks require different hierarchies.Yes.  Different tasks require different hierarchies.  One particular way of doing things should not baked into your 1970s relational model.",
     "parent": 45135623,
     "depth": 1
   },
@@ -64,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45137510,
-    "by": "mcdonje",
-    "timeISO": "2025-09-05T11:54:38.000Z",
-    "textPlain": "This was enlightening. I've often wondered why ORMs exist, and it turns out a bunch of devs don't understand tabular data. I was going to say they don't understand SQL, but apparently it goes deeper than that.Like, left joins have been around since SQL-92, so the query not returning a result when there is no director is a skill issue.Nowadays, you can run a JSON or XML query and have the DB return your results in a hierarchical format.",
-    "parent": 45135623,
-    "depth": 1
-  },
-  {
     "id": 45136861,
     "by": "Mikhail_Edoshin",
     "timeISO": "2025-09-05T10:04:45.000Z",
     "textPlain": "There was a discussion about a relevant paper here at HN:\"What if an SQL statement returned a database?\"https://news.ycombinator.com/item?id=38606146",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
+    "id": 45137510,
+    "by": "mcdonje",
+    "timeISO": "2025-09-05T11:54:38.000Z",
+    "textPlain": "This was enlightening. I've often wondered why ORMs exist, and it turns out a bunch of devs don't understand tabular data. I was going to say they don't understand SQL, but apparently it goes deeper than that.Like, left joins have been around since SQL-92, so the query not returning a result when there is no director is a skill issue.Nowadays, you can run a JSON or XML query and have the DB return your results in a hierarchical format.",
     "parent": 45135623,
     "depth": 1
   },
@@ -88,14 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45137506,
-    "by": "phiresky",
-    "timeISO": "2025-09-05T11:53:54.000Z",
-    "textPlain": "I think relational databases are great, but this is my biggest problem with SQL, even before the ridiculous syntax.A query like    select users.*, orders.* from users left join orders on orders.user_id = users.id\n\nShould always have returned a structure like:    type SingleReturnRow = { users: {id: ..., }[], orders: {user_id: ..., id: ..., }[]}\n    type Return = SingleReturnRow[]\n\nMangling the columns together and _removing_ groupings that naturally appear is just so unnecessary.I don't think a larger change in the query language would even be needed.Even better of course would be a return value like    type SingleReturnRow = { user: User, orders: Order[] }\n\nBut I see how that would require a fundamental change in the language.Of course in PG now you can use    select users.*, json_agg(orders.*) as orders from users left join orders on orders.user_id = users.id group by users.id\n\nbut using JSON as intermediate steps just feels unnatural.",
-    "parent": 45135623,
-    "depth": 1
-  },
-  {
     "id": 45136369,
     "by": "sakesun",
     "timeISO": "2025-09-05T08:43:24.000Z",
@@ -104,26 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45143188,
-    "by": "ciconia",
-    "timeISO": "2025-09-05T20:22:08.000Z",
-    "textPlain": "This is a problem that ActiveRecord-style ORM's have failed to solve. One possible solution is writing queries like in the article that transform normalized data from the DB into a JSON structure. Another possibility is to design an ORM that is actually capable of taking a set of relations and dynamically building queries with joins, then transforming the returned rows into tree like structures.This is a very interesting area for exploring a new kind of ORM. I find the whole \"CRUD monkey\" shtick preached by DHH et al quite lacking for expressing the kind of hierarchical data structures developers need.",
-    "parent": 45135623,
-    "depth": 1
-  },
-  {
-    "id": 45137571,
-    "by": "mrkeen",
-    "timeISO": "2025-09-05T12:03:41.000Z",
-    "textPlain": "The author didn't see fit to mention that you just flip the arrows.Classes/Structs know about their children.Relations know about their parents.  If you want crazier m*n relationships you use an association table.Did the author just not know?  Or he didn't see it worthy of dismissal?> Doing this transformation by hand is tedious and error-prone. We call this tedium \"the object-relational mismatch\" but it isn't really about objects or relations.It really is.> The fundamental problem is that fitting complex relationships to human vision usually requires constructing some visual hierarchy, but different tasks require different hierarchies.Yes.  Different tasks require different hierarchies.  One particular way of doing things should not baked into your 1970s relational model.",
-    "parent": 45135623,
-    "depth": 1
-  },
-  {
-    "id": 45139324,
-    "by": "mamcx",
-    "timeISO": "2025-09-05T14:57:25.000Z",
-    "textPlain": "The things `SQL` fail to do that enable this sort of things are:* Store relation-on-cell: All the trick of so called `nosql` is that they can do nested data. THAT IS ALL* Then, `join` is already inline* Then, instead of the very poorly named `GROUP BY` it could has REAL `GROUP BY`!That is all is need at the core",
+    "id": 45137506,
+    "by": "phiresky",
+    "timeISO": "2025-09-05T11:53:54.000Z",
+    "textPlain": "I think relational databases are great, but this is my biggest problem with SQL, even before the ridiculous syntax.A query like    select users.*, orders.* from users left join orders on orders.user_id = users.id\n\nShould always have returned a structure like:    type SingleReturnRow = { users: {id: ..., }[], orders: {user_id: ..., id: ..., }[]}\n    type Return = SingleReturnRow[]\n\nMangling the columns together and _removing_ groupings that naturally appear is just so unnecessary.I don't think a larger change in the query language would even be needed.Even better of course would be a return value like    type SingleReturnRow = { user: User, orders: Order[] }\n\nBut I see how that would require a fundamental change in the language.Of course in PG now you can use    select users.*, json_agg(orders.*) as orders from users left join orders on orders.user_id = users.id group by users.id\n\nbut using JSON as intermediate steps just feels unnatural.",
     "parent": 45135623,
     "depth": 1
   },
@@ -144,10 +128,34 @@
     "depth": 1
   },
   {
+    "id": 45139324,
+    "by": "mamcx",
+    "timeISO": "2025-09-05T14:57:25.000Z",
+    "textPlain": "The things `SQL` fail to do that enable this sort of things are:* Store relation-on-cell: All the trick of so called `nosql` is that they can do nested data. THAT IS ALL* Then, `join` is already inline* Then, instead of the very poorly named `GROUP BY` it could has REAL `GROUP BY`!That is all is need at the core",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
+    "id": 45143904,
+    "by": "dcreater",
+    "timeISO": "2025-09-05T21:36:03.000Z",
+    "textPlain": "Terrible title. SQL is the very definition of structured data. I understand the author means SQL needed tiers/hierarchy/grouping but titling it as he has done just contributes to information pollution / future training data adulteration",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
     "id": 45137516,
     "by": "Spixel_",
     "timeISO": "2025-09-05T11:55:10.000Z",
     "textPlain": "I don't get the transaction bit. At least with postgres, a transaction doesn't guarantee that all statements in it see the data at the same point in time (actually, it's not even guaranteed for subqueries).Also, often, the transactional database servers is more difficult to scale than application servers so from a technical standpoint, it makes sense to do this glue work in app code.",
+    "parent": 45135623,
+    "depth": 1
+  },
+  {
+    "id": 45143188,
+    "by": "ciconia",
+    "timeISO": "2025-09-05T20:22:08.000Z",
+    "textPlain": "This is a problem that ActiveRecord-style ORM's have failed to solve. One possible solution is writing queries like in the article that transform normalized data from the DB into a JSON structure. Another possibility is to design an ORM that is actually capable of taking a set of relations and dynamically building queries with joins, then transforming the returned rows into tree like structures.This is a very interesting area for exploring a new kind of ORM. I find the whole \"CRUD monkey\" shtick preached by DHH et al quite lacking for expressing the kind of hierarchical data structures developers need.",
     "parent": 45135623,
     "depth": 1
   },
@@ -216,35 +224,19 @@
     "depth": 1
   },
   {
+    "id": 45143938,
+    "by": "timeinput",
+    "timeISO": "2025-09-05T21:38:24.000Z",
+    "textPlain": "I've been trying that, and I just keep running into miserable query performance.What order of magnitude do you use this on and find it acceptable? 1MB, 1GB, 1TB, 1PB? At 1GB it seems okay. At 10GB things aren't great, at 100 GB things are pretty grim, and at 1TB I have to denormalize the database or it's all broken (practically).I'm not a database expert, but I don't feel like I'm asking hard questions, but I'm running into trouble with something I thought was 'easy', and matches what you're describing.",
+    "parent": 45139142,
+    "depth": 2
+  },
+  {
     "id": 45143295,
     "by": "gerad",
     "timeISO": "2025-09-05T20:34:47.000Z",
     "textPlain": "couldn't you do a union all instead of outer join on false?",
     "parent": 45139142,
-    "depth": 2
-  },
-  {
-    "id": 45137332,
-    "by": "sinfulprogeny",
-    "timeISO": "2025-09-05T11:25:19.000Z",
-    "textPlain": "Kleppman[1] calls it schema-on-read (json, xml) and schema-on-write (typed columns in an RDB). I like it over structured/unstructured, it's a bit more specific.[1] https://martin.kleppmann.com/2017/03/27/designing-data-inten...",
-    "parent": 45136745,
-    "depth": 2
-  },
-  {
-    "id": 45137727,
-    "by": "stevage",
-    "timeISO": "2025-09-05T12:28:12.000Z",
-    "textPlain": "I think the SQL sense is more that \"structured\" means \"it contains internal structure\" (like a tree), whereas a table without JSON is free from additional structure apart from its own table structure.",
-    "parent": 45136745,
-    "depth": 2
-  },
-  {
-    "id": 45137638,
-    "by": "thaumasiotes",
-    "timeISO": "2025-09-05T12:14:44.000Z",
-    "textPlain": "> Coming from a data engineering and business analytics background, the terms \"structured\" and \"unstructured\" seem to be swapped in meaning here.Mark Rosewater likes to write about his personal concept of \"linear\" Magic: the Gathering decks, which are decks in which the cards tend to pick up synergy bonuses from each other, so that having two of them together is considerably more powerful than you'd expect from the strength of those two cards individually.This always bothers me because it is the opposite of the more normal use of \"linear\" relationships, in which everything contributes exactly as much to an aggregate as it's worth individually.",
-    "parent": 45136745,
     "depth": 2
   },
   {
@@ -277,6 +269,30 @@
     "timeISO": "2025-09-05T14:23:18.000Z",
     "textPlain": "Agree: flat/relational structure is highly efficient to store, query planning/optimization/scaling become a lot easier, the language is clunky but relational algebra is beautiful, but...I think pushing multiple joins to what is still a relational database and getting a complex output isn't the worst idea in the world, as a higher-level layer on top of a regular database.On the other hand, \"it needs four queries/RTTs\" is not the worst thing in the world. It needn't be the goal of a system to achieve theoretical minimum performance for everything.Let those who truly have the problem in prod push the first patch.",
     "parent": 45137135,
+    "depth": 2
+  },
+  {
+    "id": 45137332,
+    "by": "sinfulprogeny",
+    "timeISO": "2025-09-05T11:25:19.000Z",
+    "textPlain": "Kleppman[1] calls it schema-on-read (json, xml) and schema-on-write (typed columns in an RDB). I like it over structured/unstructured, it's a bit more specific.[1] https://martin.kleppmann.com/2017/03/27/designing-data-inten...",
+    "parent": 45136745,
+    "depth": 2
+  },
+  {
+    "id": 45137727,
+    "by": "stevage",
+    "timeISO": "2025-09-05T12:28:12.000Z",
+    "textPlain": "I think the SQL sense is more that \"structured\" means \"it contains internal structure\" (like a tree), whereas a table without JSON is free from additional structure apart from its own table structure.",
+    "parent": 45136745,
+    "depth": 2
+  },
+  {
+    "id": 45137638,
+    "by": "thaumasiotes",
+    "timeISO": "2025-09-05T12:14:44.000Z",
+    "textPlain": "> Coming from a data engineering and business analytics background, the terms \"structured\" and \"unstructured\" seem to be swapped in meaning here.Mark Rosewater likes to write about his personal concept of \"linear\" Magic: the Gathering decks, which are decks in which the cards tend to pick up synergy bonuses from each other, so that having two of them together is considerably more powerful than you'd expect from the strength of those two cards individually.This always bothers me because it is the opposite of the more normal use of \"linear\" relationships, in which everything contributes exactly as much to an aggregate as it's worth individually.",
+    "parent": 45136745,
     "depth": 2
   },
   {
@@ -344,6 +360,14 @@
     "depth": 2
   },
   {
+    "id": 45138534,
+    "by": "bmn__",
+    "timeISO": "2025-09-05T13:46:46.000Z",
+    "textPlain": "The hurdle to entry is too damn high. If you want to have your day ruined, let an ISO WG participant explain to you the social and monetary capital needed just to be able to make the most timid of a suggestion for refining the language.",
+    "parent": 45136369,
+    "depth": 2
+  },
+  {
     "id": 45137624,
     "by": "johannes1234321",
     "timeISO": "2025-09-05T12:12:33.000Z",
@@ -360,14 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45138534,
-    "by": "bmn__",
-    "timeISO": "2025-09-05T13:46:46.000Z",
-    "textPlain": "The hurdle to entry is too damn high. If you want to have your day ruined, let an ISO WG participant explain to you the social and monetary capital needed just to be able to make the most timid of a suggestion for refining the language.",
-    "parent": 45136369,
-    "depth": 2
-  },
-  {
     "id": 45139580,
     "by": "reaanb2",
     "timeISO": "2025-09-05T15:18:40.000Z",
@@ -380,22 +396,6 @@
     "by": "andyferris",
     "timeISO": "2025-09-05T12:23:40.000Z",
     "textPlain": "> a transaction doesn't guarantee that all statements in it see the data at the same point in timeThis depends on the transaction isolation level. If you use snapshot or serializable this should be the case (but you may have aborted transactions due to optimistic concurrency).",
-    "parent": 45137516,
-    "depth": 2
-  },
-  {
-    "id": 45137596,
-    "by": "TheTaytay",
-    "timeISO": "2025-09-05T12:06:43.000Z",
-    "textPlain": "Doesn’t it guarantee consistency from the time the transaction started (assuming read committed isolation)? It guarantees you won’t see something “later” than when your transaction began.https://www.postgresql.org/docs/current/transaction-iso.htmlI’m likely misunderstanding what you mean by time.",
-    "parent": 45137516,
-    "depth": 2
-  },
-  {
-    "id": 45138150,
-    "by": "Jweb_Guru",
-    "timeISO": "2025-09-05T13:12:48.000Z",
-    "textPlain": "SSI scales fine for most workloads as long as you correctly mark your read-only transactions.",
     "parent": 45137516,
     "depth": 2
   }
