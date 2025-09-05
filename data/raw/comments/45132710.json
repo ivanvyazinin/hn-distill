@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45136107,
-    "by": "avallach",
-    "timeISO": "2025-09-05T07:58:02.000Z",
-    "textPlain": "Maybe I'm misunderstanding, but after reading it sounds to me not like \"io_uring is faster than mmap\" but \"raid0 with 8 SSDs has more throughput than 3 channel DRAM\".",
+    "id": 45136365,
+    "by": "nextaccountic",
+    "timeISO": "2025-09-05T08:42:55.000Z",
+    "textPlain": "The real difference is that with io_uring and O_DIRECT you manage the cache yourself (and can't share with other processes, and the OS can't reclaim the cache automatically if under memory pressure), and with mmap this is managed by the OS.If Linux had an API to say \"manage this buffer you handled me from io_uring as if it were a VFS page cache (and as such it can be shared with other processes, like mmap), if you want it back just call this callback (so I can cleanup my references to it) and you are good to go\", then io_uring could really replace mmap.What Linux has currently is PSI, which lets the OS reclaim memory when needed but doesn't help with the buffer sharing thing",
     "parent": 45132710,
     "depth": 1
   },
@@ -20,6 +20,14 @@
     "by": "bawolff",
     "timeISO": "2025-09-05T00:26:47.000Z",
     "textPlain": "Shouldn't you also compare to mmap with huge page option? My understanding is its presicely meant for this circumstance. I don't think its a fair comparison without it.Respectfully, the title feels a little clickbaity to me. Both methods are still ultimately reading out of memory, they are just using different i/o methods.",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45136107,
+    "by": "avallach",
+    "timeISO": "2025-09-05T07:58:02.000Z",
+    "textPlain": "Maybe I'm misunderstanding, but after reading it sounds to me not like \"io_uring is faster than mmap\" but \"raid0 with 8 SSDs has more throughput than 3 channel DRAM\".",
     "parent": 45132710,
     "depth": 1
   },
@@ -112,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 45134007,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:06:31.000Z",
+    "textPlain": "The original blog post title is intentionally clickbaity.  You know, to bait people into clicking.  Also I do want to challenge people to really think here.Seeing if the cached file data can be accessed quickly is the point of the experiment.  I can't get mmap() to open a file with huge pages.void* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0); doesn't work.You can can see my code here https://github.com/bitflux-ai/blog_notes.  Any ideas?",
+    "parent": 45133765,
+    "depth": 2
+  },
+  {
     "id": 45136255,
     "by": "nine_k",
     "timeISO": "2025-09-05T08:23:51.000Z",
@@ -120,11 +136,11 @@
     "depth": 2
   },
   {
-    "id": 45134007,
-    "by": "jared_hulbert",
-    "timeISO": "2025-09-05T01:06:31.000Z",
-    "textPlain": "The original blog post title is intentionally clickbaity.  You know, to bait people into clicking.  Also I do want to challenge people to really think here.Seeing if the cached file data can be accessed quickly is the point of the experiment.  I can't get mmap() to open a file with huge pages.void* buffer = mmap(NULL, size_bytes, PROT_READ, (MAP_HUGETLB | MAP_HUGE_1GB), fd, 0); doesn't work.You can can see my code here https://github.com/bitflux-ai/blog_notes.  Any ideas?",
-    "parent": 45133765,
+    "id": 45136511,
+    "by": "rwmj",
+    "timeISO": "2025-09-05T09:04:54.000Z",
+    "textPlain": "That's the promise (or requirement?) of CXL - have your memory managed centrally, servers access it over PCIe.  https://en.wikipedia.org/wiki/Compute_Express_Link  I wonder how many are actually using CXL.  I haven't heard of any customers deploying it so far.",
+    "parent": 45134728,
     "depth": 2
   },
   {
@@ -149,6 +165,14 @@
     "timeISO": "2025-09-05T03:30:05.000Z",
     "textPlain": "on server chips it's kind of ridiculous. 5th gen Epyc has 128 lanes of PCIEx5 for over 1TB/s of pcie bandwith (compared to 600GB/s RAM bandwidth from 12 channel ddr5 at 6400)",
     "parent": 45134728,
+    "depth": 2
+  },
+  {
+    "id": 45136289,
+    "by": "nine_k",
+    "timeISO": "2025-09-05T08:29:54.000Z",
+    "textPlain": "No. \"io_uring faster than mmap\" is sort of a truism: sequential page faults are slower than carefully orchestrated async I/O. The point of the article is that reading directly from a PCIe device, such as an NVMe flash, can actually be faster than caching things in RAM first.",
+    "parent": 45133595,
     "depth": 2
   },
   {
