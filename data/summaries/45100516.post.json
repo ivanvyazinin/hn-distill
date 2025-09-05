@@ -1,0 +1,8 @@
+{
+  "id": 45100516,
+  "lang": "ru",
+  "summary": "```markdown\nПереезд с Linux на OmniOS ради проекта Katarineko (Elixir + Rust-NIF через Rustler) прошёл гладко, пока тестер не словил `:nif_not_loaded`.  \nNIFы — обычные `.so`, значит дело в загрузке библиотеки. Вместо `dlopen` я случайно половил `open(2)` и сразу увидел, что `libkatarineko_srs.so` открывается, стек показал вызовы `dlopen → erts_load_nif`. Понадобился dtrace-скрипт:\n\n```\nsyscall::open:entry\n/pid == $target && strstr(copyinstr(arg0), \"libkatarineko_srs\")/\n{ printf(\"%s\\n\", copyinstr(arg0)); ustack(); }\n```\n\nЗапуск: `dtrace -s erlang_nif.d -c 'mix test'`.  \nДальше смотрим в `erts/emulator/beam/erl_nif.c` и ищем, где именно загрузка проваливается.\n```",
+  "inputHash": "f180cdec36fb058329f895810d3ad18ed8c98cf790d0dd5ba48fb3294727b1ee",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-09-05T14:24:10.465Z"
+}
