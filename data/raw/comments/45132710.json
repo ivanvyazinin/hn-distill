@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45140882,
+    "by": "johnisgood",
+    "timeISO": "2025-09-05T17:05:42.000Z",
+    "textPlain": "splice / vmsplice with pipes would probably be the fastest for  the use case of file -> pipe -> user-space -> CPU processing. Problem is, you eventually have to access user-space memory to count integers, which  breaks the zero-copy advantage for this workload. It probably won't beat the already vectorized O_DIRECT method.What about direct-access hardware with DMA to CPU caches (NUMA-aware / cache-pinned)? PCIe NVMe controllers can use DMA to user-space buffers (O_DIRECT or SPDK) and if buffers are pinned to CPU local caches, then you can avoid main memory latency. It does require SPDK (Storage Performance Development Kit) or similar user-space NVMe drivers, however. IMO this is likely faster than io_uring + O_DIRECT, especially on large datasets, the only problem is that it requires specialized user-space NVMe stacks and careful buffer alignment.You could also aggressively unroll loops and use prefetch instructions to hide memory latency, i.e. SIMD / AVX512 vectorization with prefetching. The blog post used AVX2 (128/256-bit) but on a modern CPU, AVX512 can process 512 bits (16 integers) per instruction and manual prefetching of data can reduce L1/L2 cache misses. I think this could beat AVX counting from the blog.As for MAP_HUGETLB, 4KB page faults add overhead with a normal mmap. You want to map large pages (2 MB / 1 GB) which means fewer page table walks and reduced TLB misses reduced, meaning on a 50 GB dataset, using hugepages can reduce kernel overhead and speed up mmap-based counting, but it is still likely slightly slower than O_DIRECT + vectorized counting, so disregard.TL;DR:I think the faster practical CPU method is: O_DIRECT + aligned buffer + AVX512 + unrolled counting + NUMA-aware allocation.Theoretically fastest (requires specialized setup): SPDK / DMA -> CPU caches + AVX512, bypassing main memory.Mmap or page-cache approaches are neat but always slower for large sequential workloads.Just my two cents. Thoughts?",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45138624,
     "by": "daniele_dll",
     "timeISO": "2025-09-05T13:54:44.000Z",
@@ -32,18 +40,26 @@
     "depth": 1
   },
   {
-    "id": 45136107,
-    "by": "avallach",
-    "timeISO": "2025-09-05T07:58:02.000Z",
-    "textPlain": "Maybe I'm misunderstanding, but after reading it sounds to me not like \"io_uring is faster than mmap\" but \"raid0 with 8 SSDs has more throughput than 3 channel DRAM\".",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
     "id": 45134728,
     "by": "modeless",
     "timeISO": "2025-09-05T03:25:54.000Z",
     "textPlain": "Wait, PCIe bandwidth is higher than memory bandwidth now? That's bonkers, when did that happen? I haven't been keeping up.Just looked at the i9-14900k and I guess it's true, but only if you add all the PCIe lanes together. I'm sure there are other chips where it's even more true. Crazy!",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45140699,
+    "by": "yencabulator",
+    "timeISO": "2025-09-05T16:49:44.000Z",
+    "textPlain": ">  Memory is slow, Disk is fast - Part 2.Bullshit clickbait title. More like \"naive algorithm is slower than prefetching\". Hidden at the end of the article:  >  Memory is slow - when you use it oldschool.\n  >  Disk is fast - when you are clever with it.\n\nThe author spent a lot of time benchmarking a thing completely unrelated to the premise of the article. And the only conclusion to be drawn from the benchmark is utterly unsurprising.---Linux mmap behavior has two features that can hurt, but this article does not deliver that sermon well. Here's what to worry about with mmap:- for reads, cache misses are unpredictable, and stall more expensive resources than an outstanding io_uring request\n- for writes, the atomicity story is very hard to get right, and unpredictable writeback delay stalls more expensive resources than an outstanding io_uring request (very few real world production systems with durability write through mmap; you can use conventional write APIs with read-side mmap)",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
+    "id": 45136107,
+    "by": "avallach",
+    "timeISO": "2025-09-05T07:58:02.000Z",
+    "textPlain": "Maybe I'm misunderstanding, but after reading it sounds to me not like \"io_uring is faster than mmap\" but \"raid0 with 8 SSDs has more throughput than 3 channel DRAM\".",
     "parent": 45132710,
     "depth": 1
   },
@@ -72,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 45134800,
+    "by": "themafia",
+    "timeISO": "2025-09-05T03:43:05.000Z",
+    "textPlain": "no madvise() call with MADV_SEQUENTIAL?",
+    "parent": 45132710,
+    "depth": 1
+  },
+  {
     "id": 45136753,
     "by": "kragen",
     "timeISO": "2025-09-05T09:44:44.000Z",
@@ -88,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45134800,
-    "by": "themafia",
-    "timeISO": "2025-09-05T03:43:05.000Z",
-    "textPlain": "no madvise() call with MADV_SEQUENTIAL?",
+    "id": 45135241,
+    "by": "pixelpoet",
+    "timeISO": "2025-09-05T05:29:27.000Z",
+    "textPlain": "> A few notes for the \"um actually\" haters commenting on Hacker NewsStay classy; any criticism is of course \"hating\", right?The fact that your title is clickbaity and your results suspect should encourage you to get the most accurate picture, not shoot the messenger.",
     "parent": 45132710,
     "depth": 1
   },
@@ -100,14 +124,6 @@
     "by": "titanomachy",
     "timeISO": "2025-09-05T00:05:23.000Z",
     "textPlain": "Very interesting article, thanks for publishing these tests!Is the manual loop unrolling really necessary to get vectorized machine code? I would have guessed that the highest optimization levels in LLVM would be able to figure it out from the basic code. That's a very uneducated guess, though.Also, curious if you tried using the MAP_POPULATE option with mmap. Could that improve the bandwidth of the naive in-memory solution?> humanity doesn't have the silicon fabs or the power plants to support this for every moron vibe coder out there making an app.lol. I bet if someone took the time to make a high-quality well-documented fast-IO library based on your io_uring solution, it would get use.",
-    "parent": 45132710,
-    "depth": 1
-  },
-  {
-    "id": 45135241,
-    "by": "pixelpoet",
-    "timeISO": "2025-09-05T05:29:27.000Z",
-    "textPlain": "> A few notes for the \"um actually\" haters commenting on Hacker NewsStay classy; any criticism is of course \"hating\", right?The fact that your title is clickbaity and your results suspect should encourage you to get the most accurate picture, not shoot the messenger.",
     "parent": 45132710,
     "depth": 1
   },
@@ -155,7 +171,7 @@
     "id": 45137420,
     "by": "kat529770",
     "timeISO": "2025-09-05T11:39:16.000Z",
-    "textPlain": "[dead]",
+    "textPlain": "Performance claims aside, the real win with io_uring is how much control it gives you over async I/O without the syscall overhead. mmap’s great for simplicity, but once you hit high-concurrency or multi-buffer use cases, io_uring starts flexing. Anyone benchmarked it with real-world workloads (e.g., DB-backed APIs or log ingestion)?",
     "parent": 45132710,
     "depth": 1
   },
@@ -168,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45140052,
-    "by": "arunc",
-    "timeISO": "2025-09-05T15:59:33.000Z",
-    "textPlain": "Indeed. Use with mmap with MAP_POPULATE which will pre populate.",
-    "parent": 45135399,
-    "depth": 2
-  },
-  {
     "id": 45135629,
     "by": "lucketone",
     "timeISO": "2025-09-05T06:45:37.000Z",
     "textPlain": "It would seem you summarised whole post.That’s the point: “mmap” is slow because it is serial.",
+    "parent": 45135399,
+    "depth": 2
+  },
+  {
+    "id": 45140052,
+    "by": "arunc",
+    "timeISO": "2025-09-05T15:59:33.000Z",
+    "textPlain": "Indeed. Use with mmap with MAP_POPULATE which will pre populate.",
     "parent": 45135399,
     "depth": 2
   },
@@ -205,14 +221,6 @@
     "timeISO": "2025-09-05T14:09:28.000Z",
     "textPlain": "You don't need hugepages for basic 5GB/s sequential scans. I don't know the exact circumstances that would cause TLB pressure, but this is not it.You can maybe reduce the number of page faults, but you can do that by walking the mapped address space once before the actual benchmark too.",
     "parent": 45133765,
-    "depth": 2
-  },
-  {
-    "id": 45136255,
-    "by": "nine_k",
-    "timeISO": "2025-09-05T08:23:51.000Z",
-    "textPlain": "The title has been edited incorrectly. The original page title is \"Memory is slow, Disk is fast\", and it states exactly what you say: an NVMe RAID can offer more bandwidth than RAM.",
-    "parent": 45136107,
     "depth": 2
   },
   {
@@ -248,6 +256,14 @@
     "depth": 2
   },
   {
+    "id": 45136255,
+    "by": "nine_k",
+    "timeISO": "2025-09-05T08:23:51.000Z",
+    "textPlain": "The title has been edited incorrectly. The original page title is \"Memory is slow, Disk is fast\", and it states exactly what you say: an NVMe RAID can offer more bandwidth than RAM.",
+    "parent": 45136107,
+    "depth": 2
+  },
+  {
     "id": 45136289,
     "by": "nine_k",
     "timeISO": "2025-09-05T08:29:54.000Z",
@@ -280,19 +296,19 @@
     "depth": 2
   },
   {
+    "id": 45140562,
+    "by": "yencabulator",
+    "timeISO": "2025-09-05T16:38:52.000Z",
+    "textPlain": "It's a complex shared-memory protocol implemented in C. It'll take a while to settle down fully, and it's still getting new features. If you're targeted by state-level actors, contain or avoid; if not, upgrade regularly.It's all a question of risk management; for example, Google has historically used container-based sandboxes for their own code (even before Linux containers were a thing), and there an io_uring vulnerability could expose them to attacks by any swdev employee. And for real performance where needed the big boys are bypassing the kernel networking and block I/O stacks anyway (load balancers, ML, ...).I think the real question to ask is why are you running hostile code outside a dedicated VM? Lots of places will happily give you root inside a VM, and in that context io_uring attacks are irrelevant. That trust boundary is probably just as complex (KVM, virtio, very similar ringbuffers as io_uring really), but the trusted side these days is often Rust and more trustworthy.For \"non-hostile code\", frankly other attacks are typically simpler. That's likely the stuff your devs run on their workstations all the time. It likely has direct access to the family jewels and networking at the same time, without needing to use any exploit.The real fix is to slowly push the industry off of C/C++, and figure out how to use formal methods to reason about shared-memory protocols better. For example, if your \"received buffer\" abstraction only lets you read every byte exactly once, you can't be vulnerable to TOCTOU. That'd be pretty easy to do safely but the whole reason a shared-memory protocols was used in the first place was performance, and that trade-off is a lot less trivial.",
+    "parent": 45137573,
+    "depth": 2
+  },
+  {
     "id": 45138799,
     "by": "p_l",
     "timeISO": "2025-09-05T14:08:50.000Z",
     "textPlain": "It's more that io_uring has not enough integration with LSMs and the like, so for example on Android it's disabled because Android heavily uses SElinux which would be bypassed by io_uring",
     "parent": 45137573,
-    "depth": 2
-  },
-  {
-    "id": 45134258,
-    "by": "jared_hulbert",
-    "timeISO": "2025-09-05T01:46:28.000Z",
-    "textPlain": "YES!  gcc and clang don't like to optimize this.  But they do if you hardcode the size_bytes to an aligned value. It kind of makes sense, what if a user passes size_bytes as 3?  With enough effort the compilers could handle this, but it's a lot to ask.I just ran MAP_POPULATE the results are interesting.It speeds up the counting loop.  Same speed or higher as the my read() to a malloced buffer tests.HOWEVER...  It takes a longer time overall to do the population of the buffer.  The end result is it's 2.5 seconds slower to run the full test when compared to the original.  I did not guess that one correctly.time ./count_10_unrolled ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 5.39 GB/s\n./count_10_unrolled ./mnt/datafile.bin 53687091200  5.58s user 6.39s system 99% cpu 11.972 total\n time ./count_10_populate ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 8.99 GB/s\n./count_10_populate ./mnt/datafile.bin 53687091200  5.56s user 8.99s system 99% cpu 14.551 total",
-    "parent": 45133648,
     "depth": 2
   },
   {
@@ -309,6 +325,14 @@
     "timeISO": "2025-09-05T07:45:18.000Z",
     "textPlain": "I can bite (softly) on part of that, since there is C code in the post. :)This:    size_t count = 0;\n    /// ... code to actually count elided ...\n    printf(\"Found %ld 10s\\n\", count);\n\nis wrong, since `count` has type `size_t` you should print it using `%zu` which is the dedicated purpose-built formatting code for `size_t` values. Also passing an unsigned value to `%d` which is for (signed) `int` is wrong, too.The (C17 draft) standard says \"If any argument is not the correct type for the corresponding conversion specification, the behavior is undefined\" so this is not intended as pointless language-lawyering, it's just that it can be important to get silly details like this right in C.",
     "parent": 45135241,
+    "depth": 2
+  },
+  {
+    "id": 45134258,
+    "by": "jared_hulbert",
+    "timeISO": "2025-09-05T01:46:28.000Z",
+    "textPlain": "YES!  gcc and clang don't like to optimize this.  But they do if you hardcode the size_bytes to an aligned value. It kind of makes sense, what if a user passes size_bytes as 3?  With enough effort the compilers could handle this, but it's a lot to ask.I just ran MAP_POPULATE the results are interesting.It speeds up the counting loop.  Same speed or higher as the my read() to a malloced buffer tests.HOWEVER...  It takes a longer time overall to do the population of the buffer.  The end result is it's 2.5 seconds slower to run the full test when compared to the original.  I did not guess that one correctly.time ./count_10_unrolled ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 5.39 GB/s\n./count_10_unrolled ./mnt/datafile.bin 53687091200  5.58s user 6.39s system 99% cpu 11.972 total\n time ./count_10_populate ./mnt/datafile.bin 53687091200\nunrolled loop found 167802249 10s processed at 8.99 GB/s\n./count_10_populate ./mnt/datafile.bin 53687091200  5.56s user 8.99s system 99% cpu 14.551 total",
+    "parent": 45133648,
     "depth": 2
   },
   {
