@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45137283,
-    "by": "illuminator83",
-    "timeISO": "2025-09-05T11:16:04.000Z",
-    "textPlain": "IMHO Garbage collection is and always was an evolutionary dead end. No matter how nice you make it, it feels wrong to make a mess and have some else clean it up inefficiently at some point later.And because of that it always involves some sort of hidden runtime cost which might bite you eventually and makes it unusable for many tasks.I'd rather have my resource management verified at compile time and with no runtime overhead. That this is possible is proven by multiple languages now.That being said, I can imagine some C programs for which using Fil-C is an acceptable trade-off because they just won't be rewritten in language that is safer anytime soon.",
-    "parent": 45133938,
-    "depth": 1
-  },
-  {
     "id": 45134578,
     "by": "crawshaw",
     "timeISO": "2025-09-05T02:56:37.000Z",
@@ -32,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45135618,
-    "by": "RobertEva",
-    "timeISO": "2025-09-05T06:42:30.000Z",
-    "textPlain": "Pretty wild to see a concurrent, non-moving GC strapped onto plain C. If I can take a mid-size C codebase and trade ~2–3× runtime for fewer memory footguns, I’d take it. How rough is incremental adoption—per target, or all-in toolchain?",
+    "id": 45137283,
+    "by": "illuminator83",
+    "timeISO": "2025-09-05T11:16:04.000Z",
+    "textPlain": "IMHO Garbage collection is and always was an evolutionary dead end. No matter how nice you make it, it feels wrong to make a mess and have some else clean it up inefficiently at some point later.And because of that it always involves some sort of hidden runtime cost which might bite you eventually and makes it unusable for many tasks.I'd rather have my resource management verified at compile time and with no runtime overhead. That this is possible is proven by multiple languages now.That being said, I can imagine some C programs for which using Fil-C is an acceptable trade-off because they just won't be rewritten in language that is safer anytime soon.",
     "parent": 45133938,
     "depth": 1
   },
@@ -44,6 +36,14 @@
     "by": "pcfwik",
     "timeISO": "2025-09-05T02:33:18.000Z",
     "textPlain": "Given the goal is to work with existing C programs (which already have free(...) calls \"carefully\" placed), and you're already keeping separate bounds info for every pointer, I wonder why you chose to go with a full GC rather than lock-and-key style temporal checking[1]? The latter would make memory usage more predictable and avoid the performance overhead and scheduling headaches of a GC.Perhaps storing the key would take too much space, or checking it would take too much time, or storing it would cause race condition issues in a multithreaded setting?[1] https://acg.cis.upenn.edu/papers/ismm10_cets.pdf",
+    "parent": 45133938,
+    "depth": 1
+  },
+  {
+    "id": 45135618,
+    "by": "RobertEva",
+    "timeISO": "2025-09-05T06:42:30.000Z",
+    "textPlain": "Pretty wild to see a concurrent, non-moving GC strapped onto plain C. If I can take a mid-size C codebase and trade ~2–3× runtime for fewer memory footguns, I’d take it. How rough is incremental adoption—per target, or all-in toolchain?",
     "parent": 45133938,
     "depth": 1
   },
@@ -104,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45137520,
-    "by": "gok",
-    "timeISO": "2025-09-05T11:56:03.000Z",
-    "textPlain": "How hard would it be to add generational collection?",
-    "parent": 45133938,
-    "depth": 1
-  },
-  {
     "id": 45134804,
     "by": "o11c",
     "timeISO": "2025-09-05T03:44:43.000Z",
     "textPlain": "Note that the \"safepointing\" logic is exactly the same thing that's needed in refcounting to atomic replace a field.This article glosses over what I consider the hardest part - the enter/exit functionality around native functions may that block (but which must touch the allocator).",
+    "parent": 45133938,
+    "depth": 1
+  },
+  {
+    "id": 45137520,
+    "by": "gok",
+    "timeISO": "2025-09-05T11:56:03.000Z",
+    "textPlain": "How hard would it be to add generational collection?",
     "parent": 45133938,
     "depth": 1
   },
@@ -232,30 +232,6 @@
     "depth": 2
   },
   {
-    "id": 45137347,
-    "by": "zozbot234",
-    "timeISO": "2025-09-05T11:28:08.000Z",
-    "textPlain": "> IMHO Garbage collection is and always was an evolutionary dead end. No matter how nice you make it, it feels wrong to make a mess and have some else clean it up inefficiently at some point later.There are problem domains where tracing garbage collection simply cannot be avoided. This is essentially always the case when working with problems that involve constructing arbitrary spaghetti-like reference graphs, possibly with cycles.  There's no alternative in that case to \"making a mess\" and dealing with it as you go, because that need is inherent in the problem itself.It would be interesting to have a version of Fil-C that could work with a memory-safe language like Rust to allow both \"safe\" leaf references (potentially using ownership and reference counting to represent more complex allocated objects, but would not themselves \"own\" pointers to Fil-C-managed data, thus avoiding the need to trace inside these objects and auto-free them) and general Fil-C managed pointers with possible cycles (perhaps restricted to some arena/custom address space, to make tracing and collecting more efficient).  Due to memory safety, the use of \"leaf\" references could be ensured not to alter the invariants that Fil-C relies on; but managed pointers would nonetheless be available whenever GC could not be avoided.",
-    "parent": 45137283,
-    "depth": 2
-  },
-  {
-    "id": 45137631,
-    "by": "dan-robertson",
-    "timeISO": "2025-09-05T12:13:30.000Z",
-    "textPlain": "Garbage collection performance lies along a memory-overhead vs time-overhead curve which can be tuned. Manual memory management sits at one end (minimal memory overhead) but is often slower than garbage collection if you are willing to accept some space overhead. Observe that the most performance sensitive programs worry a lot about allocation whether or not they use garbage collection.",
-    "parent": 45137283,
-    "depth": 2
-  },
-  {
-    "id": 45137597,
-    "by": "TacticalCoder",
-    "timeISO": "2025-09-05T12:06:44.000Z",
-    "textPlain": "[dead]",
-    "parent": 45137283,
-    "depth": 2
-  },
-  {
     "id": 45134840,
     "by": "johncolanduoni",
     "timeISO": "2025-09-05T03:52:31.000Z",
@@ -288,6 +264,38 @@
     "depth": 2
   },
   {
+    "id": 45137347,
+    "by": "zozbot234",
+    "timeISO": "2025-09-05T11:28:08.000Z",
+    "textPlain": "> IMHO Garbage collection is and always was an evolutionary dead end. No matter how nice you make it, it feels wrong to make a mess and have some else clean it up inefficiently at some point later.There are problem domains where tracing garbage collection simply cannot be avoided. This is essentially always the case when working with problems that involve constructing arbitrary spaghetti-like reference graphs, possibly with cycles.  There's no alternative in that case to \"making a mess\" and dealing with it as you go, because that requirement is inherent in the problem itself.It would be interesting to have a version of Fil-C that could work with a memory-safe language like Rust to allow both \"safe\" leaf references (potentially using ownership and reference counting to represent more complex allocated objects, but would not themselves \"own\" pointers to Fil-C-managed data, thus avoiding the need to trace inside these objects and auto-free them) and general Fil-C managed pointers with possible cycles (perhaps restricted to some arena/custom address space, to make tracing and collecting more efficient).  Due to memory safety, the use of \"leaf\" references could be ensured not to alter the invariants that Fil-C relies on; but managed pointers would nonetheless be available whenever GC could not be avoided.",
+    "parent": 45137283,
+    "depth": 2
+  },
+  {
+    "id": 45137631,
+    "by": "dan-robertson",
+    "timeISO": "2025-09-05T12:13:30.000Z",
+    "textPlain": "Garbage collection performance lies along a memory-overhead vs time-overhead curve which can be tuned. Manual memory management sits at one end (minimal memory overhead) but is often slower than garbage collection if you are willing to accept some space overhead. Observe that the most performance sensitive programs worry a lot about allocation whether or not they use garbage collection.",
+    "parent": 45137283,
+    "depth": 2
+  },
+  {
+    "id": 45138183,
+    "by": "foldr",
+    "timeISO": "2025-09-05T13:15:28.000Z",
+    "textPlain": ">I'd rather have my resource management verified at compile time and with no runtime overheadMalloc and free have runtime overhead — sometimes more than the overhead of garbage collection.The only way to have no overhead is to statically allocate fixed sized buffers for everything.",
+    "parent": 45137283,
+    "depth": 2
+  },
+  {
+    "id": 45137597,
+    "by": "TacticalCoder",
+    "timeISO": "2025-09-05T12:06:44.000Z",
+    "textPlain": "[dead]",
+    "parent": 45137283,
+    "depth": 2
+  },
+  {
     "id": 45134484,
     "by": "pizlonator",
     "timeISO": "2025-09-05T02:34:25.000Z",
@@ -317,6 +325,14 @@
     "timeISO": "2025-09-05T03:05:50.000Z",
     "textPlain": "Yeah that’s a common optimization for poll checks. I think most production JVMs do that.I’m very far from doing those kinds of low level optimizations because I have a large pile of very high level and very basic optimizations still left to do!",
     "parent": 45134618,
+    "depth": 2
+  },
+  {
+    "id": 45138263,
+    "by": "shim__",
+    "timeISO": "2025-09-05T13:21:37.000Z",
+    "textPlain": "Pointers are always integers, which can be interpreted as pointers.",
+    "parent": 45135042,
     "depth": 2
   },
   {
