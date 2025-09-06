@@ -1,0 +1,8 @@
+{
+  "id": 45141769,
+  "lang": "ru",
+  "summary": "- **Проблема**: 4-строчный ядро на Blackwell даёт 0,3 % от cuBLAS, теряет 1758 TFlops.  \n- **Цель**: поднять скорость >50×, используя новые фишки чипа.  \n- **Форма**: A,B,C — 4096×4096, B транспонирован.  \n\n**Ключевые шаги**  \n1. **Глобальная память → L2 → shared**:  \n   - загружаем 128×128 плитками, `cp.async` bypass L1;  \n   - double-buffer, чтобы вычисления идут параллельно пересылке.  \n\n2. **Tensor Cores**:  \n   - `mma.sync.aligned.m16n8k8.row.col.f16.f16.f16.f16` — 4× пропускная способность vs FMA;  \n   - кэш-операции `ldmatrix` дают 2× bandwidth к регистрам.  \n\n3. **Blackwell-эксклюзив**:  \n   - TMA (Tensor Memory Accelerator) — асинхронные 2-D/5-D копии без кода ядра;  \n   - 192 КБ shared на SM (вдвое больше Ampere) → плитка 256×128×f16 помещается целиком;  \n   - `wgmma` (warpgroup-level MMA) — 128×128 за 1 инструкцию, 3× быстрее классического mma.  \n\n4. **Раскладка warp**:  \n   - 4 warpgroup × 32 тред = 128 тредов;  \n   - каждая вычисляет 64×64 фрагмент C, аккумуляторы в f32.  \n\n5. **Software pipeline 3 стадии**:  \n   - prologue → main loop (cp.async + wgmma) → epilogue;  \n   - `mbarrier` синхронизирует TMA и shared.  \n\n**Результат**: 58× ускорение, 51 TFlops (30 % пиковых 175).  \n**Следующие посты**: произвольные размеры, специализация под K%64, cuBLAS-уровень.",
+  "inputHash": "76d2689f87bbc9dfa05f64e00e3f79f0e40827012e2c9f0ce8a4c639c162def3",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-09-06T23:21:47.614Z"
+}
