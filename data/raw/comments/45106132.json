@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45147797,
-    "by": "atoav",
-    "timeISO": "2025-09-06T09:17:31.000Z",
-    "textPlain": "[delayed]",
+    "id": 45147877,
+    "by": "weinzierl",
+    "timeISO": "2025-09-06T09:36:11.000Z",
+    "textPlain": "With Rust executing a function for either case deploys the “optimal” version (reference or move) by default, moreover, the compiler (not the linter) will point out the any improper “use after moves”.    struct Data {\n      // Vec cannot implement \"Copy\" type\n      data: Vec<i32>,\n    }\n\n    // Equivalent to \"passing by const-ref\" in C++\n    fn BusinessLogic(d :&Data) {\n      d.DoThing();\n    }\n\n    // Equivalent to \"move\" in C++\n    fn FactoryFunction(d: Data) -> Owner {\n      owner = Owner{data: d};\n      // ...\n      return owner\n    }\n\nIs this really true?I believe in Rust, when you move a non-Copy type, like in this case, it is up to the compiler if it passes a reference or makes a physical copy.In my (admittedly limited) understanding of Rust semantics calling     FactoryFunction(d: Data) \n\ncould physically copy d despite it being non-Copy. Is this correct?EDIT:Thinking about it, the example is probably watertight because d is essentially a Vec (as Ygg2 pointed out).My point is that if you see     FactoryFunction(d: Data) \n\nand all you know is that d is non-Copy you should not assume it is not physically copied on function call. At least that is my believe.",
     "parent": 45106132,
     "depth": 1
   },
@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45147771,
-    "by": "b0gb",
-    "timeISO": "2025-09-06T09:12:53.000Z",
-    "textPlain": "while doing math... would you call a missing sign a typo rather than a mistake? if so, anything can be a typo...",
+    "id": 45148009,
+    "by": "jmull",
+    "timeISO": "2025-09-06T10:05:25.000Z",
+    "textPlain": "This isn't a C++ vs. Rust thing.If you care about performance, you measure it. If you don't measure performance, you don't care about it.",
     "parent": 45106132,
     "depth": 1
   },
@@ -64,6 +64,30 @@
     "depth": 1
   },
   {
+    "id": 45147771,
+    "by": "b0gb",
+    "timeISO": "2025-09-06T09:12:53.000Z",
+    "textPlain": "while doing math... would you call a missing sign a typo rather than a mistake? if so, anything can be a typo...",
+    "parent": 45106132,
+    "depth": 1
+  },
+  {
+    "id": 45147849,
+    "by": "squirrellous",
+    "timeISO": "2025-09-06T09:28:26.000Z",
+    "textPlain": "This might be an unpopular opinion - I think const by-value parameters in C++ shouldn’t exist. Const reference and mutable values are enough for 99% cases, and the other 1% is r-value refs.Regarding const by-value parameters, they should never appear in function declarations (without definition) since that doesn’t enforce anything. In function definitions, you can use const refs (which have lifetime extension) to achieve the same const-correctness, and const refs are better for large types.Admittedly this further proves the point that c++ is needlessly complicated for users, and I agree with that.",
+    "parent": 45106132,
+    "depth": 1
+  },
+  {
+    "id": 45147797,
+    "by": "atoav",
+    "timeISO": "2025-09-06T09:17:31.000Z",
+    "textPlain": "As someone who programs both C++ and Rust, without even reading the article, my own experience with typos in those languages is:Rust: Typo? Now it just doesn't compile anymore. Worst case is that the compiler does a bad job at explaining the error and you don't find it immediately.C++: Typo? Good luck. Things may now be  broken in so subtle and hard to figure out ways it may haunt you till the rest of your days.But that of course depends on the nature of the typo. Now I should go and read the article.",
+    "parent": 45106132,
+    "depth": 1
+  },
+  {
     "id": 45147194,
     "by": "darig",
     "timeISO": "2025-09-06T06:51:15.000Z",
@@ -88,11 +112,43 @@
     "depth": 2
   },
   {
+    "id": 45147917,
+    "by": "Someone",
+    "timeISO": "2025-09-06T09:45:21.000Z",
+    "textPlain": "> For example, a moved-out-from tree in C++ could represent this by having its inner root pointer be nullptr, and then its dtor would have to check for the root being nullptr,delete null is fine in C++ [1], so, assuming root either is a C++ object or a C type without members that point to data that also must be freed, its destructor can do delete root. And those assumptions would hold in ‘normal’ C++ code.[1] https://en.cppreference.com/w/cpp/language/delete.html: “If ptr is a null pointer value, no destructors are called, and the deallocation function may or may not be called (it's unspecified), but the default deallocation functions are guaranteed to do nothing when passed a null pointer.”",
+    "parent": 45108003,
+    "depth": 2
+  },
+  {
     "id": 45147422,
     "by": "spacechild1",
     "timeISO": "2025-09-06T07:50:56.000Z",
     "textPlain": "In practice, move operations typically just leave an empty object behind. The destructor already has to deal with that. And of course you can't call certain methods on an empty object. So in practice you don't need special logic except for the move operations themselves.",
     "parent": 45108003,
+    "depth": 2
+  },
+  {
+    "id": 45147949,
+    "by": "aw1621107",
+    "timeISO": "2025-09-06T09:52:19.000Z",
+    "textPlain": "> could physically copy d despite it being non-Copy. Is this correct?I believe the answer is technically yes. IIRC a \"move\" in Rust is defined as a bitwise copy of whatever is being moved, modulo optimizations. The only difference is what you can do with the source after - for non-Copy types, the source is no longer considered accessible/usable. With Copy types, the source is still accessible/usable.",
+    "parent": 45147877,
+    "depth": 2
+  },
+  {
+    "id": 45147958,
+    "by": "tialaramex",
+    "timeISO": "2025-09-06T09:55:02.000Z",
+    "textPlain": "Well since you're saying \"physically\" I guess we should talk about a concrete thing, so lets say we're compiling this for the archaic Intel Core i7 I'm writing this on.On that machine Data is \"physically\" just the Vec, which is three 64-bit values, a pointer to i32 (\"physically\" on this machine a virtual address), an integer length and an integer capacity, and the machine has a whole bunch of GPRs so sure, one way the compiler might implement FactoryFuncton is to \"physically\" copy those three values into CPU registers. Maybe say RAX, RCX, RDX ?Actually though there's an excellent chance that this gets inlined in your program, and so FactoryFunction never really exists as a distinct function, the compiler just stamps out the appropriate stuff in line every time we \"call\" this function, so then there was never a \"parameter\" because there was never a \"function\".",
+    "parent": 45147877,
+    "depth": 2
+  },
+  {
+    "id": 45147937,
+    "by": "Ygg2",
+    "timeISO": "2025-09-06T09:50:01.000Z",
+    "textPlain": "Can't run Godbolt on my phone for some reason, but in this case I expect compiler to ignore wrapper types and just pass Vec around.If you have    Vec<i32>\n\n    // newtype struct \n    struct Data{ data: Vec<i32> }\n\n    // newtype enum in rust\n    // Possibly but not 100% sure \n    // enum OneVar { Data(Vec<i32>) }\n\nFrom my experiments with newtype pattern, operations implemented on data and newtype struct yielded same assembly. To be fair in my case it wasn't a Vec but a [u8; 64] and a u32.",
+    "parent": 45147877,
     "depth": 2
   },
   {
@@ -117,6 +173,14 @@
     "timeISO": "2025-09-02T21:53:27.000Z",
     "textPlain": "yeah, I assumed this was going to be some sort of 100 screens of template error nonsense, not an obvious mistake (that is also trivial to find while profiling)",
     "parent": 45109439,
+    "depth": 2
+  },
+  {
+    "id": 45148066,
+    "by": "tialaramex",
+    "timeISO": "2025-09-06T10:17:40.000Z",
+    "textPlain": "That's a fair observation about performance, but I think this goes to correctness too. For some types copying them affects the program correctness, and so in C++ you're more likely to write an incorrect program as a result of this choice.",
+    "parent": 45148009,
     "depth": 2
   },
   {
