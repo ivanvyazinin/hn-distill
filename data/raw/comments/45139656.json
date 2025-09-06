@@ -1,33 +1,9 @@
 [
   {
-    "id": 45141002,
-    "by": "klodolph",
-    "timeISO": "2025-09-05T17:17:51.000Z",
-    "textPlain": "Protobuffers suck as a core data model. My take? Use them as a serialization and interchange format, nothing more.> This puts us in the uncomfortable position of needing to choose between one of three bad alternatives:I don’t think there is a good system out there that works for both serialization and data models. I’d say it’s a mostly unsolved problem. I think I am happy with protobufs. I know that I have to fight against them contaminating the codebase—basically, your code that uses protobufs is code that directly communicates over raw RPC or directly serializes data to/from storage, and protobufs shouldn’t escape into higher-level code.But, and this is a big but, you want that anyway. You probably WANT your serialization to be able to evolve independently of your application logic, and the easy way to do that is to use different types for each. You write application logic using types that have all sorts of validation (in the \"parse, don't validate\" sense) and your serialization layer uses looser validation. This looser validation is nice because you often end up with e.g. buggy code getting shipped that writes invalid data, and if you have a loose serialization layer that just preseves structure (like proto or json), you at least have a good way to munge it into the right shape.Evolving serialized types has been such a massive pain at a lot of workplaces and the ad-hoc systems I've seen often get pulled into adopting some of the same design choices as protos, like \"optional fields everywhere\" and \"unknown fields are ok\". Partly it may be because a lot of ex-Google employees are inevitably hanging around on your team, but partly because some of those design tradeoffs (not ALL of them, just some of them) are really useful long-term, and if you stick around, you may come to the same conclusion.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
     "id": 45140032,
     "by": "lalaithion",
     "timeISO": "2025-09-05T15:58:17.000Z",
     "textPlain": "Protocol buffers suck but so does everything else. Name another serialization declaration format that both (a) defines which changes can be make backwards-compatibly, and (b) has a linter that enforces backwards compatible changes.Just with those two criteria you’re down to, like, six formats at most, of which Protocol Buffers is the most widely used.And I know the article says no one uses the backwards compatible stuff but that’s bizarre to me – setting up N clients and a server that use protocol buffers to communicate and then being able to add fields to the schema and then deploy the servers and clients in any order is way nicer than it is with some other formats that force you to babysit deployment order.The reason why protos suck is because remote procedure calls suck, and protos expose that suckage instead of trying to hide it until you trip on it. I hope the people working on protos, and other alternatives, continue to improve them, but they’re not worse than not using them today.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140085,
-    "by": "xmddmx",
-    "timeISO": "2025-09-05T16:02:25.000Z",
-    "textPlain": "I share the author's sentiment.  I hate these things.True story: trying to reverse engineer macOS Photos.app sqlite database format to extract human-readable location data from an image.I eventually figured it out, but it was:A base64 encoded\nBinary Plist format\nwith one field containing a ProtoBuffer\nwhich contained another protobuffer\nwhich contained a unicode string\nwhich contained improperly encoded data (for example, U+2013 EN DASH was  encoded as \\342\\200\\223)This could have been a simple JSON string.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140068,
-    "by": "mountainriver",
-    "timeISO": "2025-09-05T16:01:08.000Z",
-    "textPlain": "> Protobuffers correspond to the data you want to send over the wire, which is often related but not identical to the actual data the application would like to work withThis sums up a lot of the issues I’ve seen with protobuf as well. It’s not an expressive enough language to be the core data model, yet people use it that way.In general, if you don’t have extreme network needs, then protobuf seems to cause more harm than good. I’ve watched Go teams spend months of time implementing proto based systems with little to no gain over just REST.",
     "parent": 45139656,
     "depth": 1
   },
@@ -40,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45140436,
-    "by": "jsnell",
-    "timeISO": "2025-09-05T16:29:49.000Z",
-    "textPlain": "Discussed many times over the years:https://news.ycombinator.com/item?id=18188519 (299 comments)https://news.ycombinator.com/item?id=21871514 (215 comments)https://news.ycombinator.com/item?id=35281561 (59 comments)",
+    "id": 45140085,
+    "by": "xmddmx",
+    "timeISO": "2025-09-05T16:02:25.000Z",
+    "textPlain": "I share the author's sentiment.  I hate these things.True story: trying to reverse engineer macOS Photos.app sqlite database format to extract human-readable location data from an image.I eventually figured it out, but it was:A base64 encoded\nBinary Plist format\nwith one field containing a ProtoBuffer\nwhich contained another protobuffer\nwhich contained a unicode string\nwhich contained improperly encoded data (for example, U+2013 EN DASH was  encoded as \\342\\200\\223)This could have been a simple JSON string.",
     "parent": 45139656,
     "depth": 1
   },
   {
-    "id": 45140919,
-    "by": "bloppe",
-    "timeISO": "2025-09-05T17:09:21.000Z",
-    "textPlain": "Protobuf's main design goal is to make space-optimized binary tag-length-value encoding easy. The mentality is kinda like \"who cares what the API looks like as long as it can support anything you want to do with TLV encoding and has great performance.\" Things like oneofs and maps are best understood as slightly different ways of creating TLV fields in a message, rather than pieces of a comprehensive modern type system. The provided types are simply the necessary and sufficient elements to model any fuller type system using TLV.",
+    "id": 45140436,
+    "by": "jsnell",
+    "timeISO": "2025-09-05T16:29:49.000Z",
+    "textPlain": "Discussed many times over the years:https://news.ycombinator.com/item?id=18188519 (299 comments)https://news.ycombinator.com/item?id=21871514 (215 comments)https://news.ycombinator.com/item?id=35281561 (59 comments)",
     "parent": 45139656,
     "depth": 1
   },
@@ -64,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45142524,
+    "by": "bithive123",
+    "timeISO": "2025-09-05T19:19:44.000Z",
+    "textPlain": "I don't know if the author is right or wrong; I've never dealt with protobufs professionally.  But I recently implemented them for a hobby project and it was kind of a game-changer.At some stage with every ESP or Arduino project, I want to send and receive  data, i.e. telemetry and control messages.  A lot of people use ad-hoc protocols or HTTP/JSON, but I decided to try the nanopb library.  I ended up with a relatively neat solution that just uses UDP packets.  For my purposes a single packet has plenty of space, and I can easily extend this approach in the future.  I know I'm not the first person to do this but I'll probably keep using protobufs until something better comes along, because the ecosystem exists and I can focus on the stuff I consider to be fun.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
     "id": 45140140,
     "by": "iamdelirium",
     "timeISO": "2025-09-05T16:06:26.000Z",
     "textPlain": "Yeah, oneOf fields can be repeated but you can just wrap them in a message.  It's not as pretty but I've never had any issues with this.The fact that the author is arguing for making all messages required means they don't understand the reasoning for why all fields are optional.  This breaks systems (there are are postmortems outlining this) then there are proto mismatches .",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140068,
+    "by": "mountainriver",
+    "timeISO": "2025-09-05T16:01:08.000Z",
+    "textPlain": "> Protobuffers correspond to the data you want to send over the wire, which is often related but not identical to the actual data the application would like to work withThis sums up a lot of the issues I’ve seen with protobuf as well. It’s not an expressive enough language to be the core data model, yet people use it that way.In general, if you don’t have extreme network needs, then protobuf seems to cause more harm than good. I’ve watched Go teams spend months of time implementing proto based systems with little to no gain over just REST.",
     "parent": 45139656,
     "depth": 1
   },
@@ -96,34 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45140770,
-    "by": "zigzag312",
-    "timeISO": "2025-09-05T16:56:10.000Z",
-    "textPlain": "Among other things, I don't like that they won't support nullable getters/setters:https://protobuf.dev/design-decisions/nullable-getters-sette...",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140855,
-    "by": "guzik",
-    "timeISO": "2025-09-05T17:03:37.000Z",
-    "textPlain": "We thought for a long time about using protobufs in our product [1] and in the end we went with JSON-RPC 2.0 over BLE, base64 for bigger chunks. Yeah, you still need to pass sample format and decode manually. The overhead is fine tho, debugging is way easier (also pulling in all of protobuf just wasn't fun).[1] aidlab.com/aidlab-2",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45139990,
-    "by": "bbkane",
-    "timeISO": "2025-09-05T15:54:59.000Z",
-    "textPlain": "The author makes good arguments; I wish they'd offered some alternatives.Despite issues, protobufs solve real problems and (imo) bring more value than cost to a project. In particular, I'd much rather work with protobufs and their generated ser/de than untyped json",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
     "id": 45140026,
     "by": "dano",
     "timeISO": "2025-09-05T15:57:47.000Z",
     "textPlain": "It is a 7 year old article without specifying alternatives to an \"already solved problem.\"So HN, what are the best alternatives available today and why?",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45141221,
+    "by": "barrkel",
+    "timeISO": "2025-09-05T17:34:18.000Z",
+    "textPlain": "I'm afraid that this is a case of someone imagining that there are Platonic ideal concepts that don't evolve over time, that programs are perfectible. But people are not immortal and everything is always changing.I almost burst out in laughter when the article argued that you should reuse types in preference to inlining definitions. If you've ever felt the pain of needing to split something up, you would not be so eager to reuse. In a codebase with a single process, it's pretty trivial to refactor to split things apart; you can make one CL and be done. In a system with persistence and distribution, it's a lot more awkward.That whole meaning of data vs representation thing. There's fundamentally a truth in the correspondence. As a program evolves, its understanding of its domain increases, and the fidelity of its internal representations increase too, by becoming more specific, more differentiated, more nuanced. But the old data doesn't go away. You don't get to fill in detail for data that was gathered in older times. Sometimes, the referents don't even exist any more. Everything is optional; what was one field may become two fields in the future, with split responsibilities, increased fidelity to the domain.",
     "parent": 45139656,
     "depth": 1
   },
@@ -136,10 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45140578,
-    "by": "gethly",
-    "timeISO": "2025-09-05T16:40:09.000Z",
-    "textPlain": "I too was using PBs a lot, as they are quite popular in the Go world. But i came to the conclusion that they and gRPC are more trouble than they are worth. I switched to JSON, HTTP \"REST\" and websockets, if i need streaming, and am as happy as i could be.I get the api interoperability between various languages when one wants to build a client with strict schema but in reality, this is more of a theory than real life.In essence, anyone who subscribes to YAGNI understands that PB and gRPC are a big no-no.PS: if you need binary format, just use cbor or msgpack. Otherwise the beauty of json is that it human-readable and easily parseable, so  even if you lack access to the original schema, you can still EASILY process the data and UNDERSTAND it as well.",
+    "id": 45139990,
+    "by": "bbkane",
+    "timeISO": "2025-09-05T15:54:59.000Z",
+    "textPlain": "The author makes good arguments; I wish they'd offered some alternatives.Despite issues, protobufs solve real problems and (imo) bring more value than cost to a project. In particular, I'd much rather work with protobufs and their generated ser/de than untyped json",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45145635,
+    "by": "spectraldrift",
+    "timeISO": "2025-09-06T01:13:01.000Z",
+    "textPlain": "I'm not sure why this post gets boosted every few years- and unfortunately (as many have pointed out) the author demonstrates here that they do not understand distributed system design, nor how to use protocol buffers. I have found them to be one of the most useful tools in modern software development when used correctly. Not only are they much faster than JSON, they prevent the inevitable redefinition of nearly identical code across a large number of repos (which is what i've seen in 95% of corporate codebases that eschew tooling such as this). Sure, there are alternatives to protocol buffers, but I have not seen them gain widespread adoption yet.",
     "parent": 45139656,
     "depth": 1
   },
@@ -152,74 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45140917,
-    "by": "shdh",
-    "timeISO": "2025-09-05T17:09:11.000Z",
-    "textPlain": "I just wish protobuf had proper delta compression out of the box",
+    "id": 45142560,
+    "by": "ryukoposting",
+    "timeISO": "2025-09-05T19:22:37.000Z",
+    "textPlain": "Protobuf's original sin was failing to distinguish zero/false from undefined/unset/nil. Confusion around the semantics of a zero value are the root of most proto-related bugs I've come across. At the same time, that very characteristic of protobuf makes its on-wire form really efficient in a lot of cases.Nearly every other complaint is solved by wrapping things in messages (sorry, product types). Don't get the enum limitation on map keys, that complaint is fair.Protobuf eliminates truckloads of stupid serialization/deserialization code that, in my embedded world, almost always has to be hand-written otherwise. If there was a tool that automatically spat out matching C, Kotlin, and Swift parsers from CDDL, I'd certainly give it a shot.",
     "parent": 45139656,
     "depth": 1
   },
   {
-    "id": 45140603,
-    "by": "beders",
-    "timeISO": "2025-09-05T16:41:47.000Z",
-    "textPlain": "If you opt for non-human-readable wire-formats it better be because of very important reasons. Something about measuring performance and operational costs.If you need to exchange data with other systems that you don't control, a simple format like JSON is vastly superior.\nYou are restricted to handing over tree-like structures. That is a good thing as your consumers will have no problems reading tree-like structures.It also makes it very simple for each consumer/producer to coerce this data into structs or objects as they please and that make sense to their usage of the data.You have to validate the data anyhow (you do validate data received by the outside world, do you?), so throwing in coercing is honestly the smallest of your problems.You only need to touch your data coercion if someone decides to send you data in a different shape.\nFor tree-like structures it is simple to add new things and stay backwards compatible.Adding a spec on top of your data shapes that can potentially help consumers generate client code is a cherry on top of it and an orthogonal concern.Making as little assumptions as possible how your consumers deal with your data is a Good Thing(tm) that enabled such useful(still?) things as the WWW.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140182,
-    "by": "ants_everywhere",
-    "timeISO": "2025-09-05T16:10:04.000Z",
-    "textPlain": "> Maintain a separate type that describes the data you actually want, and ensure that the two evolve simultaneously.I don't actually want to do this, because then you have N + 1 implementations of each data type, where N = number of programming languages touching the data, and  + 1 for the proto implementation.What I personally want to do is use a language-agnostic IDL to describe the types that my programs use. Within Google you can even do things like just store them in the database.The practical alternative is to use JSON everywhere, possibly with some additional tooling to generate code from a JSON schema. JSON is IMO not as nice to work with. The fact that it's also slower probably doesn't matter to most codebases.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140664,
-    "by": "dinobones",
-    "timeISO": "2025-09-05T16:46:48.000Z",
-    "textPlain": "lols, the weird protobuf initialization semantics has caused so many OMGs. Even on my team it lead to various hard to debug bugs.It's a lesson most people learns the hard way after using PBs for a few months.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140259,
-    "by": "wrsh07",
-    "timeISO": "2025-09-05T16:16:17.000Z",
-    "textPlain": "> This insane list of restrictions is the result of unprincipled design choices and bolting on features after the factI'm not very upset that protobuf evolved to be slightly more ergonomic. Bolting on features after you build the prototype is how you improve things.Unfortunately, they really did design themselves into a corner (not unlike python 2). Again, I can't be too upset. They didn't have the benefit of hindsight or other high performance libraries that we have today.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140701,
-    "by": "fsmv",
-    "timeISO": "2025-09-05T16:49:52.000Z",
-    "textPlain": "I actually really strongly prefer 0 being identical to unset. If you have an unset state then you have to check if the field is unset every time you use it. Using 0 allows you to make all of your code \"just work\" when you pass 0 to it so you don't need to check at all.It's like how in go most structs don't have a constructor, they just use the 0 value.Also oneof is made that way so that it is backwards compatible to add a new field and make it a oneof with an existing field. Not everything needs to be pure functional programming.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140285,
-    "by": "pshirshov",
-    "timeISO": "2025-09-05T16:18:55.000Z",
-    "textPlain": "I've created several IDL compilers addressing all issues of protobuf and others.This particular one provides strongest backward compatibility guarantees with automatic conversion derivation where possible: https://github.com/7mind/baboonProtobuf is dated, it's not that hard to make better things.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140266,
-    "by": "techbrovanguard",
-    "timeISO": "2025-09-05T16:16:51.000Z",
-    "textPlain": "i used protobuffers a lot at $previous_job and i agree with the entire article. i feel the author’s pain in my bones. protobuffers are so awful i can’t imagine google associating itself with such an amateur, ad hoc, ill-defined, user hostile, time wasting piece of shit.the fact that protobuffers wasn’t immediately relegated to the dustbin shows just how low the bar is for serialization formats.",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140241,
-    "by": "MountainTheme12",
-    "timeISO": "2025-09-05T16:15:01.000Z",
-    "textPlain": "I agree with the author that protobuf is bad and I ran into many of the issues mentioned. It's pretty much mandatory to add version fields to do backwards compatibility properly.Recently, however, I had the displeasure of working with FlatBuffers. It's worse.",
+    "id": 45142608,
+    "by": "rednafi",
+    "timeISO": "2025-09-05T19:26:21.000Z",
+    "textPlain": "I like the problems that Protobuf solves, just not the way it solves them.Protobuf as a language feels clunky. The “type before identifier” syntax looks ancient and Java-esque.The tools are clunky too. protoc is full of gotchas, and for something as simple as validation, you need to add a zillion plugins and memorize their invocation flags.From tooling to workflow to generated code, it’s full of Google-isms and can be awkward to use at times.That said, the serialization format is solid, and the backward-compatibility paradigms are genuinely useful. Buf adds some niceties to the tooling and makes it more tolerable. There’s nothing else that solves all the problems Protobuf solves.",
     "parent": 45139656,
     "depth": 1
   },
@@ -232,6 +160,102 @@
     "depth": 1
   },
   {
+    "id": 45140770,
+    "by": "zigzag312",
+    "timeISO": "2025-09-05T16:56:10.000Z",
+    "textPlain": "Among other things, I don't like that they won't support nullable getters/setters:https://protobuf.dev/design-decisions/nullable-getters-sette...",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140578,
+    "by": "gethly",
+    "timeISO": "2025-09-05T16:40:09.000Z",
+    "textPlain": "I too was using PBs a lot, as they are quite popular in the Go world. But i came to the conclusion that they and gRPC are more trouble than they are worth. I switched to JSON, HTTP \"REST\" and websockets, if i need streaming, and am as happy as i could be.I get the api interoperability between various languages when one wants to build a client with strict schema but in reality, this is more of a theory than real life.In essence, anyone who subscribes to YAGNI understands that PB and gRPC are a big no-no.PS: if you need binary format, just use cbor or msgpack. Otherwise the beauty of json is that it human-readable and easily parseable, so  even if you lack access to the original schema, you can still EASILY process the data and UNDERSTAND it as well.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140182,
+    "by": "ants_everywhere",
+    "timeISO": "2025-09-05T16:10:04.000Z",
+    "textPlain": "> Maintain a separate type that describes the data you actually want, and ensure that the two evolve simultaneously.I don't actually want to do this, because then you have N + 1 implementations of each data type, where N = number of programming languages touching the data, and  + 1 for the proto implementation.What I personally want to do is use a language-agnostic IDL to describe the types that my programs use. Within Google you can even do things like just store them in the database.The practical alternative is to use JSON everywhere, possibly with some additional tooling to generate code from a JSON schema. JSON is IMO not as nice to work with. The fact that it's also slower probably doesn't matter to most codebases.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140919,
+    "by": "bloppe",
+    "timeISO": "2025-09-05T17:09:21.000Z",
+    "textPlain": "Protobuf's main design goal is to make space-optimized binary tag-length-value encoding easy. The mentality is kinda like \"who cares what the API looks like as long as it can support anything you want to do with TLV encoding and has great performance.\" Things like oneofs and maps are best understood as slightly different ways of creating TLV fields in a message, rather than pieces of a comprehensive modern type system. The provided types are simply the necessary and sufficient elements to model any fuller type system using TLV.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45141410,
+    "by": "BinaryIgor",
+    "timeISO": "2025-09-05T17:48:28.000Z",
+    "textPlain": "Avro (and others) has its own set of problems as well.For messaging, JSON, used in the same way and with the same versioning practices  as we have established for evolving schemas in REST APIs, has never failed me.It seems to me that all these rigid type systems for remote procedure calls introduce more problems that they really solve and bring unnecessary complexity.Sure, there are tradeoffs with flexible JSONs - but simplicity of it beats the potential advantages we get from systems like Avro or ProtoBuf.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140259,
+    "by": "wrsh07",
+    "timeISO": "2025-09-05T16:16:17.000Z",
+    "textPlain": "> This insane list of restrictions is the result of unprincipled design choices and bolting on features after the factI'm not very upset that protobuf evolved to be slightly more ergonomic. Bolting on features after you build the prototype is how you improve things.Unfortunately, they really did design themselves into a corner (not unlike python 2). Again, I can't be too upset. They didn't have the benefit of hindsight or other high performance libraries that we have today.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140285,
+    "by": "pshirshov",
+    "timeISO": "2025-09-05T16:18:55.000Z",
+    "textPlain": "I've created several IDL compilers addressing all issues of protobuf and others.This particular one provides strongest backward compatibility guarantees with automatic conversion derivation where possible: https://github.com/7mind/baboonProtobuf is dated, it's not that hard to make better things.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140855,
+    "by": "guzik",
+    "timeISO": "2025-09-05T17:03:37.000Z",
+    "textPlain": "We thought for a long time about using protobufs in our product [1] and in the end we went with JSON-RPC 2.0 over BLE, base64 for bigger chunks. Yeah, you still need to pass sample format and decode manually. The overhead is fine tho, debugging is way easier (also pulling in all of protobuf just wasn't fun).[1] aidlab.com/aidlab-2",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140603,
+    "by": "beders",
+    "timeISO": "2025-09-05T16:41:47.000Z",
+    "textPlain": "If you opt for non-human-readable wire-formats it better be because of very important reasons. Something about measuring performance and operational costs.If you need to exchange data with other systems that you don't control, a simple format like JSON is vastly superior.\nYou are restricted to handing over tree-like structures. That is a good thing as your consumers will have no problems reading tree-like structures.It also makes it very simple for each consumer/producer to coerce this data into structs or objects as they please and that make sense to their usage of the data.You have to validate the data anyhow (you do validate data received by the outside world, do you?), so throwing in coercing is honestly the smallest of your problems.You only need to touch your data coercion if someone decides to send you data in a different shape.\nFor tree-like structures it is simple to add new things and stay backwards compatible.Adding a spec on top of your data shapes that can potentially help consumers generate client code is a cherry on top of it and an orthogonal concern.Making as little assumptions as possible how your consumers deal with your data is a Good Thing(tm) that enabled such useful(still?) things as the WWW.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140241,
+    "by": "MountainTheme12",
+    "timeISO": "2025-09-05T16:15:01.000Z",
+    "textPlain": "I agree with the author that protobuf is bad and I ran into many of the issues mentioned. It's pretty much mandatory to add version fields to do backwards compatibility properly.Recently, however, I had the displeasure of working with FlatBuffers. It's worse.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140664,
+    "by": "dinobones",
+    "timeISO": "2025-09-05T16:46:48.000Z",
+    "textPlain": "lols, the weird protobuf initialization semantics has caused so many OMGs. Even on my team it lead to various hard to debug bugs.It's a lesson most people learns the hard way after using PBs for a few months.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140917,
+    "by": "shdh",
+    "timeISO": "2025-09-05T17:09:11.000Z",
+    "textPlain": "I just wish protobuf had proper delta compression out of the box",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
     "id": 45140109,
     "by": "mkl95",
     "timeISO": "2025-09-05T16:04:29.000Z",
@@ -240,10 +264,10 @@
     "depth": 1
   },
   {
-    "id": 45140410,
-    "by": "imtringued",
-    "timeISO": "2025-09-05T16:27:44.000Z",
-    "textPlain": ">The solution is as follows:> * Make all fields in a message required. This makes messages product types.Meanwhile in the capnproto FAQ:>How do I make a field “required”, like in Protocol Buffers?>You don’t. You may find this surprising, but the “required” keyword in Protocol Buffers turned out to be a horrible mistake.I recommend reading the rest of the FAQ [0], but if you are in a hurry: Fixed schema based protocols like protobuffers do not let you remove fields like self describing formats such as JSON. Removing fields or switching them from required to optional is an ABI breaking change. Nobody wants to update all servers and all clients simultaneously. At that point, you would be better off defining a new API endpoint and deprecating the old one.The capnproto faq article also brings up the fact that validation should be handled on the application level rather than the ABI level.[0] https://capnproto.org/faq.html",
+    "id": 45140701,
+    "by": "fsmv",
+    "timeISO": "2025-09-05T16:49:52.000Z",
+    "textPlain": "I actually really strongly prefer 0 being identical to unset. If you have an unset state then you have to check if the field is unset every time you use it. Using 0 allows you to make all of your code \"just work\" when you pass 0 to it so you don't need to check at all.It's like how in go most structs don't have a constructor, they just use the 0 value.Also oneof is made that way so that it is backwards compatible to add a new field and make it a oneof with an existing field. Not everything needs to be pure functional programming.",
     "parent": 45139656,
     "depth": 1
   },
@@ -256,26 +280,34 @@
     "depth": 1
   },
   {
+    "id": 45143807,
+    "by": "kiitos",
+    "timeISO": "2025-09-05T21:25:59.000Z",
+    "textPlain": "almost the entire purpose of anything like protocol buffers is to provide a safe mechanism for backwards-compatible forward changes -- \"no one uses that stuff\"?? what a weird and broken take",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45141681,
+    "by": "nice_byte",
+    "timeISO": "2025-09-05T18:09:46.000Z",
+    "textPlain": "> Make all fields in a message required.funnily enough, this line alone reveals the author to be an amateur in the problem space they are writing so confidently about.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140410,
+    "by": "imtringued",
+    "timeISO": "2025-09-05T16:27:44.000Z",
+    "textPlain": ">The solution is as follows:> * Make all fields in a message required. This makes messages product types.Meanwhile in the capnproto FAQ:>How do I make a field “required”, like in Protocol Buffers?>You don’t. You may find this surprising, but the “required” keyword in Protocol Buffers turned out to be a horrible mistake.I recommend reading the rest of the FAQ [0], but if you are in a hurry: Fixed schema based protocols like protobuffers do not let you remove fields like self describing formats such as JSON. Removing fields or switching them from required to optional is an ABI breaking change. Nobody wants to update all servers and all clients simultaneously. At that point, you would be better off defining a new API endpoint and deprecating the old one.The capnproto faq article also brings up the fact that validation should be handled on the application level rather than the ABI level.[0] https://capnproto.org/faq.html",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
     "id": 45140324,
     "by": "defraudbah",
     "timeISO": "2025-09-05T16:21:51.000Z",
     "textPlain": "you are absolutely right!what alternative do we have? sending json and base64 strings",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140590,
-    "by": "kentonv",
-    "timeISO": "2025-09-05T16:40:59.000Z",
-    "textPlain": "Previous discussions:* https://news.ycombinator.com/item?id=18188519* https://hn.algolia.com/?q=%22Protobuffers+Are+Wrong%22I guess I'll, once again, copy/paste the comment I made when this was first posted: https://news.ycombinator.com/item?id=18190005--------Hello. I didn't invent Protocol Buffers, but I did write version 2 and was responsible for open sourcing it. I believe I am the author of the \"manifesto\" entitled \"required considered harmful\" mentioned in the footnote. Note that I mostly haven't touched Protobufs since I left Google in early 2013, but I have created Cap'n Proto since then, which I imagine this guy would criticize in similar ways.This article appears to be written by a programming language design theorist who, unfortunately, does not understand (or, perhaps, does not value) practical software engineering. Type theory is a lot of fun to think about, but being simple and elegant from a type theory perspective does not necessarily translate to real value in real systems. Protobuf has undoubtedly, empirically proven its real value in real systems, despite its admittedly large number of warts.The main thing that the author of this article does not seem to understand -- and, indeed, many PL theorists seem to miss -- is that the main challenge in real-world software engineering is not writing code but changing code once it is written and deployed. In general, type systems can be both helpful and harmful when it comes to changing code -- type systems are invaluable for detecting problems introduced by a change, but an overly-rigid type system can be a hindrance if it means common types of changes are difficult to make.This is especially true when it comes to protocols, because in a distributed system, you cannot update both sides of a protocol simultaneously. I have found that type theorists tend to promote \"version negotiation\" schemes where the two sides agree on one rigid protocol to follow, but this is extremely painful in practice: you end up nee",
-    "parent": 45139656,
-    "depth": 1
-  },
-  {
-    "id": 45140178,
-    "by": "nu11ptr",
-    "timeISO": "2025-09-05T16:09:39.000Z",
-    "textPlain": "Should have (2018) call out",
     "parent": 45139656,
     "depth": 1
   },
@@ -288,6 +320,38 @@
     "depth": 1
   },
   {
+    "id": 45140590,
+    "by": "kentonv",
+    "timeISO": "2025-09-05T16:40:59.000Z",
+    "textPlain": "Previous discussions:* https://news.ycombinator.com/item?id=18188519* https://hn.algolia.com/?q=%22Protobuffers+Are+Wrong%22I guess I'll, once again, copy/paste the comment I made when this was first posted: https://news.ycombinator.com/item?id=18190005--------Hello. I didn't invent Protocol Buffers, but I did write version 2 and was responsible for open sourcing it. I believe I am the author of the \"manifesto\" entitled \"required considered harmful\" mentioned in the footnote. Note that I mostly haven't touched Protobufs since I left Google in early 2013, but I have created Cap'n Proto since then, which I imagine this guy would criticize in similar ways.This article appears to be written by a programming language design theorist who, unfortunately, does not understand (or, perhaps, does not value) practical software engineering. Type theory is a lot of fun to think about, but being simple and elegant from a type theory perspective does not necessarily translate to real value in real systems. Protobuf has undoubtedly, empirically proven its real value in real systems, despite its admittedly large number of warts.The main thing that the author of this article does not seem to understand -- and, indeed, many PL theorists seem to miss -- is that the main challenge in real-world software engineering is not writing code but changing code once it is written and deployed. In general, type systems can be both helpful and harmful when it comes to changing code -- type systems are invaluable for detecting problems introduced by a change, but an overly-rigid type system can be a hindrance if it means common types of changes are difficult to make.This is especially true when it comes to protocols, because in a distributed system, you cannot update both sides of a protocol simultaneously. I have found that type theorists tend to promote \"version negotiation\" schemes where the two sides agree on one rigid protocol to follow, but this is extremely painful in practice: you end up nee",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45141002,
+    "by": "klodolph",
+    "timeISO": "2025-09-05T17:17:51.000Z",
+    "textPlain": "Protobuffers suck as a core data model. My take? Use them as a serialization and interchange format, nothing more.> This puts us in the uncomfortable position of needing to choose between one of three bad alternatives:I don’t think there is a good system out there that works for both serialization and data models. I’d say it’s a mostly unsolved problem. I think I am happy with protobufs. I know that I have to fight against them contaminating the codebase—basically, your code that uses protobufs is code that directly communicates over raw RPC or directly serializes data to/from storage, and protobufs shouldn’t escape into higher-level code.But, and this is a big but, you want that anyway. You probably WANT your serialization to be able to evolve independently of your application logic, and the easy way to do that is to use different types for each. You write application logic using types that have all sorts of validation (in the \"parse, don't validate\" sense) and your serialization layer uses looser validation. This looser validation is nice because you often end up with e.g. buggy code getting shipped that writes invalid data, and if you have a loose serialization layer that just preseves structure (like proto or json), you at least have a good way to munge it into the right shape.Evolving serialized types has been such a massive pain at a lot of workplaces and the ad-hoc systems I've seen often get pulled into adopting some of the same design choices as protos, like \"optional fields everywhere\" and \"unknown fields are ok\". Partly it may be because a lot of ex-Google employees are inevitably hanging around on your team, but partly because some of those design tradeoffs (not ALL of them, just some of them) are really useful long-term, and if you stick around, you may come to the same conclusion.In the end I mostly want something that's a little more efficient and a little more typed than JSON, and protos fit the bill. I can put my full efforts into safety and the \"co",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140178,
+    "by": "nu11ptr",
+    "timeISO": "2025-09-05T16:09:39.000Z",
+    "textPlain": "Should have (2018) call out",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45142516,
+    "by": "m463",
+    "timeISO": "2025-09-05T19:19:32.000Z",
+    "textPlain": "persuasive or pervasive?",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
     "id": 45140040,
     "by": "Analemma_",
     "timeISO": "2025-09-05T15:58:40.000Z",
@@ -296,10 +360,26 @@
     "depth": 1
   },
   {
+    "id": 45140955,
+    "by": "yablak",
+    "timeISO": "2025-09-05T17:12:26.000Z",
+    "textPlain": "\"you're the worst serialization/config format I've ever heard of\"",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
     "id": 45140019,
     "by": "jeffbee",
     "timeISO": "2025-09-05T15:57:27.000Z",
     "textPlain": "Type system fans are so irritating. The author doesn't engage with the point of protocol buffers, which is that they are thin adapters between the union of things that common languages can represent with their type systems and a reasonably efficient marshaling scheme that can be compact on the wire.",
+    "parent": 45139656,
+    "depth": 1
+  },
+  {
+    "id": 45140266,
+    "by": "techbrovanguard",
+    "timeISO": "2025-09-05T16:16:51.000Z",
+    "textPlain": "i used protobuffers a lot at $previous_job and i agree with the entire article. i feel the author’s pain in my bones. protobuffers are so awful i can’t imagine google associating itself with such an amateur, ad hoc, ill-defined, user hostile, time wasting piece of shit.the fact that protobuffers wasn’t immediately relegated to the dustbin shows just how low the bar is for serialization formats.",
     "parent": 45139656,
     "depth": 1
   },
@@ -317,86 +397,6 @@
     "timeISO": "2025-09-05T16:26:14.000Z",
     "textPlain": "We use protocol buffers on a game and we use the back compat stuff all the time.We include a version number with each release of the game. If we change a proto we add new fields and deprecate old ones and increment the version. We use the version number to run a series of steps on each proto to upgrade old fields to new ones.",
     "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140242,
-    "by": "mattnewton",
-    "timeISO": "2025-09-05T16:15:11.000Z",
-    "textPlain": "Exactly, I think of protobuffers like I think of Java or Go - at least they weren’t writing it in C++.Dragging your org away from using poorly specified json is often worth these papercuts IMO.",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140210,
-    "by": "jnwatson",
-    "timeISO": "2025-09-05T16:12:23.000Z",
-    "textPlain": "ASN.1 implements message versioning in an extremely precise way. Implementing a linter would be trivial.",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140264,
-    "by": "mgaunard",
-    "timeISO": "2025-09-05T16:16:45.000Z",
-    "textPlain": "in the systems I built I didn't bother with backwards compatibility.If you make any change, it's a new message type.For compatibility you can coerce the new message to the old message and dual-publish.",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140583,
-    "by": "maximilianburke",
-    "timeISO": "2025-09-05T16:40:35.000Z",
-    "textPlain": "Flatbuffers satisfies those requirements and doesn’t have varint shenanigans.",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140129,
-    "by": "noitpmeder",
-    "timeISO": "2025-09-05T16:05:58.000Z",
-    "textPlain": "Not that I love it -- but SBE (Simple Binary Encoding) is a _decent_ solution in the realm of backwards/forwards compatibility.",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140314,
-    "by": "tomrod",
-    "timeISO": "2025-09-05T16:20:59.000Z",
-    "textPlain": "> Name another serialization declaration format that both (a) defines which changes can be make backwards-compatibly, and (b) has a linter that enforces backwards compatible changes.ASCII text (tongue in cheek here)",
-    "parent": 45140032,
-    "depth": 2
-  },
-  {
-    "id": 45140754,
-    "by": "seanw444",
-    "timeISO": "2025-09-05T16:54:37.000Z",
-    "textPlain": "That's horrendous. For some reason I imagine Apple's software to be much cleaner, but I guess that's just the marketing getting to my head. Under the hood it's still the same spaghetti.",
-    "parent": 45140085,
-    "depth": 2
-  },
-  {
-    "id": 45140503,
-    "by": "fluoridation",
-    "timeISO": "2025-09-05T16:34:49.000Z",
-    "textPlain": "I mean... you can nest-encode stuff in any serial format. You're not describing a problem either intrinsic or unique to Protobuf, you're just seeing the development org chart manifested into a data structure.",
-    "parent": 45140085,
-    "depth": 2
-  },
-  {
-    "id": 45140614,
-    "by": "recursive",
-    "timeISO": "2025-09-05T16:42:25.000Z",
-    "textPlain": "Protobuf is independent from REST.  You can have either one.  Or both.  Or neither.  One has nothing to do with the other.",
-    "parent": 45140068,
-    "depth": 2
-  },
-  {
-    "id": 45140375,
-    "by": "nicce",
-    "timeISO": "2025-09-05T16:25:30.000Z",
-    "textPlain": "On the other hand, ASN.1 is very expressive and can cover pretty much anything, but Protobuff was created because people thought ASN.1 is too complex. I guess we can't have both.",
-    "parent": 45140068,
     "depth": 2
   }
 ]
