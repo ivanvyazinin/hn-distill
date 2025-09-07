@@ -1,25 +1,17 @@
 [
   {
-    "id": 45161769,
-    "by": "debarshri",
-    "timeISO": "2025-09-07T20:19:37.000Z",
-    "textPlain": "I think secrets ending up in the log is an issue but who should have access to view logs of what log should also be an important that is often ignored. This is also scope down the surface area of leakage.",
-    "parent": 45160774,
-    "depth": 1
-  },
-  {
-    "id": 45161728,
-    "by": "dataflow",
-    "timeISO": "2025-09-07T20:14:28.000Z",
-    "textPlain": "As far as run-time exposure prevention goes, I feel like in-band signaling might work better than out-of-band for this problem. Along the lines of the taint checking technique mentioned, you can insert some magic string (say, some recognizable prefix + a randomly generated UUID) into your sensitive strings at the source, that you then strip out at the sink. (Or wrap your secrets in a pair of such magic strings.) Then block or mask any strings containing that magic string from making it into any persisted data, including logs. And it will be easy to identify the points of exposure, since they will be wherever you call your respective seal()/unseal() function or such.",
-    "parent": 45160774,
-    "depth": 1
-  },
-  {
     "id": 45161162,
     "by": "lucideer",
     "timeISO": "2025-09-07T19:02:35.000Z",
     "textPlain": "This is an excellent excellent resource regardless of whether you agree/disagree with the author's conclusions, simply by virtue of being a great list of broken down problems, well described, & accompanied by good technical descriptions of proposed fixes (again independent of your opinion on those fixes).Just an excellent example of how to approach & elucidate a problem domain.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45162021,
+    "by": "mgaunard",
+    "timeISO": "2025-09-07T20:52:07.000Z",
+    "textPlain": "One particular thing to be careful of are core dumps.What I did at a previous shop was remove the passwords as part of a smart gdb script that runs when the core is dumped, before it gets written to a readable location.Writing the script also helped to demonstrate how to extract the passwords in the first place.",
     "parent": 45160774,
     "depth": 1
   },
@@ -32,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45161575,
-    "by": "munchler",
-    "timeISO": "2025-09-07T19:55:30.000Z",
-    "textPlain": "I certainly agree with the desire to keep secrets out of logs, but isn’t the entire log itself also considered to be secret? Even a perfectly sanitized log probably contains lots of data about your production environment that you wouldn’t want to share with adversaries (e.g. peak usage hours).",
+    "id": 45161728,
+    "by": "dataflow",
+    "timeISO": "2025-09-07T20:14:28.000Z",
+    "textPlain": "As far as run-time exposure prevention goes, I feel like in-band signaling might work better than out-of-band for this problem. Along the lines of the taint checking technique mentioned, you can insert some magic string (say, some recognizable prefix + a randomly generated UUID) into your sensitive strings at the source, that you then strip out at the sink. (Or wrap your secrets in a pair of such magic strings.) Then block or mask any strings containing that magic string from making it into any persisted data, including logs. And it will be easy to identify the points of exposure, since they will be wherever you call your respective seal()/unseal() function or such.",
     "parent": 45160774,
     "depth": 1
   },
@@ -44,6 +36,30 @@
     "by": "mlhpdx",
     "timeISO": "2025-09-07T18:35:18.000Z",
     "textPlain": "Great read.> And while people will write the code that accidentally introduces sensitive data into logs, they’re also the ones that will report, respond, and fix them.This should probably be the first point and not the last.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45161575,
+    "by": "munchler",
+    "timeISO": "2025-09-07T19:55:30.000Z",
+    "textPlain": "I certainly agree with the desire to keep secrets out of logs, but isn’t the entire log itself also considered to be secret? Even a perfectly sanitized log probably contains lots of data about your production environment that you wouldn’t want to share with adversaries (e.g. peak usage hours).",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45161797,
+    "by": "blkhawk",
+    "timeISO": "2025-09-07T20:23:50.000Z",
+    "textPlain": "oh god - I had that come up in an issue at work just about a month ago. A development system used really simple usernames and passwords since it was just for testing but all the lines with one of those got gobbled up because they had \"secrets\" in them.I have very strong opinions on this issue that boils down to. _why are you logging everything you lazy asses_ and _adding all the secrets into another tool just to scan for them in logs just adds another point for them to leak_...Especially since the ability of lines getting censored even when the secrets were just part of words showed that probably no hashing was involved.But its a security tool so it stays. I kinda feel like Cassandra but I think I can already predict a major security issue with it or others with the same functionality in the future. its like some goddamn blind spot that software that is to prevent X cannot be vulnerable to X but somehow often is vulnerable because prevention of X and not being vulnerable to X are two separate things somehow.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45161769,
+    "by": "debarshri",
+    "timeISO": "2025-09-07T20:19:37.000Z",
+    "textPlain": "I think secrets ending up in the log is an issue but who should have access to view logs of what log should also be an important that is often ignored. This is also scope down the surface area of leakage.",
     "parent": 45160774,
     "depth": 1
   },
@@ -80,6 +96,14 @@
     "depth": 2
   },
   {
+    "id": 45161647,
+    "by": "jauer",
+    "timeISO": "2025-09-07T20:02:28.000Z",
+    "textPlain": "There’s secret from an adversary and then there’s internal compartmentalization.You could have 100s of people who have a business need to look at syslog from a router, but approximately nobody who should have access to login creds of administrative users and maybe 10s of people with access to automation role account creds.",
+    "parent": 45161575,
+    "depth": 2
+  },
+  {
     "id": 45161646,
     "by": "dmurray",
     "timeISO": "2025-09-07T20:02:27.000Z",
@@ -88,11 +112,11 @@
     "depth": 2
   },
   {
-    "id": 45161647,
-    "by": "jauer",
-    "timeISO": "2025-09-07T20:02:28.000Z",
-    "textPlain": "There’s secret from an adversary and then there’s internal compartmentalization.You could have 100s people who have a business need to look at syslog from a router, but approximately nobody who should have access to login creds of administrative users and maybe 10s of people with access to automation role account creds.",
-    "parent": 45161575,
+    "id": 45161922,
+    "by": "pavel_lishin",
+    "timeISO": "2025-09-07T20:39:18.000Z",
+    "textPlain": "Why is logging everything considered lazy?",
+    "parent": 45161797,
     "depth": 2
   },
   {
@@ -101,6 +125,14 @@
     "timeISO": "2025-09-07T20:11:40.000Z",
     "textPlain": "Why do I have to know how many letters are in observability? is this some kind of in group signaling?",
     "parent": 45161490,
+    "depth": 2
+  },
+  {
+    "id": 45161971,
+    "by": "mberning",
+    "timeISO": "2025-09-07T20:47:20.000Z",
+    "textPlain": "That presumes you know all secrets ahead of time. A risk in and of itself. But from a practical point of view you will never know all secrets, because they are generated constantly in real time.",
+    "parent": 45161358,
     "depth": 2
   }
 ]
