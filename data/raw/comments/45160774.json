@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45161728,
+    "by": "dataflow",
+    "timeISO": "2025-09-07T20:14:28.000Z",
+    "textPlain": "As far as run-time exposure prevention goes, I feel like in-band signaling might work better than out-of-band for this problem. Along the lines of the taint checking technique mentioned, you can insert some magic string (say, some recognizable prefix + a randomly generated UUID) into your sensitive strings at the source, that you then strip out at the sink. (Or wrap your secrets in a pair of such magic strings.) Then block or mask any strings containing that magic string from making it into any persisted data, including logs. And it will be easy to identify the points of exposure, since they will be wherever you call your respective seal()/unseal() function or such.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
     "id": 45161282,
     "by": "CraigJPerry",
     "timeISO": "2025-09-07T19:16:18.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45161728,
-    "by": "dataflow",
-    "timeISO": "2025-09-07T20:14:28.000Z",
-    "textPlain": "As far as run-time exposure prevention goes, I feel like in-band signaling might work better than out-of-band for this problem. Along the lines of the taint checking technique mentioned, you can insert some magic string (say, some recognizable prefix + a randomly generated UUID) into your sensitive strings at the source, that you then strip out at the sink. (Or wrap your secrets in a pair of such magic strings.) Then block or mask any strings containing that magic string from making it into any persisted data, including logs. And it will be easy to identify the points of exposure, since they will be wherever you call your respective seal()/unseal() function or such.",
+    "id": 45162380,
+    "by": "h1fra",
+    "timeISO": "2025-09-07T21:32:58.000Z",
+    "textPlain": "I think the big problem is when secrets can be anywhere in a string and you don't control the input (e.g, library stacktraces, HTTP responses, JSON that was stringified). \nYou need to pass the secrets to the logger so it can be redacted, it's heavily dependent on the dev and easy to forget during review.And an exact match is just part of the problem; if a dev redacts the end and another dev redacts the start, you can still reassemble the secret with enough logs.",
     "parent": 45160774,
     "depth": 1
   },
@@ -88,6 +96,22 @@
     "depth": 1
   },
   {
+    "id": 45162334,
+    "by": "kjs3",
+    "timeISO": "2025-09-07T21:27:59.000Z",
+    "textPlain": "Stack traces, too.  I did some work with a heavy Java shop and pretty much everything sensitive ended up in a stack trace at some point.",
+    "parent": 45162021,
+    "depth": 2
+  },
+  {
+    "id": 45162661,
+    "by": "Bender",
+    "timeISO": "2025-09-07T22:13:31.000Z",
+    "textPlain": "One direction to venture would be running rsyslog on every node, using regex to match all the known patterns and use various plugins/addons to send all the applications to the local rsyslog instance using a local spooler and then encrypt the rsyslog upstream to centralized logging servers.  Rsyslog supports using a spooler so that if the up-stream server is offline for whatever reason the logs are spooled locally and then resume when upstream is online.Regex matching on logs is slow but if performed on every node the CPU load is distributed vs. doing this upstream.  Configuration management can push the regex rules to all the nodes.  This won't help with unknown-unknowns but those can be added quickly to all nodes through configuration management after peer review.Rsyslog also supports encrypting the log stream so that secret leakage is limited to the sending nodes and the central nodes and it checks a few boxes.Another thing that helps is limiting upstream to warn and above and using an agent on the local nodes to monitor for keywords in the range of info to debug to let someone know to go check the node logs.  Less junk on the centralized servers that may have SOC1/SOC2/PCI/FEDRAMP log retention requirements.",
+    "parent": 45162380,
+    "depth": 2
+  },
+  {
     "id": 45161635,
     "by": "advisedwang",
     "timeISO": "2025-09-07T20:01:37.000Z",
@@ -117,6 +141,14 @@
     "timeISO": "2025-09-07T20:39:18.000Z",
     "textPlain": "Why is logging everything considered lazy?",
     "parent": 45161797,
+    "depth": 2
+  },
+  {
+    "id": 45162684,
+    "by": "stretchwithme",
+    "timeISO": "2025-09-07T22:17:17.000Z",
+    "textPlain": "A user's password is something I shouldn't see in a log, even if I'm in control of what gets logged and frequently access them to do my job.Even if I trust me.Audits happen.  I assume other people will eventually see this bad practice.",
+    "parent": 45161769,
     "depth": 2
   },
   {

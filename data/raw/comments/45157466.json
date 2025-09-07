@@ -1,21 +1,5 @@
 [
   {
-    "id": 45162139,
-    "by": "LudwigNagasena",
-    "timeISO": "2025-09-07T21:05:21.000Z",
-    "textPlain": "I think it is a cool feature, but I see some practical issues.For me, encapsulation is a feature. I would like to see that a function uses a network call deep down, but only in a static analysis sort of way. So I don't want to mark something as potentially using a network until it actually uses it. And at the same time I wouldn't want to change every effect of every intermediate function just because I made something use an LLM or Redis cache.It also seems that cross-cutting components such as observability instruments are just going to contaminate all functions with their need for memory, network, io, files, clock, locale, reflection, etc.",
-    "parent": 45157466,
-    "depth": 1
-  },
-  {
-    "id": 45162138,
-    "by": "quantummagic",
-    "timeISO": "2025-09-07T21:04:55.000Z",
-    "textPlain": "There are some parallels with Zig's current move toward an IO-object, and requiring it to be passed to any function that wants to do IO (so that it can call methods on that object).  Admittedly, it's a more limited and less elegant implementation, but it's a small step in this direction.",
-    "parent": 45157466,
-    "depth": 1
-  },
-  {
     "id": 45161576,
     "by": "keeganpoppen",
     "timeISO": "2025-09-07T19:55:46.000Z",
@@ -32,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45162138,
+    "by": "quantummagic",
+    "timeISO": "2025-09-07T21:04:55.000Z",
+    "textPlain": "There are some parallels with Zig's current move toward an IO-object, and requiring it to be passed to any function that wants to do IO (so that it can call methods on that object).  Admittedly, it's a more limited and less elegant implementation, but it's a small step in this direction.",
+    "parent": 45157466,
+    "depth": 1
+  },
+  {
     "id": 45158518,
     "by": "voat",
     "timeISO": "2025-09-07T14:36:25.000Z",
@@ -44,6 +36,14 @@
     "by": "ZeljkoS",
     "timeISO": "2025-09-07T14:45:19.000Z",
     "textPlain": "OCaml got experimental algebraic effects in version 5.0 (December 2022). Here is a tutorial:\nhttps://github.com/tanelso2/ocaml-effects-tutorialAlso from the tutorial:\n\"Unlike Eff, Koka, Links, and other languages that support effect handlers, effects in Multicore OCaml are unchecked currently. A program that does not handle a performed effect fails with a runtime error.\"",
+    "parent": 45157466,
+    "depth": 1
+  },
+  {
+    "id": 45162139,
+    "by": "LudwigNagasena",
+    "timeISO": "2025-09-07T21:05:21.000Z",
+    "textPlain": "I think it is a cool feature, but I see some practical issues.For me, encapsulation is a feature. I would like to see that a function uses a network call deep down, but only in a static analysis sort of way. So I don't want to mark something as potentially using a network until it actually uses it. And at the same time I wouldn't want to change every effect of every intermediate function just because I made something use an LLM or Redis cache.It also seems that cross-cutting components such as observability instruments are just going to contaminate all functions with their need for memory, network, io, files, clock, locale, reflection, etc.",
     "parent": 45157466,
     "depth": 1
   },
@@ -152,18 +152,18 @@
     "depth": 2
   },
   {
-    "id": 45162050,
-    "by": "KPGv2",
-    "timeISO": "2025-09-07T20:55:54.000Z",
-    "textPlain": "Implementing an interface results in a class that implements it. From then on, the fact your class implements that interface is entirely obscured from your code. In the case of tracking effects, this is clearly undesirable. (Also, in a language that doesn't have classes, implementing interfaces is difficult for me to think about.)In the case of algebraic effects, they're functions with type signatures explicating the effects the function has. Those don't go away until somewhere nearer the edge of your program, outside the core, you say \"by the way, use this to handle those effects\"Effect handlers also give you control over continuations so you can sequence effects explicitly, which is—speaking as someone who writes a lot of code in a language that has algebraic effects as a core part of the language (Unison)—really powerful. Deciding in some instance how you prioritize IO vs Exceptions, making a thrown error go away and replacing it with an HTTP effect that, wayyyy far away from this code handles all HTTP calls by attaching a self-signed certificate when doing the SSL handshake, or whatever, is very nice.The more I write in this style, the more interesting techniques I come across.",
-    "parent": 45159540,
-    "depth": 2
-  },
-  {
     "id": 45160356,
     "by": "alethic",
     "timeISO": "2025-09-07T17:37:11.000Z",
     "textPlain": "It's similar on the surface. Another language, Effekt, does actually use interfaces for their effect declarations rather than having a separate `eff` declaration.The difference comes in their use. There's two things of note.\nFirst, the implementation of an interface is static. It's known at compile time. For any given concrete type, there is at most one implementation of MovieApi. You're using the interface, then, to be generic over some number of concrete types, by way of only specifying what you need. Effect handlers aren't like this. Effect handlers can have many implementations, actually. This is useful in the case of ex. adding logging, or writing tests to simulate I/O without actually doing it, or just having different behavior at different places across the program / call stack...    eff MovieApi {\n      def getPopularMovies();\n    }\n    def main() {\n      run {\n        println(\"Alice's movies: \", getPopularMovies());\n      } with handler MovieApi {\n        def getPopularMovies() = [\n          \"Dr. Strangelove\", \n          \"Lawrence of Arabia\",\n          \"The End of Evangelion\",\n          \"I Saw the TV Glow\"\n        ];\n      }\n      run {\n        println(\"Bob's movies: \", getPopularMovies());\n      } with handler MovieApi {\n        def getPopularMovies() = [\n          \"The Magic School Bus: Space Adventures\",\n          \"Spy Kids 3-D: Game Over\",\n          \"Twilight: Breaking Dawn: Part II\"\n        ];\n      }\n    }\n\nSecond, the effects of effect handlers are not functions. They're under no obligation to \"return\", and in fact, in many of the interesting cases they don't. The `resume` construct mentioned in the article is a very special construct: it is taking the \"continuation\" of the program at the place where an effect was performed and providing it to the handler for use. The invocation of resume(5) with a value looks much like a return(5), yes. But: a call to resume 1) doesn't have to happen and the program can instead continue after the handler i.e. in the",
+    "parent": 45159540,
+    "depth": 2
+  },
+  {
+    "id": 45162050,
+    "by": "KPGv2",
+    "timeISO": "2025-09-07T20:55:54.000Z",
+    "textPlain": "Implementing an interface results in a class that implements it. From then on, the fact your class implements that interface is entirely obscured from your code. In the case of tracking effects, this is clearly undesirable. (Also, in a language that doesn't have classes, implementing interfaces is difficult for me to think about.)In the case of algebraic effects, they're functions with type signatures explicating the effects the function has. Those don't go away until somewhere nearer the edge of your program, outside the core, you say \"by the way, use this to handle those effects\"Effect handlers also give you control over continuations so you can sequence effects explicitly, which is—speaking as someone who writes a lot of code in a language that has algebraic effects as a core part of the language (Unison)—really powerful. Deciding in some instance how you prioritize IO vs Exceptions, making a thrown error go away and replacing it with an HTTP effect that, wayyyy far away from this code handles all HTTP calls by attaching a self-signed certificate when doing the SSL handshake, or whatever, is very nice.The more I write in this style, the more interesting techniques I come across.",
     "parent": 45159540,
     "depth": 2
   },
@@ -212,6 +212,14 @@
     "by": "Sharlin",
     "timeISO": "2025-09-07T14:34:33.000Z",
     "textPlain": "I’m sure default effects could handle this, just as Rust has some auto traits and default trait bounds. It doesn’t even have to be the full console i/o effect, it can be a specific debug effect that outputs to console in a dev build and to a file or devnull or whatever in release builds, or you could disable it in release builds and the compiler ensures there aren’t stray debug calls left, without needing a specific lint for that.(Rust does have a similar problem in that debug printing requires the Debug trait bound which can be really annoying when writing generic code. Would be nice if there were a sprinkle of RTTI involved.)",
+    "parent": 45158295,
+    "depth": 2
+  },
+  {
+    "id": 45162539,
+    "by": "pchiusano",
+    "timeISO": "2025-09-07T21:55:16.000Z",
+    "textPlain": "The Unison language supports algebraic effects and optimizes handlers that call their continuation at most once in tail position (we call these \"affine\"), so you can have the best of both worlds. Some links at the end if you're curious.Here are a few places where \"multi-resumable\" stacks are still useful, even outside of nondeterminism:* For instance, in a workflow engine a la Temporal, a `sleep` primitive might serialize and store the continuation in a distributed priority queue. The workarounds of not having access to the continuation are all not nearly as good.* A pure interpreter of a structured concurrency ability is quite useful for testing, since it can test different interleavings of threads and produce tests that fail or pass deterministically. For Unison Cloud's distributed programming API, we have an (in-progress) chaos monkey interpreter that you can use for local testing of distributed systems.* You can implement a simple debugger... as a library. It lets you set breakpoints and go forwards and backwards in time. Here's an example: https://share.unison-lang.org/@pchiusano/stepwiseBasically, any time you want to stash and do something interesting with the continuation, even if you only end up ultimately using it once, you still need the more general form of algebraic effects.And then there are various nondeterminism effects that do call the continuation more than once. I'd say these are somewhat niche, but when you need them, you need them, and the code comes out much nicer. I especially like it for testing. You generally want tests to just be the logic, not a bunch of looping code or map/flatMap.Some links:* https://www.linkedin.com/posts/pchiusano_dan-doel-has-been-d... has some details on the optimization we do in Unison* https://dolio.unison-services.cloud/s/blog/posts/optimizing-... is Dan's blog post on optimizing affine handlers* https://www.linkedin.com/posts/pchiusano_kestrel-is-a-higher... is a typed query DSL that uses nondeterminism in an int",
     "parent": 45158295,
     "depth": 2
   },
