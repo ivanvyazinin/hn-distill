@@ -1,5 +1,21 @@
 [
   {
+    "id": 45155250,
+    "by": "dragontamer",
+    "timeISO": "2025-09-07T03:54:08.000Z",
+    "textPlain": "RDRAND and RDSEED are both using quantum principles (aka: heat and temperature / truly quantumly random noise at the microscopic level in the CPU's transistors) to generate random numbers.Well... a seed at least. And then they are expanded using AES encryption IIRC (which \"shouldn't\" be breakable, and even if it were breakable it'd probably be very difficult to follow). I think RDSEED takes hundreds (or nearly a thousand) cycles to complete, but we're still talking millions-of-bits of entropy per second. More than enough to shuffle a deck even if you're taking a fresh RDSEED every single card.Every few months, it feels like \"someone effed up RNG\" becomes an article. But in practice, RDRAND / RDSEED are the primitives you need. And you should be getting that for free with Linux's /dev/urandom on modern platforms.----------I think RDSEED / RDRAND cannot be \"proven secure\" because of all the VMs we are running in practice though. So its something you need to be running on physical hardware to be 100% sure of security. So its still harder than it looks.But its not \"impossible\" or anything. Just work to cover all the little issues that could go wrong. After all, these RDRAND/RDSEED instructions were created so that we can send our credit card numbers securely across the internet. They're solid because they _HAVE_ to be solid. And if anyone figures out a problem with these instructions, virtually everyone in the cryptographic community will be notified of it immediately.",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
+    "id": 45155358,
+    "by": "runeblaze",
+    "timeISO": "2025-09-07T04:17:44.000Z",
+    "textPlain": "> Today many online poker sites use the Fisher–Yates algorithm, also called the Knuth shuffle (which sounds delightfully like a dance). It’s easy to implement and delivers satisfactory results.Assuming CSPRNG and fisher yates, why is it only \"satisfactory\"...? What's better...?",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
     "id": 45154922,
     "by": "ziofill",
     "timeISO": "2025-09-07T02:40:47.000Z",
@@ -8,10 +24,42 @@
     "depth": 1
   },
   {
+    "id": 45155118,
+    "by": "Sophira",
+    "timeISO": "2025-09-07T03:20:24.000Z",
+    "textPlain": "One thing that I wonder about is that even with Fisher-Yates, a PRNG relies on a seed value. Assuming that this seed is going to be a 64-bit value, that seed value can only go up to a maximum of 2^64-1 = 18,446,744,073,709,551,615.000, which is still less than 52!.I know that modern operating systems use an entropy pool. Does this mean that the PRNG is re-seeded for every random number generated, thus making this a non-issue? Or does it just take from this entropy pool once?",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
+    "id": 45155251,
+    "by": "pmarreck",
+    "timeISO": "2025-09-07T03:54:21.000Z",
+    "textPlain": "Why not just simulate a real shuffle?Just \"cut\" in a random location (rotate the deck a random amount), then split the deck roughly in half (add a bit of random variation), then \"flip them together\" back to front by alternately taking 1 or 2 (randomly, add a small chance of 3, so maybe 50% 1, 40% 2 and 10% 3) from each side till there are no cards left to shuffle. Then repeat 8 times or so (there's a certain minimum number of times that ensures good randomness)",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
+    "id": 45155163,
+    "by": "kristianp",
+    "timeISO": "2025-09-07T03:33:11.000Z",
+    "textPlain": "Link to the discoverers of the problem:\nhttps://web.archive.org/web/20140104095330/http:/www.cigital...It actually has some depth into the multiple problems of the algorithm published by the gaming company.",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
     "id": 45154978,
     "by": "mmmpetrichor",
     "timeISO": "2025-09-07T02:52:39.000Z",
     "textPlain": "This became a hot discussion issue in magic the gathering online (MTGO). I always felt my shuffles in MTGO felt different somehow than my offline paper shuffles. It's hard to know for sure when its all closed source.  I know a lot of people were suspicious though.",
+    "parent": 45144610,
+    "depth": 1
+  },
+  {
+    "id": 45155193,
+    "by": "thedigitalone",
+    "timeISO": "2025-09-07T03:38:41.000Z",
+    "textPlain": "No paywall mirror: https://archive.ph/ONQgF",
     "parent": 45144610,
     "depth": 1
   },
@@ -40,6 +88,30 @@
     "depth": 2
   },
   {
+    "id": 45155345,
+    "by": "woopsn",
+    "timeISO": "2025-09-07T04:13:26.000Z",
+    "textPlain": "I guess this PRNG has recurrence period much less than 52! or was seeded inappropriately, so that only sampled a fraction of the distribution\"... the system ties its number generation to the number of seconds that have passed since midnight, resetting once each day, which further limits the possible random values. Only about 86 million arrangements could be generated this way,\"",
+    "parent": 45154922,
+    "depth": 2
+  },
+  {
+    "id": 45155161,
+    "by": "adastra22",
+    "timeISO": "2025-09-07T03:32:36.000Z",
+    "textPlain": "No cryptographically secure PRNG has a 64-bit state. If you are not using a CSRNG in an adversarial environment, you have bigger problems.",
+    "parent": 45155118,
+    "depth": 2
+  },
+  {
+    "id": 45155382,
+    "by": "kerkeslager",
+    "timeISO": "2025-09-07T04:23:14.000Z",
+    "textPlain": "> Why not just simulate a real shuffle?If you are asking why your proposed shuffling method is insecure: I don't know, and that's why I would never use that.Asking \"why not do X?\" is entirely not paranoid enough for security. If you want to propose an algorithm, start with trying to prove the security claims of the algorithm. In this case, you'd need to prove that your algorithm creates a permutation that is indistinguishable from random. If you can't prove it, it's highly probable that your algorithm doesn't create a random permutation and someone will figure out how to break it.I'll point out that we already have proven shuffling algorithms[1] and they're obviously faster than what you've proposed. So the simple answer to your question is \"Because it's unproven and slower than proven algorithms.\"[1] https://en.wikipedia.org/wiki/Fisher%E2%80%93Yates_shuffle",
+    "parent": 45155251,
+    "depth": 2
+  },
+  {
     "id": 45154909,
     "by": "shagie",
     "timeISO": "2025-09-07T02:39:48.000Z",
@@ -52,14 +124,6 @@
     "by": "sejje",
     "timeISO": "2025-09-07T02:04:51.000Z",
     "textPlain": "It didn't even go into the fact that it got exploited, which it did.And I don't think it almost brought them down.",
-    "parent": 45154693,
-    "depth": 2
-  },
-  {
-    "id": 45154962,
-    "by": "trhway",
-    "timeISO": "2025-09-07T02:50:12.000Z",
-    "textPlain": ">RNG was seeded with a millisecond time of day, leading to 86.4M possible decks. Oooph.Sounds like that bug in Netscape SSL back in 90-ies",
     "parent": 45154693,
     "depth": 2
   },
