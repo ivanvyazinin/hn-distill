@@ -8,26 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45162021,
-    "by": "mgaunard",
-    "timeISO": "2025-09-07T20:52:07.000Z",
-    "textPlain": "One particular thing to be careful of are core dumps.What I did at a previous shop was remove the passwords as part of a smart gdb script that runs when the core is dumped, before it gets written to a readable location.Writing the script also helped to demonstrate how to extract the passwords in the first place.",
-    "parent": 45160774,
-    "depth": 1
-  },
-  {
     "id": 45161728,
     "by": "dataflow",
     "timeISO": "2025-09-07T20:14:28.000Z",
     "textPlain": "As far as run-time exposure prevention goes, I feel like in-band signaling might work better than out-of-band for this problem. Along the lines of the taint checking technique mentioned, you can insert some magic string (say, some recognizable prefix + a randomly generated UUID) into your sensitive strings at the source, that you then strip out at the sink. (Or wrap your secrets in a pair of such magic strings.) Then block or mask any strings containing that magic string from making it into any persisted data, including logs. And it will be easy to identify the points of exposure, since they will be wherever you call your respective seal()/unseal() function or such.",
-    "parent": 45160774,
-    "depth": 1
-  },
-  {
-    "id": 45161282,
-    "by": "CraigJPerry",
-    "timeISO": "2025-09-07T19:16:18.000Z",
-    "textPlain": "With java theres a GuardedString implementation  https://docs.oracle.com/en/middleware/idm/identity-governanc...",
     "parent": 45160774,
     "depth": 1
   },
@@ -40,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45160938,
-    "by": "mlhpdx",
-    "timeISO": "2025-09-07T18:35:18.000Z",
-    "textPlain": "Great read.> And while people will write the code that accidentally introduces sensitive data into logs, they’re also the ones that will report, respond, and fix them.This should probably be the first point and not the last.",
+    "id": 45162021,
+    "by": "mgaunard",
+    "timeISO": "2025-09-07T20:52:07.000Z",
+    "textPlain": "One particular thing to be careful of are core dumps.What I did at a previous shop was remove the passwords as part of a smart gdb script that runs when the core is dumped, before it gets written to a readable location.Writing the script also helped to demonstrate how to extract the passwords in the first place.",
     "parent": 45160774,
     "depth": 1
   },
@@ -56,6 +40,30 @@
     "depth": 1
   },
   {
+    "id": 45161282,
+    "by": "CraigJPerry",
+    "timeISO": "2025-09-07T19:16:18.000Z",
+    "textPlain": "With java theres a GuardedString implementation  https://docs.oracle.com/en/middleware/idm/identity-governanc...",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45162912,
+    "by": "bilalq",
+    "timeISO": "2025-09-07T22:49:35.000Z",
+    "textPlain": "This is an excellent write-up of the problem. New hires out of college/bootcamps often have no awareness of the risks here at all. Sometimes even engineers with years of experience but no operational mentorship in their career.The kitchen sink example in particular is one that trips up people. Without knowing the specifics of how a library may deal with failure edge cases, it can catch you off guard (e.g., axios errors including API key headers).A lot of these problems come from architectures where secrets go over the wire instead of just using signatures/ids. But in cases where you have to use some third party platform, there's often no choice.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45160938,
+    "by": "mlhpdx",
+    "timeISO": "2025-09-07T18:35:18.000Z",
+    "textPlain": "Great read.> And while people will write the code that accidentally introduces sensitive data into logs, they’re also the ones that will report, respond, and fix them.This should probably be the first point and not the last.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
     "id": 45161797,
     "by": "blkhawk",
     "timeISO": "2025-09-07T20:23:50.000Z",
@@ -64,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45161769,
-    "by": "debarshri",
-    "timeISO": "2025-09-07T20:19:37.000Z",
-    "textPlain": "I think secrets ending up in the log is an issue but who should have access to view logs of what log should also be an important that is often ignored. This is also scope down the surface area of leakage.",
-    "parent": 45160774,
-    "depth": 1
-  },
-  {
     "id": 45161448,
     "by": "NeutralForest",
     "timeISO": "2025-09-07T19:37:57.000Z",
     "textPlain": "Just excellent. Lots of (common from my experience) examples, potential fixes and self-contained explanations. Nice.",
+    "parent": 45160774,
+    "depth": 1
+  },
+  {
+    "id": 45161769,
+    "by": "debarshri",
+    "timeISO": "2025-09-07T20:19:37.000Z",
+    "textPlain": "I think secrets ending up in the log is an issue but who should have access to view logs of what log should also be an important that is often ignored. This is also scope down the surface area of leakage.",
     "parent": 45160774,
     "depth": 1
   },
@@ -96,19 +104,19 @@
     "depth": 1
   },
   {
+    "id": 45162661,
+    "by": "Bender",
+    "timeISO": "2025-09-07T22:13:31.000Z",
+    "textPlain": "One direction to venture would be running rsyslog on every node, using regex to match all the known patterns and use various plugins/addons to send all the applications to the local rsyslog instance using a local spooler and then encrypt the rsyslog upstream to centralized logging servers.  Rsyslog supports using a spooler so that if the up-stream server is offline for whatever reason the logs are spooled locally and then resume when upstream is online.Regex matching on logs is slow but if performed on every node the CPU load is distributed vs. doing this upstream.  Configuration management can push the regex rules to all the nodes.  This won't help with unknown-unknowns but those can be added quickly to all nodes through configuration management after peer review.Rsyslog also supports encrypting the log stream so that secret leakage is limited to the sending nodes and the central nodes and it checks a few boxes.Another thing that helps is limiting to warn and above sent upstream and using an agent on the local nodes to monitor for keywords in the range of info to debug to let someone know to go check the node logs.  Less junk on the centralized servers that may have SOC1/SOC2/PCI/FEDRAMP log retention requirements.  One can not leak what is not sent in the first place.",
+    "parent": 45162380,
+    "depth": 2
+  },
+  {
     "id": 45162334,
     "by": "kjs3",
     "timeISO": "2025-09-07T21:27:59.000Z",
     "textPlain": "Stack traces, too.  I did some work with a heavy Java shop and pretty much everything sensitive ended up in a stack trace at some point.",
     "parent": 45162021,
-    "depth": 2
-  },
-  {
-    "id": 45162661,
-    "by": "Bender",
-    "timeISO": "2025-09-07T22:13:31.000Z",
-    "textPlain": "One direction to venture would be running rsyslog on every node, using regex to match all the known patterns and use various plugins/addons to send all the applications to the local rsyslog instance using a local spooler and then encrypt the rsyslog upstream to centralized logging servers.  Rsyslog supports using a spooler so that if the up-stream server is offline for whatever reason the logs are spooled locally and then resume when upstream is online.Regex matching on logs is slow but if performed on every node the CPU load is distributed vs. doing this upstream.  Configuration management can push the regex rules to all the nodes.  This won't help with unknown-unknowns but those can be added quickly to all nodes through configuration management after peer review.Rsyslog also supports encrypting the log stream so that secret leakage is limited to the sending nodes and the central nodes and it checks a few boxes.Another thing that helps is limiting upstream to warn and above and using an agent on the local nodes to monitor for keywords in the range of info to debug to let someone know to go check the node logs.  Less junk on the centralized servers that may have SOC1/SOC2/PCI/FEDRAMP log retention requirements.",
-    "parent": 45162380,
     "depth": 2
   },
   {
