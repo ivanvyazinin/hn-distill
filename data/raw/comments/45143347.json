@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45165959,
+    "by": "flarecoder",
+    "timeISO": "2025-09-08T08:40:24.000Z",
+    "textPlain": "For docker images, cgr.dev/chainguard/wolfi-base (https://images.chainguard.dev/directory/image/wolfi-base/ver...) is a great replacement for Alpine. Wolfi is glibc based. It's easy to switch from Alpine since Wolfi uses apk for package management with similar package names and also contains busybox like Alpine.",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
     "id": 45166010,
     "by": "flohofwoe",
     "timeISO": "2025-09-08T08:49:48.000Z",
@@ -24,18 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45165959,
-    "by": "flarecoder",
-    "timeISO": "2025-09-08T08:40:24.000Z",
-    "textPlain": "For docker images, cgr.dev/chainguard/wolfi-base (https://images.chainguard.dev/directory/image/wolfi-base/ver...) is a great replacement for Alpine. Wolfi is glibc based. It's easy to switch from Alpine since Wolfi uses apk for package management with similar package names and also contains busybox like Alpine.",
-    "parent": 45143347,
-    "depth": 1
-  },
-  {
-    "id": 45165653,
-    "by": "torginus",
-    "timeISO": "2025-09-08T07:53:02.000Z",
-    "textPlain": "The root cause of the issue, is that musl malloc uses a single head, and relies on locking to support multiple heaps. This means each allocation/free must acquire this lock.  Imo it's good for single threaded programs (which might've been musls main usecase), but Rust programs nowadays mostly use multiple threads.In contrast mimalloc, a similarly minimalistic allocator has a per-thread heap, which each thread owning the memory it allocates, and cross-thread free's are handled in a deferred manner.This works very well with Rust's ownership system, where objects rarely move between threads.Internally, both allocators use size-class based allocation, into predefined chunks, with the key difference being that musl uses bitmaps and mimalloc uses free lists to keep track of memory.Musl could be fixed, it they switch from a single thread model, to a per-thread heap as well.",
+    "id": 45164750,
+    "by": "rurban",
+    "timeISO": "2025-09-08T04:56:36.000Z",
+    "textPlain": "Rich replaced the default musl malloc some time ago for exactly those reasons. Maybe they still used the old musl libc?The new one was drafted here: https://github.com/richfelker/mallocng-draft",
     "parent": 45143347,
     "depth": 1
   },
@@ -48,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45164750,
-    "by": "rurban",
-    "timeISO": "2025-09-08T04:56:36.000Z",
-    "textPlain": "Rich replaced the default musl malloc some time ago for exactly those reasons. Maybe they still used the old musl libc?The new one was drafted here: https://github.com/richfelker/mallocng-draft",
+    "id": 45165653,
+    "by": "torginus",
+    "timeISO": "2025-09-08T07:53:02.000Z",
+    "textPlain": "The root cause of the issue, is that musl malloc uses a single head, and relies on locking to support multiple heaps. This means each allocation/free must acquire this lock.  Imo it's good for single threaded programs (which might've been musls main usecase), but Rust programs nowadays mostly use multiple threads.In contrast mimalloc, a similarly minimalistic allocator has a per-thread heap, which each thread owning the memory it allocates, and cross-thread free's are handled in a deferred manner.This works very well with Rust's ownership system, where objects rarely move between threads.Internally, both allocators use size-class based allocation, into predefined chunks, with the key difference being that musl uses bitmaps and mimalloc uses free lists to keep track of memory.Musl could be fixed, it they switch from a single thread model, to a per-thread heap as well.",
     "parent": 45143347,
     "depth": 1
   },
@@ -64,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45165810,
-    "by": "anthk",
-    "timeISO": "2025-09-08T08:14:14.000Z",
-    "textPlain": "Chimera Linux did some changes on their distro because of that.EDIT: Ah, they were mentioned, of course.On some malloc replacements, telescope -a gopher/gemini client- used to be a bit crashy until I used jemalloc on some platforms (with LD_PRELOAD).Also, the performance rendering pages with tons of links improved a lot.",
-    "parent": 45143347,
-    "depth": 1
-  },
-  {
     "id": 45164869,
     "by": "jauntywundrkind",
     "timeISO": "2025-09-08T05:23:11.000Z",
     "textPlain": "Alas this is a huge foot gun that ensnares many orgs. Because engineers seem drawn like moths to the flame to Alpine container images. Yes they are small, but the ramifications of Alpine & using musl are significant.Optimizing for size & stdlib code simplicity is probably not the best fit for your application server! Container size has always struck me as such a Goodhart's Law issue (and worse, already a bad measure as it measures only a  very brief part of the software lifecycle). Goodhart's Law:> When a measure becomes a target, it ceases to be a good measureThis particular musl/Alpine footgun can be worked around. It's not particularly hard to install and use another allocator on Alpine or anywhere really. Ruby folks in particular seem to have a lot of lore around jemalloc, with various versions preferences and MALLOC_CONFIGs on top of that. But in general I continue to feel like Alpine base images bring in quite an X factor, even if you knowingly adjust the allocator: the prevalence of Alpine in container images feels unfortunate & eccentric.Going distorless is always an option. A little too radical for my tastes though usually. I think of musl+busybox+ipkg as the  distinguishing aspects of Alpine, so on that basis I'm excited to see the recent huge strides by uutil, the rust rewrite of gnu coreutils focused on compatibility. While offering a BusyBox-like all-in-one binary convenience! It should make a nice compact coreutils for containers! The recent 0.2 has competitive performance which is awesome to see. https://www.phoronix.com/news/Rust-Coreutils-0.2",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
+    "id": 45165810,
+    "by": "anthk",
+    "timeISO": "2025-09-08T08:14:14.000Z",
+    "textPlain": "Chimera Linux did some changes on their distro because of that.EDIT: Ah, they were mentioned, of course.On some malloc replacements, telescope -a gopher/gemini client- used to be a bit crashy until I used jemalloc on some platforms (with LD_PRELOAD).Also, the performance rendering pages with tons of links improved a lot.",
     "parent": 45143347,
     "depth": 1
   },
@@ -120,18 +120,26 @@
     "depth": 2
   },
   {
-    "id": 45166370,
-    "by": "petcat",
-    "timeISO": "2025-09-08T09:53:21.000Z",
-    "textPlain": "Programs that tend to have higher performance requirements are typically multi threaded and those are the ones that are also hit particularly hard by this issue.",
+    "id": 45166498,
+    "by": "dijit",
+    "timeISO": "2025-09-08T10:13:17.000Z",
+    "textPlain": "I’d much rather go with distroless, if its a choice.But I think you can tweak musl to perform well, and musl is closer to the spec than glibc so I would rather use it; even if its slower in the default case for multithreaded programmes.",
+    "parent": 45165959,
+    "depth": 2
+  },
+  {
+    "id": 45166802,
+    "by": "citrin_ru",
+    "timeISO": "2025-09-08T10:57:20.000Z",
+    "textPlain": "glibc malloc still doesn't work well for multi-threaded apps. It is prone to memory fragmentation which causes excessive memory usage. One can reduce number of arenas using MALLOC_ARENA_MAX environment variable and in many cases it's a good idea but it could increase lock contention.If you care about efficiency of a multi-threaded app you should use jemalloc (sadly no longer maintained but still works well), mi-malloc or tcmalloc.",
     "parent": 45165158,
     "depth": 2
   },
   {
-    "id": 45166504,
-    "by": "imtringued",
-    "timeISO": "2025-09-08T10:14:10.000Z",
-    "textPlain": "I'm not seeing how this justifies a 700x performance difference.",
+    "id": 45166370,
+    "by": "petcat",
+    "timeISO": "2025-09-08T09:53:21.000Z",
+    "textPlain": "Programs that tend to have higher performance requirements are typically multi threaded and those are the ones that are also hit particularly hard by this issue.",
     "parent": 45165158,
     "depth": 2
   },
@@ -144,19 +152,11 @@
     "depth": 2
   },
   {
-    "id": 45166498,
-    "by": "dijit",
-    "timeISO": "2025-09-08T10:13:17.000Z",
-    "textPlain": "I’d much rather go with distroless, if its a choice.But I think you can tweak musl to perform well, and musl is closer to the spec than glibc so I would rather use it; even if its slower in the default case for multithreaded programmes.",
-    "parent": 45165959,
-    "depth": 2
-  },
-  {
-    "id": 45166042,
-    "by": "flohofwoe",
-    "timeISO": "2025-09-08T08:54:43.000Z",
-    "textPlain": "> a similarly minimalistic allocatormimalloc has about 10kloc, while (assuming I'm looking in the right place) the new musl allocator has 891 and the old musl allocator has 518 lines of code. I wouldn't call an order of magnitude difference in line count 'similar'.",
-    "parent": 45165653,
+    "id": 45166504,
+    "by": "imtringued",
+    "timeISO": "2025-09-08T10:14:10.000Z",
+    "textPlain": "I'm not seeing how this justifies a 700x performance difference.",
+    "parent": 45165158,
     "depth": 2
   },
   {
@@ -173,6 +173,14 @@
     "timeISO": "2025-09-08T07:04:40.000Z",
     "textPlain": "The new allocator does nothing to improve the performances in a threaded / contended application: https://www.openwall.com/lists/musl/2025/09/04/3",
     "parent": 45164750,
+    "depth": 2
+  },
+  {
+    "id": 45166042,
+    "by": "flohofwoe",
+    "timeISO": "2025-09-08T08:54:43.000Z",
+    "textPlain": "> a similarly minimalistic allocatormimalloc has about 10kloc, while (assuming I'm looking in the right place) the new musl allocator has 891 and the old musl allocator has 518 lines of code. I wouldn't call an order of magnitude difference in line count 'similar'.",
+    "parent": 45165653,
     "depth": 2
   },
   {
