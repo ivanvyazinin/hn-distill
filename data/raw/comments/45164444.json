@@ -1,5 +1,21 @@
 [
   {
+    "id": 45165461,
+    "by": "pyrale",
+    "timeISO": "2025-09-08T07:20:32.000Z",
+    "textPlain": "Aside from the flaws of the article, one provided example annoys me:> What happens when you need to account for “official” apps, which are developed internally and shouldn’t go through the normal review process?There is a reason devs are advised to eat their own dogfood. Building a process-bypass for the users that are also the ones responsible for fixing the process is the easiest way to get a broken process.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164858,
+    "by": "bakemawaytoys",
+    "timeISO": "2025-09-08T05:21:39.000Z",
+    "textPlain": "To me, this article misses the mark.The database is not your domain model, it is the storage representation of your domain model on disk. Your REST/grpc/whatever API also isn’t your domain model, but the representation of your domain model on the wire.These tools (database, protocols) are not the place to enforce making invalid states un-representable for reasons the article mentions. You translate your domain model into and out of these tools, so code your domain model as separately and as purely as you can and reject invalid states during translation.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
     "id": 45164836,
     "by": "slowking2",
     "timeISO": "2025-09-08T05:16:08.000Z",
@@ -8,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45164795,
-    "by": "b_e_n_t_o_n",
-    "timeISO": "2025-09-08T05:06:33.000Z",
-    "textPlain": "I've been thinking about this for a while. I don't use Clojure but I do follow Rich Hickey and have watched a few of his talks, where he makes similar points. Folks often talk about types as abstractions but they're actually concretions, they are concrete choices about what information you want to keep out of all possible choices. And like concrete in real life, it's costly to change the shape of something once it's set. This may or may not be an issue depending on where you program is running, in closed systems like a compiler it can be a great benefit, for open world systems which must use non-elegant models, must deal with state and time, must have effects and be affected, and must change in ways you can't predict, the cost is much higher.I talk about types because most of the \"make invalid states unrepresentable\" dogma comes from proponents of languages with extensive static type systems, and the idea is to use the type system to define all forms of legal states.",
+    "id": 45165398,
+    "by": "kqr",
+    "timeISO": "2025-09-08T07:08:00.000Z",
+    "textPlain": "The thing about making invalid states unrepresentable is that we are often overconfident in what counts as invalid. What counts as valid and invalid behaviour is given by the requirements specification, but if there's anything that changes frequently throughout development, it's the requirements. What's invalid today might be desirable tomorrow.Thus, we have to be careful at which level we make invalid states unrepresentable.If we follow where Parnas and Dijkstra suggested we go[1], we'll build software with an onion architecture. There, the innermost layers are still quite primitive and will certainly be capable of representing states considered invalid by the requirements specification! Then as we stack more layers on top, we impose more constraints on the functionality that can be expressed, until the outermost layer almost by accident solves the problems that needed to be solved. The outermost layers are where invalid states should be unrepresentable.What often happens in practice when people try to make invalid states unrepresentable is they encode assumptions from the requirements specification into the innermost layers of the onion, into the fundamental building blocks of the software. That results in a lot of rework when the requirements inevitably change. The goal of good abstraction should be to write the innermost layers such that they're usable across all possible variations of the requirements – even those we haven't learned yet. Overspecifying the innermost layers runs counter to that.In the example of the app market place, any state transitions that are well-defined should be allowed at the inner layer of the abstraction that manages state transitions, but the high-level API in which normal transitions are commanded should only allow the ones currently considered valid by the requirements.[1]: https://entropicthoughts.com/deliberate-abstraction",
     "parent": 45164444,
     "depth": 1
   },
@@ -24,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45164796,
-    "by": "elevation",
-    "timeISO": "2025-09-08T05:07:00.000Z",
-    "textPlain": "You also see on-the-wire protocols making invalid states unrepresentable through clever tricks.  Consider RFC 3550 p.19:    0                   1                   2                   3\n    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |      defined by profile       |           length              |\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |                        header extension                       |\n   |                             ....                              |\n\n   [...] The header extension contains a 16-bit length field that\n   counts the number of 32-bit words in the extension, excluding the\n   four-octet extension header (therefore zero is a valid length).  So for RTP extension headers, actual_num_bytes = (`length` + 1) * 4\n\nA naive `length` field might indicate the number of bytes.  But this would allow a header to indicate \"zero\" bytes (not possible.)  So the '0' value is defined as 0 more than we already have, and since packets are supposed to only contain a multiple of 4 bytes, the units of the length field are defined as 32-bits.While it isn't strictly harmful, one drawback of this approach is that if you perfectly bit-pack every field such that random noise can be interpreted as a well-formed packet in your protocol, it will be difficult to heuristically identify the protocol.",
+    "id": 45165262,
+    "by": "jeschiefer",
+    "timeISO": "2025-09-08T06:41:12.000Z",
+    "textPlain": "\"some invalid states\" - what does this mean, please? How do I constrain the \"some\" part? If you can't, you might as well say \"mostly invalid states\", which is what tends to happen in practice.The whole point of state machines/type constraints/foreign key constraints/protocol definitions is that there is a clear boundary between what is allowed and what is not. And I would argue that this is what makes life easier, because you can tell one from the other. And with the right tooling, the compiler or some conformance tool will tell you that the change you just introduced, breaks your implementation in 412 places.Because this allows me to stop and think whether I can make a different change that only creates 117 problems. Or estimate the cost of the changes and compare it with the business benefit, and have appropriate conversations with stake holders. Or find out that my domain model was completely wrong to begin with and start refactoring my way out of this. And all of this before the first successful compile.For me, this gives me maximum flexibility, because I have a good idea of the impact of any changes on the first day of development. This does require appropriate tooling though, like you would find in Ocaml, F#, Rust, State Machine Compilers, ... <insert your favourite tool here>.",
     "parent": 45164444,
     "depth": 1
   },
@@ -40,6 +56,22 @@
     "depth": 1
   },
   {
+    "id": 45165138,
+    "by": "aabhay",
+    "timeISO": "2025-09-08T06:15:59.000Z",
+    "textPlain": "I wish there were some actual stories here about tricky migrations and how they were handled, rather than defaulting to the naturally turf war framing here.If my experience, writing code that is “future migration friendly” is one of the hallmarks of senior developer knowledge. It’s just the kind of thing that burrows into your brain, because most senior devs have seen, built, or maintained code with randomly cordoned off “WARNING NONSENSICAL THING HERE” style sections of massive codebases that are artifacts of various migration things.For context about how we do it, we use a giant NoSQL single table design, with zero joins. All joining is handled in the application, which ends up forcing everyone to consider how to parallelize and lookahead rather than join. Additionally, any complex data is stored as row level binary blobs from a versioned schema, which also helps localize issues to a particular subtype rather than leaking it into all schemas (for example if you change what qualifies as an “update”, your “updatedAt” column doesn’t suddenly change meanings for all things.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164795,
+    "by": "b_e_n_t_o_n",
+    "timeISO": "2025-09-08T05:06:33.000Z",
+    "textPlain": "I've been thinking about this for a while. I don't use Clojure but I do follow Rich Hickey and have watched a few of his talks, where he makes similar points. Folks often talk about types as abstractions but they're actually concretions, they are concrete choices about what information you want to keep out of all possible choices. And like concrete in real life, it's costly to change the shape of something once it's set. This may or may not be an issue depending on where you program is running, in closed systems like a compiler it can be a great benefit, for open world systems which must use non-elegant models, must deal with state and time, must have effects and be affected, and must change in ways you can't predict, the cost is much higher.I talk about types because most of the \"make invalid states unrepresentable\" dogma comes from proponents of languages with extensive static type systems, and the idea is to use the type system to define all forms of legal states.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
     "id": 45164681,
     "by": "danpalmer",
     "timeISO": "2025-09-08T04:40:39.000Z",
@@ -48,10 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45164763,
-    "by": "lykahb",
-    "timeISO": "2025-09-08T04:59:40.000Z",
-    "textPlain": "It matters where the constraints live. Inside of a codebase they are easier to change. Updating the database schema would be harder. On the protocol level it may be impossible if not all parties can be updated. However, if the protocol is too loosely specified, it could create other problems.",
+    "id": 45165284,
+    "by": "throwaway81523",
+    "timeISO": "2025-09-08T06:44:56.000Z",
+    "textPlain": "The protobuf example seems best handled with version numbers in the messages.  Designing protocols without them is almost an antipattern, especially when the designer says \"there's no version number because I'm so smart, I'm going to get it right the first time\".  The examples that I remembered now seem to have been scrubbed from the web ;).",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164796,
+    "by": "elevation",
+    "timeISO": "2025-09-08T05:07:00.000Z",
+    "textPlain": "You also see on-the-wire protocols making invalid states unrepresentable through clever tricks.  Consider RFC 3550 p.19:    0                   1                   2                   3\n    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |      defined by profile       |           length              |\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |                        header extension                       |\n   |                             ....                              |\n\n   [...] The header extension contains a 16-bit length field that\n   counts the number of 32-bit words in the extension, excluding the\n   four-octet extension header (therefore zero is a valid length).  \n\nSo for RTP extension headers, actual_num_bytes = (`length` + 1) * 4.  A naive `length` field might indicate the number of bytes.  But this would allow a header to indicate \"zero\" bytes (not possible.)  So the '0' value is defined as 0 more than we already have, and since packets are supposed to only contain a multiple of 4 bytes, the units of the length field are defined as 32-bits.While it isn't strictly harmful, one drawback of this approach is that if you perfectly bit-pack every field such that random noise can be interpreted as a well-formed packet in your protocol, it will be difficult to heuristically identify the protocol.",
     "parent": 45164444,
     "depth": 1
   },
@@ -64,6 +104,30 @@
     "depth": 1
   },
   {
+    "id": 45165042,
+    "by": "pluto_modadic",
+    "timeISO": "2025-09-08T06:01:04.000Z",
+    "textPlain": "This reminds me that in protocol buffers you can deprecate and extend field names in a backwards compatible way and it's handled semi-sensibly. At the very least, it makes you think about schema migration (of HTTP fields in this case. DB fields and class fields are different...). If you aren't using practices that make e.g. adding another enum option to state sensible (e.g. in a language or linter that requires passing interface checks, class X must provide method Y)",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164864,
+    "by": "nine_k",
+    "timeISO": "2025-09-08T05:22:26.000Z",
+    "textPlain": "The key part: \"For most software, domain models are not real\". Indeed, if your reality is ill-defined, you need miracles, aka invalid states, to handle certain practical cases. So it's more about admitting a design failure. One type of such failure may be putting wrong constraints on the model. You have to think hard about what can and cannot be, and often it's not a luxury your boss can afford. To allow representation of invalid states is to admit that you're going to be proven wrong eventually, which is not a wild exaggeration in a wide range of circumstances, alas. It's to plan for a mess, because a mess is inevitable.(This whole approach reminds me of \"I think therefore anything, due to the false antecedent\".)",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164933,
+    "by": "yrand",
+    "timeISO": "2025-09-08T05:39:06.000Z",
+    "textPlain": "The problem with making invalid states representable is that the app logic must be able to handle it, everywhere. Which means you have to always take it into account when reasoning about your app and implementing it, otherwise it will blow up in your face when the invalid state actually occurs. Which means your state machine is inherently larger and harder to reason about.To illustrate what I mean, take the null pointer. It's essentially an Optional<T> and in a lot of languages it's involuntary, meaning any value is implicitly optional. What happens when something returns null, but in some place in your logic you don't take it into account? Null pointer dereference.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
     "id": 45164635,
     "by": "cadamsdotcom",
     "timeISO": "2025-09-08T04:28:21.000Z",
@@ -72,12 +136,100 @@
     "depth": 1
   },
   {
+    "id": 45164763,
+    "by": "lykahb",
+    "timeISO": "2025-09-08T04:59:40.000Z",
+    "textPlain": "It matters where the constraints live. Inside of a codebase they are easier to change. Updating the database schema would be harder. On the protocol level it may be impossible if not all parties can be updated. However, if the protocol is too loosely specified, it could create other problems.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164978,
+    "by": "LoganDark",
+    "timeISO": "2025-09-08T05:48:23.000Z",
+    "textPlain": "The first example in the article of an application or whatever doesn't seem like a good example. I don't ever have some strict state machine in my data model that only has certain state transitions. I have a state, and certain transactions are available through API endpoints, and maybe internal apps have their own endpoints that can do things that the public cannot.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164977,
+    "by": "zmgsabst",
+    "timeISO": "2025-09-08T05:47:45.000Z",
+    "textPlain": "I’ve seen more errors from “pubilshed” strings than difficulties updating an enum.The rest of it is arguing about what constitutes valid states, eg, commit messages when the user deletes or wrong-schema datagrams being partially utilized. Here’s the rub: if you don’t allow invalid states, you’re forced to actually have that discussion (“actually, messages don’t strictly require a user”; “only these fields are required, others are a maybe”) and those are then encoded in your software rules. They’re not things that happen informally, in undocumented ways.Further, when you do allow invalid states, you have a typo disappear 1% of your messages into the “pubilshed” category.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164998,
+    "by": "pcthrowaway",
+    "timeISO": "2025-09-08T05:51:40.000Z",
+    "textPlain": "Hmm this is interesting food for thought, but I mainly disagree with the \"Foreign Key Constraints\" section:> A foreign key constraint forces user_id to correspond to an actual row in the users table. If you try to create or update a post with user_id 999, and there is no user with that id, the foreign key constraint will cause the SQL query to fail.> This sounds great, right? A record pointing at a non-existent user is in an invalid state. Shouldn’t we want it to be impossible to represent invalid states? However, many large tech companies - including the two I’ve worked for, GitHub and Zendesk - deliberately choose not to use foreign key constraints. Why not?> The main reason is flexibility. In practice, it’s much easier to deal with some illegal states in application logic (like posts with no user attached) than it is to deal with the constraint. With foreign key constraints, you have to delete all related records when a parent record is deleted. That might be okay for users and posts - though it could become a very expensive operation - but what about relationships that are less solid? If a post has a reviewer_id, what happens when that reviewer’s account is deleted? It doesn’t seem right to delete the post, surely. And so on.So if you need to keep reviews by a user when the user can be deleted, you have a few options:- Use a foreign key constraint but also allow nullable foreign key values (I believe DBMSes such as postgres and mysql support this)- Create a record representing an orphaned user and move reviews to it when the user is deleted (generally, the reviews will then show as posted by user \"DELETED\", though you can also enforce different ways to display deleted user associations)- Soft delete the users (in this case you also have to exercise caution around what ex-user data may be displayed where)There are tradeoffs with each one; soft deletion of users would likely run afoul of Right to be Forgotten laws in some places. I'd tend to favour option 1 for an",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
     "id": 45164676,
     "by": "potsandpans",
     "timeISO": "2025-09-08T04:40:07.000Z",
-    "textPlain": "I love Samuel geodeck",
+    "textPlain": "[flagged]",
     "parent": 45164444,
     "depth": 1
+  },
+  {
+    "id": 45165274,
+    "by": "rich_sasha",
+    "timeISO": "2025-09-08T06:43:01.000Z",
+    "textPlain": "I'm not sure I agree.My perfunctory reading is thus: first you couple your state representation to the business logic, and make some states unrepresentable (say every client is category A, B or C). Maybe you allow yourself some flexibility, like you can add more client types.Then the business people come and tell you some new client is both A and B, and maybe Z as well, quickly now, type type type.And that there's a tradeoff between:- eliminating invalid states, leading to less errors, and- inflexibility in changes to the business logic down the way.Maybe I misunderstood, but if this is right, then it's a good point. And I would add: when modelling some business logic, ask yourself how likely it is to change. If it's something pretty concrete and immovable, feel free to make the representation rigid. But if not, and even if the business people insist otherwise, look for ways to retain flexibility down the line, even if it means some invalid states are indeed representable in code.",
+    "parent": 45164858,
+    "depth": 2
+  },
+  {
+    "id": 45165008,
+    "by": "lock1",
+    "timeISO": "2025-09-08T05:54:17.000Z",
+    "textPlain": "+1In cases like electronics & protocols, it's very often a good idea to add an extra \"reserved & unused\" section for compatibility reasons.These representations need not be 1:1 with the domain model. Different versions of the model might reject previously accepted representation in case of breaking changes. It's up to the dev to decide on which conflict reconciliation strategy they should take (fallback values, reject, compute value, etc).Working with a precise domain model (as in, no representable invalid states) is way more pleasant than stringly-typed/primitives mess. We can just focus on domain logic without continuously second-guessing whether a string contains valid user.role values or it contains \"cat\".",
+    "parent": 45164858,
+    "depth": 2
+  },
+  {
+    "id": 45165320,
+    "by": "Zanfa",
+    "timeISO": "2025-09-08T06:51:01.000Z",
+    "textPlain": "I disagree completely.You’re already paying the cost of abstraction for using a certain database or protocol, so get the most bang for your buck. If you can encode rules in a schema or a type, it’s basically free, compared to having to enforce it in code, hoping that future developers (yourself or others) will remember to do the same. It just eliminates and entire universe of problems you have to deal with otherwise.Also, while relaxing constraints is usually easy or at least doable, enforcing new constrains on existing data is impossible in practice. Never seen it done successfully.The only exception to this rule I typically make is around data state transitions. Meaning that even when business rules dictate a unidirectional transition, it should be bidirectional in code, just because people will click the wrong button and will need a way to undo “irreversible” actions.",
+    "parent": 45164858,
+    "depth": 2
+  },
+  {
+    "id": 45165068,
+    "by": "lmm",
+    "timeISO": "2025-09-08T06:05:34.000Z",
+    "textPlain": "Yep. \"Make invalid states unrepresentable\" pairs well with \"parse, don't validate\"; the states that are valid for your business domain are (maybe) not the same as the states that are valid for your storage or wire format, so have different representations for these things.",
+    "parent": 45164858,
+    "depth": 2
+  },
+  {
+    "id": 45165060,
+    "by": "motorest",
+    "timeISO": "2025-09-08T06:04:06.000Z",
+    "textPlain": "> To me, this article misses the mark.Yes, I agree. The blogger shows a fundamental misunderstanding of what it means to \"make invalid states unrepresentable\". I'll add that the state machine example is also pretty awful. The blogger lists examples of usecases that the hypothetical implementation does not support, and the rationale to not implement it was that \"this can dramatically complicate the design\". Which is baffling as the scenario was based on complicating the design with \"edge cases\", but it's even more baffling when the blogger has an epiphany of \"you need to remain flexible enough to allow some arbitrary transitions\". As if the whole point was not to allow some transitions and reject all other that would be invalid.The foreign key example takes the cake, though. Allowing non-normalized data to be stored in databases has absolutely no relation with the domain model.I stopped reading after that point. The blog post is a waste of bandwidth.",
+    "parent": 45164858,
+    "depth": 2
+  },
+  {
+    "id": 45165463,
+    "by": "shepherdjerred",
+    "timeISO": "2025-09-08T07:20:50.000Z",
+    "textPlain": "> For scientific simulations, I almost always want invalid state to immediately result in a program crash.If you have actually made invalid states unrepresentable, then it is _impossible_ for your program to transition into an invalid state at runtime.Otherwise, you're just talking about failing fast",
+    "parent": 45164836,
+    "depth": 2
+  },
+  {
+    "id": 45165312,
+    "by": "neRok",
+    "timeISO": "2025-09-08T06:49:57.000Z",
+    "textPlain": "> Invalid state is usually due to a bugI don't think the article is referring to that sort of issue, which sounds fundamental to the task at hand (calculations etc). To me it's about making the code flexible with regards to future changes/requirements/adaptions/etc. I guess you could consider Y2K as an example of this issue, because the problem with 6 digit date codes wasn't with their practicality at handling dates in the 80's/90's, but about dates that \"spanned\" beyond 991231, ie 000101.",
+    "parent": 45164836,
+    "depth": 2
   },
   {
     "id": 45164805,
@@ -88,11 +240,59 @@
     "depth": 2
   },
   {
+    "id": 45165175,
+    "by": "NooneAtAll3",
+    "timeISO": "2025-09-08T06:23:59.000Z",
+    "textPlain": "easier refactoring - for the cost of having much more of itflexibility saves the effort and allows doing more of the Actual Things",
+    "parent": 45164736,
+    "depth": 2
+  },
+  {
+    "id": 45165117,
+    "by": "ngruhn",
+    "timeISO": "2025-09-08T06:12:56.000Z",
+    "textPlain": "> it's costly to change the shape of something once it's setBut in a dynamically typed language you also have that problem. Except there the shape is a hidden assumption and the type checker won't tell you all the places you have to change.",
+    "parent": 45164795,
+    "depth": 2
+  },
+  {
+    "id": 45164922,
+    "by": "duskwuff",
+    "timeISO": "2025-09-08T05:34:12.000Z",
+    "textPlain": "Another corollary is that, if you're designing a data compression format, you try to avoid having sequences in your compressed data which are invalid, or which a compressor would never emit. Either one is probably a waste of bits which you could use to make your representation more concise.(Intentional redundancies like checksums are fine, of course.)",
+    "parent": 45164796,
+    "depth": 2
+  },
+  {
+    "id": 45164867,
+    "by": "nine_k",
+    "timeISO": "2025-09-08T05:23:04.000Z",
+    "textPlain": "> difficult to heuristically identify the protocolThis can as well be a desirable feature, depending on your design goals.",
+    "parent": 45164796,
+    "depth": 2
+  },
+  {
     "id": 45164688,
     "by": "danpalmer",
     "timeISO": "2025-09-08T04:42:11.000Z",
     "textPlain": "This was clearly not legal advice. Soft-deletes come with a lot of complexity at the application layer, more maintenance, more security risk, and require building out user data deletion processes.Having a deleted data table is a slightly easier approach I've seen, but you still need to be aware about user and legal requirements around deleting data.",
     "parent": 45164643,
+    "depth": 2
+  },
+  {
+    "id": 45165075,
+    "by": "jraph",
+    "timeISO": "2025-09-08T06:06:44.000Z",
+    "textPlain": "Yep. That's what I was going to comment.I'm not convinced, because you have to deal with invalid state in some way or another in any case.If you have to delete some record referenced by other records using foreign keys, you'll have to handle the complexity in any case, except if this is enforced by the database, you'll have no choice than to think about this upfront, which is good. It might lead you to handle this differently, for instance by not deleting the row but mark it as deleted, or by changing the id to some \"ghost\" user.If you don't do this, all the complexity of not having to deal with the inconsistencies when you are creating them will have to be encoded in your code at write time, with null or exception checks everywhere.Constraints encodes what safe assumptions your code make to be simpler. If an assumption needs to be relaxed, it's going to be hard to change things as you'll have to update all the code, but the alternative is to make no assumption at all anywhere, which is hard too and leads to code that's more complicated than necessary.And then what does an invalid reviewer_id mean? Was this caused by a user deletion? Or a bug somewhere? Or some corruption?Bonus: some commenters here write that it can depend on which programming language is used, I don't think it matters at all. You'll have to handle the null or dangling values in any case, whether the language guides you for this or not.",
+    "parent": 45164933,
+    "depth": 2
+  },
+  {
+    "id": 45165188,
+    "by": "tomhow",
+    "timeISO": "2025-09-08T06:28:07.000Z",
+    "textPlain": "Please don't rewrite comments to have a completely different meaning after people have replied to them. Sure, update the comment if you recognize that the initial version was wrong, but please disclose that you did so, to prevent confusion. Doing this kind of thing counts as trolling and we have to penalize accounts that do that repeatedly.",
+    "parent": 45164676,
     "depth": 2
   },
   {
