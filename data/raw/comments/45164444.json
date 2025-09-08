@@ -1,1 +1,114 @@
-[]
+[
+  {
+    "id": 45164836,
+    "by": "slowking2",
+    "timeISO": "2025-09-08T05:16:08.000Z",
+    "textPlain": "Making invalid states unrepresentable may be a great idea or terrible idea depending on what you are doing. My experience is all in scientific simulation, data analysis, and embedded software in medical devices.For scientific simulations, I almost always want invalid state to immediately result in a program crash. Invalid state is usually due to a bug. And invalid state is often the type of bug which may invalidate any conclusions you'd want to draw from the simulation.For data analysis, things are looser. I'll split data up into data which is successfully cleaned to where invalid state is unrepresentable and dirty data which I then inspect manually to see if I am wrong about what is \"invalid\" or if I'm missing a cleaning step.I don't write embedded software (although I've written control algorithms to be deployed on it and have been involved in testing that the design and implementation are equivalent), but while you can't exactly make every invalid state unrepresentable you definitely don't punch giant holes in your state machine. A good design has clean state machines, never has an uncovered case, and should pretty much only reach a failure state due to outside physical events or hardware failure. Even then, if possible the software should be able to provide information to intervene to fix certain physical issues. I've seen devices RMA's where the root cause was the FPU failed; when your software detects the sort of error that might be hardware failure, sometimes the best you can do is bail out very carefully. But you want to make these unknown failures be a once per thousands or millions of device years event.Sean is writing mostly about distributed systems where it sounds like it's not a big deal if certain things are wrong or there's not a single well defined problem being solved. That's very different than the domains I'm used to, so the correct engineering in that situation may more often be to allow invalid state. (EDIT: and it also seems very relevant that",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164795,
+    "by": "b_e_n_t_o_n",
+    "timeISO": "2025-09-08T05:06:33.000Z",
+    "textPlain": "I've been thinking about this for a while. I don't use Clojure but I do follow Rich Hickey and have watched a few of his talks, where he makes similar points. Folks often talk about types as abstractions but they're actually concretions, they are concrete choices about what information you want to keep out of all possible choices. And like concrete in real life, it's costly to change the shape of something once it's set. This may or may not be an issue depending on where you program is running, in closed systems like a compiler it can be a great benefit, for open world systems which must use non-elegant models, must deal with state and time, must have effects and be affected, and must change in ways you can't predict, the cost is much higher.I talk about types because most of the \"make invalid states unrepresentable\" dogma comes from proponents of languages with extensive static type systems, and the idea is to use the type system to define all forms of legal states.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164736,
+    "by": "danpalmer",
+    "timeISO": "2025-09-08T04:53:02.000Z",
+    "textPlain": "One of the main pushbacks in this article is on the difficulty of later edits once the domain changes. The \"make invalid states unrepresentable\" mantra really came out of the strongly typed functional programming crowd – Elm, F#, Haskell, and now adopted by Rust. These all have exceptionally strong compilers, a main advantage of which is _easier refactoring_.Which side of the argument one falls on is likely to be heavily influenced by which language they're writing. The mantra is likely worth sticking to heavily in, say, Haskell or Rust, and I've had plenty of success with it in Swift. Go or Java on the other hand? You'd probably want to err on the side of flexibility because that suits the language more and you can rely on the compiler less during development.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164796,
+    "by": "elevation",
+    "timeISO": "2025-09-08T05:07:00.000Z",
+    "textPlain": "You also see on-the-wire protocols making invalid states unrepresentable through clever tricks.  Consider RFC 3550 p.19:    0                   1                   2                   3\n    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |      defined by profile       |           length              |\n   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+\n   |                        header extension                       |\n   |                             ....                              |\n\n   [...] The header extension contains a 16-bit length field that\n   counts the number of 32-bit words in the extension, excluding the\n   four-octet extension header (therefore zero is a valid length).  So for RTP extension headers, actual_num_bytes = (`length` + 1) * 4\n\nA naive `length` field might indicate the number of bytes.  But this would allow a header to indicate \"zero\" bytes (not possible.)  So the '0' value is defined as 0 more than we already have, and since packets are supposed to only contain a multiple of 4 bytes, the units of the length field are defined as 32-bits.While it isn't strictly harmful, one drawback of this approach is that if you perfectly bit-pack every field such that random noise can be interpreted as a well-formed packet in your protocol, it will be difficult to heuristically identify the protocol.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164663,
+    "by": "hysan",
+    "timeISO": "2025-09-08T04:36:57.000Z",
+    "textPlain": "I mostly agree with the author but I think there's a very important distinction to make. It's important to think about this in two layers - the domain and the UI (whether that be a CLI, an API, a full blown GUI, etc). The author very clearly is talking about the domain layer, but the area where I see \"Make invalid states unrepresentable\" having the greatest benefit is in the UI layer. That is where you want fine grain control over what capabilities of your domain layer that you expose and is where you have a lot to gain by architecting your types/system/etc to be strict. It makes for easier to reason about code and reduces the amount of edge cases you need to QA. The constraints you put in the UI layer are product constraints, not technical ones. In my opinion, when you think about it that way, that adage isn't harmful but rather a very useful guide for technical folks to use when trying to mental model what product is asking you to build.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164681,
+    "by": "danpalmer",
+    "timeISO": "2025-09-08T04:40:39.000Z",
+    "textPlain": "The devil is, as always, in the details. I think \"make invalid states unrepresentable\" is a good thing to teach in order to push back against spaghetti code. State management is hard, and untangling bad state management is near impossible.But of course, some flexibility is often (not always) needed in the long run, and knowing where to keep the flexibility and where to push for strictness is an important part of skills development as an engineer.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164763,
+    "by": "lykahb",
+    "timeISO": "2025-09-08T04:59:40.000Z",
+    "textPlain": "It matters where the constraints live. Inside of a codebase they are easier to change. Updating the database schema would be harder. On the protocol level it may be impossible if not all parties can be updated. However, if the protocol is too loosely specified, it could create other problems.",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164643,
+    "by": "aaron_m04",
+    "timeISO": "2025-09-08T04:31:28.000Z",
+    "textPlain": "> With foreign key constraints, you have to delete all related records when a parent record is deleted.I've also seen good advice that you should never delete anything from your DB, but rather put rows in a different soft-deleted state...",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164635,
+    "by": "cadamsdotcom",
+    "timeISO": "2025-09-08T04:28:21.000Z",
+    "textPlain": "There is another way that's a compromise: give corner cases a home.In accountancy there is the \"General Journal\" (https://en.wikipedia.org/wiki/General_journal) - a place to correct of accounting errors, enter adjustments, etc.The General Journal really only works because accounting entries are immutable: corrections are always new entries. So it's not clear if \"give corner cases a home\" works everywhere.But if the principle does work for your use case, it lets the rest of the system be as strict as you like!",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164676,
+    "by": "potsandpans",
+    "timeISO": "2025-09-08T04:40:07.000Z",
+    "textPlain": "I love Samuel geodeck",
+    "parent": 45164444,
+    "depth": 1
+  },
+  {
+    "id": 45164805,
+    "by": "b_e_n_t_o_n",
+    "timeISO": "2025-09-08T05:08:38.000Z",
+    "textPlain": "Perhaps it's not really language but the type of programs developers use these languages for? Open vs closed systems, heavy/light interactions with the outside world, how long they're maintained, how much they change, etc.",
+    "parent": 45164736,
+    "depth": 2
+  },
+  {
+    "id": 45164688,
+    "by": "danpalmer",
+    "timeISO": "2025-09-08T04:42:11.000Z",
+    "textPlain": "This was clearly not legal advice. Soft-deletes come with a lot of complexity at the application layer, more maintenance, more security risk, and require building out user data deletion processes.Having a deleted data table is a slightly easier approach I've seen, but you still need to be aware about user and legal requirements around deleting data.",
+    "parent": 45164643,
+    "depth": 2
+  },
+  {
+    "id": 45164684,
+    "by": "striking",
+    "timeISO": "2025-09-08T04:41:12.000Z",
+    "textPlain": "I'll bite. What's wrong with the post?",
+    "parent": 45164676,
+    "depth": 2
+  },
+  {
+    "id": 45164699,
+    "by": "danpalmer",
+    "timeISO": "2025-09-08T04:44:42.000Z",
+    "textPlain": "It's Sean not Sam, and while I'm not familiar with his posts, this one doesn't seem \"braindead\", but fairly well argued, even if I don't fully agree.",
+    "parent": 45164676,
+    "depth": 2
+  }
+]
