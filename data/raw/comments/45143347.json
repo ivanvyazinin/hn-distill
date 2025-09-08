@@ -1,5 +1,13 @@
 [
   {
+    "id": 45166010,
+    "by": "flohofwoe",
+    "timeISO": "2025-09-08T08:49:48.000Z",
+    "textPlain": "My simple rule of thumb: if the general purpose allocator shows up in performance profiles, then there's too much allocation going on in the hot path (e.g. depending on the 'system allocator' being fast in all situations is a convenient but sloppy attitude for code that's supposed to be portable since neither the C standard nor POSIX say anything performance).",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
     "id": 45164585,
     "by": "burntcaramel",
     "timeISO": "2025-09-08T04:16:57.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45165653,
-    "by": "torginus",
-    "timeISO": "2025-09-08T07:53:02.000Z",
-    "textPlain": "The root cause of the issue, is that musl malloc uses a single head, and relies on locking to support multiple heaps. This means each allocation/free must acquire this lock.  Imo it's good for single threaded programs (which might've been musls main usecase), but Rust programs nowadays mostly use multiple threads.In contrast mimalloc, a similarly minimalistic allocator has a per-thread heap, which each thread owning the memory it allocates, and cross-thread free's are handled in a deferred manner.This works very well with Rust's ownership system, where objects rarely move between threads.Internally, both allocators use size-class based allocation, into predefined chunks, with the key difference being that musl uses bitmaps and mimalloc uses free lists to keep track of memory.Musl could be fixed, it they switch from a single thread model, to a per-thread heap as well.",
+    "id": 45165959,
+    "by": "flarecoder",
+    "timeISO": "2025-09-08T08:40:24.000Z",
+    "textPlain": "For docker images, cgr.dev/chainguard/wolfi-base (https://images.chainguard.dev/directory/image/wolfi-base/ver...) is a great replacement for Alpine. Wolfi is glibc based. It's easy to switch from Alpine since Wolfi uses apk for package management with similar package names and also contains busybox like Alpine.",
     "parent": 45143347,
     "depth": 1
   },
@@ -24,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45165653,
+    "by": "torginus",
+    "timeISO": "2025-09-08T07:53:02.000Z",
+    "textPlain": "The root cause of the issue, is that musl malloc uses a single head, and relies on locking to support multiple heaps. This means each allocation/free must acquire this lock.  Imo it's good for single threaded programs (which might've been musls main usecase), but Rust programs nowadays mostly use multiple threads.In contrast mimalloc, a similarly minimalistic allocator has a per-thread heap, which each thread owning the memory it allocates, and cross-thread free's are handled in a deferred manner.This works very well with Rust's ownership system, where objects rarely move between threads.Internally, both allocators use size-class based allocation, into predefined chunks, with the key difference being that musl uses bitmaps and mimalloc uses free lists to keep track of memory.Musl could be fixed, it they switch from a single thread model, to a per-thread heap as well.",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
     "id": 45164750,
     "by": "rurban",
     "timeISO": "2025-09-08T04:56:36.000Z",
@@ -32,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45165379,
-    "by": "fyrn_",
-    "timeISO": "2025-09-08T07:04:12.000Z",
-    "textPlain": "The musl pthread muxtexes are also awfully slow:\nhttps://justine.lol/mutex/",
-    "parent": 45143347,
-    "depth": 1
-  },
-  {
     "id": 45164728,
     "by": "userbinator",
     "timeISO": "2025-09-08T04:51:17.000Z",
     "textPlain": "I believe musl is supposed to be optimised heavily for size, not speed.",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
+    "id": 45165379,
+    "by": "fyrn_",
+    "timeISO": "2025-09-08T07:04:12.000Z",
+    "textPlain": "The musl pthread muxtexes are also awfully slow:\nhttps://justine.lol/mutex/",
     "parent": 45143347,
     "depth": 1
   },
@@ -80,11 +96,35 @@
     "depth": 2
   },
   {
+    "id": 45166186,
+    "by": "sim7c00",
+    "timeISO": "2025-09-08T09:18:18.000Z",
+    "textPlain": "maybe its not 'slow' but more 'generalized for a wide range of use-cases'? - because is it really slow for what it does, or simply slower compared to a specialized implementation? (this is calling a regular person car slow compared to an F1 car... sure the thing is fast but good luck takin ur kids on holiday or doing weekly shopping runs?)",
+    "parent": 45164585,
+    "depth": 2
+  },
+  {
     "id": 45164659,
     "by": "dwattttt",
     "timeISO": "2025-09-08T04:35:49.000Z",
     "textPlain": "Only once we convince C developers that a lack of performance isn't inherently harmful.",
     "parent": 45164585,
+    "depth": 2
+  },
+  {
+    "id": 45165914,
+    "by": "simonask",
+    "timeISO": "2025-09-08T08:33:08.000Z",
+    "textPlain": "Hot take: Almost all programs are actually multithreaded. The only exception is tiny UNIX-like shell utilities that are meant to run in parallel with other processes, and toy programs.The third exception is programs that should be multithreaded but aren't because they are written in languages where adding more threads is disproportionately hard (C, C++) or impossible (Python, Ruby, etc.).",
+    "parent": 45165158,
+    "depth": 2
+  },
+  {
+    "id": 45166042,
+    "by": "flohofwoe",
+    "timeISO": "2025-09-08T08:54:43.000Z",
+    "textPlain": "> a similarly minimalistic allocatormimalloc has about 10kloc, while (assuming I'm looking in the right place) the new musl allocator has 891 and the old musl allocator has 518 lines of code. I wouldn't call an order of magnitude difference in line count 'similar'.",
+    "parent": 45165653,
     "depth": 2
   },
   {
