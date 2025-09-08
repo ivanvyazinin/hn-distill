@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45165379,
-    "by": "fyrn_",
-    "timeISO": "2025-09-08T07:04:12.000Z",
-    "textPlain": "The musl pthread muxtexes are also awfully slow:\nhttps://justine.lol/mutex/",
+    "id": 45165653,
+    "by": "torginus",
+    "timeISO": "2025-09-08T07:53:02.000Z",
+    "textPlain": "The root cause of the issue, is that musl malloc uses a single head, and relies on locking to support multiple heaps. This means each allocation/free must acquire this lock.  Imo it's good for single threaded programs (which might've been musls main usecase), but Rust programs nowadays mostly use multiple threads.In contrast mimalloc, a similarly minimalistic allocator has a per-thread heap, which each thread owning the memory it allocates, and cross-thread free's are handled in a deferred manner.This works very well with Rust's ownership system, where objects rarely move between threads.Internally, both allocators use size-class based allocation, into predefined chunks, with the key difference being that musl uses bitmaps and mimalloc uses free lists to keep track of memory.Musl could be fixed, it they switch from a single thread model, to a per-thread heap as well.",
     "parent": 45143347,
     "depth": 1
   },
@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45165410,
-    "by": "pton_xd",
-    "timeISO": "2025-09-08T07:10:38.000Z",
-    "textPlain": "wasi-libc also replaces the default musl allocator with dlmalloc. I guess also for performance reasons? Size reasons? I can't seem to find why they made that decision, but someone thought it was a good idea.",
-    "parent": 45143347,
-    "depth": 1
-  },
-  {
     "id": 45164750,
     "by": "rurban",
     "timeISO": "2025-09-08T04:56:36.000Z",
@@ -40,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45165379,
+    "by": "fyrn_",
+    "timeISO": "2025-09-08T07:04:12.000Z",
+    "textPlain": "The musl pthread muxtexes are also awfully slow:\nhttps://justine.lol/mutex/",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
     "id": 45164728,
     "by": "userbinator",
     "timeISO": "2025-09-08T04:51:17.000Z",
     "textPlain": "I believe musl is supposed to be optimised heavily for size, not speed.",
+    "parent": 45143347,
+    "depth": 1
+  },
+  {
+    "id": 45165810,
+    "by": "anthk",
+    "timeISO": "2025-09-08T08:14:14.000Z",
+    "textPlain": "Chimera Linux did some changes on their distro because of that.EDIT: Ah, they were mentioned, of course.On some malloc replacements, telescope -a gopher/gemini client- used to be a bit crashy until I used jemalloc on some platforms (with LD_PRELOAD).Also, the performance rendering pages with tons of links improved a lot.",
     "parent": 45143347,
     "depth": 1
   },
@@ -80,18 +88,18 @@
     "depth": 2
   },
   {
-    "id": 45165382,
-    "by": "masklinn",
-    "timeISO": "2025-09-08T07:04:40.000Z",
-    "textPlain": "The new allocator does nothing to improve the performances in a threaded / contended application: https://www.openwall.com/lists/musl/2025/09/04/3",
-    "parent": 45164750,
-    "depth": 2
-  },
-  {
     "id": 45165250,
     "by": "Aissen",
     "timeISO": "2025-09-08T06:39:28.000Z",
     "textPlain": "This is addressed in the article: https://nickb.dev/blog/default-musl-allocator-considered-har...",
+    "parent": 45164750,
+    "depth": 2
+  },
+  {
+    "id": 45165382,
+    "by": "masklinn",
+    "timeISO": "2025-09-08T07:04:40.000Z",
+    "textPlain": "The new allocator does nothing to improve the performances in a threaded / contended application: https://www.openwall.com/lists/musl/2025/09/04/3",
     "parent": 45164750,
     "depth": 2
   },
@@ -101,6 +109,14 @@
     "timeISO": "2025-09-08T06:37:05.000Z",
     "textPlain": "Specifically its goals are low memory overhead and hardening.  Safe defaults, and easy to swap to a performance-oriented malloc for those apps that want it.My question is: why is Rust performance contingent on a C malloc?",
     "parent": 45164728,
+    "depth": 2
+  },
+  {
+    "id": 45165838,
+    "by": "Karrot_Kream",
+    "timeISO": "2025-09-08T08:19:10.000Z",
+    "textPlain": "Huh I guess I'm lucky I never faced this, we've always used Debian or RHEL containers where I've worked. Every time I toyed with using a minimalist distro I found debugging to be much more difficult and ended up abandoning the idea.Once the container OS forks and runs your binary, I'm curious why does it matter? Is it because people run interpreted code (like Python or Node) and use runtimes that link musl libc? If you deploy JVM or Go apps this will probably not be a factor.",
+    "parent": 45164869,
     "depth": 2
   },
   {
