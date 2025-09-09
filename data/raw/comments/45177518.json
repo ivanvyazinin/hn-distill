@@ -1,5 +1,29 @@
 [
   {
+    "id": 45179344,
+    "by": "judofyr",
+    "timeISO": "2025-09-09T08:51:50.000Z",
+    "textPlain": "> This has massive implications. SEC means low latency, because nodes don't need to coordinate to handle reads and writes. It means incredible fault tolerance - every single node in the system bar one could simultaneously crash, and reads and writes could still happen normally. And it means nodes still function properly if they're offline or split from the network for arbitrary time periods.Well, this all depends on the definition of «function properly». Convergence ensures that everyone observed the same state, not that it’s a useful state. For instance, The Imploding Hashmap is a very easy CRDT to implement. The rule is that when there’s concurrent changes to the same key, the final value becomes null. This gives Strong Eventual Consistency, but isn’t really a very useful data structure. All the data would just disappear!So yes, CRDT is a massively useful property which we should strive for, but it’s not going to magically solve all the end-user problems.",
+    "parent": 45177518,
+    "depth": 1
+  },
+  {
+    "id": 45179339,
+    "by": "the_duke",
+    "timeISO": "2025-09-09T08:50:57.000Z",
+    "textPlain": "The big problem with CRDTs IMO is that they make it incredibly easy to break application semantics.Just a basic example for a task tracker:* first update sets task cancelled_at and cancellation_reason* second update wants the task to be in progress, so sets started_atIf code just uses the timestamps to consider the task state, it would not assume the task is cancelled, unexpected since the later user update set it to in progress.Easy fix, we just add a state field 'PENDING|INPROGRESS|CANCELLED|...'.Okay, but now you have a task that is in progress, but also has a cancellation timestamp, which seems inconsistent.The point is:With CRDTs you have to consider how partial out of order merges affect the state, and make sure your logic is always written in a way so these are handled properly.\nThat is *not easy*!I'd love it if someone came up with a framework that allows defining application semantics on top of CRDTs, and have the framework ensure types remain consistent.",
+    "parent": 45177518,
+    "depth": 1
+  },
+  {
+    "id": 45178388,
+    "by": "ijaym",
+    "timeISO": "2025-09-09T06:50:32.000Z",
+    "textPlain": "The majority of the content reminds me of Bigtable (https://static.googleusercontent.com/media/research.google.c...).Do people really distinguish \"Strong Eventual Consistency\" from \"Eventual Consistency\"? To me, when I say \"Eventual Consistency\" I alwayes mean \"Strong Eventual Consisteny\".",
+    "parent": 45177518,
+    "depth": 1
+  },
+  {
     "id": 45178468,
     "by": "c0balt",
     "timeISO": "2025-09-09T07:00:33.000Z",
@@ -16,12 +40,20 @@
     "depth": 1
   },
   {
-    "id": 45178388,
-    "by": "ijaym",
-    "timeISO": "2025-09-09T06:50:32.000Z",
-    "textPlain": "The majority of the content reminds me of Bigtable (https://static.googleusercontent.com/media/research.google.c...).Do people really distinguish \"Strong Eventual Consistency\" from \"Eventual Consistency\"? To me, when I say \"Eventual Consistency\" I alwayes mean \"Strong Eventual Consisteny\".",
-    "parent": 45177518,
-    "depth": 1
+    "id": 45179560,
+    "by": "tempodox",
+    "timeISO": "2025-09-09T09:19:30.000Z",
+    "textPlain": "Do not separate the state field from its time stamp(s).  Use a sum type (“tagged union”) where the time stamps are the payload for a selected state.  Make invalid states unrepresentable.",
+    "parent": 45179339,
+    "depth": 2
+  },
+  {
+    "id": 45179199,
+    "by": "nl",
+    "timeISO": "2025-09-09T08:33:53.000Z",
+    "textPlain": "(Non-Strong) Eventual Consistency does not guarantee that all replicas converge in a specific time period.In an eventually consistent system replicas can diverge. A \"last write\" system can be eventually consistent, but a given point can read differently.Eg: operations1) Add \"AA\" to end of string\n2) Split string in middleReplicas R1 and R2 both have the string \"ZZZZ\"If R1 sees operations (1) then (2) it will get \n\"ZZZZAA\", then \"ZZZ\", \"ZAA\"If R2 sees (2) then (1) it will get:\"ZZ\", \"ZZ\", then \"ZZAA\", \"ZZ\".Strong Eventual Consistency doesn't have this problem because the operations have the time vector on them so the replicas know what order to apply them.",
+    "parent": 45178388,
+    "depth": 2
   },
   {
     "id": 45178523,
