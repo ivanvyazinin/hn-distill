@@ -1,17 +1,17 @@
 [
   {
-    "id": 45186990,
-    "by": "sroerick",
-    "timeISO": "2025-09-09T19:00:26.000Z",
-    "textPlain": "Could somebody give a high level overview of this for me, as not a godev? It looks like Go JSON lib has support to encode native go structures in JSON, which is cool, but maybe it was bad, which is not as cool. Do I have that right?",
-    "parent": 45182770,
-    "depth": 1
-  },
-  {
     "id": 45184641,
     "by": "analytically",
     "timeISO": "2025-09-09T16:44:12.000Z",
     "textPlain": "Benchmark Analysis: Sonic vs Standard JSON vs JSON v2 in Gohttps://github.com/centralci/go-benchmarks/tree/b647c45272c7...",
+    "parent": 45182770,
+    "depth": 1
+  },
+  {
+    "id": 45187743,
+    "by": "tibbe",
+    "timeISO": "2025-09-09T19:48:02.000Z",
+    "textPlain": "> Since encoding/json marshals a nil slice or map as a JSON nullHow did that make it into the v1 design?",
     "parent": 45182770,
     "depth": 1
   },
@@ -32,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45186990,
+    "by": "sroerick",
+    "timeISO": "2025-09-09T19:00:26.000Z",
+    "textPlain": "Could somebody give a high level overview of this for me, as not a godev? It looks like Go JSON lib has support to encode native go structures in JSON, which is cool, but maybe it was bad, which is not as cool. Do I have that right?",
+    "parent": 45182770,
+    "depth": 1
+  },
+  {
     "id": 45185731,
     "by": "gethly",
     "timeISO": "2025-09-09T17:56:08.000Z",
     "textPlain": "[flagged]",
+    "parent": 45182770,
+    "depth": 1
+  },
+  {
+    "id": 45188190,
+    "by": "h1fra",
+    "timeISO": "2025-09-09T20:14:56.000Z",
+    "textPlain": "I still don't get how a common thing like JSON is not solved in go. \nHow convoluted it is to just get a payload from an api call compared to all languages is baffling",
     "parent": 45182770,
     "depth": 1
   },
@@ -56,10 +72,34 @@
     "depth": 2
   },
   {
+    "id": 45187954,
+    "by": "rowanseymour",
+    "timeISO": "2025-09-09T20:01:18.000Z",
+    "textPlain": "I had a back and forth with someone who really didn't want to change that behavior and their reasoning was that since you can create and provide an empty map or slice.. having the marshaler do that for you, and then also needing a way to disable that behavior, was unnecessary complexity.",
+    "parent": 45187743,
+    "depth": 2
+  },
+  {
+    "id": 45188296,
+    "by": "binary132",
+    "timeISO": "2025-09-09T20:19:44.000Z",
+    "textPlain": "how is a nil map not null?  It certainly isn’t a zero-valued map, that would be {}.",
+    "parent": 45187743,
+    "depth": 2
+  },
+  {
     "id": 45186808,
     "by": "bayindirh",
     "timeISO": "2025-09-09T18:51:09.000Z",
     "textPlain": "A bad design doesn't invalidate the sentence you have quoted.Over time, it became evident that the JSON package didn't meet the needs of its users, and the package has evolved as a result. The size of the evolution doesn't matter.",
+    "parent": 45186429,
+    "depth": 2
+  },
+  {
+    "id": 45187821,
+    "by": "geodel",
+    "timeISO": "2025-09-09T19:53:17.000Z",
+    "textPlain": "Well mostly I have seem people learn shortcomings of software by using or creating it and come up with new version when possible. In your case it seems v1 are perfect each time.",
     "parent": 45186429,
     "depth": 2
   },
@@ -77,6 +117,14 @@
     "timeISO": "2025-09-09T19:02:01.000Z",
     "textPlain": "Null and undefined are fine imho with a sort of empty/missing semantics (especially since you mostly just care to == them) I have bigger issues to how similar yet different it is to have an undefined key and a not-defined key, I would almost prefer if    obj['key']=undefined\n\n was the same as \n\n    delete obj['key']",
     "parent": 45186247,
+    "depth": 2
+  },
+  {
+    "id": 45187597,
+    "by": "eknkc",
+    "timeISO": "2025-09-09T19:37:21.000Z",
+    "textPlain": "Go already has a JSON parser and serializer. It kind of resembles the JS api where you push some objects into JSON.stringify and it serializes them. Or you push some string and get an object (or string etc) from JSON.parse.The types themselves have a way to customize their own JSON conversion code. You could have a struct serialize itself to a string, an array, do weird gymnastics, whatever. The JSON module calls these custom implementations when available.The current way of doing it is shit though. If you want to customize serialization, you need to return a json string basically. Then the serializer has to check if you actually managed to return something sane. You also have no idea if there were some JSON options. Maybe there is an indentation setting or whatever. No, you return a byte array.Deserialization is also shit because a) again, no options. b) the parser has to send you a byte array to parse. Hey, I have this JSON string, parse it. If that JSON string is 100MB long, too bad, it has to be read completely and allocated again for you to work on because you can only accept a byte array to parse.New API fixes these. They provide a Decoder or Encoder to you. These carry any options from top. And they also can stream data. So you can serialize your 10GB array value by value while the underlying writer writes it into disk for example. Instead of allocating all on memory first, as the older API forces you to.There are other improvements too but the post mainly focuses on these so thats what I got from it (I havent tried the new api btw, this is all from the post so maybe I’m wrong on some points)",
+    "parent": 45186990,
     "depth": 2
   },
   {
