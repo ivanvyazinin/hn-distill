@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45186232,
-    "by": "lelandbatey",
-    "timeISO": "2025-09-09T18:23:07.000Z",
-    "textPlain": "While this does talk about durable queues, this post really hinges on a pivot to evangelizing durable workflows. It makes it sounds like they're synonymous, when they're very much not. Specifically, this sentence bringing up workflows for the first time (emphasis mine):> \"Durable queues were rare when I was at Reddit, but they’re more and more popular now. Essentially, they work by combining task queues with durable workflows, helping you reliably orchestrate workflows of many parallel tasks.\"That makes it sound like task queues + durable workflows = durable queues, but that's not true at all. A durable queue is literally a queue that doesn't drop messages e.g. during an unexpected shutdown. That's all. Durable workflows are a pretty different thing. A durable queue could be used just like a normal queue, but while you can't build a durable workflow on a normal queue (or at least, it would be a huge pain), a durable queue makes it vastly simpler to build a durable workflow engine. I think the article talks about durable workflows because this is DBOS, a company looking to sell durable workflow services, but also because durable workflows are considered by many to be a kind of \"holy grail\" of big-business applications as they seem like they can allow for you to write code that's kind of \"always running\", where the state in memory is persisted to a DB invisibly so that you have to think less about CRUD. The killer app of durable workflows seems to me to writing orchestration code for really long-running processes which have to do lots of distributed stuff, as it allows you to write mostly normal looking code which does things like \"wait for this thing to finish, even if that thing will be finished in a week\", which is a pretty cool thing to see.What are durable workflows? On the technical side, I'd describe durable workflows as being more like a system of cooperative multitasking where you serialize your state/inputs/outputs to a durable store at each yield/suspension",
-    "parent": 45164892,
-    "depth": 1
-  },
-  {
     "id": 45184353,
     "by": "jedberg",
     "timeISO": "2025-09-09T16:26:31.000Z",
     "textPlain": "Previously posted a few days ago:  https://news.ycombinator.com/item?id=45130143",
+    "parent": 45164892,
+    "depth": 1
+  },
+  {
+    "id": 45186232,
+    "by": "lelandbatey",
+    "timeISO": "2025-09-09T18:23:07.000Z",
+    "textPlain": "While this does talk about durable queues, this post really hinges on a pivot to evangelizing durable workflows. It makes it sounds like they're synonymous, when they're very much not. Specifically, this sentence bringing up workflows for the first time (emphasis mine):> \"Durable queues were rare when I was at Reddit, but they’re more and more popular now. Essentially, they work by combining task queues with durable workflows, helping you reliably orchestrate workflows of many parallel tasks.\"That makes it sound like task queues + durable workflows = durable queues, but that's not true at all. A durable queue is literally a queue that doesn't drop messages e.g. during an unexpected shutdown. That's all. Durable workflows are a pretty different thing. A durable queue could be used just like a normal queue, but while you can't build a durable workflow on a normal queue (or at least, it would be a huge pain), a durable queue makes it vastly simpler to build a durable workflow engine. I think the article talks about durable workflows because this is DBOS, a company looking to sell durable workflow services, but also because durable workflows are considered by many to be a kind of \"holy grail\" of big-business applications as they seem like they can allow for you to write code that's kind of \"always running\", where the state in memory is persisted to a DB invisibly so that you have to think less about CRUD. The killer app of durable workflows seems to me to writing orchestration code for really long-running processes which have to do lots of distributed stuff, as it allows you to write mostly normal looking code which does things like \"wait for this thing to finish, even if that thing will be finished in a week\", which is a pretty cool thing to see.What are durable workflows? On the technical side, I'd describe durable workflows as being more like a system of cooperative multitasking where you serialize your state/inputs/outputs to a durable store at each yield/suspension",
     "parent": 45164892,
     "depth": 1
   },
@@ -45,6 +45,30 @@
     "timeISO": "2025-09-09T17:46:26.000Z",
     "textPlain": "Gotta get more opportunity leads…",
     "parent": 45184353,
+    "depth": 2
+  },
+  {
+    "id": 45186831,
+    "by": "qianli_cs",
+    "timeISO": "2025-09-09T18:52:24.000Z",
+    "textPlain": "Thanks for sharing your insights! You nailed the key tradeoffs of most durable workflow systems. The callback-style programming model is exactly the pain point we aim to solve with DBOS.Instead of forcing you into a custom async runtime, DBOS lets you keep writing normal functions (this is an example in Python):    @DBOS.workflow()\n    def do_thing(foo):\n        return bar\n\n    # You can still call the workflow function like this:\n    result = do_thing(fooInput)\n\nUnder the hood, DBOS checkpoints inputs/outputs so it can recover after failure, but you don't have to restructure your code around callbacks. In Python and Java we use decorators/annotations so registration feels natural, while in Go/TypeScript there's a lightweight one-time registration step. Either way, you keep the synchronous call style you'd expect.On top of that, DBOS also supports running workflows asynchronously or through queues, so you can start with a simple function call and later scale out to async/queued execution without changing your code. That's what the article was leading into.",
+    "parent": 45186232,
+    "depth": 2
+  },
+  {
+    "id": 45186494,
+    "by": "jedberg",
+    "timeISO": "2025-09-09T18:35:23.000Z",
+    "textPlain": "> I think the biggest in the online space is probably Temporal (the one I'm currently using at $DAYJOB), but there's others as well.The reason none of the others were mentioned is because they all work very differently than DBOS.  All of those others require an external durability coordinator, and require you to rewrite your application to work around how they operate.DBOS is a library that does its durability work in process and uses the application database to store the durability state.  This means the latency is much smaller, and the reliability is much higher because there aren't extra moving parts in the critical path that can go down.Here is a page about this difference:  https://docs.dbos.dev/architecture",
+    "parent": 45186232,
+    "depth": 2
+  },
+  {
+    "id": 45186687,
+    "by": "dirkc",
+    "timeISO": "2025-09-09T18:45:36.000Z",
+    "textPlain": "Thanks. I found that very informative!I also now have the dreadful notion of debugging a non-deterministic deadlock or race condition in a workflow that takes a week to run!",
+    "parent": 45186232,
     "depth": 2
   },
   {
