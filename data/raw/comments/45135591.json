@@ -1,5 +1,13 @@
 [
   {
+    "id": 45177687,
+    "by": "AlotOfReading",
+    "timeISO": "2025-09-09T05:16:39.000Z",
+    "textPlain": "There's a bit of an impedence mismatch with Contracts in C because C++ contracts exist partially to rectify the fact that <cassert> is broken in C++.Let's say you have a header lib.h:    inline int foo(int i) {\n        assert(i > 0);\n        //...\n    }\n\nIn C, this function is unspecified behavior that will probably work if the compiler is remotely sane.In C++, including this in two C++ translation units that set the NDEBUG flag differently creates an ODR violation. The C++ solution to this problem was a system where each translation unit enforces its own pre- and post- conditions (potentially 4x evaluations), and contracts act as carefully crafted exceptions to the vast number of complicated rules added on top. An example is how observable behavior is a workaround for C++ refusing to adopt C's fix for time-traveling UB. Lisa Lippincott did a great talk on this last year: https://youtu.be/yhhSW-FSWkEThere's not much left of Contracts once you strip away the stuff that doesn't make sense in C. I don't think you'd miss anything by simply adding hygenic macros to assert.h as the author here does, except for the 4x caller/callee verification overhead that they enforce manually. I don't think that should be enforced in the standard though. I find hidden, multiple evaluation wildly unintuitive, especially if some silly programmer accidentally writes an effectful condition.",
+    "parent": 45135591,
+    "depth": 1
+  },
+  {
     "id": 45176960,
     "by": "WalterBright",
     "timeISO": "2025-09-09T03:11:50.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45177687,
-    "by": "AlotOfReading",
-    "timeISO": "2025-09-09T05:16:39.000Z",
-    "textPlain": "There's a bit of an impedence mismatch with Contracts in C because C++ contracts exist partially to rectify the fact that <cassert> is broken in C++.Let's say you have a header lib.h:    inline int foo(int i) {\n        assert(i > 0);\n        //...\n    }\n\nIn C, this function is unspecified behavior that will probably work if the compiler is remotely sane.In C++, including this in two C++ translation units that set the NDEBUG flag differently creates an ODR violation. The C++ solution to this problem was a system where each translation unit enforces its own pre- and post- conditions (potentially 4x evaluations), and contracts act as carefully crafted exceptions to the vast number of complicated rules added on top. An example is how observable behavior is a workaround for C++ refusing to adopt C's fix for time-traveling UB. Lisa Lippincott did a great talk on this last year: https://youtu.be/yhhSW-FSWkEThere's not much left of Contracts once you strip away the stuff that doesn't make sense in C. I don't think you'd miss anything by simply adding hygenic macros to assert.h as the author here does, except for the 4x caller/callee verification overhead that they enforce manually. I don't think that should be enforced in the standard though. I find hidden, multiple evaluation wildly unintuitive, especially if some silly programmer accidentally writes an effectful condition.",
+    "id": 45178429,
+    "by": "sirwhinesalot",
+    "timeISO": "2025-09-09T06:57:13.000Z",
+    "textPlain": "Contracts getting proposed but still no slice/span type or even standardization of that new clang feature that makesf(int n, int a[n])Actually do what it looks like it does. Sigh",
     "parent": 45135591,
     "depth": 1
   },
@@ -32,12 +40,52 @@
     "depth": 1
   },
   {
+    "id": 45178425,
+    "by": "unit149",
+    "timeISO": "2025-09-09T06:56:57.000Z",
+    "textPlain": "[dead]",
+    "parent": 45135591,
+    "depth": 1
+  },
+  {
     "id": 45177750,
     "by": "kstenerud",
     "timeISO": "2025-09-09T05:28:56.000Z",
     "textPlain": "I'm not sure I'm understanding this correctly...Given the examples, the author wants to ensure that 0 is not a possible input value, and NULL is not a possible output value.This could be achieved with a simple inline wrapper function that checks pre and post conditions and does abort() accordingly, without all of this extra ceremonyBut regardless of the mechansim you're left with another far more serious problem: You've now introduced `panic` to C.And panics are bad. Panics are landmines just waiting for some unfortunate circumstance to crash your app unexpectedly, which you can't control because control over error handling has now been wrested from you.It's why unwrap() in Rust is a terrible idea.It's why golang's bifurcated error mechanisms are a mess (and why, surprise surprise, the recommendation is to never use panic).",
     "parent": 45135591,
     "depth": 1
+  },
+  {
+    "id": 45178238,
+    "by": "motorest",
+    "timeISO": "2025-09-09T06:34:53.000Z",
+    "textPlain": "> Digital Mars C++ has had contracts since, oh, the early 1990s?I think that implementations trying out their own experimental features is normal and expected. Ideally, standards would be pull-based instead of push-based.The real question is what prevented this feature from being proposed to the standardization committee.",
+    "parent": 45176960,
+    "depth": 2
+  },
+  {
+    "id": 45178591,
+    "by": "miropalmu",
+    "timeISO": "2025-09-09T07:18:16.000Z",
+    "textPlain": "What do you mean no slice/span type?https://en.cppreference.com/w/cpp/container/span.htmlOr if you want multidimensional span:https://en.cppreference.com/w/cpp/container/mdspan.html",
+    "parent": 45178429,
+    "depth": 2
+  },
+  {
+    "id": 45178584,
+    "by": "veltas",
+    "timeISO": "2025-09-09T07:16:32.000Z",
+    "textPlain": "You can do f(int n, int (*a)[n]) and it does what it looks like, since C99.https://godbolt.org/z/8dfKMrGqv",
+    "parent": 45178429,
+    "depth": 2
+  },
+  {
+    "id": 45178599,
+    "by": "veltas",
+    "timeISO": "2025-09-09T07:19:19.000Z",
+    "textPlain": "Truly I agree, but if we can add features to improve C codebases without rewriting them then that's a win, and you can just ignore them if you don't like them (as I will), but to the people where this has benefit they can be used.",
+    "parent": 45176677,
+    "depth": 2
   },
   {
     "id": 45178036,
