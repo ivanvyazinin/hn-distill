@@ -1,9 +1,9 @@
 [
   {
-    "id": 45177287,
-    "by": "taminka",
-    "timeISO": "2025-09-09T04:09:45.000Z",
-    "textPlain": "do i understand correctly that there's nothing preventing someone from adding a postcondition check X and then just not implementing it inside the function? wouldn't this just mean that now the ub is triggered by the post()'s `unceachable()` instead of whatever ub would happen w/, say, dereferencing a null pointer, as a consequence of not actually implementing post check X? so it's just for speed optimisations then?from reading about contracts for C before i assumed it would be like what cake[1] does, which actually compile time enforces pointer (non)nullability, as well as resource ownership and a bunch of other stuff, very cool project, check it out if you haven't seen it yet :)[1]https://github.com/thradams/cake",
+    "id": 45177687,
+    "by": "AlotOfReading",
+    "timeISO": "2025-09-09T05:16:39.000Z",
+    "textPlain": "There's a bit of an impedence mismatch with Contracts in C because C++ contracts exist partially to rectify the fact that <cassert> is broken in C++.Let's say you have a header lib.h:    inline int foo(int i) {\n        assert(i > 0);\n        //...\n    }\n\nIn C, this function is unspecified behavior that will probably work if the compiler is remotely sane.In C++, including this in two C++ translation units that set the NDEBUG flag differently creates an ODR violation. The C++ solution to this problem was a system where each translation unit enforces its own pre- and post- conditions (potentially 4x evaluations), and contracts act as carefully crafted exceptions to the vast number of complicated rules added on top. An example is how observable behavior is a workaround for C++ refusing to adopt C's fix for time-traveling UB. Lisa Lippincott did a great talk on this last year: https://youtu.be/yhhSW-FSWkEThere's not much left of Contracts once you strip away the stuff that doesn't make sense in C. I don't think you'd miss anything by simply adding hygenic macros to assert.h as the author here does, except for the 4x caller/callee verification overhead that they enforce manually. I don't think that should be enforced in the standard though. I find hidden, multiple evaluation wildly unintuitive, especially if some silly programmer accidentally writes an effectful condition.",
     "parent": 45135591,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "WalterBright",
     "timeISO": "2025-09-09T03:11:50.000Z",
     "textPlain": "Digital Mars C++ has had contracts since, oh, the early 1990s?https://www.digitalmars.com/ctg/contract.html",
+    "parent": 45135591,
+    "depth": 1
+  },
+  {
+    "id": 45177287,
+    "by": "taminka",
+    "timeISO": "2025-09-09T04:09:45.000Z",
+    "textPlain": "do i understand correctly that there's nothing preventing someone from adding a postcondition check X and then just not implementing it inside the function? wouldn't this just mean that now the ub is triggered by the post()'s `unceachable()` instead of whatever ub would happen w/, say, dereferencing a null pointer, as a consequence of not actually implementing post check X? so it's just for speed optimisations then?from reading about contracts for C before i assumed it would be like what cake[1] does, which actually compile time enforces pointer (non)nullability, as well as resource ownership and a bunch of other stuff, very cool project, check it out if you haven't seen it yet :)[1]https://github.com/thradams/cake",
     "parent": 45135591,
     "depth": 1
   },
