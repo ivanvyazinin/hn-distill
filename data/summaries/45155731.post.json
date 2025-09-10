@@ -1,0 +1,8 @@
+{
+  "id": 45155731,
+  "lang": "ru",
+  "summary": "**Longhorn** — распределённая СХД для Kubernetes.  \nСначала воспринял как «NFS-замена», ошибся: это полноценный блочный storage, похожий на ZFS, но кластер-ориентированный.\n\n**Ключевое**  \n- Пулы из SSD/HDD → StorageClass с нужными тегами.  \n- 2 реплики по умолчанию, авто-промо slave → master.  \n- Снапшоты и S3-бекапы встроены.  \n- Управляется через веб-UI и CRD.\n\n**Установка (ArgoCD, Helm)**\n```yaml\nhelmCharts:\n- name: longhorn\n  repo: https://charts.longhorn.io\n  version: 1.9.1\n  namespace: longhorn-system\n  values:\n    defaultSettings:\n      defaultReplicaCount: 2\n      defaultDataLocality: best-effort\n      backupTarget: \"s3://longhorn-backups@minio/\"\n```\n\n**Ноды**  \nДва диска: `/var/lib/longhorn_ssd` и `…_hdd`, теги `ssd`/`hdd`, `allowScheduling: true`.\n\n**StorageClass для БД**\n```yaml\nname: longhorn-db-local-ssd\nparameters:\n  numberOfReplicas: \"2\"\n  diskSelector: \"ssd\"\n  recurringJobSelector: |\n    [ {\"name\":\"db-snap-5m\"}, {\"name\":\"db-backup-15m\"}, {\"name\":\"db-backup-daily\"} ]\n```\n\nPVC создаётся оператором MariaDB; при потере ноды оставшаяся реплика моментально становится мастером.",
+  "inputHash": "d04bd57b929adb47a8a6ab630f8e8118fda1ae78ba4ee470912b83ff4d705791",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-09-10T22:22:34.594Z"
+}
