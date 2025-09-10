@@ -24,22 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45202791,
-    "by": "tantalor",
-    "timeISO": "2025-09-10T19:59:15.000Z",
-    "textPlain": "Despite the article, I'm not quite sure I understand exactly what this entails.Mainly I'm confused what this check is gating. Based on the article it's hard to tell what they mean.1. Code changes that may conflict with each other in the repo, in the sense of a merge conflict.2. Regressions (test failure, build breakage) caused by recently checked-in code.3. Preparing and verifying a new release prior to deployment.4. Monitoring/canary a release candidate with real users.In my mind, these are all very different things, but the article seems to mix them up.",
-    "parent": 45199378,
-    "depth": 1
-  },
-  {
-    "id": 45200985,
-    "by": "peterldowns",
-    "timeISO": "2025-09-10T17:30:30.000Z",
-    "textPlain": "No mention of Graphite.dev? Oh, it's written by Mergify, got it.",
-    "parent": 45199378,
-    "depth": 1
-  },
-  {
     "id": 45200311,
     "by": "oftenwrong",
     "timeISO": "2025-09-10T16:42:34.000Z",
@@ -56,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45202149,
-    "by": "kccqzy",
-    "timeISO": "2025-09-10T18:59:11.000Z",
-    "textPlain": "> The motivation was to avoid \"merge skew,\" where changes appear compatible when reviewed in isolation but break once merged into an updated main.My opinion is that this situation of a merge skew happens rarely enough not to be a major problem. And personally, I think instead of the merge queues described in the article, it would be overall more beneficial to invest in tooling to automatically revert broken commits in your main branch. Merging the PR into a temporary branch and running tests is a good thing, but it is overly strict to require your main branch to be fast forwarded. You can generally set a time limit of one day or so: as long as tests pass when merging the PR onto a main branch less than one day old, you can just merge it.",
+    "id": 45200985,
+    "by": "peterldowns",
+    "timeISO": "2025-09-10T17:30:30.000Z",
+    "textPlain": "No mention of Graphite.dev? Oh, it's written by Mergify, got it.",
     "parent": 45199378,
     "depth": 1
   },
@@ -68,6 +52,22 @@
     "by": "sfink",
     "timeISO": "2025-09-10T17:22:42.000Z",
     "textPlain": "This covers part of the problem, the part where your tests are enough to indicate whether the changes are good enough to keep. In that scenario, relying only on fast-forward merges is good enough.One trickier problem is when you don't know until later that a past change was bad: perhaps slow-running performance tests show a regression, or flaky tests turn out to have been showing a real problem, or you just want the additional velocity of pipelined landings that don't wait for all the tests to finish. Or perhaps you don't want to test every change, but then when things break you need to go back and figure out which change(s) caused the issue. (My experience is at Mozilla where all these things are true, and often.) Then you have to deal with backouts: do you keep an always-green chain of commits by backing up and re-landing good commits to splice out the bad, and only fast-forwarding when everything is green? Or do you keep the backouts in the tree, which is more \"accurate\" in a way but unfortunate for bisecting and code archaeology?",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45202791,
+    "by": "tantalor",
+    "timeISO": "2025-09-10T19:59:15.000Z",
+    "textPlain": "Despite the article, I'm not quite sure I understand exactly what this entails.Mainly I'm confused what this check is gating. Based on the article it's hard to tell what they mean.1. Code changes that may conflict with each other in the repo, in the sense of a merge conflict.2. Regressions (test failure, build breakage) caused by recently checked-in code.3. Preparing and verifying a new release prior to deployment.4. Monitoring/canary a release candidate with real users.In my mind, these are all very different things, but the article seems to mix them up.",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45202149,
+    "by": "kccqzy",
+    "timeISO": "2025-09-10T18:59:11.000Z",
+    "textPlain": "> The motivation was to avoid \"merge skew,\" where changes appear compatible when reviewed in isolation but break once merged into an updated main.My opinion is that this situation of a merge skew happens rarely enough not to be a major problem. And personally, I think instead of the merge queues described in the article, it would be overall more beneficial to invest in tooling to automatically revert broken commits in your main branch. Merging the PR into a temporary branch and running tests is a good thing, but it is overly strict to require your main branch to be fast forwarded. You can generally set a time limit of one day or so: as long as tests pass when merging the PR onto a main branch less than one day old, you can just merge it.",
     "parent": 45199378,
     "depth": 1
   },
@@ -96,11 +96,11 @@
     "depth": 2
   },
   {
-    "id": 45202666,
-    "by": "tantalor",
-    "timeISO": "2025-09-10T19:46:48.000Z",
-    "textPlain": "Can you clarify what you mean by \"deploy\"?You're not talking about pushing to an environment with live traffic, right?",
-    "parent": 45200897,
+    "id": 45200599,
+    "by": "jd__",
+    "timeISO": "2025-09-10T17:01:28.000Z",
+    "textPlain": "That's a good point. To clarify, Gerrit itself didn't actually do merge queuing or CI gating. Its model was stacked commits: every change was rebased on top of the current tip of main before landing. That ensured a linear history but didn't solve the \"Is the whole pipeline still green when we merge this?\" problem.That's why the OpenStack community built Zuul on top of Gerrit: it added a real gating system that could speculatively test multiple commits in a queue and only merge them if CI passed together. In other words, Zuul was Gerrit's version of a merge queue.",
+    "parent": 45200423,
     "depth": 2
   },
   {
@@ -109,14 +109,6 @@
     "timeISO": "2025-09-10T18:13:41.000Z",
     "textPlain": "(Co-founder of Graphite here) Even better - they didn't mention that Shopify deprecated Shipit in favor of Graphite's merge queue for their new monorepo.",
     "parent": 45200985,
-    "depth": 2
-  },
-  {
-    "id": 45200599,
-    "by": "jd__",
-    "timeISO": "2025-09-10T17:01:28.000Z",
-    "textPlain": "That's a good point. To clarify, Gerrit itself didn't actually do merge queuing or CI gating. Its model was stacked commits: every change was rebased on top of the current tip of main before landing. That ensured a linear history but didn't solve the \"Is the whole pipeline still green when we merge this?\" problem.That's why the OpenStack community built Zuul on top of Gerrit: it added a real gating system that could speculatively test multiple commits in a queue and only merge them if CI passed together. In other words, Zuul was Gerrit's version of a merge queue.",
-    "parent": 45200423,
     "depth": 2
   },
   {
