@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "id": 45197737,
+    "by": "cybergreg",
+    "timeISO": "2025-09-10T13:54:02.000Z",
+    "textPlain": "Good overview of Kerberoasting, still a common attack chain. A couple things though: To obtain access to a service, you actually need to get a service ticket (TGS) from the KDC (Domain Controller) to authenticate to the service, not a TGT. The TGT is the first ticket acquired during authentication to the domain. In addition, the \"salt\" is not a true salt but a concatenation of the domain and principal name, so even worse. Active Directory (invented at MIT) supports RC4, AES128, and AES256 encryption types, however you can effectively disable RC4 via Group Policy. The reason RC4 is still supported is to support legacy systems. Many organizations use old software that only supports RC4. For example, I've run into many manufacturing and small businesses that have no choice but to use it and can't upgrade the software due to $$$. Anyway, good stuff! Shout out to Tim Medin, who published this back in 2014.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197587,
+    "by": "harmon",
+    "timeISO": "2025-09-10T13:44:31.000Z",
+    "textPlain": "This article is somewhat incorrect. Kerberoasting abuses Ticket Granting Service tickets (TGSs, which are used to request access to a registered service in Active Directory), not Ticket Granting Tickets (TGTs, which are used to prove identity to a Domain Controller and request TGSs). However, the general attack described is still correct.TGS are (AES or RC4) encrypted with the NT password hash of the service account they are associated with. If you have a weak service account password, then TGS can be cracked to obtain the service account's password. A lot of times admins will create service accounts that have way more permissions than required (e.g. they make them a DA) which can lead to an immediate privilege escalation. To make it worse, any low privilege Active Directory account can request a TGS for any service, even if they are not allowed to access that service.Even if the service account is lower privilege, this can enable a silver ticket attack. https://www.crowdstrike.com/en-us/cybersecurity-101/cyberatt...There are multiple mitigations for this:1. Use managed or group managed service accounts instead of manually managed ones where possible. This ensures that account passwords are long, strong, and rotated regularly. If you are going to provision service accounts manually, give them very strong passwords.2. Apply the principle of least privilege and only assign service accounts the privileges they need. Avoid placing them in high privilege groups.3. Disable RC4 in your environment if possible via Group Policy.4. Monitor for RC4 ticket requests. AES-encrypted tickets are the default these days. https://adsecurity.org/?p=34585. Create a honeypot service account: https://adsecurity.org/?p=3513There is a somewhat similar attack against TGTs called ASREPRoasting: https://book.hacktricks.wiki/en/windows-hardening/active-dir...",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197770,
+    "by": "cybergreg",
+    "timeISO": "2025-09-10T13:56:08.000Z",
+    "textPlain": "I realize I might have been late to the party. As other comments have said, its not as easy as blaming Microsoft, though this is a popular take.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197482,
+    "by": "lotharcable",
+    "timeISO": "2025-09-10T13:38:55.000Z",
+    "textPlain": "Microsoft is guilty of giving incompetent administrators enough rope to hang themselves.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197609,
+    "by": "MrBuddyCasino",
+    "timeISO": "2025-09-10T13:46:02.000Z",
+    "textPlain": "A well written, easy to understand article on cryptography that isn’t using unnecessary jargon.Did he not get the memo that this is not allowed?",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197603,
+    "by": "dec1m0s",
+    "timeISO": "2025-09-10T13:45:37.000Z",
+    "textPlain": "See also https://blog.compass-security.com/2025/09/taming-the-three-h... for an in-depth video series on Kerberos.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45197870,
+    "by": "gnfargbl",
+    "timeISO": "2025-09-10T14:03:38.000Z",
+    "textPlain": "> rotated regularlyIs this really a useful mitigation here? If someone has suitable presence to make requests to the TGS, then the time window for cracking and exploiting those tickets (if they are exploitable) is surely always going to be small compared to the rotation window. Hackers don't typically have the patience to sit running hashcat on an old GPU for weeks, they just find some way to get ephemeral access to a bunch of faster GPUs.",
+    "parent": 45197587,
+    "depth": 2
+  },
+  {
+    "id": 45197731,
+    "by": "EvanAnderson",
+    "timeISO": "2025-09-10T13:53:24.000Z",
+    "textPlain": "I was a little irritated that Prof. Green didn't really discuss that Microsoft has made recommendations to mitigate. Thank you for summarizing.The mitigations are there but it takes time for Microsoft's Customers to move to the new versions. I don't think that's Microsoft's problem. That's just their market. I don't think Prof. Green has an understanding of that side of it.I guess one could argue that Microsoft should backport the new code to older products and give it to Customers who aren't actively paying for maintenance or subscription licensing. They made the business decision not to.",
+    "parent": 45197587,
+    "depth": 2
+  },
+  {
+    "id": 45197580,
+    "by": "EvanAnderson",
+    "timeISO": "2025-09-10T13:43:59.000Z",
+    "textPlain": "Microsoft is also guilty of reading the market and keeping up compatibility to make their products remain relevant. Prof. Green makes sweeping statements about how Microsoft should break compatibility to remove these vulnerabilities, but he doesn't have the market pressures that Microsoft does.Could Microsoft work harder on this? Sure. Do they have to worry about keeping their Customers happy? Absolutely.The corporate IT market moves at a glacial pace. Hopefully the rise of IT security issues having actual business consequences will change that, but that's not Microsoft's problem. That's the ecosystem they live in.Were bad protocol / design decisions made in the past? For sure. Microsoft has been working on this (see Managed Service Accounts and Group Managed Service Accounts). It takes time for corporate customers to adopt these new versions.Corporate IT won't forklift out old systems without business justification. Maybe the pressure from the insurance industry will help. Pressure from the ransomware industry is a certainly helping, too.",
+    "parent": 45197482,
+    "depth": 2
+  }
+]
