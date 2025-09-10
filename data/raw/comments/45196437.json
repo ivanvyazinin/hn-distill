@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45198793,
-    "by": "indigo945",
-    "timeISO": "2025-09-10T15:00:37.000Z",
-    "textPlain": "I was about to suggest employing PingCastle to audit domains for weak default configurations such as these, but apparently, PingCastle still doesn't complain about RC4 enabled Kerberos accounts - only about DES. So now is a good opportunity to check any domains you are responsible for by hand.Note that since the 2022 update KB5019964, AES is the default for all AD accounts that did not have the administrator explicitly set a different encryption scheme. However, administrators may have done that on your domain in the past, because back in the day, the default encryption scheme was not even RC4, but DES, which is even worse. Some people therefore set everything to RC4 by hand, before AES was introduced as an option.The allowed encryption types are set via the msDs-supportedEncryptionTypes attribute on each individual AD account. This property is a 32 bit bitmask, where 8 is AES128, 16 is AES256, and any other bits set are garbage encryption schemes. However, if the attribute is set to 0, the account reverts to the default, which ever since the aforementioned patch has been 24 (AES128|AES256).Anyway, the following Powershell (run with elevated permissions on the domain!) lists you all insecure user accounts:    Get-ADUser -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'\n\nRemember that computer accounts have passwords too:    Get-ADComputer -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'",
-    "parent": 45196437,
-    "depth": 1
-  },
-  {
     "id": 45197737,
     "by": "cybergreg",
     "timeISO": "2025-09-10T13:54:02.000Z",
     "textPlain": "Good overview of Kerberoasting, still a common attack chain. A couple things though: To obtain access to a service, you actually need to get a service ticket (TGS) from the KDC (Domain Controller) to authenticate to the service, not a TGT. The TGT is the first ticket acquired during authentication to the domain. In addition, the \"salt\" is not a true salt but a concatenation of the domain and principal name, so even worse. Active Directory (invented at MIT) supports RC4, AES128, and AES256 encryption types, however you can effectively disable RC4 via Group Policy. The reason RC4 is still supported is to support legacy systems. Many organizations use old software that only supports RC4. For example, I've run into many manufacturing and small businesses that have no choice but to use it and can't upgrade the software due to $$$. Anyway, good stuff! Shout out to Tim Medin, who published this back in 2014.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45198793,
+    "by": "indigo945",
+    "timeISO": "2025-09-10T15:00:37.000Z",
+    "textPlain": "I was about to suggest employing PingCastle to audit domains for weak default configurations such as these, but apparently, PingCastle still doesn't complain about RC4 enabled Kerberos accounts - only about DES. So now is a good opportunity to check any domains you are responsible for by hand.Note that since the 2022 update KB5019964, AES is the default for all AD accounts that did not have the administrator explicitly set a different encryption scheme. However, administrators may have done that on your domain in the past, because back in the day, the default encryption scheme was not even RC4, but DES, which is even worse. Some people therefore set everything to RC4 by hand, before AES was introduced as an option.The allowed encryption types are set via the msDs-supportedEncryptionTypes attribute on each individual AD account. This property is a 32 bit bitmask, where 8 is AES128, 16 is AES256, and any other bits set are garbage encryption schemes. However, if the attribute is set to 0, the account reverts to the default, which ever since the aforementioned patch has been 24 (AES128|AES256).Anyway, the following Powershell (run with elevated permissions on the domain!) lists you all insecure user accounts:    Get-ADUser -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'\n\nRemember that computer accounts have passwords too:    Get-ADComputer -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'",
     "parent": 45196437,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "throw0101d",
     "timeISO": "2025-09-10T14:32:37.000Z",
     "textPlain": "See perhaps \"Active Directory Hardening Series - Part 4 – Enforcing AES for Kerberos\":> Identifying devices limited to RC4 is a critical step but has historically been a tricky problem to solve.  However, a recently discovered \"feature\" in 4768 events can help you identity such devices. […] As a result, 4768 events can be used to identify devices that only support RC4.* https://techcommunity.microsoft.com/blog/coreinfrastructurea...Also:> While DES has long been considered insecure, CVE-2022-37966 accelerates the departure of RC4 for the encryption of Kerberos tickets. If you have not explicitly assigned an algorithm to accounts, then AES will be used in the future. You can use PowerShell to determine which accounts are vulnerable to weak encryption.* https://blog.sonnes.cloud/find-active-directory-accounts-con...There are certainly disadvantages to legacy support being 'too good'.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45200692,
+    "by": "moomin",
+    "timeISO": "2025-09-10T17:07:43.000Z",
+    "textPlain": "Padme: AD uses salts in its protocol, right?",
     "parent": 45196437,
     "depth": 1
   },
