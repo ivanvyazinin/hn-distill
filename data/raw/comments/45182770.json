@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45195269,
+    "by": "drej",
+    "timeISO": "2025-09-10T09:27:19.000Z",
+    "textPlain": "Please do run this on your own workloads! It's fairly easy to set up and run. I tried it a few weeks ago against a large test suite and saw huge perf benefits, but also found a memory allocation regression. In order for this v2 to be a polished release in 1.26, it needs a bit more testing.",
+    "parent": 45182770,
+    "depth": 1
+  },
+  {
     "id": 45190732,
     "by": "phoenixhaber",
     "timeISO": "2025-09-09T23:09:39.000Z",
@@ -40,6 +48,14 @@
     "depth": 1
   },
   {
+    "id": 45187743,
+    "by": "tibbe",
+    "timeISO": "2025-09-09T19:48:02.000Z",
+    "textPlain": "> Since encoding/json marshals a nil slice or map as a JSON nullHow did that make it into the v1 design?",
+    "parent": 45182770,
+    "depth": 1
+  },
+  {
     "id": 45186990,
     "by": "sroerick",
     "timeISO": "2025-09-09T19:00:26.000Z",
@@ -52,14 +68,6 @@
     "by": "breakingcups",
     "timeISO": "2025-09-09T20:33:06.000Z",
     "textPlain": "If/once this goes through, I wonder what the adoption is going to be like now that all LLMs still only have the v1 api in their corpus.",
-    "parent": 45182770,
-    "depth": 1
-  },
-  {
-    "id": 45187743,
-    "by": "tibbe",
-    "timeISO": "2025-09-09T19:48:02.000Z",
-    "textPlain": "> Since encoding/json marshals a nil slice or map as a JSON nullHow did that make it into the v1 design?",
     "parent": 45182770,
     "depth": 1
   },
@@ -168,38 +176,6 @@
     "depth": 2
   },
   {
-    "id": 45187597,
-    "by": "eknkc",
-    "timeISO": "2025-09-09T19:37:21.000Z",
-    "textPlain": "Go already has a JSON parser and serializer. It kind of resembles the JS api where you push some objects into JSON.stringify and it serializes them. Or you push some string and get an object (or string etc) from JSON.parse.The types themselves have a way to customize their own JSON conversion code. You could have a struct serialize itself to a string, an array, do weird gymnastics, whatever. The JSON module calls these custom implementations when available.The current way of doing it is shit though. If you want to customize serialization, you need to return a json string basically. Then the serializer has to check if you actually managed to return something sane. You also have no idea if there were some JSON options. Maybe there is an indentation setting or whatever. No, you return a byte array.Deserialization is also shit because a) again, no options. b) the parser has to send you a byte array to parse. Hey, I have this JSON string, parse it. If that JSON string is 100MB long, too bad, it has to be read completely and allocated again for you to work on because you can only accept a byte array to parse.New API fixes these. They provide a Decoder or Encoder to you. These carry any options from top. And they also can stream data. So you can serialize your 10GB array value by value while the underlying writer writes it into disk for example. Instead of allocating all on memory first, as the older API forces you to.There are other improvements too but the post mainly focuses on these so thats what I got from it (I havent tried the new api btw, this is all from the post so maybe I’m wrong on some points)",
-    "parent": 45186990,
-    "depth": 2
-  },
-  {
-    "id": 45190504,
-    "by": "resonantjacket5",
-    "timeISO": "2025-09-09T22:50:03.000Z",
-    "textPlain": "The main issues are under the Behavior differences https://go.dev/blog/jsonv2-exp#behavior-differencesThe largest problem were around behavior around nil in golang and what to convert into json and vice versa.* The v2 will now throw an error for invalid characters outside of ut8 (before silently accepted it) which meant one had to preprocess or process again the json before sending it off to the server\n* the golang nil will be converted to json empty array or map (for each type). previously it was converted to json null.\n* json field names will be converted to golang names with case sensitivity. before it was case-insentitive and would be lowercased. this kinda caused lots of problems if the field collided. (say there's bankName and bankname in json)\n* omitempty was problematic as it was used for say golang amount: nil would mean omit the field in json as {} instead of { amount: null}. however it also meant that the golang amount: 0 would also be omitted as { amount: 0 } which surprising. the new omitempty will only do so for nil and empty arrays/hashmaps but no longer for 0 or false. there's a new omitzero tag for that.",
-    "parent": 45186990,
-    "depth": 2
-  },
-  {
-    "id": 45190146,
-    "by": "skywhopper",
-    "timeISO": "2025-09-09T22:21:48.000Z",
-    "textPlain": "Nah, the existing implementation is pretty decent, actually, but doesn’t address every use case and has some flaws that are hard or impossible to fix. But for lots of use cases it works great.Now here’s a new implantation that addresses some of the architectural problems that made the old library structurally problematic for some use cases (streaming large JSON docs being the main one).",
-    "parent": 45186990,
-    "depth": 2
-  },
-  {
-    "id": 45193181,
-    "by": "h4ch1",
-    "timeISO": "2025-09-10T04:12:26.000Z",
-    "textPlain": "Hopefully people will remember documentation exists once errors start popping up and refer to it.",
-    "parent": 45188508,
-    "depth": 2
-  },
-  {
     "id": 45187954,
     "by": "rowanseymour",
     "timeISO": "2025-09-09T20:01:18.000Z",
@@ -229,6 +205,38 @@
     "timeISO": "2025-09-09T20:50:51.000Z",
     "textPlain": "Why shouldn't it be? The nil is null and empty array is an empty array, they are completely different objects.",
     "parent": 45187743,
+    "depth": 2
+  },
+  {
+    "id": 45187597,
+    "by": "eknkc",
+    "timeISO": "2025-09-09T19:37:21.000Z",
+    "textPlain": "Go already has a JSON parser and serializer. It kind of resembles the JS api where you push some objects into JSON.stringify and it serializes them. Or you push some string and get an object (or string etc) from JSON.parse.The types themselves have a way to customize their own JSON conversion code. You could have a struct serialize itself to a string, an array, do weird gymnastics, whatever. The JSON module calls these custom implementations when available.The current way of doing it is shit though. If you want to customize serialization, you need to return a json string basically. Then the serializer has to check if you actually managed to return something sane. You also have no idea if there were some JSON options. Maybe there is an indentation setting or whatever. No, you return a byte array.Deserialization is also shit because a) again, no options. b) the parser has to send you a byte array to parse. Hey, I have this JSON string, parse it. If that JSON string is 100MB long, too bad, it has to be read completely and allocated again for you to work on because you can only accept a byte array to parse.New API fixes these. They provide a Decoder or Encoder to you. These carry any options from top. And they also can stream data. So you can serialize your 10GB array value by value while the underlying writer writes it into disk for example. Instead of allocating all on memory first, as the older API forces you to.There are other improvements too but the post mainly focuses on these so thats what I got from it (I havent tried the new api btw, this is all from the post so maybe I’m wrong on some points)",
+    "parent": 45186990,
+    "depth": 2
+  },
+  {
+    "id": 45190504,
+    "by": "resonantjacket5",
+    "timeISO": "2025-09-09T22:50:03.000Z",
+    "textPlain": "The main issues are under the Behavior differences https://go.dev/blog/jsonv2-exp#behavior-differencesThe largest problem were around behavior around nil in golang and what to convert into json and vice versa.* The v2 will now throw an error for invalid characters outside of ut8 (before silently accepted it) which meant one had to preprocess or process again the json before sending it off to the server\n* the golang nil will be converted to json empty array or map (for each type). previously it was converted to json null.\n* json field names will be converted to golang names with case sensitivity. before it was case-insentitive and would be lowercased. this kinda caused lots of problems if the field collided. (say there's bankName and bankname in json)\n* omitempty was problematic as it was used for say golang amount: nil would mean omit the field in json as {} instead of { amount: null}. however it also meant that the golang amount: 0 would also be omitted as { amount: 0 } which surprising. the new omitempty will only do so for nil and empty arrays/hashmaps but no longer for 0 or false. there's a new omitzero tag for that.",
+    "parent": 45186990,
+    "depth": 2
+  },
+  {
+    "id": 45190146,
+    "by": "skywhopper",
+    "timeISO": "2025-09-09T22:21:48.000Z",
+    "textPlain": "Nah, the existing implementation is pretty decent, actually, but doesn’t address every use case and has some flaws that are hard or impossible to fix. But for lots of use cases it works great.Now here’s a new implantation that addresses some of the architectural problems that made the old library structurally problematic for some use cases (streaming large JSON docs being the main one).",
+    "parent": 45186990,
+    "depth": 2
+  },
+  {
+    "id": 45193181,
+    "by": "h4ch1",
+    "timeISO": "2025-09-10T04:12:26.000Z",
+    "textPlain": "Hopefully people will remember documentation exists once errors start popping up and refer to it.",
+    "parent": 45188508,
     "depth": 2
   },
   {
@@ -288,18 +296,18 @@
     "depth": 2
   },
   {
-    "id": 45194356,
-    "by": "int_19h",
-    "timeISO": "2025-09-10T07:21:48.000Z",
-    "textPlain": "It's not like this is new. Look at Java and .NET collection APIs, for example - both languages have the OG 1.0 versions, and then the more modern ones. In a similar vein, .NET has four different ways to deal with XML, of which three (XmlDocument, XPathDocument, and XDocument) are basically redundant representations of XML trees, each one doing things differently based on lessons learned.It's still better than the mess that is Node.js.",
-    "parent": 45188779,
-    "depth": 2
-  },
-  {
     "id": 45192808,
     "by": "jitl",
     "timeISO": "2025-09-10T03:22:09.000Z",
     "textPlain": "I’d rather have 2 jsons in the stdlib after 15 years than 0 jsons in the stdlib",
+    "parent": 45188779,
+    "depth": 2
+  },
+  {
+    "id": 45194356,
+    "by": "int_19h",
+    "timeISO": "2025-09-10T07:21:48.000Z",
+    "textPlain": "It's not like this is new. Look at Java and .NET collection APIs, for example - both languages have the OG 1.0 versions, and then the more modern ones. In a similar vein, .NET has four different ways to deal with XML, of which three (XmlDocument, XPathDocument, and XDocument) are basically redundant representations of XML trees, each one doing things differently based on lessons learned.It's still better than the mess that is Node.js.",
     "parent": 45188779,
     "depth": 2
   },
