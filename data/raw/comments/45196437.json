@@ -1,5 +1,13 @@
 [
   {
+    "id": 45199034,
+    "by": "cvoss",
+    "timeISO": "2025-09-10T15:18:27.000Z",
+    "textPlain": "> According to our friend Chick3nman, the same RTX 5090 can crack 4.18 billion (with a “b”) of these hashes every second.It may just be imprecise writing, but this is very misleading. The stat is that 4.18 B hashes can be computed per second, not cracked. Computing a hash means converting a given input into its hash. Cracking a hash means starting from the given hash and determining what the input must have been. To crack a given hash you have to iterate over the input space and compute all their hashes (barring other exploitable weaknesses).So, sure you can \"crack\" 4.18 B hashes per second, as long as you don't care that the hashes you are \"cracking\" are not the one you're interested in.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
     "id": 45197737,
     "by": "cybergreg",
     "timeISO": "2025-09-10T13:54:02.000Z",
@@ -8,10 +16,50 @@
     "depth": 1
   },
   {
+    "id": 45198793,
+    "by": "indigo945",
+    "timeISO": "2025-09-10T15:00:37.000Z",
+    "textPlain": "I was about to suggest employing PingCastle to audit domains for weak default configurations such as these, but apparently, PingCastle still doesn't complain about RC4 enabled Kerberos accounts - only about DES. So now is a good opportunity to check any domains you are responsible for by hand.Note that since the 2022 update KB5019964, AES is the default for all AD accounts that did not have the administrator explicitly set a different encryption scheme. However, administrators may have done that on your domain in the past, because back in the day, the default encryption scheme was not even RC4, but DES, which is even worse. Some people therefore set everything to RC4 by hand, before AES was introduced as an option.The allowed encryption types are set via the msDs-supportedEncryptionTypes attribute on each individual AD account. This property is a 32 bit bitmask, where 8 is AES128, 16 is AES256, and any other bits set are garbage encryption schemes. However, if the attribute is set to 0, the account reverts to the default, which ever since the aforementioned patch has been 24 (AES128|AES256).Anyway, the following Powershell (run with elevated permissions on the domain!) lists you all insecure user accounts:    Get-ADUser -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'\n\nRemember that computer accounts have passwords too:    Get-ADComputer -Filter 'msDs-supportedEncryptionTypes -ne 0 -and msDs-supportedEncryptionTypes -ne 8 -and msDs-supportedEncryptionTypes -ne 16 -and msDs-supportedEncryptionTypes -ne 24'",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
     "id": 45197587,
     "by": "harmon",
     "timeISO": "2025-09-10T13:44:31.000Z",
     "textPlain": "This article is somewhat incorrect. Kerberoasting abuses Ticket Granting Service tickets (TGSs, which are used to request access to a registered service in Active Directory), not Ticket Granting Tickets (TGTs, which are used to prove identity to a Domain Controller and request TGSs). However, the general attack described is still correct.TGS are (AES or RC4) encrypted with the NT password hash of the service account they are associated with. If you have a weak service account password, then TGS can be cracked to obtain the service account's password. A lot of times admins will create service accounts that have way more permissions than required (e.g. they make them a DA) which can lead to an immediate privilege escalation. To make it worse, any low privilege Active Directory account can request a TGS for any service, even if they are not allowed to access that service.Even if the service account is lower privilege, this can enable a silver ticket attack. https://www.crowdstrike.com/en-us/cybersecurity-101/cyberatt...There are multiple mitigations for this:1. Use managed or group managed service accounts instead of manually managed ones where possible. This ensures that account passwords are long, strong, and rotated regularly. If you are going to provision service accounts manually, give them very strong passwords.2. Apply the principle of least privilege and only assign service accounts the privileges they need. Avoid placing them in high privilege groups.3. Disable RC4 in your environment if possible via Group Policy.4. Monitor for RC4 ticket requests. AES-encrypted tickets are the default these days. https://adsecurity.org/?p=34585. Create a honeypot service account: https://adsecurity.org/?p=3513There is a somewhat similar attack against TGTs called ASREPRoasting: https://book.hacktricks.wiki/en/windows-hardening/active-dir...",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45198455,
+    "by": "zahlman",
+    "timeISO": "2025-09-10T14:40:43.000Z",
+    "textPlain": "Help me out here. I thought I was understanding the process as I went along, but my head is still spinning.This is what I understood: the corporate network needs to be able to connect ordinary users on some random employee's work computer, to privileged services elsewhere on the (generally insecure) network, securely. The idea is that the server sends the client some kind of encrypted token, the decryption of which — when the system is properly configured — would require some long, random passphrase beyond mortal comprehension. The user's machine stores the passphrase so that secure passphrases can be used by the mere mortal users, and automates the internal connection. But if a user gets compromised from outside the network, an attacker could explicitly request and exfiltrate one of the tokens, and run brute force attacks on it locally to the attacker; and for historical reasons, the system is likely to be poorly configured, such that the necessary passphrase is weak enough to be susceptible to this. Then the attacker uses the decrypted token to escalate access.My question is: why can't the attacker just direct the compromised machine to connect to the service normally? Or else, where did I lose the plot?",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45198298,
+    "by": "throw0101d",
+    "timeISO": "2025-09-10T14:32:37.000Z",
+    "textPlain": "See perhaps \"Active Directory Hardening Series - Part 4 – Enforcing AES for Kerberos\":> Identifying devices limited to RC4 is a critical step but has historically been a tricky problem to solve.  However, a recently discovered \"feature\" in 4768 events can help you identity such devices. […] As a result, 4768 events can be used to identify devices that only support RC4.* https://techcommunity.microsoft.com/blog/coreinfrastructurea...Also:> While DES has long been considered insecure, CVE-2022-37966 accelerates the departure of RC4 for the encryption of Kerberos tickets. If you have not explicitly assigned an algorithm to accounts, then AES will be used in the future. You can use PowerShell to determine which accounts are vulnerable to weak encryption.* https://blog.sonnes.cloud/find-active-directory-accounts-con...There are certainly disadvantages to legacy support being 'too good'.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45198776,
+    "by": "iam_saurabh",
+    "timeISO": "2025-09-10T14:59:35.000Z",
+    "textPlain": "Kerberoasting keeps popping up in real-world incidents. Do you think enterprises underestimate the human factor in securing service accounts more than the technical exploits?",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
+    "id": 45198519,
+    "by": "naranha",
+    "timeISO": "2025-09-10T14:44:15.000Z",
+    "textPlain": "It's still common in IT departments to enter the domain administrator password to join a computer to a domain or install software on a client machine. This seems insane to me, you can just fake the windows gui in a Fullscreen application and keylog the password - even using a web browser. I think AD is a relic of the 90s that should be retired",
     "parent": 45196437,
     "depth": 1
   },
@@ -32,6 +80,14 @@
     "depth": 1
   },
   {
+    "id": 45197603,
+    "by": "dec1m0s",
+    "timeISO": "2025-09-10T13:45:37.000Z",
+    "textPlain": "See also https://blog.compass-security.com/2025/09/taming-the-three-h... for an in-depth video series on Kerberos.",
+    "parent": 45196437,
+    "depth": 1
+  },
+  {
     "id": 45197609,
     "by": "MrBuddyCasino",
     "timeISO": "2025-09-10T13:46:02.000Z",
@@ -40,12 +96,28 @@
     "depth": 1
   },
   {
-    "id": 45197603,
-    "by": "dec1m0s",
-    "timeISO": "2025-09-10T13:45:37.000Z",
-    "textPlain": "See also https://blog.compass-security.com/2025/09/taming-the-three-h... for an in-depth video series on Kerberos.",
-    "parent": 45196437,
-    "depth": 1
+    "id": 45198907,
+    "by": "gnufx",
+    "timeISO": "2025-09-10T15:08:11.000Z",
+    "textPlain": "> Active Directory (invented at MIT)AD was invented by Microsoft, gluing together Kerberos (from MIT) and LDAP (from UMich).  If it was from MIT, we wouldn't have had Windows 2000's infamous proprietary PAC.",
+    "parent": 45197737,
+    "depth": 2
+  },
+  {
+    "id": 45198655,
+    "by": "holowoodman",
+    "timeISO": "2025-09-10T14:52:32.000Z",
+    "textPlain": "An actually useful mitigation would be to use service keytabs instead of service passwords. Because with a keytab, the keytab is a file that just contains an AES128/256/RC4 key instead of a password, which makes it sufficiently hard to guess. The service just uses this file to decrypt its service tickets then.However, keytab usage is rare in the Windows AD world because people don't seem to comprehend what a keytab is and does, and why it is far better than using passwords for services.",
+    "parent": 45197587,
+    "depth": 2
+  },
+  {
+    "id": 45197731,
+    "by": "EvanAnderson",
+    "timeISO": "2025-09-10T13:53:24.000Z",
+    "textPlain": "I was a little irritated that Prof. Green didn't really discuss that Microsoft has made recommendations to mitigate. Thank you for summarizing.The mitigations are there but it takes time for Microsoft's Customers to move to the new versions. I don't think that's Microsoft's problem. That's just their market. I don't think Prof. Green has an understanding of that side of it.I guess one could argue that Microsoft should backport the new code to older products and give it to Customers who aren't actively paying for maintenance or subscription licensing. They made the business decision not to.",
+    "parent": 45197587,
+    "depth": 2
   },
   {
     "id": 45197870,
@@ -56,11 +128,19 @@
     "depth": 2
   },
   {
-    "id": 45197731,
-    "by": "EvanAnderson",
-    "timeISO": "2025-09-10T13:53:24.000Z",
-    "textPlain": "I was a little irritated that Prof. Green didn't really discuss that Microsoft has made recommendations to mitigate. Thank you for summarizing.The mitigations are there but it takes time for Microsoft's Customers to move to the new versions. I don't think that's Microsoft's problem. That's just their market. I don't think Prof. Green has an understanding of that side of it.I guess one could argue that Microsoft should backport the new code to older products and give it to Customers who aren't actively paying for maintenance or subscription licensing. They made the business decision not to.",
-    "parent": 45197587,
+    "id": 45199026,
+    "by": "harmon",
+    "timeISO": "2025-09-10T15:17:57.000Z",
+    "textPlain": "If you have the user's credentials then you can indeed connect to the service as you normally would. The advantages of performing this attack are:1. You can obtain the service account's password, and the service account may be provisioned with more privileges than the user's account that you compromised. This allows for privilege escalation beyond simply accessing the service. For example, perhaps the service account has administrative access on other machines, or it is used for multiple services, or it is a Domain Admin in which case you can completely compromise the domain.2. TGS tickets used to request access to a service are cryptographically signed with the password hash of the service account. Services use this to validate ticket validity. In most cases, this means that if you can derive the service account password, you can forge TGS tickets that claim to be associated with arbitrary domain users. Instead of accessing the service as a low privilege user, you can now access the service as an Enterprise Admin or another high privilege account which could enable access to more resources or administrative access to the machine. This is called a Silver Ticket attack.",
+    "parent": 45198455,
+    "depth": 2
+  },
+  {
+    "id": 45198645,
+    "by": "deltarholamda",
+    "timeISO": "2025-09-10T14:52:02.000Z",
+    "textPlain": "From the MS blog post:>Users with AD credentials can request tickets to any service account in AD.I assume it means you can derive the service password to leapfrog up the chain to wherever you want to go.",
+    "parent": 45198455,
     "depth": 2
   },
   {
