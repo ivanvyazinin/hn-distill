@@ -1,5 +1,37 @@
 [
   {
+    "id": 45200897,
+    "by": "Roguelazer",
+    "timeISO": "2025-09-10T17:24:27.000Z",
+    "textPlain": "I think this is ignoring a lot of prior art. Our deploys at Yelp in roughly 2010 worked this way -- you flagged a branch as ready to land, a system (`pushmaster` aka `pushhamster`) verified that it passed tests and then did an octopus merge of a bunch of branches, verified that that passed tests, deployed it, and then landed the whole thing to master after it was happy on staging. And this wasn't novel at Yelp; we inherited the practice from PayPal, so my guess is that most companies that care at all about release engineering have been doing it this way for decades and it was just a big regression when people stopped having professional release management teams and started just cowboy pushing to `master` / `main` on github some time in the mid 2010's.",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45200945,
+    "by": "jes5199",
+    "timeISO": "2025-09-10T17:27:32.000Z",
+    "textPlain": "I don't know what it's like now, but GitHub's internal merge queue circa 2017 was a nightmare. Every PR required you to set aside a full day of babysitting to get it getting merged/deployed - there were too many nondeterministic steps.You'd join the queue, and then you'd have to wait for like 12 other people in front of you who would each spend up to a couple hours trying to get their merge branch to go green so it could go out. You couldn't really look away because it could be your turn out of nowhere - and you had to react to it like being on call, because the whole deployment process was frozen until your turn ended. Often that meant just clicking \"retry\" on parts of the CI process, but it was complicated, there were dependencies between sections of tests.",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45201611,
+    "by": "ruuda",
+    "timeISO": "2025-09-10T18:13:35.000Z",
+    "textPlain": "Also related: https://www.channable.com/tech/automated-deployments. Hoff predates many of the systems in the article.",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45200877,
+    "by": "sfink",
+    "timeISO": "2025-09-10T17:22:42.000Z",
+    "textPlain": "This covers part of the problem, the part where your tests are enough to indicate whether the changes are good enough to keep. In that scenario, relying only on fast-forward merges is good enough.One trickier problem is when you don't know until later that a past change was bad: perhaps slow-running performance tests show a regression, or flaky tests turn out to have been showing a real problem, or you just want the additional velocity of pipelined landings that don't wait for all the tests to finish. Or perhaps you don't want to test every change, but then when things break you need to go back and figure out which change(s) caused the issue. (My experience is at Mozilla where all these things are true, and often.) Then you have to deal with backouts: do you keep an always-green chain of commits by backing up and re-landing good commits to splice out the bad, and only fast-forwarding when everything is green? Or do you keep the backouts in the tree, which is more \"accurate\" in a way but unfortunate for bisecting and code archaeology?",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
     "id": 45200423,
     "by": "zdw",
     "timeISO": "2025-09-10T16:49:22.000Z",
@@ -8,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45200555,
-    "by": "myelin",
-    "timeISO": "2025-09-10T16:58:32.000Z",
-    "textPlain": "The Chromium commit queue slightly predates this -- they started using it in 2010.",
+    "id": 45200985,
+    "by": "peterldowns",
+    "timeISO": "2025-09-10T17:30:30.000Z",
+    "textPlain": "No mention of Graphite.dev? Oh, it's written by Mergify, got it.",
     "parent": 45199378,
     "depth": 1
   },
@@ -24,11 +56,43 @@
     "depth": 1
   },
   {
+    "id": 45200555,
+    "by": "myelin",
+    "timeISO": "2025-09-10T16:58:32.000Z",
+    "textPlain": "The Chromium commit queue slightly predates this -- they started using it in 2010.",
+    "parent": 45199378,
+    "depth": 1
+  },
+  {
+    "id": 45201344,
+    "by": "jd__",
+    "timeISO": "2025-09-10T17:54:26.000Z",
+    "textPlain": "That's super interesting, thanks for sharing the Yelp/PayPal lineage. You're right: there's probably a lot of prior art in internal release engineering systems that never got much written up publicly.The angle we took in the blog post focused on what was widely documented and accessible to the community (open-source tools like Bors, Homu, Bulldozer, Zuul, etc.), because those left a public footprint that other teams could adopt or build on.It's a great reminder that many companies were solving the \"keep main green\" problem in parallel (some with pretty sophisticated tooling), even if it didn't make it into OSS or blog posts at the time.",
+    "parent": 45200897,
+    "depth": 2
+  },
+  {
     "id": 45200599,
     "by": "jd__",
     "timeISO": "2025-09-10T17:01:28.000Z",
     "textPlain": "That's a good point. To clarify, Gerrit itself didn't actually do merge queuing or CI gating. Its model was stacked commits: every change was rebased on top of the current tip of main before landing. That ensured a linear history but didn't solve the \"Is the whole pipeline still green when we merge this?\" problem.That's why the OpenStack community built Zuul on top of Gerrit: it added a real gating system that could speculatively test multiple commits in a queue and only merge them if CI passed together. In other words, Zuul was Gerrit's version of a merge queue.",
     "parent": 45200423,
+    "depth": 2
+  },
+  {
+    "id": 45201614,
+    "by": "mlutsky1231",
+    "timeISO": "2025-09-10T18:13:41.000Z",
+    "textPlain": "(Co-founder of Graphite here) Even better - they didn't mention that Shopify deprecated Shipit in favor of Graphite's merge queue for their new monorepo.",
+    "parent": 45200985,
+    "depth": 2
+  },
+  {
+    "id": 45201602,
+    "by": "masklinn",
+    "timeISO": "2025-09-10T18:12:52.000Z",
+    "textPlain": "while the article does not provide specific dates for the “prehistory” the Not Rocket Science piece refers to an automated integration system working circa 2000~2001:> February 2 2014, 22:25 […] Thirteen years ago I worked at Cygnus/RedHat […] Ben, Frank, and possibly a few other folks on the team cooked up a system [with a] simple job: automatically maintain a repository of code that always passes all the tests.",
+    "parent": 45200555,
     "depth": 2
   }
 ]
