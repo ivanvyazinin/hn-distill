@@ -1,9 +1,17 @@
 [
   {
-    "id": 45216111,
-    "by": "giveita",
-    "timeISO": "2025-09-11T21:06:23.000Z",
-    "textPlain": "> I’ve been deploying Rails applications to production since 2004> I was still caught out by some of the ways things are different.I feel this is the problem with frameworks, they have to keep evolving and growing and even people who have been doing it 20 years can get caught out.But the architecture of the Web has basically not changed that much. We are collectively shooting ourselves in the foot.Definitely not just a Rails thing.",
+    "id": 45216679,
+    "by": "jemmyw",
+    "timeISO": "2025-09-11T22:17:34.000Z",
+    "textPlain": "I don't really understand the current trend of using sqlite in place of a traditional database. It has it's place, I use it in a client side project and it's really great, although even there I have to be aware of the one writer only limitation.20 years ago it was MySQL and now it's usually postgres, and these are both still fine. Easier than ever to get setup and going in production. Outside of quite niche needs, I can't understand why one would put up with the pain of using sqlite. Plus it's setting up an even more painful migration later if you do grow.",
+    "parent": 45214933,
+    "depth": 1
+  },
+  {
+    "id": 45216326,
+    "by": "polyrand",
+    "timeISO": "2025-09-11T21:33:44.000Z",
+    "textPlain": "A bit off topic but:  The reason for the \"lite\" in the name is that it doesn’t run a separate process, it doesn’t listen on a port or a socket, and you can’t connect to it.\n\nThe name doesn't really contain \"lite\". It's SQL-ite. So the suffix is \"ite\":  The suffix \"ite\" is derived from the Greek word lithos (from its adjectival form -ites), meaning rock or stone [0]\n\n[0]: https://english.stackexchange.com/a/34010",
     "parent": 45214933,
     "depth": 1
   },
@@ -16,10 +24,26 @@
     "depth": 1
   },
   {
+    "id": 45216339,
+    "by": "nikodunk",
+    "timeISO": "2025-09-11T21:35:07.000Z",
+    "textPlain": "Very well written and thought-through article. I’ve struggled with a lot of the same issues with SQLite prod deployments. They appear simple, but then after you’ve ensured your file is on non-ephemeral storage, sorted out backups, and thought about vertical scaling or having separate dbs for jobs and models, a lot of the benefits over psql disappear IMO.I’ve found a happy middle ground in simply self-hosting psql and my apps on the same VPS with something like dokploy. Local development is still easy enough, and remote deployment in containers is 1-click with Dokploy, and ends up being simpler to reason about IMO. More details below, if anyone’s interested.https://nikodunk.com/2025-06-10-diy-serverless-(coreos-+-dok...",
+    "parent": 45214933,
+    "depth": 1
+  },
+  {
     "id": 45215962,
     "by": "phamilton",
     "timeISO": "2025-09-11T20:47:45.000Z",
     "textPlain": "I'm sad this project fizzled: https://github.com/losfair/mvsqliteIt had the fascinating property of being a full multi-writer SQL engine when using Page Level Conflict Checking. Even more fascinating: every single client itself becomes a writer.",
+    "parent": 45214933,
+    "depth": 1
+  },
+  {
+    "id": 45216111,
+    "by": "giveita",
+    "timeISO": "2025-09-11T21:06:23.000Z",
+    "textPlain": "> I’ve been deploying Rails applications to production since 2004> I was still caught out by some of the ways things are different.I feel this is the problem with frameworks, they have to keep evolving and growing and even people who have been doing it 20 years can get caught out.But the architecture of the Web has basically not changed that much. We are collectively shooting ourselves in the foot.Definitely not just a Rails thing.",
     "parent": 45214933,
     "depth": 1
   },
@@ -30,6 +54,38 @@
     "textPlain": "> Another implication of having just one single server: there is only one place for network requests to go.> In the dream SQLite plus LiteFS world, you have all the advantages of SQLite and all the advantages of a fully replicated multi-writer database setup. Any individual server can go down without causing any downtime for the application as a whole, and every user has a full copy of the application and all its data, running extremely close to them.These are some of the problems I’m working on solving with Litebase (alpha), which runs on SQLite and distributed storage. Most SQLite solutions rely on replicating data between nodes, but I’m taking a simpler approach by using distributed storage for durability, availability, and replication, combined with a lightweight consensus system between primary and replica nodes.https://litebase.comI’m working on getting a public alpha ready, but you can check out the project so far. I’ll create a thread on Hacker News once things are ready.",
     "parent": 45214933,
     "depth": 1
+  },
+  {
+    "id": 45216457,
+    "by": "chuckadams",
+    "timeISO": "2025-09-11T21:48:21.000Z",
+    "textPlain": "From the horse's mouth (Hipp's): \"I wrote SQLite, and I think it should be pronounced \"S-Q-L-ite\". Like a mineral. But I'm cool with y'all pronouncing it any way you want. :-)\"Me, I say \"sequeLITE\" with the emphasis on the last syllable, but now I'm thinking of switching to \"SEQuelite\".  You'll never catch me pronouncing it \"ess-cue-ell\" either way dammit!:)",
+    "parent": 45216326,
+    "depth": 2
+  },
+  {
+    "id": 45216565,
+    "by": "graemep",
+    "timeISO": "2025-09-11T22:01:49.000Z",
+    "textPlain": "Sqlite is a bad fit for anything where ephemeral storage is the default. On the other hand is you use a simple VPS there is no problem.There are multiple simple ways of doing SQLite backups https://sqlite.org/lang_vacuum.html#vacuuminto https://sqlite.org/rsync.html - or just lock and copy the file.If you need to scale enough that it is a concern, then its not a good fit for your use case.",
+    "parent": 45216339,
+    "depth": 2
+  },
+  {
+    "id": 45216543,
+    "by": "christophilus",
+    "timeISO": "2025-09-11T21:59:18.000Z",
+    "textPlain": "This is the way. I used to do the same way back in my ASP (not dotnet) days, only with SQL Server. Hosting the db alongside the app server turned out great, even though you’re always advised against it.",
+    "parent": 45216339,
+    "depth": 2
+  },
+  {
+    "id": 45216651,
+    "by": "ncruces",
+    "timeISO": "2025-09-11T22:13:47.000Z",
+    "textPlain": "The way they got multi-writer working is a bit too adventurous for me.It involves fiddling the database header to ensure you can keep track of the read-set from the VFS layer, by convincing SQLite to drop its page cache at the start of every transaction.Other than that, a MVCC VFS is relatively straightforward. Here's an in-memory experiment if a few hundred lines of Go:\nhttps://github.com/ncruces/go-sqlite3/blob/v0.29.0/vfs/mvcc/...I haven't settled on what's a good storage layer for something like this.",
+    "parent": 45215962,
+    "depth": 2
   },
   {
     "id": 45215988,
