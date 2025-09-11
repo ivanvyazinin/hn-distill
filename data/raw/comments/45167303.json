@@ -1,9 +1,9 @@
 [
   {
-    "id": 45211686,
-    "by": "ho_schi",
-    "timeISO": "2025-09-11T13:51:36.000Z",
-    "textPlain": "Looking at the examples from using Clang (I use GCC btw.):   clang++ -std=c++20 Hello.cppm --precompile -o Hello.pcm\n   clang++ -std=c++20 use.cpp -fmodule-file=Hello=Hello.pcm Hello.pcm -o Hello.out\n   ./Hello.out\n\nWhy is something which shall makes things easy and secure so complicated?I'm used to:    g++ -o hello hello.cpp\n\nIt can use headers. Or doesn't use headers. I doesn't matter. That's the decision of the source file. To be fair, the option -std=c++20 probably isn't necessary in future.I recommend skimming over this issue from Meson:https://github.com/mesonbuild/meson/issues/5024Reading the last few blog posts from a developer of Meson, providing some insights why Meson doesn't support modules until now:https://nibblestew.blogspot.com/",
+    "id": 45212347,
+    "by": "achatham",
+    "timeISO": "2025-09-11T14:49:36.000Z",
+    "textPlain": "We use c++ modules at Waymo, inside the google monorepo. The Google toolchain team did all the hard work, but we applied it more aggressively than any team I know of. The results have been fantastic, with our largest compilation units getting a 30-40% speedup. It doesn't make a huge difference in a clean build, as that's massively distributed. But it makes an enormous difference for iterative compilation. It also has the benefit of avoiding recompilation entirely in some cases.Every once in a while something breaks, usually around exotic use of templates. But on the whole we love it, and we'd have to do so much ongoing refactoring to keep things workable without them.Update: I now recall those numbers are from a partial experiment, and the full deployment was even faster, but I can't recall the exact number. Maybe a 2/3 speedup?",
     "parent": 45167303,
     "depth": 1
   },
@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45211686,
+    "by": "ho_schi",
+    "timeISO": "2025-09-11T13:51:36.000Z",
+    "textPlain": "Looking at the examples from using Clang (I use GCC btw.):   clang++ -std=c++20 Hello.cppm --precompile -o Hello.pcm\n   clang++ -std=c++20 use.cpp -fmodule-file=Hello=Hello.pcm Hello.pcm -o Hello.out\n   ./Hello.out\n\nWhy is something which shall makes things easy and secure so complicated?I'm used to:    g++ -o hello hello.cpp\n\nIt can use headers. Or doesn't use headers. I doesn't matter. That's the decision of the source file. To be fair, the option -std=c++20 probably isn't necessary in future.I recommend skimming over this issue from Meson:https://github.com/mesonbuild/meson/issues/5024Reading the last few blog posts from a developer of Meson, providing some insights why Meson doesn't support modules until now:https://nibblestew.blogspot.com/",
+    "parent": 45167303,
+    "depth": 1
+  },
+  {
     "id": 45210531,
     "by": "menaerus",
     "timeISO": "2025-09-11T11:59:34.000Z",
@@ -24,19 +32,19 @@
     "depth": 1
   },
   {
-    "id": 45211863,
-    "by": "delta_p_delta_x",
-    "timeISO": "2025-09-11T14:05:11.000Z",
-    "textPlain": "> Why is something which shall makes things easy and secure so complicated?\n> I'm used to:\n>\n>  g++ -o hello hello.cppThat is simple, because C++ inherited C's simplistic, primitive, and unsafe compilation and abstraction model of brute-force textual inclusion. When you scale this to a large project with hundreds of thousands of translation units, every command-line invocation becomes a huge list of flag soup that plain Makefiles become inscrutably complicated.Almost all other reasonably-recent programming languages have all of the following:- a strong coupling of dependency management, building, installation, and publishing tools- some description of a directed acyclic graph of dependencies, whether it be requirements.txt, cargo.toml, Maven, dotnet and Nuget .csproj files, Go modules, OPAM, PowerShell gallery, and more- some way to describe the dependencies within the source code itselfC++20 modules are a very good thing, and enforce a stronger coupling between compiler and build tool; it's no longer just some weekend project chucking flags at g++/clang++/cl.exe but analysing source code, realising it needs a, b, c, x, y, z modules, ensuring those modules are built and export the necessary symbols, and then compiling the source at hand correctly. That's what `clang-scan-deps` does: https://clang.llvm.org/docs/StandardCPlusPlusModules.html#di...I concede there are two problems with C++20 modules: we didn't have a working and correct compiler implementation before the paper was accepted into C++20, and secondly, the built/binary module interface specification is not fixed, so BMIs aren't (yet) portable across compilers.The Meson developer is notorious for stirring the pot with respect to both the build system competition, and C++20 modules. The Reddit thread on his latest blog post provides a searing criticism for why he is badly mistaken: https://www.reddit.com/r/cpp/comments/1n53mpl/we_need_to_ser...",
-    "parent": 45211686,
+    "id": 45212542,
+    "by": "tbaeder",
+    "timeISO": "2025-09-11T15:06:57.000Z",
+    "textPlain": "Are those actually the C++20 modules or clang modules (-fmodules)?",
+    "parent": 45212347,
     "depth": 2
   },
   {
-    "id": 45211786,
+    "id": 45211545,
     "by": "bluGill",
-    "timeISO": "2025-09-11T13:58:32.000Z",
-    "textPlain": "Because hello is so simple you don't need complicated.  When you are doing something complicated though you have to accept that it is complicated.  I could concatenate all 20 million lines of C++ (round number) I work with into one file and building would be as simple as your hello example - but that simple building comes at great cost (you try working with a 20 million line file, and then merging it with changes someone else made) and so I'm willing to accept more complex builds.",
-    "parent": 45211686,
+    "timeISO": "2025-09-11T13:40:59.000Z",
+    "textPlain": "It is just beyond experimental now, and finally in the early adopter phase. Those early adopters are trying things are trying to develop best practices - which is to say as always: they will be trying things that future us will laugh at how stupid it was to do.There are still some features that are missing from compilers, but enough is there that you can target all 3 major compilers and still get most of modules and benefit from them.  However if you do this remember you are an early adopter and you need to be prepared to figure out the right way to do things - including fixing things that you get wrong once you figure out what is right.Also, if you are writing a library you cannot benefit from modules unless you are willing to force all your consumers to adopt modules.  This is not reasonable for major libraries used by many so they will be waiting until more projects adopt modules.Still modules need early adopters and they show great promise.  If you write C++ you should spend a little time playing with them in your current project even if you can't commit anything.",
+    "parent": 45210529,
     "depth": 2
   },
   {
@@ -48,10 +56,10 @@
     "depth": 2
   },
   {
-    "id": 45211545,
-    "by": "bluGill",
-    "timeISO": "2025-09-11T13:40:59.000Z",
-    "textPlain": "It is just beyond experimental now, and finally in the early adopter phase. Those early adopters are trying things are trying to develop best practices - which is to say as always: they will be trying things that future us will laugh at how stupid it was to do.There are still some features that are missing from compilers, but enough is there that you can target all 3 major compilers and still get most of modules and benefit from them.  However if you do this remember you are an early adopter and you need to be prepared to figure out the right way to do things - including fixing things that you get wrong once you figure out what is right.Also, if you are writing a library you cannot benefit from modules unless you are willing to force all your consumers to adopt modules.  This is not reasonable for major libraries used by many so they will be waiting until more projects adopt modules.Still modules need early adopters and they show great promise.  If you write C++ you should spend a little time playing with them in your current project even if you can't commit anything.",
+    "id": 45212236,
+    "by": "monax",
+    "timeISO": "2025-09-11T14:39:10.000Z",
+    "textPlain": "We are building a document rendering tool using them. It’s a pretty large project, and there have been some really good improvements in Clang’s implementation of C++20 modules in the past few versions.https://github.com/odoo/paper-muncher/blob/main/src/main.cpp",
     "parent": 45210529,
     "depth": 2
   },
@@ -69,6 +77,38 @@
     "timeISO": "2025-09-11T13:17:32.000Z",
     "textPlain": "Here, Raytracing in a Weekend, using modules,https://github.com/pjmlp/RaytracingWeekend-CPPAlso shows how to use static libraries alongside modules.",
     "parent": 45210529,
+    "depth": 2
+  },
+  {
+    "id": 45211863,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-09-11T14:05:11.000Z",
+    "textPlain": "> Why is something which shall makes things easy and secure so complicated?\n> I'm used to:\n>\n>  g++ -o hello hello.cppThat is simple, because C++ inherited C's simplistic, primitive, and unsafe compilation and abstraction model of brute-force textual inclusion. When you scale this to a large project with hundreds of thousands of translation units, every command-line invocation becomes a huge list of flag soup that plain Makefiles become intractable.Almost all other reasonably-recent programming languages have all of the following:- a strong coupling of dependency management, building, installation, and publishing tools- some description of a directed acyclic graph of dependencies, whether it be requirements.txt, cargo.toml, Maven, dotnet and Nuget .csproj files, Go modules, OPAM, PowerShell gallery, and more- some way to describe the dependencies within the source code itselfC++20 modules are a very good thing, and enforce a stronger coupling between compiler and build tool; it's no longer just some weekend project chucking flags at g++/clang++/cl.exe but analysing source code, realising it needs a, b, c, x, y, z modules, ensuring those modules are built and export the necessary symbols, and then compiling the source at hand correctly. That is what `clang-scan-deps` does: https://clang.llvm.org/docs/StandardCPlusPlusModules.html#di...I concede there are two problems with C++20 modules: we didn't have a working and correct compiler implementation before the paper was accepted into C++20, and secondly, the built/binary module interface specification is not fixed, so BMIs aren't (yet) portable across compilers.The Meson developer is notorious for stirring the pot with respect to both the build system competition, and C++20 modules. The Reddit thread on his latest blog post provides a searing criticism for why he is badly mistaken: https://www.reddit.com/r/cpp/comments/1n53mpl/we_need_to_ser...",
+    "parent": 45211686,
+    "depth": 2
+  },
+  {
+    "id": 45212420,
+    "by": "slavik81",
+    "timeISO": "2025-09-11T14:55:37.000Z",
+    "textPlain": "Your comparison is not apples to apples as you would in practice have a seperation of compilation and linking in your non-modules example. The status quo is more like:    g++ -c -o hello.o hello.cpp\n    g++ -o hello hello.o\n    ./hello\n\nWith that said, the the modules command is mostly complex due to the -fmodule-file=Hello=Hello.pcm argument.When modules were being standardized, there was a discussion on whether there should be any sort of implicit mapping between modules and files. This was rejected, so the build system must supply the information about which module is contained in which file. The result is more flexible, but also more complex and maybe less efficient.",
+    "parent": 45211686,
+    "depth": 2
+  },
+  {
+    "id": 45212279,
+    "by": "Kelteseth",
+    "timeISO": "2025-09-11T14:43:41.000Z",
+    "textPlain": "> I'm used to:\n> g++ -o hello hello.cppThat is an unfair comparison. Nobody uses direct compiler command line approach to compile more than a simple hello world test project.",
+    "parent": 45211686,
+    "depth": 2
+  },
+  {
+    "id": 45211786,
+    "by": "bluGill",
+    "timeISO": "2025-09-11T13:58:32.000Z",
+    "textPlain": "Because hello is so simple you don't need complicated.  When you are doing something complicated though you have to accept that it is complicated.  I could concatenate all 20 million lines of C++ (round number) I work with into one file and building would be as simple as your hello example - but that simple building comes at great cost (you try working with a 20 million line file, and then merging it with changes someone else made) and so I'm willing to accept more complex builds.",
+    "parent": 45211686,
     "depth": 2
   },
   {
