@@ -1,0 +1,8 @@
+{
+  "id": 45180876,
+  "lang": "ru",
+  "summary": "- **Проблема**: меж-AZ трафик Ceph в AWS «съедал» до 2/3 I/O и биллился как outbound, превращаясь в крупную статью расходов.  \n- **Решение**: неиспользуемые локальные NVMe разбили на 512 Мб LVM-чанки, перед каждым RBD-объёмом поставили dm-cache в режиме **read-only** (write-through).  \n- **Как**:  \n  ```bash\n  lvcreate -L 512M -n cache0 vg_nvme  \n  lvcreate -L 512M -n meta0  vg_nvme  \n  lvconvert --type cache-pool --cachemode writethrough vg_nvme/cache0 vg_nvme/meta0  \n  lvconvert --type cache --cachepool vg_nvme/cache0 vg_ceph/vm00\n  ```  \n  Подняли hit-ratio до 70 %, тюнинг `sequential_threshold` отсек потоковое чтение.  \n- **Итог**: меж-AZ трафик ↓ 95 %, latency чтения ↓ 60 %, стоимость хранения не выросла. Кэш масштабируется линейно: добавили NVMe – увеличили hit-ratio без передвижения данных.",
+  "inputHash": "d6f78049741d7759a696158b5968e68793abea4c7426514f6ee066581d9d136f",
+  "model": "moonshotai/kimi-k2:free",
+  "createdISO": "2025-09-12T23:21:28.538Z"
+}
