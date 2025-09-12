@@ -1,13 +1,5 @@
 [
   {
-    "id": 45222425,
-    "by": "jjice",
-    "timeISO": "2025-09-12T14:18:10.000Z",
-    "textPlain": "> The key decision is thus between two patterns: using a global logger or using dependency injection. The former is extremely convenient but adds a hidden dependency that’s hard to test, while the latter is more verbose but makes dependencies explicit, resulting in highly testable and flexible code.Curious how different people handle this. I personally pretty much always pass a logger into function, classes, structs (what have you) so it has the context I need it to. It's a tad more verbose I guess, but it's such a minor lift I've always found it worth it.",
-    "parent": 45167739,
-    "depth": 1
-  },
-  {
     "id": 45222250,
     "by": "peterldowns",
     "timeISO": "2025-09-12T14:00:19.000Z",
@@ -20,6 +12,14 @@
     "by": "arcaen",
     "timeISO": "2025-09-12T11:16:06.000Z",
     "textPlain": "The thing that gets me about slog is that the output key for the slog JSON handler is msg, but that's not compatible with Googles own GCP Stackdriver logging. Since that key is a constant I now need to use an attribute replacer to change it from msg to message (or whatever it is stackdriver wants). Good work Google.",
+    "parent": 45167739,
+    "depth": 1
+  },
+  {
+    "id": 45222425,
+    "by": "jjice",
+    "timeISO": "2025-09-12T14:18:10.000Z",
+    "textPlain": "> The key decision is thus between two patterns: using a global logger or using dependency injection. The former is extremely convenient but adds a hidden dependency that’s hard to test, while the latter is more verbose but makes dependencies explicit, resulting in highly testable and flexible code.Curious how different people handle this. I personally pretty much always pass a logger into function, classes, structs (what have you) so it has the context I need it to. It's a tad more verbose I guess, but it's such a minor lift I've always found it worth it.",
     "parent": 45167739,
     "depth": 1
   },
@@ -64,11 +64,43 @@
     "depth": 2
   },
   {
+    "id": 45222457,
+    "by": "trenchpilgrim",
+    "timeISO": "2025-09-12T14:21:04.000Z",
+    "textPlain": "We switched to zerolog a while back and didn't look back.",
+    "parent": 45222250,
+    "depth": 2
+  },
+  {
+    "id": 45222607,
+    "by": "9rx",
+    "timeISO": "2025-09-12T14:35:17.000Z",
+    "textPlain": "> That the golang team refuses to bless a single interface for everyone to settle onUh... https://pkg.go.dev/golang.org/x/exp/slog#HandlerIf zap, charmlog, etc. don't provide conformance to the interface, that's not really on the Go team. It wouldn't be that hard to write your own adapter around your unidiomatic logger of choice if you're really stuck, though. This isn't an actual problem unless you think someone else owes you free labor for some reason.",
+    "parent": 45222250,
+    "depth": 2
+  },
+  {
     "id": 45221531,
     "by": "ImJasonH",
     "timeISO": "2025-09-12T12:46:28.000Z",
     "textPlain": "We had the same annoyance, and wrote https://pkg.go.dev/github.com/chainguard-dev/clog/gcp to bridge the gap.It's a slog handler that formats everything the way GCP wants, including with trace contexts, etc.We've had this in production for months, and it's been pretty great.You can add this at your main.go    import _ \"github.com/chainguard-dev/clog/gcp/init\"\n\n(the rest of the library is about attaching a logger to a context.Context, but you don't need to use that to use the GCP logger)",
     "parent": 45220940,
+    "depth": 2
+  },
+  {
+    "id": 45222534,
+    "by": "cfors",
+    "timeISO": "2025-09-12T14:27:53.000Z",
+    "textPlain": "In any API service, it's better to handle via dependency injection IMO.Instantiate all of your metadata once, and then send that logger down, so that anybody who uses that logger is guaranteed to have the right metadata... the time to add logging is not when you are debugging.",
+    "parent": 45222425,
+    "depth": 2
+  },
+  {
+    "id": 45222524,
+    "by": "9rx",
+    "timeISO": "2025-09-12T14:26:34.000Z",
+    "textPlain": "> more verboseI'd say necessarily verbose. Without injection, it is not immediately apparent that something is dependent on something else (in this case a logger) with side effects, which ultimately harms understandability.I expect by \"more verbose\" the author really meant \"in need of more typing\". I am not sure optimizing for less typing ever a good tradeoff. And if you can find good reason to optimize for less typing, you're not going to be choosing a structured language in the first place, so...",
+    "parent": 45222425,
     "depth": 2
   },
   {
