@@ -1,13 +1,5 @@
 [
   {
-    "id": 45219888,
-    "by": "yuvadam",
-    "timeISO": "2025-09-12T08:12:35.000Z",
-    "textPlain": "This is cool, looks visually a lot like a CIDR range calculator [1] I built a few years ago to help me understand network ranges better.These types of visualizations are super useful.[1] - https://cidr.xyz",
-    "parent": 45217415,
-    "depth": 1
-  },
-  {
     "id": 45218313,
     "by": "vismit2000",
     "timeISO": "2025-09-12T03:11:02.000Z",
@@ -16,10 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45219916,
-    "by": "rwmj",
-    "timeISO": "2025-09-12T08:16:41.000Z",
-    "textPlain": "Good job on showing the hexadecimal version.  I recently had a challenging C bug where I was using printf(\"%a\") to show the underlying representation, which uses hexadecimal, and it was a little confusing at first.  This site would have been helpful.",
+    "id": 45220013,
+    "by": "jjcob",
+    "timeISO": "2025-09-12T08:35:12.000Z",
+    "textPlain": "One problem I was struggling with: What's the shortest, unambiguous decimal representation of a float?For example, if you use single precision floats, then you need up to 9 digits of decimal precision to uniquely identify a float. So you would need to use a printf pattern like %.9g to print it. But then 0.1 would be output as 0.100000001, which is ugly. So a common approach is to round to 6 decimal digits: If you use %.6g, you are guaranteed that any decimal input up to 6 significant digits will be printed just like you stored it.But you would no longer be round-trip safe when the number is the result of a calculation. This is important when you do exact comparisons between floats (eg. to check if data has changed).So one idea I had was to try printing the float with 6 digits, then scanning it and seeing if it resulted in the same binary representation. If not, try using 7 digits, and so on, up to 9 digits. Then I would have the shortest decimal representation of a float.This is my algorithm:    int out_length;\n    char buffer[32];\n    for (int prec = 6; prec<=9; prec++) {\n        out_length = sprintf(buffer, \"%.*g\", prec, floatValue);\n        if (prec == 9) {\n            break;\n        }\n        float checked_number;\n        sscanf(buffer, \"%g\", &checked_number);\n        if (checked_number == floatValue) {\n            break;\n        }\n    }\n\nI wonder if there is a more efficient way to determine that shortest representation rather than running printf/scanf in a loop?",
+    "parent": 45217415,
+    "depth": 1
+  },
+  {
+    "id": 45219888,
+    "by": "yuvadam",
+    "timeISO": "2025-09-12T08:12:35.000Z",
+    "textPlain": "This is cool, looks visually a lot like a CIDR range calculator [1] I built a few years ago to help me understand network ranges better.These types of visualizations are super useful.[1] - https://cidr.xyz",
     "parent": 45217415,
     "depth": 1
   },
@@ -32,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45218183,
+    "by": "SomaticPirate",
+    "timeISO": "2025-09-12T02:44:24.000Z",
+    "textPlain": "This came during my OMSCS Game AI course as an example of the dangers of using floats to represent game object location. If you get further from the origin point (or another game element you are referencing from) you are losing precision as the float needs to use more of the significand to store the larger value.",
+    "parent": 45217415,
+    "depth": 1
+  },
+  {
     "id": 45219331,
     "by": "CraigJPerry",
     "timeISO": "2025-09-12T06:49:05.000Z",
@@ -40,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45218183,
-    "by": "SomaticPirate",
-    "timeISO": "2025-09-12T02:44:24.000Z",
-    "textPlain": "This came during my OMSCS Game AI course as an example of the dangers of using floats to represent game object location. If you get further from the origin point (or another game element you are referencing from) you are losing precision as the float needs to use more of the significand to store the larger value.",
+    "id": 45219916,
+    "by": "rwmj",
+    "timeISO": "2025-09-12T08:16:41.000Z",
+    "textPlain": "Good job on showing the hexadecimal version.  I recently had a challenging C bug where I was using printf(\"%a\") to show the underlying representation, which uses hexadecimal, and it was a little confusing at first.  This site would have been helpful.",
     "parent": 45217415,
     "depth": 1
   },
@@ -60,6 +68,14 @@
     "by": "librasteve",
     "timeISO": "2025-09-12T07:33:22.000Z",
     "textPlain": "fantastic explanation and very nice to see both the decimal and binary representations togetherhttps://raku.org defaults to Rationals (Rats) and provides FatRat for arbitrary precisionotherwise even relatively normal calculations (eg what’s the mass of electron in quectogram) fail",
+    "parent": 45217415,
+    "depth": 1
+  },
+  {
+    "id": 45220040,
+    "by": "burnt-resistor",
+    "timeISO": "2025-09-12T08:39:31.000Z",
+    "textPlain": "Far too superficial because it lacks explanation of non-normal conditions (denormals, zeroes, infinities, sNaNs, and qNaNs) and the complete mapping of values. This isn't properly educational.",
     "parent": 45217415,
     "depth": 1
   },
@@ -96,6 +112,30 @@
     "depth": 2
   },
   {
+    "id": 45220058,
+    "by": "lifthrasiir",
+    "timeISO": "2025-09-12T08:42:11.000Z",
+    "textPlain": "Your problem is practically important as it can be considered as the \"canonical\" string representation of given floating point number (after adding the closestness requirement). There are many efficient algorithms as a result, selected algorithms include Dragon4, Grisu3, Ryu and Dragonbox. See also Google's double-conversion library which implements first two of them.",
+    "parent": 45220013,
+    "depth": 2
+  },
+  {
+    "id": 45220037,
+    "by": "forrestthewoods",
+    "timeISO": "2025-09-12T08:38:40.000Z",
+    "textPlain": "std::numeric_limits<float>::max_digits10https://en.cppreference.com/w/cpp/types/numeric_limits/max_d...",
+    "parent": 45220013,
+    "depth": 2
+  },
+  {
+    "id": 45220127,
+    "by": "burnt-resistor",
+    "timeISO": "2025-09-12T08:54:07.000Z",
+    "textPlain": "No, just no. And, never use sscanf().This is totally pointless when serialization to and from an unsigned integer that's binary equivalent would be perfectly reversible and therefore wouldn't lose any information.    double f = 0.0/0.0; // might need some compiler flags to make this a soft error.\n    double g;\n    char s[9];\n\n    assert(sizeof double == sizeof uint64_t);\n\n    snprintf(s, 9, \"%0\" PRIu64, *(uint64_t *)(&f));\n\n    snscanf(s, 9, \"%0\" SCNu64, (uint64_t *)(&g));\n\nIf you want something shorter, apply some sort of heuristic that doesn't sacrifice faithful reproduction of the original representation, e.g., idempotency.",
+    "parent": 45220013,
+    "depth": 2
+  },
+  {
     "id": 45218466,
     "by": "Sniffnoy",
     "timeISO": "2025-09-12T03:43:34.000Z",
@@ -109,22 +149,6 @@
     "timeISO": "2025-09-12T04:25:01.000Z",
     "textPlain": "Thanks for HexFiend man! I use several times a week.",
     "parent": 45218419,
-    "depth": 2
-  },
-  {
-    "id": 45219825,
-    "by": "simonask",
-    "timeISO": "2025-09-12T07:59:59.000Z",
-    "textPlain": "You mean ±9,007,199,254,740,993.0 for 64-bit floats. :-)For other curious readers, these are one beyond the largest integer values that can be represented accurately. In other words, the next representable value away from zero after ±16,777,216.0 is ±16,777,218.0 in 32 bits -- the value ±16,777,217.0 cannot be represented, and will be rounded somewhat hand-wavingly (usually towards zero).Precision rounding is one of those things that people often overlook.",
-    "parent": 45219331,
-    "depth": 2
-  },
-  {
-    "id": 45219841,
-    "by": "lifthrasiir",
-    "timeISO": "2025-09-12T08:02:39.000Z",
-    "textPlain": "For 64-bit, 9007199254740991 is also known as `Number.MAX_SAFE_INTEGER` in JavaScript. Note that this value is not even; the next integer, ..0992 is still safe to represent by its own, but it can't be distinguished from a definitely unsafe integer ..0993 rounded to ..0992.",
-    "parent": 45219331,
     "depth": 2
   },
   {
@@ -152,6 +176,22 @@
     "depth": 2
   },
   {
+    "id": 45219825,
+    "by": "simonask",
+    "timeISO": "2025-09-12T07:59:59.000Z",
+    "textPlain": "You mean ±9,007,199,254,740,993.0 for 64-bit floats. :-)For other curious readers, these are one beyond the largest integer values that can be represented accurately. In other words, the next representable value away from zero after ±16,777,216.0 is ±16,777,218.0 in 32 bits -- the value ±16,777,217.0 cannot be represented, and will be rounded somewhat hand-wavingly (usually towards zero).Precision rounding is one of those things that people often overlook.",
+    "parent": 45219331,
+    "depth": 2
+  },
+  {
+    "id": 45219841,
+    "by": "lifthrasiir",
+    "timeISO": "2025-09-12T08:02:39.000Z",
+    "textPlain": "For 64-bit, 9007199254740991 is also known as `Number.MAX_SAFE_INTEGER` in JavaScript. Note that this value is not even; the next integer, ..0992 is still safe to represent by its own, but it can't be distinguished from a definitely unsafe integer ..0993 rounded to ..0992.",
+    "parent": 45219331,
+    "depth": 2
+  },
+  {
     "id": 45217831,
     "by": "shoo",
     "timeISO": "2025-09-12T01:35:49.000Z",
@@ -176,14 +216,6 @@
     "depth": 2
   },
   {
-    "id": 45219891,
-    "by": "simonask",
-    "timeISO": "2025-09-12T08:13:12.000Z",
-    "textPlain": "Quantization is also precision loss.",
-    "parent": 45219620,
-    "depth": 2
-  },
-  {
     "id": 45219643,
     "by": "librasteve",
     "timeISO": "2025-09-12T07:35:06.000Z",
@@ -196,6 +228,14 @@
     "by": "imtringued",
     "timeISO": "2025-09-12T07:37:19.000Z",
     "textPlain": "I hope nobody listens to lunatics like you. Fixed point sucks. Who on earth wants to analyze every single algorithm for its numerical stability? If you work with FPGAs, then converting a known to be working algorithm to fixed point is one of the most time consuming things you can do and it eats DSP slices like crazy. Every square or square root operation will cause a shiver to run down your spine because of the lack of dynamic range.Edit:For those who want more context:https://vbn.aau.dk/ws/portalfiles/portal/494103077/WPMC22_Ko...Here is a big fat warning:>There is one important downside though, which relates to the fact that designing fixed-point algorithms is a significantly more complicated task as compared to similar floating-point based algorithms. This fact essentially has two major consequences:\n>1) The designer must have an extended mathematical knowledge about the numerical characteristics of the algorithms, and\n>2) The development time is in some cases longer than for equivalent floating-point systems.",
+    "parent": 45219620,
+    "depth": 2
+  },
+  {
+    "id": 45219891,
+    "by": "simonask",
+    "timeISO": "2025-09-12T08:13:12.000Z",
+    "textPlain": "Quantization is also precision loss.",
     "parent": 45219620,
     "depth": 2
   }
