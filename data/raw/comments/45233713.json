@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45234895,
-    "by": "albertzeyer",
-    "timeISO": "2025-09-13T20:03:21.000Z",
-    "textPlain": "Why not use getaddrinfo_a / getaddrinfo_async_start / GetAddrInfoExW?Or just use some standalone DNS resolve code or library (which basically replicates getaddrinfo but supports this in an async way)?See also here the discussion: https://github.com/crystal-lang/crystal/issues/13619",
-    "parent": 45233713,
-    "depth": 1
-  },
-  {
     "id": 45234816,
     "by": "comex",
     "timeISO": "2025-09-13T19:52:48.000Z",
     "textPlain": "pthread_cancel is not a good design because it operates entirely separately from normal mechanisms of error handling and unwinding.  (That is, if you’re using C.  If you’re using C++ it can integrate with exception handling.)A better approach would have been to mimic how kernels internally handle signals received during syscalls.  Receiving a signal is supposed to cancel the syscall.  But from the kernel’s perspective, a syscall implementation is just some code.  It can call other functions, acquire locks, wait for conditions, and do anything else you would expect code to do.  All of that needs to be cleanly cancelled and unwound to avoid breaking the rest of the system.So it works like this: when a signal is sent to a thread, a persistent “interrupted” flag is set for that thread.  Like with pthread_cancel, this doesn’t immediately interrupt the thread, but only has an effect once the thread calls one of a specific set of functions.  For pthread_cancel, that set consists of a bunch of syscalls and other “cancellation points”.  For kernel-internal code, it consists of most functions that wait for a condition.  The difference is in what happens afterwards.  In pthread_cancel’s case, the thread is immediately aborted with only designated cleanups running.  In the kernel, the condition-waiting function simply returns an error code.  The caller is expected to handle this like any other error code, i.e. by performing any necessary cleanup and then returning the same error code itself.  This continues until the entire chain of calls has been unwound. Classic C manual error handling.  It’s nothing special, but because interruption works the same way as regular error handling, it‘s more likely to “just work”.  Once everything is unwound, the “interrupted” flag is cleared and the original signal can be handled.(The error code for interruption is usually EINTR, but don’t confuse this with EINTR handling in userspace, which is a mess.  The difference is because userspace gener",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234895,
+    "by": "albertzeyer",
+    "timeISO": "2025-09-13T20:03:21.000Z",
+    "textPlain": "Why not use getaddrinfo_a / getaddrinfo_async_start / GetAddrInfoExW?Or just use some standalone DNS resolve code or library (which basically replicates getaddrinfo but supports this in an async way)?See also here the discussion: https://github.com/crystal-lang/crystal/issues/13619",
     "parent": 45233713,
     "depth": 1
   },
@@ -120,18 +120,18 @@
     "depth": 2
   },
   {
-    "id": 45234982,
-    "by": "jeroenhd",
-    "timeISO": "2025-09-13T20:15:03.000Z",
-    "textPlain": "getaddrinfo_a is available, but not widely adopted (*BSD and Linux), probably because you can't guarantee it'll be available on every computer/phone/modem. This is only an issue if you're targeting POSIX rather than modern operating systems.Windows 8 and above also have their own asynchronous DNS API on NON-POSIX land.",
-    "parent": 45234499,
-    "depth": 2
-  },
-  {
     "id": 45234549,
     "by": "nly",
     "timeISO": "2025-09-13T19:14:08.000Z",
     "textPlain": "If you want DNS resolution to obey user/system preferences then you need to use the system provided  API",
+    "parent": 45234499,
+    "depth": 2
+  },
+  {
+    "id": 45234982,
+    "by": "jeroenhd",
+    "timeISO": "2025-09-13T20:15:03.000Z",
+    "textPlain": "getaddrinfo_a is available, but not widely adopted (*BSD and Linux), probably because you can't guarantee it'll be available on every computer/phone/modem. This is only an issue if you're targeting POSIX rather than modern operating systems.Windows 8 and above also have their own asynchronous DNS API on NON-POSIX land.",
     "parent": 45234499,
     "depth": 2
   },
@@ -164,6 +164,14 @@
     "by": "danappelxx",
     "timeISO": "2025-09-13T19:31:54.000Z",
     "textPlain": "If the DNS resolution call blocks the thread, then you need N worker threads to perform N DNS calls. Threads aren’t free, so this is suboptimal. OTOH some thread pools e.g. libdispatch on Apple operating systems will spawn new threads on demand to prevent starvation, so this _can_ be viable. Though of course this can lead to thread explosion which may be even more problematic depending on the use case. In libcurl’s situation, spawning a million threads is probably even worse than a memory leak, which is worse than long timeouts.In general, what you really want is for the API call to be nonblocking so you’re not forced to burn a thread.",
+    "parent": 45234564,
+    "depth": 2
+  },
+  {
+    "id": 45235971,
+    "by": "variadix",
+    "timeISO": "2025-09-13T22:57:30.000Z",
+    "textPlain": "Yeah, I’m not sure I see the problem (other than that threads are more expensive than e.g. file descriptors, but this is a moot point without a better API). You define how many requests in flight you want to allow and that sets the cap on how many worker threads you spawn/use, you could also support an unbounded number in flight this way by lazily spawning worker threads per requests. Cancellation/kill interfaces for multithreading are pretty much always a footgun. Even for multiprocessing on modern machines, if you’re doing something non-trivial and decide to use SIGKILL to terminate a worker process, it’s easy to leave e.g. file system resources in a bad state.",
     "parent": 45234564,
     "depth": 2
   },
