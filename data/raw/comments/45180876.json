@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45228403,
-    "by": "mrkurt",
-    "timeISO": "2025-09-13T01:02:34.000Z",
-    "textPlain": "dm-cache writeback mode is both amazing and terrifying. It reorders writes, so not only do you lose data if the cache fails, you probably just corrupted the entire backing disk.",
-    "parent": 45180876,
-    "depth": 1
-  },
-  {
     "id": 45228022,
     "by": "rbranson",
     "timeISO": "2025-09-12T23:49:53.000Z",
@@ -24,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45229068,
-    "by": "mgerdts",
-    "timeISO": "2025-09-13T03:29:37.000Z",
-    "textPlain": "I remember seeing another strategy where a remote block device was (lazily?) mirrored to a local SSD. The mirror was configured such that reads from the local device were preferred and writes would go to both devices. I think this was done by someone on GCP.Does this ring any bells? I’ve searched for this a time or two and can’t find it again.",
+    "id": 45228403,
+    "by": "mrkurt",
+    "timeISO": "2025-09-13T01:02:34.000Z",
+    "textPlain": "dm-cache writeback mode is both amazing and terrifying. It reorders writes, so not only do you lose data if the cache fails, you probably just corrupted the entire backing disk.",
     "parent": 45180876,
     "depth": 1
   },
@@ -36,6 +28,14 @@
     "by": "0xbadcafebee",
     "timeISO": "2025-09-12T23:33:39.000Z",
     "textPlain": "This is good timing; I was just looking at a use-case where we need more iops and the only immediate solutions involve allocating way more high-performance disks or network storage. The problem with a cache is having a large dataset with random access, so repeated cache hits might not be frequent. But I had a theory that you could still make an impact on performance and lower your storage performance requirements. I may try this out, but it is block-level, so it's a bit intrusive.Another option I haven't tried is tmpfs with an overlay. Initial access is RAM, falls back to underlying slower storage. Since I'm mostly doing reads, should be fine, writes can go to the slower disk mount. No block storage changes needed.",
+    "parent": 45180876,
+    "depth": 1
+  },
+  {
+    "id": 45229068,
+    "by": "mgerdts",
+    "timeISO": "2025-09-13T03:29:37.000Z",
+    "textPlain": "I remember seeing another strategy where a remote block device was (lazily?) mirrored to a local SSD. The mirror was configured such that reads from the local device were preferred and writes would go to both devices. I think this was done by someone on GCP.Does this ring any bells? I’ve searched for this a time or two and can’t find it again.",
     "parent": 45180876,
     "depth": 1
   },
@@ -64,6 +64,14 @@
     "depth": 2
   },
   {
+    "id": 45230485,
+    "by": "zipmapfoldright",
+    "timeISO": "2025-09-13T08:50:26.000Z",
+    "textPlain": "Google's L4 cache? https://cloud.google.com/blog/products/storage-data-transfer...",
+    "parent": 45229068,
+    "depth": 2
+  },
+  {
     "id": 45229214,
     "by": "twotwotwo",
     "timeISO": "2025-09-13T04:04:51.000Z",
@@ -72,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45229196,
-    "by": "cperciva",
-    "timeISO": "2025-09-13T04:01:56.000Z",
-    "textPlain": "I've done this on EC2 -- in particular back in the days when EBS billed per I/O (as opposed to using a \"reserved IOPs\" model where you say up front how much I/O performance you need).  I haven't bothered recently since EBS performance is good enough for most purposes and there's no automatic cost savings.",
+    "id": 45230167,
+    "by": "Conch5606",
+    "timeISO": "2025-09-13T07:50:20.000Z",
+    "textPlain": "This is not quite the same, it's for migrating from one device to another while keeping the file system writable, but it's quite neat: dm-clone[1]I've used it before for a low downtime migration of VMs between two machines - it was a personal project and I could have just kept the VM offline for the migration, but it was fun to play around with it.You give it a read-only backing device and a writable device that's at least as big. It will slowly copy the data from the read-only device to the writable device. If a read is issued to the dm-clone target it's either gotten from the writable device if it's already cloned or forwarded to the read-only device. Writes are always going to the writable device and afterwards the read-only device is ignored for that block.It's not the fastest, but it's relatively easy to set up, even though using device mapper directly is a bit clunky. It's also not super efficient, IIRC if a read goes to a chunk that hasn't been copied yet, that's used to give the data to the reading program, but it's not stored on the writable device, so it has to be fetched again. If the file system being copied isn't full, it's a good idea to run trimming after creating the dm-clone target as discarded blocks are marked as not needing to be fetched.[1] https://docs.kernel.org/admin-guide/device-mapper/dm-clone.h...",
     "parent": 45229068,
     "depth": 2
   },
   {
-    "id": 45230167,
-    "by": "Conch5606",
-    "timeISO": "2025-09-13T07:50:20.000Z",
-    "textPlain": "[dead]",
+    "id": 45229196,
+    "by": "cperciva",
+    "timeISO": "2025-09-13T04:01:56.000Z",
+    "textPlain": "I've done this on EC2 -- in particular back in the days when EBS billed per I/O (as opposed to using a \"reserved IOPs\" model where you say up front how much I/O performance you need).  I haven't bothered recently since EBS performance is good enough for most purposes and there's no automatic cost savings.",
     "parent": 45229068,
     "depth": 2
   },
