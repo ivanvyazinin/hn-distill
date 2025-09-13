@@ -1,5 +1,13 @@
 [
   {
+    "id": 45234856,
+    "by": "yardstick",
+    "timeISO": "2025-09-13T19:58:10.000Z",
+    "textPlain": "It’s been decades, why doesn’t getaddrinfo have a standardised way to specify a timeout? Set a timeout to 10 seconds and life becomes a lot easier.Yes I know in Linux you can set the timeout in a config file.But really the dns setting should be configurable by the calling code. Some code requires fast lookups and doesn’t mind failing which, while others won’t mind waiting longer. It’s not a one size fits all thing.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
     "id": 45234301,
     "by": "pizlonator",
     "timeISO": "2025-09-13T18:36:31.000Z",
@@ -16,10 +24,90 @@
     "depth": 1
   },
   {
-    "id": 45234552,
-    "by": "silon42",
-    "timeISO": "2025-09-13T19:14:12.000Z",
-    "textPlain": "As long as broken APIs exist, they will be problematic... they really should be deprecated.Calling a separate (non-cancellable) thread to perform the lookup sounds a like viable solution...",
+    "id": 45234895,
+    "by": "albertzeyer",
+    "timeISO": "2025-09-13T20:03:21.000Z",
+    "textPlain": "Why not use getaddrinfo_a / getaddrinfo_async_start / GetAddrInfoExW?Or just use some standalone DNS resolve code or library (which basically replicates getaddrinfo but supports this in an async way)?See also here the discussion: https://github.com/crystal-lang/crystal/issues/13619",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234685,
+    "by": "Someone",
+    "timeISO": "2025-09-13T19:33:14.000Z",
+    "textPlain": "> Then it needs to sort them if there is more than one address. And in order to do that it needs to read /etc/gai.confI don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization? If it has to react to changes to that file while a process is running, couldn’t it have a separate thread for polling that file for changes, or use inotify for a separate thread to be called when it changes? Swapping in the new config atomically might be problematic, but I would think that is solvable.Even ignoring the issue mentioned it seems wasteful to open, parse, and close that file repeatedly.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234566,
+    "by": "nly",
+    "timeISO": "2025-09-13T19:16:20.000Z",
+    "textPlain": "Why is running the DNS resolution thread a problem? It should be dequeuing resolution requests and pushing responses and sleeping when there is nothing to doWhen someone kills off the curl context surely you simply set a suicide flag on the thread and wake it up so it can be joined.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234725,
+    "by": "jart",
+    "timeISO": "2025-09-13T19:39:38.000Z",
+    "textPlain": "Why can't they help fix the C library in question? Cancelation is really tricky to implement for the C library author. It's one of those concepts that, like fork, has implications that pervade everything. Please give your C library maintainers a little leeway if they get cancelation wrong. Especially if it's just a memory leak.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234816,
+    "by": "comex",
+    "timeISO": "2025-09-13T19:52:48.000Z",
+    "textPlain": "pthread_cancel is not a good design because it operates entirely separately from normal mechanisms of error handling and unwinding.  (That is, if you’re using C.  If you’re using C++ it can integrate with exception handling.)A better approach would have been to mimic how kernels internally handle signals received during syscalls.  Receiving a signal is supposed to cancel the syscall.  But from the kernel’s perspective, a syscall implementation is just some code.  It can call other functions, acquire locks, wait for conditions, and do anything else you would expect code to do.  All of that needs to be cleanly cancelled and unwound to avoid breaking the rest of the system.So it works like this: when a signal is sent to a thread, a persistent “interrupted” flag is set for that thread.  Like with pthread_cancel, this doesn’t immediately interrupt the thread, but only has an effect once the thread calls one of a specific set of functions.  For pthread_cancel, that set consists of a bunch of syscalls and other “cancellation points”.  For kernel-internal code, it consists of most functions that wait for a condition.  The difference is in what happens afterwards.  In pthread_cancel’s case, the thread is immediately aborted with only designated cleanups running.  In the kernel, the condition-waiting function simply returns an error code.  The caller is expected to handle this like any other error code, i.e. by performing any necessary cleanup and then returning the same error code itself.  This continues until the entire chain of calls has been unwound. Classic C manual error handling.  It’s nothing special, but because interruption works the same way as regular error handling, it‘s more likely to “just work”.  Once everything is unwound, the “interrupted” flag is cleared and the original signal can be handled.(The error code for interruption is usually EINTR, but don’t confuse this with EINTR handling in userspace, which is a mess.  The difference is because userspace gener",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234603,
+    "by": "throwaway81523",
+    "timeISO": "2025-09-13T19:21:16.000Z",
+    "textPlain": "There might be a way to getaddrinfo asynchronously with io_uring by now.  Otherwise just call the synchronous version in another thread and let it time out so the thread exits normally, right?  Why bother with pthread_cancel?",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234729,
+    "by": "gary_0",
+    "timeISO": "2025-09-13T19:40:23.000Z",
+    "textPlain": "> c-ares ... will not be able to do everything that glibc does.Does anyone have any idea what things they're referring to here?",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234564,
+    "by": "Aardwolf",
+    "timeISO": "2025-09-13T19:16:01.000Z",
+    "textPlain": "Maybe this is naive, but could there just be some amount of worker threads that run forever, wait for and take jobs when needed, and message when the jobs are done? Don't need to be canceled, don't block",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234930,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-13T20:07:50.000Z",
+    "textPlain": "I disagree, there are too many variables and ultimately the end user would be th one that knows best. The proper solution isn’t having the library or application dev, who has no idea what kind of network connection the user is running, the type of dns server (caching or not, lan or remote, etc) or the name servers of the target domain and their performance or availability. This is all really the domain of the sysadmin.The solution is to make it a properly non-blocking api.",
+    "parent": 45234856,
+    "depth": 2
+  },
+  {
+    "id": 45234769,
+    "by": "pengaru",
+    "timeISO": "2025-09-13T19:46:08.000Z",
+    "textPlain": "The asynchronous cancellation in particular is difficult to use correctly, but is also one of the most useful aspects of the api in situations where appropriate.Imagine cpu-bound worker threads that do nothing but consume work via condition variables and spend long periods of time in hot compute-only loops working on said work...   Instead of adding a conditional in the compute you're probably not interested in slowing down at all, you turn on async cancellation and pthread_cancel() the workers when you need to interrupt what's going on.But it's worth noting pthread_cancel() is also rarely supported anywhere outside first-class pthreads-capable systems like modern linux.  So if you have any intention of running elsewhere, forget about it.  Thread cancellation support in general is actually somewhat rare IME.",
+    "parent": 45234301,
+    "depth": 2
+  },
+  {
+    "id": 45234982,
+    "by": "jeroenhd",
+    "timeISO": "2025-09-13T20:15:03.000Z",
+    "textPlain": "getaddrinfo_a is available, but not widely adopted (*BSD and Linux), probably because you can't guarantee it'll be available on every computer/phone/modem. This is only an issue if you're targeting POSIX rather than modern operating systems.Windows 8 and above also have their own asynchronous DNS API on NON-POSIX land.",
     "parent": 45234499,
     "depth": 2
   },
@@ -29,6 +117,102 @@
     "timeISO": "2025-09-13T19:14:08.000Z",
     "textPlain": "If you want DNS resolution to obey user/system preferences then you need to use the system provided  API",
     "parent": 45234499,
+    "depth": 2
+  },
+  {
+    "id": 45234552,
+    "by": "silon42",
+    "timeISO": "2025-09-13T19:14:12.000Z",
+    "textPlain": "As long as broken APIs exist, they will be problematic... they really should be deprecated.Calling a separate (non-cancellable) thread to perform the lookup sounds a like viable solution...",
+    "parent": 45234499,
+    "depth": 2
+  },
+  {
+    "id": 45234772,
+    "by": "loeg",
+    "timeISO": "2025-09-13T19:46:16.000Z",
+    "textPlain": "I think the libc people might argue this level of functionality is just outside the scope of libc.  (Arguably, it is a mistake for DNS to be part of libc, given how complicated it is.)",
+    "parent": 45234685,
+    "depth": 2
+  },
+  {
+    "id": 45234612,
+    "by": "foota",
+    "timeISO": "2025-09-13T19:22:42.000Z",
+    "textPlain": "The thread started sounds like it's single use, not a thread handling requests in a loop. Anyway, a single thread handling requests in a loop would serialize these DNS lookups which if they're hanging would be problematic.",
+    "parent": 45234566,
+    "depth": 2
+  },
+  {
+    "id": 45234591,
+    "by": "rwmj",
+    "timeISO": "2025-09-13T19:19:56.000Z",
+    "textPlain": "One problem may be that fork() kills background threads, so now any program that uses libcurl + fork has to have a new API to restart the DNS thread (or use posix_atfork which is a big PITA), and that might break existing programs using curl.",
+    "parent": 45234566,
+    "depth": 2
+  },
+  {
+    "id": 45234842,
+    "by": "RedShift1",
+    "timeISO": "2025-09-13T19:57:03.000Z",
+    "textPlain": "I'm betting this code is so old and its behavior so ingrained everywhere else that nobody dares touching it.",
+    "parent": 45234725,
+    "depth": 2
+  },
+  {
+    "id": 45234906,
+    "by": "gary_0",
+    "timeISO": "2025-09-13T20:04:24.000Z",
+    "textPlain": "The problem is that the standard library function is specified to be blocking (and it's in userspace, so io_uring is not relevant). It's quite possible to do a non-blocking DNS lookup but you have to use a separate non-standard library (like c-ares).",
+    "parent": 45234603,
+    "depth": 2
+  },
+  {
+    "id": 45234830,
+    "by": "yxhuvud",
+    "timeISO": "2025-09-13T19:55:40.000Z",
+    "textPlain": "No. Getaddrinfo is libc, not the kernel. It is of course possible, but complicated, to implement dns resolution with io_uring, but making it behave the same as glibc is very much a nontrivial piece of work.",
+    "parent": 45234603,
+    "depth": 2
+  },
+  {
+    "id": 45234791,
+    "by": "loeg",
+    "timeISO": "2025-09-13T19:49:18.000Z",
+    "textPlain": "io_uring is for calling kernel APIs; this is a userspace API.",
+    "parent": 45234603,
+    "depth": 2
+  },
+  {
+    "id": 45234952,
+    "by": "1over137",
+    "timeISO": "2025-09-13T20:11:11.000Z",
+    "textPlain": "io_uring is a linux-ism, curl is cross-platform.",
+    "parent": 45234603,
+    "depth": 2
+  },
+  {
+    "id": 45234781,
+    "by": "okl",
+    "timeISO": "2025-09-13T19:47:41.000Z",
+    "textPlain": "https://c-ares.org/",
+    "parent": 45234729,
+    "depth": 2
+  },
+  {
+    "id": 45234676,
+    "by": "danappelxx",
+    "timeISO": "2025-09-13T19:31:54.000Z",
+    "textPlain": "If the DNS resolution call blocks the thread, then you need N worker threads to perform N DNS calls. Threads aren’t free, so this is suboptimal. OTOH some thread pools e.g. libdispatch on Apple operating systems will spawn new threads on demand to prevent starvation, so this _can_ be viable. Though of course this can lead to thread explosion which may be even more problematic depending on the use case. In libcurl’s situation, spawning a million threads is probably even worse than a memory leak, which is worse than long timeouts.In general, what you really want is for the API call to be nonblocking so you’re not forced to burn a thread.",
+    "parent": 45234564,
+    "depth": 2
+  },
+  {
+    "id": 45234785,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-13T19:48:05.000Z",
+    "textPlain": "This is, essentially, what the previous (largely pathetic) excuse for true asynchronous I/O on Linux did with the libc aio(7) interface to essentially fake support for truly asynchronous file IO. It wasn’t great.",
+    "parent": 45234564,
     "depth": 2
   }
 ]
