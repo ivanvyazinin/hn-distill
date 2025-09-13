@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45234685,
-    "by": "Someone",
-    "timeISO": "2025-09-13T19:33:14.000Z",
-    "textPlain": "> Then it needs to sort them if there is more than one address. And in order to do that it needs to read /etc/gai.confI don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization? If it has to react to changes to that file while a process is running, couldn’t it have a separate thread for polling that file for changes, or use inotify for a separate thread to be called when it changes? Swapping in the new config atomically might be problematic, but I would think that is solvable.Even ignoring the issue mentioned it seems wasteful to open, parse, and close that file repeatedly.",
-    "parent": 45233713,
-    "depth": 1
-  },
-  {
     "id": 45234564,
     "by": "Aardwolf",
     "timeISO": "2025-09-13T19:16:01.000Z",
     "textPlain": "Maybe this is naive, but could there just be some amount of worker threads that run forever, wait for and take jobs when needed, and message when the jobs are done? Don't need to be canceled, don't block",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234685,
+    "by": "Someone",
+    "timeISO": "2025-09-13T19:33:14.000Z",
+    "textPlain": "> Then it needs to sort them if there is more than one address. And in order to do that it needs to read /etc/gai.confI don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization? If it has to react to changes to that file while a process is running, couldn’t it have a separate thread for polling that file for changes, or use inotify for a separate thread to be called when it changes? Swapping in the new config atomically might be problematic, but I would think that is solvable.Even ignoring the issue mentioned it seems wasteful to open, parse, and close that file repeatedly.",
     "parent": 45233713,
     "depth": 1
   },
@@ -88,10 +88,26 @@
     "depth": 1
   },
   {
+    "id": 45235651,
+    "by": "eklitzke",
+    "timeISO": "2025-09-13T21:56:55.000Z",
+    "textPlain": "A few reasons, I think.The first is that getaddrinfo is specified by POSIX, and the POSIX evolve very conservatively and at a glacial pace.The second reason is that specifying a timeout breaks symmetry with a lot of other functions in Unix/C, both system calls and libc calls. For example, you can't specify a timeout when opening a file, reading from a file, or closing a file, which are all potentially blocking operations. There are ways to do these things in a non-blocking manner with timeouts using aio or io_uring, but those are already relatively complicated APIs for just using simple system calls, and getaddrinfo is much more complicated.The last reason is that if you use the sockets APIs directly it's not that hard to write a non-blocking DNS resolver (c-ares is one example). The thing is though that if you write your own resolver you have to consider how to do caching, it won't work with NSS on Linux, etc. You can implement these things (systemd-resolved does it, and works with NSS) but they are a lot of work to do properly.",
+    "parent": 45234856,
+    "depth": 2
+  },
+  {
     "id": 45235357,
     "by": "o11c",
     "timeISO": "2025-09-13T21:12:45.000Z",
     "textPlain": "On Linux you can do what you're asking with `getaddrinfo_a` + `gai_suspend`.As always, on non-Linux Unixen the answer is \"screw you!\"",
+    "parent": 45234856,
+    "depth": 2
+  },
+  {
+    "id": 45235521,
+    "by": "okanat",
+    "timeISO": "2025-09-13T21:35:05.000Z",
+    "textPlain": "Just leave DNS out, are there any POSIX standard async functionality for networking or even normal IO? All I know by reading some libraries is epoll or io_uring used on Linux, kevent on BSDs.",
     "parent": 45234856,
     "depth": 2
   },
@@ -144,22 +160,6 @@
     "depth": 2
   },
   {
-    "id": 45234772,
-    "by": "loeg",
-    "timeISO": "2025-09-13T19:46:16.000Z",
-    "textPlain": "I think the libc people might argue this level of functionality is just outside the scope of libc.  (Arguably, it is a mistake for DNS to be part of libc, given how complicated it is.)",
-    "parent": 45234685,
-    "depth": 2
-  },
-  {
-    "id": 45235313,
-    "by": "NewJazz",
-    "timeISO": "2025-09-13T21:06:34.000Z",
-    "textPlain": "You want libc to start a thread whenever it is loaded?",
-    "parent": 45234685,
-    "depth": 2
-  },
-  {
     "id": 45234676,
     "by": "danappelxx",
     "timeISO": "2025-09-13T19:31:54.000Z",
@@ -173,6 +173,30 @@
     "timeISO": "2025-09-13T19:48:05.000Z",
     "textPlain": "This is, essentially, what the previous (largely pathetic) excuse for true asynchronous I/O on Linux did with the libc aio(7) interface to essentially fake support for truly asynchronous file IO. It wasn’t great.",
     "parent": 45234564,
+    "depth": 2
+  },
+  {
+    "id": 45235603,
+    "by": "cesarb",
+    "timeISO": "2025-09-13T21:47:42.000Z",
+    "textPlain": "> I don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization?If it were a library dedicated to DNS, sure, but glibc is used by nearly every process in the system, including many which will never call getaddrinfo.",
+    "parent": 45234685,
+    "depth": 2
+  },
+  {
+    "id": 45234772,
+    "by": "loeg",
+    "timeISO": "2025-09-13T19:46:16.000Z",
+    "textPlain": "I think the libc people might argue this level of functionality is just outside the scope of libc.  (Arguably, it is a mistake for DNS to be part of libc, given how complicated it is.)",
+    "parent": 45234685,
+    "depth": 2
+  },
+  {
+    "id": 45235313,
+    "by": "NewJazz",
+    "timeISO": "2025-09-13T21:06:34.000Z",
+    "textPlain": "You want libc to start a thread whenever it is loaded?",
+    "parent": 45234685,
     "depth": 2
   },
   {
