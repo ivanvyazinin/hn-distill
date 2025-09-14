@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45236293,
-    "by": "pajko",
-    "timeISO": "2025-09-13T23:56:56.000Z",
-    "textPlain": "This is clearly an implementation error in getaddrinfo(). It should set up cleanup functions: https://man7.org/linux/man-pages/man3/pthread_cleanup_push.3...",
-    "parent": 45233713,
-    "depth": 1
-  },
-  {
     "id": 45234895,
     "by": "albertzeyer",
     "timeISO": "2025-09-13T20:03:21.000Z",
     "textPlain": "Why not use getaddrinfo_a / getaddrinfo_async_start / GetAddrInfoExW?Or just use some standalone DNS resolve code or library (which basically replicates getaddrinfo but supports this in an async way)?See also here the discussion: https://github.com/crystal-lang/crystal/issues/13619",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45236293,
+    "by": "pajko",
+    "timeISO": "2025-09-13T23:56:56.000Z",
+    "textPlain": "This is clearly an implementation error in getaddrinfo(). It should set up cleanup functions: https://man7.org/linux/man-pages/man3/pthread_cleanup_push.3...",
     "parent": 45233713,
     "depth": 1
   },
@@ -68,6 +68,14 @@
     "by": "Someone",
     "timeISO": "2025-09-13T19:33:14.000Z",
     "textPlain": "> Then it needs to sort them if there is more than one address. And in order to do that it needs to read /etc/gai.confI don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization? If it has to react to changes to that file while a process is running, couldn’t it have a separate thread for polling that file for changes, or use inotify for a separate thread to be called when it changes? Swapping in the new config atomically might be problematic, but I would think that is solvable.Even ignoring the issue mentioned it seems wasteful to open, parse, and close that file repeatedly.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45234725,
+    "by": "jart",
+    "timeISO": "2025-09-13T19:39:38.000Z",
+    "textPlain": "Why can't they help fix the C library in question? Cancelation is really tricky to implement for the C library author. It's one of those concepts that, like fork, has implications that pervade everything. Please give your C library maintainers a little leeway if they get cancelation wrong. Especially if it's just a memory leak.",
     "parent": 45233713,
     "depth": 1
   },
@@ -100,14 +108,6 @@
     "by": "throwaway81523",
     "timeISO": "2025-09-13T19:21:16.000Z",
     "textPlain": "There might be a way to getaddrinfo asynchronously with io_uring by now.  Otherwise just call the synchronous version in another thread and let it time out so the thread exits normally, right?  Why bother with pthread_cancel?",
-    "parent": 45233713,
-    "depth": 1
-  },
-  {
-    "id": 45234725,
-    "by": "jart",
-    "timeISO": "2025-09-13T19:39:38.000Z",
-    "textPlain": "Why can't they help fix the C library in question? Cancelation is really tricky to implement for the C library author. It's one of those concepts that, like fork, has implications that pervade everything. Please give your C library maintainers a little leeway if they get cancelation wrong. Especially if it's just a memory leak.",
     "parent": 45233713,
     "depth": 1
   },
@@ -240,6 +240,14 @@
     "depth": 2
   },
   {
+    "id": 45234842,
+    "by": "RedShift1",
+    "timeISO": "2025-09-13T19:57:03.000Z",
+    "textPlain": "I'm betting this code is so old and its behavior so ingrained everywhere else that nobody dares touching it.",
+    "parent": 45234725,
+    "depth": 2
+  },
+  {
     "id": 45236345,
     "by": "cesarb",
     "timeISO": "2025-09-14T00:03:47.000Z",
@@ -301,14 +309,6 @@
     "timeISO": "2025-09-13T20:11:11.000Z",
     "textPlain": "io_uring is a linux-ism, curl is cross-platform.",
     "parent": 45234603,
-    "depth": 2
-  },
-  {
-    "id": 45234842,
-    "by": "RedShift1",
-    "timeISO": "2025-09-13T19:57:03.000Z",
-    "textPlain": "I'm betting this code is so old and its behavior so ingrained everywhere else that nobody dares touching it.",
-    "parent": 45234725,
     "depth": 2
   }
 ]
