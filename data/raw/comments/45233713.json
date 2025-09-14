@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45237513,
+    "by": "blaz0",
+    "timeISO": "2025-09-14T04:45:45.000Z",
+    "textPlain": "I'm the author of the GitHub issue that the blog links to, and I'd like to thank Stefan for quickly acknowledging the problem and addressing the issue! I try to keep one of our internal applications up to date with the latest libcurl version within a day or two of a release, so we sometimes hit fresh problems while running our battery of tests.Ironically, our application has also struggled with blocking DNS resolution in the past, so I appreciate the discussion here. In case anyone is interested, here is a quick reference of the different asynchronous DNS resolution methods that you can use in a native code application for some of the most popular platforms:  - Windows/Xbox: GetAddrInfoExW / GetAddrInfoExCancel\n  - macOS/iOS: CFHostStartInfoResolution / CFHostCancelInfoResolution\n  - Linux (glibc): getaddrinfo_a / gai_cancel\n  - Android: android.net.DnsResolver.query (requires the use of JNI)\n  - PS5: proprietary DNS resolver API",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
     "id": 45234499,
     "by": "rwmj",
     "timeISO": "2025-09-13T19:07:50.000Z",
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45237318,
-    "by": "senderista",
-    "timeISO": "2025-09-14T03:58:07.000Z",
-    "textPlain": "Relevant for Linux: https://www.imperialviolet.org/2005/06/01/asynchronous-dns-l...",
-    "parent": 45233713,
-    "depth": 1
-  },
-  {
     "id": 45234816,
     "by": "comex",
     "timeISO": "2025-09-13T19:52:48.000Z",
     "textPlain": "pthread_cancel is not a good design because it operates entirely separately from normal mechanisms of error handling and unwinding.  (That is, if you’re using C.  If you’re using C++ it can integrate with exception handling.)A better approach would have been to mimic how kernels internally handle signals received during syscalls.  Receiving a signal is supposed to cancel the syscall.  But from the kernel’s perspective, a syscall implementation is just some code.  It can call other functions, acquire locks, wait for conditions, and do anything else you would expect code to do.  All of that needs to be cleanly cancelled and unwound to avoid breaking the rest of the system.So it works like this: when a signal is sent to a thread, a persistent “interrupted” flag is set for that thread.  Like with pthread_cancel, this doesn’t immediately interrupt the thread, but only has an effect once the thread calls one of a specific set of functions.  For pthread_cancel, that set consists of a bunch of syscalls and other “cancellation points”.  For kernel-internal code, it consists of most functions that wait for a condition.  The difference is in what happens afterwards.  In pthread_cancel’s case, the thread is immediately aborted with only designated cleanups running.  In the kernel, the condition-waiting function simply returns an error code.  The caller is expected to handle this like any other error code, i.e. by performing any necessary cleanup and then returning the same error code itself.  This continues until the entire chain of calls has been unwound. Classic C manual error handling.  It’s nothing special, but because interruption works the same way as regular error handling, it‘s more likely to “just work”.  Once everything is unwound, the “interrupted” flag is cleared and the original signal can be handled.(The error code for interruption is usually EINTR, but don’t confuse this with EINTR handling in userspace, which is a mess.  The difference is because userspace gener",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45237318,
+    "by": "senderista",
+    "timeISO": "2025-09-14T03:58:07.000Z",
+    "textPlain": "Relevant for Linux: https://www.imperialviolet.org/2005/06/01/asynchronous-dns-l...",
     "parent": 45233713,
     "depth": 1
   },
