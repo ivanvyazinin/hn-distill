@@ -32,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45236293,
+    "by": "pajko",
+    "timeISO": "2025-09-13T23:56:56.000Z",
+    "textPlain": "This is clearly an implementation error in getaddrinfo(). It should set up cleanup functions: https://man7.org/linux/man-pages/man3/pthread_cleanup_push.3...",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
     "id": 45234895,
     "by": "albertzeyer",
     "timeISO": "2025-09-13T20:03:21.000Z",
     "textPlain": "Why not use getaddrinfo_a / getaddrinfo_async_start / GetAddrInfoExW?Or just use some standalone DNS resolve code or library (which basically replicates getaddrinfo but supports this in an async way)?See also here the discussion: https://github.com/crystal-lang/crystal/issues/13619",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45236452,
+    "by": "hacker_homie",
+    "timeISO": "2025-09-14T00:29:30.000Z",
+    "textPlain": "what's old is new again, I loved java in the early 2000's trying to remotely stop a threadThread.destroy()\nThread.stop()\nThread.suspend()so much potential for corrupted state.",
     "parent": 45233713,
     "depth": 1
   },
@@ -52,6 +68,14 @@
     "by": "Someone",
     "timeISO": "2025-09-13T19:33:14.000Z",
     "textPlain": "> Then it needs to sort them if there is more than one address. And in order to do that it needs to read /etc/gai.confI don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization? If it has to react to changes to that file while a process is running, couldn’t it have a separate thread for polling that file for changes, or use inotify for a separate thread to be called when it changes? Swapping in the new config atomically might be problematic, but I would think that is solvable.Even ignoring the issue mentioned it seems wasteful to open, parse, and close that file repeatedly.",
+    "parent": 45233713,
+    "depth": 1
+  },
+  {
+    "id": 45236236,
+    "by": "charcircuit",
+    "timeISO": "2025-09-13T23:44:06.000Z",
+    "textPlain": "Why isn't DNS in a service on the operating system instead of libc? You'll want requests to be locally cache anyways. This also makes it easier to just abandon a RPC instead of stopping a thread you don't control.",
     "parent": 45233713,
     "depth": 1
   },
@@ -104,6 +128,14 @@
     "depth": 2
   },
   {
+    "id": 45236150,
+    "by": "asveikau",
+    "timeISO": "2025-09-13T23:27:57.000Z",
+    "textPlain": "I think getaddrinfo_a is cancellable, including the ability to block with a timeout. It is a glibc extension.",
+    "parent": 45234856,
+    "depth": 2
+  },
+  {
     "id": 45235521,
     "by": "okanat",
     "timeISO": "2025-09-13T21:35:05.000Z",
@@ -120,18 +152,18 @@
     "depth": 2
   },
   {
-    "id": 45234549,
-    "by": "nly",
-    "timeISO": "2025-09-13T19:14:08.000Z",
-    "textPlain": "If you want DNS resolution to obey user/system preferences then you need to use the system provided  API",
-    "parent": 45234499,
-    "depth": 2
-  },
-  {
     "id": 45234982,
     "by": "jeroenhd",
     "timeISO": "2025-09-13T20:15:03.000Z",
     "textPlain": "getaddrinfo_a is available, but not widely adopted (*BSD and Linux), probably because you can't guarantee it'll be available on every computer/phone/modem. This is only an issue if you're targeting POSIX rather than modern operating systems.Windows 8 and above also have their own asynchronous DNS API on NON-POSIX land.",
+    "parent": 45234499,
+    "depth": 2
+  },
+  {
+    "id": 45234549,
+    "by": "nly",
+    "timeISO": "2025-09-13T19:14:08.000Z",
+    "textPlain": "If you want DNS resolution to obey user/system preferences then you need to use the system provided  API",
     "parent": 45234499,
     "depth": 2
   },
@@ -184,18 +216,18 @@
     "depth": 2
   },
   {
-    "id": 45235603,
-    "by": "cesarb",
-    "timeISO": "2025-09-13T21:47:42.000Z",
-    "textPlain": "> I don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization?If it were a library dedicated to DNS, sure, but glibc is used by nearly every process in the system, including many which will never call getaddrinfo.",
-    "parent": 45234685,
-    "depth": 2
-  },
-  {
     "id": 45234772,
     "by": "loeg",
     "timeISO": "2025-09-13T19:46:16.000Z",
     "textPlain": "I think the libc people might argue this level of functionality is just outside the scope of libc.  (Arguably, it is a mistake for DNS to be part of libc, given how complicated it is.)",
+    "parent": 45234685,
+    "depth": 2
+  },
+  {
+    "id": 45235603,
+    "by": "cesarb",
+    "timeISO": "2025-09-13T21:47:42.000Z",
+    "textPlain": "> I don’t see why glibc would have to do that inside a call to getaddrinfo. can’t it do that once at library initialization?If it were a library dedicated to DNS, sure, but glibc is used by nearly every process in the system, including many which will never call getaddrinfo.",
     "parent": 45234685,
     "depth": 2
   },
@@ -205,6 +237,14 @@
     "timeISO": "2025-09-13T21:06:34.000Z",
     "textPlain": "You want libc to start a thread whenever it is loaded?",
     "parent": 45234685,
+    "depth": 2
+  },
+  {
+    "id": 45236345,
+    "by": "cesarb",
+    "timeISO": "2025-09-14T00:03:47.000Z",
+    "textPlain": "> Why isn't DNS in a service on the operating system instead of libc?On modern Linux systems, it is: systemd-resolved (https://www.freedesktop.org/software/systemd/man/latest/syst...) is a system service which can be queried through RPC (using dbus or varlink), through the traditional glibc APIs (using a NSS plugin), or even by being queried on the loopback interface as if it were a normal recursive DNS server (for compatibility with software which bypasses glibc and does direct DNS queries).",
+    "parent": 45236236,
     "depth": 2
   },
   {
