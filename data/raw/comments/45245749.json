@@ -1,5 +1,13 @@
 [
   {
+    "id": 45252184,
+    "by": "mholt",
+    "timeISO": "2025-09-15T17:03:30.000Z",
+    "textPlain": "Context: WebPKI revocation is broken. It didn't have to be [0], but it always has been, and likely always will be, now that the industry is moving to short-lived certificates.Let's Encrypt is now offering a profile for 6-day certificates: https://letsencrypt.org/docs/profiles/#shortlivedWith such short-lived certificates, revocation effectively becomes a non-issue.[0]: OCSP Stapling (esp. with Must-Staple) is actually pretty effective at distributing revocation information in a timely, secure, private manner. There were no real downsides to the spec, which is why Caddy has supported automatic OCSP stapling since, gosh, I think 2016 or so. The problem is that most other web servers didn't -- and still don't -- implement it well [1], making OCSP (without the stapling) a persistent privacy problem. Additionally, many client vendors want to choose what certificates count as \"revoked\" now, so they use their own CRLs, making OCSP entirely useless, since they only check their own CRLs.[1]: https://gist.github.com/sleevi/5efe9ef98961ecfb4da8 -- most servers have such a bad implementation of OCSP stapling that it makes sites less reliable, not more.",
+    "parent": 45245749,
+    "depth": 1
+  },
+  {
     "id": 45246065,
     "by": "8cvor6j844qw_d6",
     "timeISO": "2025-09-15T04:18:47.000Z",
@@ -32,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45246107,
+    "by": "userbinator",
+    "timeISO": "2025-09-15T04:24:59.000Z",
+    "textPlain": "Don't forget revocation checking = more centralised control, although they seem to have gone with very-short-lived certificates instead.",
+    "parent": 45245749,
+    "depth": 1
+  },
+  {
     "id": 45245918,
     "by": "Dylan16807",
     "timeISO": "2025-09-15T03:48:59.000Z",
     "textPlain": "\"Not all\" is quite an understatement.",
+    "parent": 45245749,
+    "depth": 1
+  },
+  {
+    "id": 45246113,
+    "by": "johnecheck",
+    "timeISO": "2025-09-15T04:26:05.000Z",
+    "textPlain": "I've always felt that the browser vendor + CA model was bad but this is next level embarrassing. How is the very root of trust in the internet so... untrustworthy?",
     "parent": 45245749,
     "depth": 1
   },
@@ -64,14 +88,6 @@
     "depth": 1
   },
   {
-    "id": 45246107,
-    "by": "userbinator",
-    "timeISO": "2025-09-15T04:24:59.000Z",
-    "textPlain": "Don't forget revocation checking = more centralised control, although they seem to have gone with very-short-lived certificates instead.",
-    "parent": 45245749,
-    "depth": 1
-  },
-  {
     "id": 45246306,
     "by": "bawolff",
     "timeISO": "2025-09-15T05:10:36.000Z",
@@ -84,14 +100,6 @@
     "by": "jofla_net",
     "timeISO": "2025-09-15T04:25:26.000Z",
     "textPlain": "Sometime last summer, I encountered a domain which WAS revoked. \nI was and am using Firefox, roughly v120, in Ubuntu and it threw up an unskippable error page, similar to those self signed pages in chrome. \nI did turn it off for hahas, in about:config, i believe it was an OCSP setting,\nsecurity.OCSP.enabled to let me view the page.However, this page, shows perfectly, so there must have been some differences between this and the domain I remember. Unfortunately, my domain has long since been reissued and I can't reproduce the block.\nThe block also occurred in the latest Thunderbird for windows 7 interestingly.",
-    "parent": 45245749,
-    "depth": 1
-  },
-  {
-    "id": 45246113,
-    "by": "johnecheck",
-    "timeISO": "2025-09-15T04:26:05.000Z",
-    "textPlain": "I've always felt that the browser vendor + CA model was bad but this is next level embarrassing. How is the very root of trust in the internet so... untrustworthy?",
     "parent": 45245749,
     "depth": 1
   },
@@ -152,6 +160,22 @@
     "depth": 1
   },
   {
+    "id": 45252281,
+    "by": "jschanck",
+    "timeISO": "2025-09-15T17:09:21.000Z",
+    "textPlain": "Firefox / CRLite includes all revocations. The issue with this particular certificate is that the CRLite backend is behind on ingesting both of the CT logs that it appears in (Digicert wyvern2025h2 [1] and Let's Encrypt oak2025h2). So from CRLite's perspective the certificate doesn't exist yet.In the very near future, CAs are going to start embedding signed CT timestamps from \"static CT\" logs [2]. Once that happens, the CRLite backend will be aware of certificates within minutes of issuance.[1] The wyvern2025h2 shard had an outage last week, which is also part of the problem here https://groups.google.com/a/chromium.org/g/ct-policy/c/XpmIf....[2] https://github.com/C2SP/C2SP/blob/main/static-ct-api.md",
+    "parent": 45246380,
+    "depth": 2
+  },
+  {
+    "id": 45251735,
+    "by": "NoahZuniga",
+    "timeISO": "2025-09-15T16:31:13.000Z",
+    "textPlain": "I believe I remember reading that chrome has a seperate system for revoking CA certificates, where they have to do a manual rollout, but propagation time is pretty fast.",
+    "parent": 45246380,
+    "depth": 2
+  },
+  {
     "id": 45246428,
     "by": "yegle",
     "timeISO": "2025-09-15T05:36:11.000Z",
@@ -192,11 +216,11 @@
     "depth": 2
   },
   {
-    "id": 45246194,
-    "by": "zephyreon",
-    "timeISO": "2025-09-15T04:42:25.000Z",
-    "textPlain": "fwiw iOS happily displays the cert as very validhttps://f000.backblazeb2.com/file/0011public/Photo-2025-09-1...",
-    "parent": 45245972,
+    "id": 45252233,
+    "by": "mholt",
+    "timeISO": "2025-09-15T17:06:24.000Z",
+    "textPlain": "Revocation has many meanings. No central revocation authority is actually enforced by the BRs, as far as I know. Clients can do whatever they want. The CA can say a cert is revoked but no one has to care. Clients can also say a cert is revoked and then all their client instances start rejecting it. Most clients work this way now, like Safari -- they just distribute their own CRLs.",
+    "parent": 45246107,
     "depth": 2
   },
   {
@@ -216,14 +240,6 @@
     "depth": 2
   },
   {
-    "id": 45246303,
-    "by": "synotna",
-    "timeISO": "2025-09-15T05:10:02.000Z",
-    "textPlain": "OCSP is deprecated for CRLsLet's encrypt already EOLd OCSP",
-    "parent": 45246109,
-    "depth": 2
-  },
-  {
     "id": 45246310,
     "by": "kingstnap",
     "timeISO": "2025-09-15T05:11:27.000Z",
@@ -232,11 +248,43 @@
     "depth": 2
   },
   {
+    "id": 45252246,
+    "by": "mholt",
+    "timeISO": "2025-09-15T17:07:11.000Z",
+    "textPlain": "That's because Apple uses their own CRLs, pretty much exclusively.",
+    "parent": 45245972,
+    "depth": 2
+  },
+  {
+    "id": 45246194,
+    "by": "zephyreon",
+    "timeISO": "2025-09-15T04:42:25.000Z",
+    "textPlain": "fwiw iOS happily displays the cert as very validhttps://f000.backblazeb2.com/file/0011public/Photo-2025-09-1...",
+    "parent": 45245972,
+    "depth": 2
+  },
+  {
+    "id": 45246303,
+    "by": "synotna",
+    "timeISO": "2025-09-15T05:10:02.000Z",
+    "textPlain": "OCSP is deprecated for CRLsLet's encrypt already EOLd OCSP",
+    "parent": 45246109,
+    "depth": 2
+  },
+  {
     "id": 45246394,
     "by": "sugarpimpdorsey",
     "timeISO": "2025-09-15T05:27:50.000Z",
     "textPlain": "> Their details are not correct: They claim the browsers would not trust itBut their details ARE correct. It says the certificate is revoked, which it is. It's up to the individual browser to act upon that (which most don't).",
     "parent": 45246317,
+    "depth": 2
+  },
+  {
+    "id": 45252277,
+    "by": "mholt",
+    "timeISO": "2025-09-15T17:09:05.000Z",
+    "textPlain": "This page is to demonstrate that revocation is broken. There is no central revocation authority. Anyone can publish a revocation list, whether it's a CA or client vendors or Joe from his mom's basement.I'm using the term \"revocation list\" loosely, as it can be as simple as a list of public keys to distrust. Client software can use any revocation list they want, AFAIK.",
+    "parent": 45246124,
     "depth": 2
   },
   {
