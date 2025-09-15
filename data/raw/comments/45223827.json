@@ -1,13 +1,5 @@
 [
   {
-    "id": 45253281,
-    "by": "pkilgore",
-    "timeISO": "2025-09-15T18:29:18.000Z",
-    "textPlain": "To me the most interesting thing here isn't that you can compress something better by removing randomly-distributed semantically-meaningless information.  It's why zstd --long does so much better than gzip when you do and the default does worse than gzip.What lessons can we take from this?",
-    "parent": 45223827,
-    "depth": 1
-  },
-  {
     "id": 45248499,
     "by": "jefftk",
     "timeISO": "2025-09-15T11:37:29.000Z",
@@ -24,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45248271,
+    "by": "mfld",
+    "timeISO": "2025-09-15T11:00:06.000Z",
+    "textPlain": "Using larger-than-default window sizes has the drawback of requiring that the same --long=xx argument be passed during decompression reducing compatibility somewhat.\n\nInteresting. Any idea why this can't be stored in the metadata of the compressed file?",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
     "id": 45248462,
     "by": "ashvardanian",
     "timeISO": "2025-09-15T11:32:35.000Z",
@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45248271,
-    "by": "mfld",
-    "timeISO": "2025-09-15T11:00:06.000Z",
-    "textPlain": "Using larger-than-default window sizes has the drawback of requiring that the same --long=xx argument be passed during decompression reducing compatibility somewhat.\n\nInteresting. Any idea why this can't be stored in the metadata of the compressed file?",
+    "id": 45253281,
+    "by": "pkilgore",
+    "timeISO": "2025-09-15T18:29:18.000Z",
+    "textPlain": "To me the most interesting thing here isn't that you can compress something better by removing randomly-distributed semantically-meaningless information.  It's why zstd --long does so much better than gzip when you do and the default does worse than gzip.What lessons can we take from this?",
     "parent": 45223827,
     "depth": 1
   },
@@ -72,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45252296,
-    "by": "meel-hd",
-    "timeISO": "2025-09-15T17:10:13.000Z",
-    "textPlain": "https://github.com/meel-hd/DNA",
-    "parent": 45223827,
-    "depth": 1
-  },
-  {
     "id": 45251113,
     "by": "dekhn",
     "timeISO": "2025-09-15T15:46:12.000Z",
     "textPlain": "I've explored alternatives to FASTA and FASTQ but in most cases I found that simply not storing sequence data is the best option of all, but if I have to do it, columnar formats with compression are usually the best alternative when considering all of (my) the constraints.",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
+    "id": 45252296,
+    "by": "meel-hd",
+    "timeISO": "2025-09-15T17:10:13.000Z",
+    "textPlain": "https://github.com/meel-hd/DNA",
     "parent": 45223827,
     "depth": 1
   },
@@ -160,6 +160,14 @@
     "depth": 1
   },
   {
+    "id": 45253642,
+    "by": "LeifCarrotson",
+    "timeISO": "2025-09-15T19:02:20.000Z",
+    "textPlain": "In case \"bases with optional newlines\" wasn't obvious to anyone else, a specific example (from Wikipedia) is:    ;LCBO - Prolactin precursor - Bovine\n    MDSKGSSQKGSRLLLLLVVSNLLLCQGVVSTPVCPNGPGNCQVSLRDLFDRAVMVSHYIHDLSS\n    EMFNEFDKRYAQGKGFITMALNSCHTSSLPTPEDKEQAQQTHHEVLMSLILGLLRSWNDPLYHL\n    VTEVRGMKGAPDAILSRAIEIEEENKRLLEGMEMIFGQVIPGAKETEPYPVWSGLPSLQTKDED\n    ARYSAFYNLLHCLRRDSSKIDTYLKLLNCRIIYNNNC*\n\nwhere \"SS...EM\", HL..VT\", or \"ED..AR\" may be common subsequences, but the plaintext file arbitrarily wraps at column 65 so it renders on a DEC VT100 terminal from the 70s nicely.Or, for an even simpler example:    ; plaintext\n    GATTAC\n    AGATTA\n    CAGATT\n    ACCAGA\n    TTACAG\n    ATTACA\n\nbecomes, on disk, something like    ; plaintext\\r\\nGATTAC\\r\\nAGATTA\\r\\nCAGATT\\r\\nACCAGA\\r\\nTTACAG\\r\\nATTACA\\r\\n\n\nwhich is hard to compress, while    ; plaintext\\r\\nGATTACAGATTACAGATTACCAGATTACAGATTACA\n\nis just    \"; plaintext\\r\\n\" + \"GATTACA\" * 7\n\nand then, if you want, you can reflow the text when it's time to render to the screen.",
+    "parent": 45248499,
+    "depth": 2
+  },
+  {
     "id": 45248819,
     "by": "bede",
     "timeISO": "2025-09-15T12:22:47.000Z",
@@ -200,22 +208,6 @@
     "depth": 2
   },
   {
-    "id": 45248850,
-    "by": "jltsiren",
-    "timeISO": "2025-09-15T12:26:10.000Z",
-    "textPlain": "Basic text formats persist, because everyone supports them. Many tools have better file formats for internal purposes, but they are rarely flexible enough and robust enough for wider use. There are occasional proposals for better general purpose formats, but the people proposing them rarely agree which of the competing proposals should be adopted. And even if they manage to agree, they probably don't have the time and the money to make it actually happen.",
-    "parent": 45248462,
-    "depth": 2
-  },
-  {
-    "id": 45249210,
-    "by": "bede",
-    "timeISO": "2025-09-15T13:05:44.000Z",
-    "textPlain": "Yes, when doing anything intensive with lots of sequences it generally makes sense to liberate them from FASTA as early as possible and index them somehow. But as an interchange format FASTA seems quite sticky. I find the pervasiveness of fastq.gz particularly unfortunate with Gzip being as slow as it is.> Took me a while to realize that Grace Blackwell refers to a person and not an Nvidia chip :)I even confused myself about this while writing :-)",
-    "parent": 45248462,
-    "depth": 2
-  },
-  {
     "id": 45248439,
     "by": "lifthrasiir",
     "timeISO": "2025-09-15T11:29:53.000Z",
@@ -229,6 +221,22 @@
     "timeISO": "2025-09-15T11:09:27.000Z",
     "textPlain": "It uses more memory (up to +2gb) during decompression as well -> potential DoS.",
     "parent": 45248271,
+    "depth": 2
+  },
+  {
+    "id": 45248850,
+    "by": "jltsiren",
+    "timeISO": "2025-09-15T12:26:10.000Z",
+    "textPlain": "Basic text formats persist, because everyone supports them. Many tools have better file formats for internal purposes, but they are rarely flexible enough and robust enough for wider use. There are occasional proposals for better general purpose formats, but the people proposing them rarely agree which of the competing proposals should be adopted. And even if they manage to agree, they probably don't have the time and the money to make it actually happen.",
+    "parent": 45248462,
+    "depth": 2
+  },
+  {
+    "id": 45249210,
+    "by": "bede",
+    "timeISO": "2025-09-15T13:05:44.000Z",
+    "textPlain": "Yes, when doing anything intensive with lots of sequences it generally makes sense to liberate them from FASTA as early as possible and index them somehow. But as an interchange format FASTA seems quite sticky. I find the pervasiveness of fastq.gz particularly unfortunate with Gzip being as slow as it is.> Took me a while to realize that Grace Blackwell refers to a person and not an Nvidia chip :)I even confused myself about this while writing :-)",
+    "parent": 45248462,
     "depth": 2
   },
   {
