@@ -15,6 +15,10 @@ const EnvironmentSchema = z.object({
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
   OPENROUTER_MODEL: z.string().default("moonshotai/kimi-k2:free"),
+  // When primary model fails for summaries, try this model next
+  OPENROUTER_FALLBACK_MODEL: z
+    .string()
+    .default("deepseek/deepseek-chat-v3.1:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
   TAGS_MODEL: z.string().default("mistralai/mistral-small-3.2-24b-instruct:free"), // try structured outputs, fallback to JSON

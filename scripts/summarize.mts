@@ -158,9 +158,11 @@ export function preserveMarkdownWhitespace(content: string): string {
   return outLines.join("\n");
 }
 
-async function callLLM(services: Services, prompt: string): Promise<string> {
+type LlmResult = { content: string; modelUsed: string };
+
+async function callLLM(services: Services, prompt: string): Promise<LlmResult> {
+  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_MAX_TOKENS } = env;
   try {
-    const { OPENROUTER_MODEL, OPENROUTER_MAX_TOKENS } = env;
     log.info(LOG_NAMESPACE_LLM, "Calling LLM", { model: OPENROUTER_MODEL, promptChars: prompt.length });
     const content = await services.openrouter.chat([{ role: "user", content: prompt }], {
       temperature: 0.3,
@@ -168,16 +170,31 @@ async function callLLM(services: Services, prompt: string): Promise<string> {
     });
     const cleaned = preserveMarkdownWhitespace(content).trim();
     log.debug(LOG_NAMESPACE_LLM, "LLM response received", { summaryChars: cleaned.length });
-    return cleaned;
+    return { content: cleaned, modelUsed: OPENROUTER_MODEL };
   } catch (error) {
-    log.error(LOG_NAMESPACE_LLM, "OpenRouter call failed", { error: String(error) });
-    throw error;
+    log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
+      primary: OPENROUTER_MODEL,
+      fallback: OPENROUTER_FALLBACK_MODEL,
+      error: String(error),
+    });
+    // Try fallback model once for any error
+    const content = await services.openrouter.chat([{ role: "user", content: prompt }], {
+      temperature: 0.3,
+      maxTokens: OPENROUTER_MAX_TOKENS,
+      model: OPENROUTER_FALLBACK_MODEL,
+    });
+    const cleaned = preserveMarkdownWhitespace(content).trim();
+    log.info(LOG_NAMESPACE_LLM, "Fallback LLM response received", {
+      model: OPENROUTER_FALLBACK_MODEL,
+      summaryChars: cleaned.length,
+    });
+    return { content: cleaned, modelUsed: OPENROUTER_FALLBACK_MODEL };
   }
 }
 
-async function callLLMWithMessages(services: Services, messages: ChatMessage[]): Promise<string> {
+async function callLLMWithMessages(services: Services, messages: ChatMessage[]): Promise<LlmResult> {
+  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_MAX_TOKENS } = env;
   try {
-    const { OPENROUTER_MODEL, OPENROUTER_MAX_TOKENS } = env;
     log.info(LOG_NAMESPACE_LLM, "Calling LLM", { model: OPENROUTER_MODEL, messages: messages.length });
     const content = await services.openrouter.chat(messages, {
       temperature: 0.3,
@@ -185,10 +202,24 @@ async function callLLMWithMessages(services: Services, messages: ChatMessage[]):
     });
     const cleaned = preserveMarkdownWhitespace(content).trim();
     log.debug(LOG_NAMESPACE_LLM, "LLM response received", { summaryChars: cleaned.length });
-    return cleaned;
+    return { content: cleaned, modelUsed: OPENROUTER_MODEL };
   } catch (error) {
-    log.error(LOG_NAMESPACE_LLM, "OpenRouter call failed", { error: String(error) });
-    throw error;
+    log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
+      primary: OPENROUTER_MODEL,
+      fallback: OPENROUTER_FALLBACK_MODEL,
+      error: String(error),
+    });
+    const content = await services.openrouter.chat(messages, {
+      temperature: 0.3,
+      maxTokens: OPENROUTER_MAX_TOKENS,
+      model: OPENROUTER_FALLBACK_MODEL,
+    });
+    const cleaned = preserveMarkdownWhitespace(content).trim();
+    log.info(LOG_NAMESPACE_LLM, "Fallback LLM response received", {
+      model: OPENROUTER_FALLBACK_MODEL,
+      summaryChars: cleaned.length,
+    });
+    return { content: cleaned, modelUsed: OPENROUTER_FALLBACK_MODEL };
   }
 }
 
@@ -204,10 +235,10 @@ export async function summarizePost(
   services: Services,
   story: NormalizedStory,
   articleSlice: string
-): Promise<Pick<PostSummary, "id" | "lang" | "summary">> {
+): Promise<Pick<PostSummary, "id" | "lang" | "summary" | "model">> {
   const messages = buildPostChatMessages(articleSlice);
-  const summary = await callLLMWithMessages(services, messages);
-  return { id: story.id, lang: env.SUMMARY_LANG, summary };
+  const { content, modelUsed } = await callLLMWithMessages(services, messages);
+  return { id: story.id, lang: env.SUMMARY_LANG, summary: content, model: modelUsed };
 }
 
 export async function summarizeComments(
@@ -215,9 +246,15 @@ export async function summarizeComments(
   storyId: number,
   prompt: string,
   sampleIds: number[] = []
-): Promise<Pick<CommentsSummary, "id" | "lang" | "sampleComments" | "summary">> {
-  const summary = await callLLM(services, prompt);
-  return { id: storyId, lang: env.SUMMARY_LANG, summary, sampleComments: sampleIds };
+): Promise<Pick<CommentsSummary, "id" | "lang" | "sampleComments" | "summary" | "model">> {
+  const { content, modelUsed } = await callLLM(services, prompt);
+  return {
+    id: storyId,
+    lang: env.SUMMARY_LANG,
+    summary: content,
+    sampleComments: sampleIds,
+    model: modelUsed,
+  };
 }
 
 export async function getOrFetchArticleMarkdown(
@@ -269,18 +306,18 @@ async function processPostSummary(services: Services, story: NormalizedStory, po
 
   if (postArticleSlice.length > 0) {
     const summaryContent = await summarizePost(services, story, postArticleSlice);
-    const { OPENROUTER_MODEL } = env;
+    const modelUsed = summaryContent.model ?? env.OPENROUTER_MODEL;
     const postSummary: PostSummary = {
       ...summaryContent,
       inputHash: postInputHash,
-      model: OPENROUTER_MODEL,
+      model: modelUsed,
       createdISO: new Date().toISOString(),
     };
     await writeJsonFile(postPath, postSummary, { atomic: true, pretty: true });
     log.info(LOG_NAMESPACE_POST, "Post summary written", {
       id: story.id,
       chars: postSummary.summary.length,
-      model: OPENROUTER_MODEL,
+      model: modelUsed,
     });
   } else {
     log.warn(LOG_NAMESPACE_POST, "Empty post prompt; skipping LLM", { id: story.id });
@@ -304,18 +341,18 @@ async function processCommentsSummary(
 
   if (comments.length > 0) {
     const summaryContent = await summarizeComments(services, story.id, commentsPrompt, sampleIds);
-    const { OPENROUTER_MODEL } = env;
+    const modelUsed = summaryContent.model ?? env.OPENROUTER_MODEL;
     const commentsSummary: CommentsSummary = {
       ...summaryContent,
       inputHash: commentsInputHash,
-      model: OPENROUTER_MODEL,
+      model: modelUsed,
       createdISO: new Date().toISOString(),
     };
     await writeJsonFile(commentsPath, commentsSummary, { atomic: true, pretty: true });
     log.info(LOG_NAMESPACE_COMMENTS, "Comments summary written", {
       id: story.id,
       chars: commentsSummary.summary.length,
-      model: OPENROUTER_MODEL,
+      model: modelUsed,
     });
   } else {
     log.warn(LOG_NAMESPACE_COMMENTS, "No comments available; skipping summary", { id: story.id });
