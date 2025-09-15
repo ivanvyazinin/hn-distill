@@ -8,20 +8,28 @@
     "depth": 1
   },
   {
+    "id": 45244385,
+    "by": "sugarpimpdorsey",
+    "timeISO": "2025-09-14T23:31:07.000Z",
+    "textPlain": "This will not impact Chrome in any meaningful way because - in typical Google fashion - they invented their own bullshit called CRLSets that does not perform OCSP or CRL checks in any way, rather periodically downloads a preened blacklist from Google which it then uses to screen certificates.Most people don't realize this.It's quite insane given that Chrome will by default not check CRLs *at all* for internal, enterprise CAs.",
+    "parent": 45242591,
+    "depth": 1
+  },
+  {
+    "id": 45244352,
+    "by": "zahlman",
+    "timeISO": "2025-09-14T23:26:34.000Z",
+    "textPlain": "Does this mean I should turn \"security.OCSP.require\" back off in Firefox?",
+    "parent": 45242591,
+    "depth": 1
+  },
+  {
     "id": 45243403,
     "by": "GauntletWizard",
     "timeISO": "2025-09-14T21:29:53.000Z",
     "textPlain": "Ocsp has always represented a terrible design. If clients require it, then it becomes just a override on the not after date included in the certificate, that requires online access to the cert server. If it is not required, then it is useless, because blocking the ocsp responses is well within the capabilities of any man in the middle attack, and makes the servers themselves DDOS attack targets.The alternative to the privacy nightmare is ocsp stapling, which has the first problem once again - it adds complexity to the protocol just to add an override of the not after attribute, when the not after attribute could be updated just as easily with the original protocol, reissuing the certificate. It was a Band-Aid on the highly manual process of certain issuance that once dominated the space.Good riddance to ocsp, I for one will not miss it.",
     "parent": 45242591,
     "depth": 1
-  },
-  {
-    "id": 45244272,
-    "by": "woodruffw",
-    "timeISO": "2025-09-14T23:16:12.000Z",
-    "textPlain": "> Why is that somehow okay, but OCSP not?I think the argument isn’t that it’s okay, but that one bad thing doesn’t mean we should do two bad things. Just because my DNS provider can see my domain requests doesn’t mean I also want arbitrary CAs on the Internet to also see them.",
-    "parent": 45243676,
-    "depth": 2
   },
   {
     "id": 45243753,
@@ -32,11 +40,51 @@
     "depth": 2
   },
   {
-    "id": 45244278,
-    "by": "tgsovlerkhgsel",
-    "timeISO": "2025-09-14T23:17:09.000Z",
-    "textPlain": "Shortening the certificate lifespan to e.g. 24h would have a number of downsides:Certificate volume in Certificate Transparency would increase a lot, adding load to the logs and making it even harder to follow CT.Issues with domain validation would turn into an outage after 24h rather than when the cert expires, which could be a benefit in some cases (invalidating old certs quickly if a domain changes owner or is recovered after a compromise/hijack).OCSP is simpler and has fewer dependencies than issuance (no need to do multi-perspective domain validation and the interaction with CT), so keeping it highly available should be easier than keeping issuance highly available.With stapling (which would have been required for privacy) often poorly implemented and rarely deployed and browsers not requiring OCSP, this was a sensible decision.",
-    "parent": 45243403,
+    "id": 45244272,
+    "by": "woodruffw",
+    "timeISO": "2025-09-14T23:16:12.000Z",
+    "textPlain": "> Why is that somehow okay, but OCSP not?I think the argument isn’t that it’s okay, but that one bad thing doesn’t mean we should do two bad things. Just because my DNS provider can see my domain requests doesn’t mean I also want arbitrary CAs on the Internet to also see them.",
+    "parent": 45243676,
+    "depth": 2
+  },
+  {
+    "id": 45244710,
+    "by": "gerdesj",
+    "timeISO": "2025-09-15T00:17:48.000Z",
+    "textPlain": "\"And let's not pretend users aren't already sending all the hostnames they are visiting to their selected DNS server. Why is that somehow okay, but OCSP not?\"Running your own DNS server is rather easier than messing with OCSP.  You do at least have a choice, even if it is bloody complicated.SSL certs (and I refuse to call them TLS) will soon have a required lifetime of forty something days.  OCSP and the rest becomes moot.",
+    "parent": 45243676,
+    "depth": 2
+  },
+  {
+    "id": 45244473,
+    "by": "PunchyHamster",
+    "timeISO": "2025-09-14T23:42:19.000Z",
+    "textPlain": "It's funny that putting some random records in DNS is enough to have enough \"ownership\" to make a cert for one but we can't use same method for publishing  revoking",
+    "parent": 45243676,
+    "depth": 2
+  },
+  {
+    "id": 45244584,
+    "by": "stusmall",
+    "timeISO": "2025-09-14T23:58:02.000Z",
+    "textPlain": "What in the Sam Hill? This is a new one on me.  Does anyone have any reading for their logic of why?",
+    "parent": 45244385,
+    "depth": 2
+  },
+  {
+    "id": 45244880,
+    "by": "creatonez",
+    "timeISO": "2025-09-15T00:46:05.000Z",
+    "textPlain": "What are you on about? Literally all browsers have adopted the same strategy. It's not some secret they're trying to hide from you. It's a good thing.",
+    "parent": 45244385,
+    "depth": 2
+  },
+  {
+    "id": 45244684,
+    "by": "mcpherrinm",
+    "timeISO": "2025-09-15T00:15:23.000Z",
+    "textPlain": "For Let’s Encrypt certificates which no longer contain an OCSP URL, I don’t think it’ll have any effect.Firefox also already has more effective revocation checking in CRLite: https://blog.mozilla.org/en/firefox/crlite/",
+    "parent": 45244352,
     "depth": 2
   },
   {
@@ -44,6 +92,14 @@
     "by": "jeroenhd",
     "timeISO": "2025-09-14T22:11:45.000Z",
     "textPlain": "OCSP stapling was a good solution in the age of certificates that were valid for 10 years (which was the case for basic HTTPS certificates back in 2011 when OCSP stapling was introduced). In the age of 90 day certificates (to be reduced to a maximum of 47 days in a few years), it's not quite as necessary any more, but I don't think OCSP stapling is that problematic a solution.Certificates in air-gapped networks are problematic, but that problem can be solved with dedicated CRL-only certificate roots that suffer all of the downsides of CRLs for cases where OCSP stapling isn't available.Nobody will miss OCSP now that it's dead, but assuming you used stapling I think it was a decent solution to a difficult problem that plagued the web for more than a decade and a half.",
+    "parent": 45243403,
+    "depth": 2
+  },
+  {
+    "id": 45244278,
+    "by": "tgsovlerkhgsel",
+    "timeISO": "2025-09-14T23:17:09.000Z",
+    "textPlain": "Shortening the certificate lifespan to e.g. 24h would have a number of downsides:Certificate volume in Certificate Transparency would increase a lot, adding load to the logs and making it even harder to follow CT.Issues with domain validation would turn into an outage after 24h rather than when the cert expires, which could be a benefit in some cases (invalidating old certs quickly if a domain changes owner or is recovered after a compromise/hijack).OCSP is simpler and has fewer dependencies than issuance (no need to do multi-perspective domain validation and the interaction with CT), so keeping it highly available should be easier than keeping issuance highly available.With stapling (which would have been required for privacy) often poorly implemented and rarely deployed and browsers not requiring OCSP, this was a sensible decision.",
     "parent": 45243403,
     "depth": 2
   },
