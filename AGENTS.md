@@ -1,0 +1,40 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+- `src/`: Astro site (`pages/`, `components/`, `layouts/`, `styles/`). Pages read JSON from `data/`.
+- `scripts/`: Data pipeline in TypeScript (`*.mts`): `fetch-hn.mts` → `summarize.mts` → `aggregate.mts`.
+- `config/`: Constants, env parsing (Zod), schemas, paths, language.
+- `utils/`: Reusable TS utilities (HTTP, text, tags, dates, logging).
+- `tests/`: Bun tests (`*.test.ts`) with helpers in `tests/helpers/`.
+- `data/`: Generated outputs kept in repo (except `data/cache/`).
+- `public/`, `dist/`: Static assets and build output.
+
+## Build, Test, and Development Commands
+- Install: `make install` (uses Bun). Alternative: `bun install`.
+- Dev server: `make dev` or `bunx astro dev`.
+- Generate data (full): `make run` or `bun run data:all`.
+- Quick local sample: `make local-test` (small TOP_N, faster).
+- Build/Preview: `make build` / `make preview`.
+- Tests: `make test`, coverage: `bun test --coverage`.
+- Lint/Typecheck: `make lint` and `make typecheck` (or `bunx eslint .`, `bunx tsc --noEmit`).
+
+## Coding Style & Naming Conventions
+- Language: TypeScript (strict). Path aliases: `@utils/*`, `@config/*`, `@scripts/*`.
+- Indentation: 2 spaces; no semicolon preference enforced by ESLint rules.
+- Filenames: TS/JS in kebab-case; Astro components in PascalCase (e.g., `StorySection.astro`).
+- Imports: grouped and alphabetized; prefer named exports; avoid default exports.
+- No `console.*` in app code—use `utils/log.ts`. Run `bunx eslint .` before pushing.
+
+## Testing Guidelines
+- Runner: Bun (`bun test`). Place tests in `tests/` and name `*.test.ts`.
+- Use helpers: `tests/helpers/tempfs.ts` for isolated FS; `tests/helpers/http.ts` to mock HTTP.
+- Keep tests deterministic; avoid live network calls; add coverage for new logic.
+
+## Commit & Pull Request Guidelines
+- Conventional prefixes encouraged: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`. Present-tense, imperative.
+- CI creates periodic “hourly data” commits—do not rewrite these.
+- PRs: small and focused; include description, linked issues, and screenshots for UI changes. Ensure `make lint typecheck test build` pass locally.
+
+## Security & Configuration Tips
+- Copy `.env.example` to `.env`. Key vars: `OPENROUTER_API_KEY` (optional), `SUMMARY_LANG`, `TOP_N`, `MAX_COMMENTS_PER_STORY`, etc. See `config/env.ts`.
+- Do not commit secrets; `.env` is gitignored. Build reads from `data/aggregated.json` so site can run without API keys.
