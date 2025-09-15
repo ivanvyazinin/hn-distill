@@ -1,9 +1,25 @@
 [
   {
+    "id": 45248931,
+    "by": "jojohohanon",
+    "timeISO": "2025-09-15T12:36:43.000Z",
+    "textPlain": "I’m confused and think I don’t get it.If a webpage is an iceberg, the buttons and menus and dropdowns are the visible part. If I understand this page object, that’s what he proposes testing.But the bit I care about is the bit underneath that will compose REST calls from those UI elements and sometimes make subsequent REST calls from the result of the previous ones.That is the tricky bit to test, and the bit where we *still* fall back to manual testing and recorded demos for qa.I was hoping this was a suggestion for a better selenium.",
+    "parent": 45208102,
+    "depth": 1
+  },
+  {
+    "id": 45248860,
+    "by": "searls",
+    "timeISO": "2025-09-15T12:27:22.000Z",
+    "textPlain": "I was doing a ton of agile, testing, and QA consulting in this era, and I feel like page objects worked well only in very narrow circumstances. Namely, QA departments where quality engineers were tasked with building very large and comprehensive automated UI tests (usually a bad idea) that exercised the same pages many, many times (also a bad idea, b/c extremely slow).But anyway if you were in that situation, duplication of selectors and labels and other implementation details of a page that were liable to change across a bunch of tests was an _absolute nightmare_ to deal with when you'd get a massive report of failures with bad error messages and often incorrect stack traces. Being able to fix all those errors by changing a selector in a single page object governing all of them was indeed better than the alternative.In the era of Cucumber, page objects were yet another level of indirection around what was a far-too-indirect process to provide the kind of feedback loop you'd need for it to be valuable. Especially as part of a development workflow.",
+    "parent": 45208102,
+    "depth": 1
+  },
+  {
     "id": 45248108,
     "by": "zabil",
     "timeISO": "2025-09-15T10:26:40.000Z",
-    "textPlain": "In my experience, Page Objects sound neat in theory but end up as a leaky abstraction: they mix UI details with test logic, duplicate flows, and make even trivial UI changes ripple through dozens of files. What I’ve seen is indirection that hides test intent and bloats maintenance.I also find them very developer-centric — testers get forced into upfront design work that doesn’t fit how they naturally test, and many struggle with it. I’ve had better results by expressing behavior directly and keeping UI concerns thin, instead of using wrapper around page structure.",
+    "textPlain": "In my experience, Page Objects sound neat in theory but end up as a leaky abstraction: they mix UI details with test logic, duplicate flows, and make even trivial UI changes ripple through dozens of files. What I’ve seen is indirection that hides test intent and bloats maintenance.I also find them very developer-centric — testers get forced into upfront design work that doesn’t fit how they naturally test, and many struggle with it. I’ve had better results by expressing behavior directly and keeping UI concerns thin, instead of using a wrapper around page structure.",
     "parent": 45208102,
     "depth": 1
   },
@@ -56,6 +72,22 @@
     "depth": 1
   },
   {
+    "id": 45248646,
+    "by": "adityaathalye",
+    "timeISO": "2025-09-15T12:00:26.000Z",
+    "textPlain": "OP here. Ordinarily, I would agree with you, because PageObjects themselves are not composable, in languages belonging to the \"Kingdom Of Nouns\".However, the following design, thanks to Clojure's language design, helped address a rather nasty situation.A tightly scoped Domain Specific Language, over some Types of PageObjects, all of which compose arbitrarily (without breaking value semantics). So, if you wanted the `value` of a Modal box having all sorts of switches, form fields etc., you'd call `value` on it, and it would call `value` on all of its constituents, and return the immutable hash-map snapshot of whatever state it found.  Cross-cutting concerns\n\n  | v PageObject / DSL -> | open | close | open? | select | deselect | ... |\n  |-----------------------+------+-------+-------+--------+----------+-----|\n  | Dropdown              |      |       |       |        |          |     |\n  | Checkbox              |      |       |       |        |          |     |\n  | Switch                |      |       |       |        |          |     |\n  | Modal                 |      |       |       |        |          |     |\n  | SearchList            |      |       |       |        |          |     |\n  | ...                   |      |       |       |        |          |     |\n\nConcrete example (in the deck and demo linked below):  (defprotocol IPageObject\n    \"Each PageObject MUST implement the IPageObject protocol.\"\n    (page-object [this])\n    (exists? [this])\n    (visible? [this]))\n\nAnd then an implementation like this:  (defrecord Checkbox [target-css]\n    IPageObject\n    (page-object [this]\n      this)\n    (exists? [this]\n      ;; webdriver check if target-css exists\n      )\n    (visible? [this]\n      ;; webdriver check if target-css is visible\n      )\n\n    Selectable\n    (select [this]\n      ;; webdriver select the target\n      )\n\n    (deselect [this]\n      ;; webdriver undo selection\n      )\n  \n    (selected? [this]\n      ;; webdriver return true if target selected\n      ) ",
+    "parent": 45248108,
+    "depth": 2
+  },
+  {
+    "id": 45248512,
+    "by": "littlecranky67",
+    "timeISO": "2025-09-15T11:38:39.000Z",
+    "textPlain": "I assume you do not use TypeScript but JavaScript? With TS your POs are basically discoverable with source-code completion and statically typed.   await page.getStartedLink.click()\n   expect(page.installationHeadline).toBeVisible()\n\nIs much more readable, and on typing \"page.\" you will see what props on your PO are available.Another note on your specific example: You are probably in the US and only have a single-language project. I am a Frontend Contractor in Europe and for the past 10 years didn't have a single project that was single language, hence the \"hasText\" selector would always be off-limits. Instead, very often we used the react-intl identificator as text content for code execution - which would make the above example look much more unreadable without POs, while with POs the code looks the same (just your PO looks different).",
+    "parent": 45246727,
+    "depth": 2
+  },
+  {
     "id": 45247483,
     "by": "sa46",
     "timeISO": "2025-09-15T08:42:37.000Z",
@@ -104,6 +136,14 @@
     "depth": 2
   },
   {
+    "id": 45248525,
+    "by": "kitd",
+    "timeISO": "2025-09-15T11:40:55.000Z",
+    "textPlain": "From the Guidelines [1]:What to Submit\nOn-Topic: Anything that good hackers would find interesting. That includes more than hacking and startups. If you had to reduce it to a sentence, the answer might be: anything that gratifies one's intellectual curiosity.Off-Topic: Most stories about politics, or crime, or sports, or celebrities, unless they're evidence of some interesting new phenomenon. Videos of pratfalls or disasters, or cute animal pictures. If they'd cover it on TV news, it's probably off-topic.This one seems reasonable.[1] https://news.ycombinator.com/newsguidelines.html",
+    "parent": 45248072,
+    "depth": 2
+  },
+  {
     "id": 45248308,
     "by": "JimDabell",
     "timeISO": "2025-09-15T11:07:07.000Z",
@@ -125,6 +165,14 @@
     "timeISO": "2025-09-15T05:46:45.000Z",
     "textPlain": "Page object is a useful model for writing maintainable tests",
     "parent": 45246470,
+    "depth": 2
+  },
+  {
+    "id": 45248464,
+    "by": "littlecranky67",
+    "timeISO": "2025-09-15T11:32:46.000Z",
+    "textPlain": "I remember, for a while Cypress had in its documentations actually a warning about POs and recommended not to use them. I got curious as to why (because I am a big fan of POs) and dug deeper - I think at some point on a sales slide I found the reason \"because POs have internal state\". I started then to write my POs without any internal state (which you don't need with Typescripts property getters) and have luckily scaled my app with dozens os POs and hundred of tests. Later they removed that recommendation and seem to accept that people like POs.",
+    "parent": 45246694,
     "depth": 2
   }
 ]
