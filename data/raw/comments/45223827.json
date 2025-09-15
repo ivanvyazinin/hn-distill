@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45250035,
-    "by": "keketi",
-    "timeISO": "2025-09-15T14:15:41.000Z",
-    "textPlain": "When you know you're going to be compressing files of particular structure, it's often very beneficial to tweak compression algorithm parameters. In one case when dealing with CSV data, I was able to find a LZMA2 compression level, dictionary size and compression mode that yielded a massive speedup, uses 1/100th the memory and surprisingly even yields better compression ratios, probably from the smaller dictionary size. That's in comparison to the library's default settings.",
+    "id": 45251544,
+    "by": "felixhandte",
+    "timeISO": "2025-09-15T16:18:35.000Z",
+    "textPlain": "This is because Zstd's long-distance matcher looks for matching sequences of 64 bytes [0]. Because long matching sequences of the data will likely have the newlines inserted in  different offsets in the run, this totally breaks Zstd's ability to find the long-distance match.Ultimately, Zstd is a byte-oriented compressor that doesn't understand the semantics of the data it compresses. Improvements are certainly possible if you can recognize and separate that framing to recover a contiguous view of the underlying data.[0] https://github.com/facebook/zstd/blob/v1.5.7/lib/compress/zs...(I am one of the maintainers of Zstd.)",
     "parent": 45223827,
     "depth": 1
   },
@@ -32,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45250035,
+    "by": "keketi",
+    "timeISO": "2025-09-15T14:15:41.000Z",
+    "textPlain": "When you know you're going to be compressing files of particular structure, it's often very beneficial to tweak compression algorithm parameters. In one case when dealing with CSV data, I was able to find a LZMA2 compression level, dictionary size and compression mode that yielded a massive speedup, uses 1/100th the memory and surprisingly even yields better compression ratios, probably from the smaller dictionary size. That's in comparison to the library's default settings.",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
     "id": 45248476,
     "by": "Aachen",
     "timeISO": "2025-09-15T11:34:39.000Z",
     "textPlain": "I've also noticed this. Zstandard doesn't see very common patternsFor me it was an increasing number (think of unix timestamps in a data logger that stores one entry per second, so you are just counting up until there's a gap in your data), in the article it's a fixed value every 60 bytesOf course, our brains are exceedingly good at finding patterns (to the point where we often find phantom ones). I was just expecting some basic checks like \"does it make sense to store the difference instead of the absolute value for some of these bytes here\". Seeing as the difference is 0 between every 60th byte in the submitted article, that should fix both our issuesBzip2 performed much better for me but it's also incredibly slow. If it were only the compressor, that might be fine for many applications, but also decompressing is an exercise in patience so I've moved to Zstandard at the standard thing to use",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
+    "id": 45251113,
+    "by": "dekhn",
+    "timeISO": "2025-09-15T15:46:12.000Z",
+    "textPlain": "I've explored alternatives to FASTA and FASTQ but in most cases I found that simply not storing sequence data is the best option of all, but if I have to do it, columnar formats with compression are usually the best alternative when considering all of (my) the constraints.",
     "parent": 45223827,
     "depth": 1
   },
@@ -48,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45248633,
-    "by": "FL33TW00D",
-    "timeISO": "2025-09-15T11:58:35.000Z",
-    "textPlain": "Looking forward to the relegation of FASTQ and FASTA to the depths of hell where they belong. Incredibly inefficient and poorly designed formats.",
-    "parent": 45223827,
-    "depth": 1
-  },
-  {
     "id": 45250047,
     "by": "totalperspectiv",
     "timeISO": "2025-09-15T14:17:15.000Z",
     "textPlain": "Removing the wrapping newline from the FASTA/FASTQ convention also dramatically improves parsing perf when you don't have to do as much lookahead to find record ends.",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
+    "id": 45248633,
+    "by": "FL33TW00D",
+    "timeISO": "2025-09-15T11:58:35.000Z",
+    "textPlain": "Looking forward to the relegation of FASTQ and FASTA to the depths of hell where they belong. Incredibly inefficient and poorly designed formats.",
     "parent": 45223827,
     "depth": 1
   },
@@ -72,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45248482,
-    "by": "semiinfinitely",
-    "timeISO": "2025-09-15T11:35:55.000Z",
-    "textPlain": "FASTA is a candidate for the stupidest file format ever invented and a testament to the massive gap in perceived vs actual programming ability of the average bioinformatician.",
+    "id": 45224255,
+    "by": "rini17",
+    "timeISO": "2025-09-12T17:07:15.000Z",
+    "textPlain": "This might in general be a good preprocessing step to check for punctuation repeating in fixed intervals and remove it, and restore after decompression.",
     "parent": 45223827,
     "depth": 1
   },
@@ -88,10 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45224255,
-    "by": "rini17",
-    "timeISO": "2025-09-12T17:07:15.000Z",
-    "textPlain": "This might in general be a good preprocessing step to check for punctuation repeating in fixed intervals and remove it, and restore after decompression.",
+    "id": 45250244,
+    "by": "lutusp",
+    "timeISO": "2025-09-15T14:38:40.000Z",
+    "textPlain": "> I speculated that this poor performance might be caused by the newline bytes (0x0A) punctuating every 60 characters of sequence, breaking the hashes used for long range pattern matching.If the linefeeds were treated as semantic characters and not allowed to break the hash size, you would get similar results without pre-filtering and post-filtering. It occurs to me that this strategy is so obvious that there must be some reason it won't work.",
+    "parent": 45223827,
+    "depth": 1
+  },
+  {
+    "id": 45248482,
+    "by": "semiinfinitely",
+    "timeISO": "2025-09-15T11:35:55.000Z",
+    "textPlain": "FASTA is a candidate for the stupidest file format ever invented and a testament to the massive gap in perceived vs actual programming ability of the average bioinformatician.",
     "parent": 45223827,
     "depth": 1
   },
@@ -100,14 +124,6 @@
     "by": "diimdeep",
     "timeISO": "2025-09-15T14:48:36.000Z",
     "textPlain": "What's current way to accessibly process my 23andme raw data ? It's been synthesized decade ago and SNPedia and Promethease seems abandoned, so what's alternative if there is, and if there is none how we arrived to this?",
-    "parent": 45223827,
-    "depth": 1
-  },
-  {
-    "id": 45250244,
-    "by": "lutusp",
-    "timeISO": "2025-09-15T14:38:40.000Z",
-    "textPlain": "> I speculated that this poor performance might be caused by the newline bytes (0x0A) punctuating every 60 characters of sequence, breaking the hashes used for long range pattern matching.If the linefeeds were treated as semantic characters and not allowed to break the hash size, you would get similar results without pre-filtering and post-filtering. It occurs to me that this strategy is so obvious that there must be some reason it won't work.",
     "parent": 45223827,
     "depth": 1
   },
@@ -168,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45248850,
-    "by": "jltsiren",
-    "timeISO": "2025-09-15T12:26:10.000Z",
-    "textPlain": "Basic text formats persist, because everyone supports them. Many tools have better file formats for internal purposes, but they are rarely flexible enough and robust enough for wider use. There are occasional proposals for better general purpose formats, but the people proposing them rarely agree which of the competing proposals should be adopted. And even if they manage to agree, they probably don't have the time and the money to make it actually happen.",
-    "parent": 45248462,
-    "depth": 2
-  },
-  {
     "id": 45249210,
     "by": "bede",
     "timeISO": "2025-09-15T13:05:44.000Z",
     "textPlain": "Yes, when doing anything intensive with lots of sequences it generally makes sense to liberate them from FASTA as early as possible and index them somehow. But as an interchange format FASTA seems quite sticky. I find the pervasiveness of fastq.gz particularly unfortunate with Gzip being as slow as it is.> Took me a while to realize that Grace Blackwell refers to a person and not an Nvidia chip :)I even confused myself about this while writing :-)",
+    "parent": 45248462,
+    "depth": 2
+  },
+  {
+    "id": 45248850,
+    "by": "jltsiren",
+    "timeISO": "2025-09-15T12:26:10.000Z",
+    "textPlain": "Basic text formats persist, because everyone supports them. Many tools have better file formats for internal purposes, but they are rarely flexible enough and robust enough for wider use. There are occasional proposals for better general purpose formats, but the people proposing them rarely agree which of the competing proposals should be adopted. And even if they manage to agree, they probably don't have the time and the money to make it actually happen.",
     "parent": 45248462,
     "depth": 2
   },
@@ -200,14 +216,6 @@
     "depth": 2
   },
   {
-    "id": 45249481,
-    "by": "jefftk",
-    "timeISO": "2025-09-15T13:28:27.000Z",
-    "textPlain": "How so? As long as you remove the hard wrapping and use compression aren't they in the same range as other options?(I currently store a lot of data as FASTQ, and smaller file sizes could save us a bunch of money.  But FASTQ + zstd is very good.)",
-    "parent": 45248633,
-    "depth": 2
-  },
-  {
     "id": 45250377,
     "by": "Gethsemane",
     "timeISO": "2025-09-15T14:49:19.000Z",
@@ -224,10 +232,26 @@
     "depth": 2
   },
   {
+    "id": 45249481,
+    "by": "jefftk",
+    "timeISO": "2025-09-15T13:28:27.000Z",
+    "textPlain": "How so? As long as you remove the hard wrapping and use compression aren't they in the same range as other options?(I currently store a lot of data as FASTQ, and smaller file sizes could save us a bunch of money.  But FASTQ + zstd is very good.)",
+    "parent": 45248633,
+    "depth": 2
+  },
+  {
     "id": 45250178,
     "by": "rurban",
     "timeISO": "2025-09-15T14:31:01.000Z",
     "textPlain": "Ha. it gets worse. \nSearch engines or blacklist processors often use gigantic url lists, which are stored as plain ASCII, which is then fed into a perfect hash generator, which accesses those url's unordered. I.e. they need to create a second ordering index to access the urllist. The perfect hashing guys are mathematicians and so they don't care because their definition of a mphf (minimal perfect hash function) is just a random ordering of unique indices, but they don't care to store the ordering also. So we have ASCII and no index.",
+    "parent": 45248530,
+    "depth": 2
+  },
+  {
+    "id": 45249000,
+    "by": "bede",
+    "timeISO": "2025-09-15T12:45:18.000Z",
+    "textPlain": "BAM format is widely used but assemblies still tend to be generated and exchanged in FASTA text. BAM is quite a big spec and I think it's fair to say that none of the simpler binary equivalents to FASTA and FASTQ have caught on yet (XKCD competing standards etc.)e.g. https://github.com/ArcInstitute/binseq",
     "parent": 45248530,
     "depth": 2
   },
@@ -248,11 +272,19 @@
     "depth": 2
   },
   {
-    "id": 45249000,
+    "id": 45248074,
+    "by": "vintermann",
+    "timeISO": "2025-09-15T10:19:50.000Z",
+    "textPlain": "That turns in into specialized compression, which DNA already has plenty of. Many forms of specialized compression even allow string-related queries directly on the compressed data.",
+    "parent": 45224255,
+    "depth": 2
+  },
+  {
+    "id": 45230909,
     "by": "bede",
-    "timeISO": "2025-09-15T12:45:18.000Z",
-    "textPlain": "BAM format is widely used but assemblies still tend to be generated and exchanged in FASTA text. BAM is quite a big spec and I think it's fair to say that none of the simpler binary equivalents to FASTA and FASTQ have caught on yet (XKCD competing standards etc.)e.g. https://github.com/ArcInstitute/binseq",
-    "parent": 45248530,
+    "timeISO": "2025-09-13T10:26:39.000Z",
+    "textPlain": "Yes, it sounds like 7-Zip/LZMA can do this using custom filters, among other more exotic (and slow) statistical compression approaches.",
+    "parent": 45224255,
     "depth": 2
   },
   {
@@ -288,19 +320,11 @@
     "depth": 2
   },
   {
-    "id": 45248074,
-    "by": "vintermann",
-    "timeISO": "2025-09-15T10:19:50.000Z",
-    "textPlain": "That turns in into specialized compression, which DNA already has plenty of. Many forms of specialized compression even allow string-related queries directly on the compressed data.",
-    "parent": 45224255,
-    "depth": 2
-  },
-  {
-    "id": 45230909,
-    "by": "bede",
-    "timeISO": "2025-09-13T10:26:39.000Z",
-    "textPlain": "Yes, it sounds like 7-Zip/LZMA can do this using custom filters, among other more exotic (and slow) statistical compression approaches.",
-    "parent": 45224255,
+    "id": 45250819,
+    "by": "fwip",
+    "timeISO": "2025-09-15T15:26:24.000Z",
+    "textPlain": "It might be the stupidest, but stupid in the sense of \"the simplest thing that could possibly work.\"When FASTA was invented, Sanger sequencing reads would be around a thousand bases in length. Even back then, disk space wasn't so precious that you couldn't spend several kilobytes on the results of your experiment. Plus, being able to view your results with `more` is a useful feature when you're working with data of that size.And, despite its simplicity, it has worked for forty years.",
+    "parent": 45248482,
     "depth": 2
   },
   {
