@@ -80,9 +80,22 @@ function buildPostSystemInstruction(): string {
 
 function buildCommentsLanguageHeader(): string {
   if (env.SUMMARY_LANG === "en") {
-    return "Language: en\nSummarize the discussion in 5-7 sentences or fewer. Use bullet points.";
+    return (
+      "Language: en\n" +
+      // Style guardrails to avoid chatty prefaces
+      "Summarize the discussion as 5–9 concise bullet points.\n" +
+      "Output must be a markdown bullet list only, starting immediately with '- '.\n" +
+      "Do not add any introductions, headings, prefaces, phrases like 'Summary:', 'Key takeaways:', or closing sentences.\n" +
+      "No extra text before or after the list."
+    );
   }
-  return "Language: ru\nСделай саммари обсуждения в 5-7 предложениях или меньше. Твой ответ должен быть на русском языке. Используй bullet points.";
+  return (
+    "Language: ru\n" +
+    "Суммаризируй обсуждение в 5–9 лаконичных буллетах.\n" +
+    "Выводи только маркированный список в Markdown, сразу начинай с '- '.\n" +
+    "Без вступлений, заголовков и фраз вида 'Саммари:', 'Основные тезисы обсуждения:', 'Вот саммари обсуждения:', и без заключений.\n" +
+    "Никакого дополнительного текста до или после списка."
+  );
 }
 
 export async function buildPostPrompt(story: NormalizedStory, articleMd?: string): Promise<string> {
