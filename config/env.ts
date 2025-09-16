@@ -30,6 +30,23 @@ const EnvironmentSchema = z.object({
 
   SITE: z.string().optional(),
   BASE: z.string().optional(),
+
+  // Summarization workload controls
+  // Hard cap: how many stories to actually summarize per run (prioritized newest and missing/outdated first)
+  SUMMARIZE_MAX_STORIES_PER_RUN: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .default(500),
+  // Cooldown in minutes: if a story had its summaries generated within this window, skip re-summarizing even if inputs changed
+  SUMMARIZE_COOLDOWN_MINUTES: z.coerce.number().int().min(0).max(24 * 60).default(0),
+
+  // Posts: skip regeneration entirely if a post summary already exists
+  POST_SUMMARY_ONLY_IF_MISSING: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
 });
 
 export const env = EnvironmentSchema.parse(process.env);

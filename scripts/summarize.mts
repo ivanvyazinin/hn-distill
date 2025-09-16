@@ -293,11 +293,25 @@ export async function getOrFetchArticleMarkdown(
   }
 }
 
+// Local-only variant: do not hit network; used during pre-selection phase
+async function getCachedArticleMarkdownOnly(story: NormalizedStory): Promise<string | undefined> {
+  if (!story.url) return undefined;
+  const path = pathFor.articleMd(story.id);
+  const cached = await readTextSafe(path);
+  return cached?.trim() ? cached : undefined;
+}
+
 async function processPostSummary(services: Services, story: NormalizedStory, postPath: string): Promise<void> {
+  const existingPostSummary = await readJsonSafeOr(postPath, PostSummarySchema);
+
+  if (env.POST_SUMMARY_ONLY_IF_MISSING && existingPostSummary) {
+    log.debug(LOG_NAMESPACE_POST, "Post summary exists; skipping due to ONLY_IF_MISSING", { id: story.id });
+    return;
+  }
+
   const articleMd = await getOrFetchArticleMarkdown(services, story);
   const postArticleSlice = await buildPostPrompt(story, articleMd);
   const postInputHash = hashString(`${env.SUMMARY_LANG}|${postArticleSlice}`);
-  const existingPostSummary = await readJsonSafeOr(postPath, PostSummarySchema);
 
   if (existingPostSummary?.inputHash === postInputHash) {
     log.debug(LOG_NAMESPACE_POST, "Post summary up-to-date; skipping", { id: story.id });
@@ -463,7 +477,105 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
     return;
   }
 
+  // Pre-select candidates to limit token burn per run
+  const cooldownMins = Math.max(0, e.SUMMARIZE_COOLDOWN_MINUTES ?? 0);
+  const maxPerRun = Math.max(1, e.SUMMARIZE_MAX_STORIES_PER_RUN ?? 500);
+
+  type Candidate = {
+    id: number;
+    priority: number; // higher first
+    timeISO?: string;
+  };
+
+  const candidates: Candidate[] = [];
+
   for (const id of index.storyIds) {
+    try {
+      // Load minimal story + summaries
+      const story = await readJsonSafeOr<NormalizedStory>(
+        pathFor.rawItem(id),
+        NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
+      );
+      if (!story) continue;
+
+      const [existingPost, existingComments] = await Promise.all([
+        readJsonSafeOr(pathFor.postSummary(id), PostSummarySchema.nullable()),
+        readJsonSafeOr(pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
+      ]);
+
+      const now = Date.now();
+      const recentEnough = (iso?: string) => {
+        if (!iso || cooldownMins <= 0) return false;
+        const ts = Date.parse(iso);
+        return Number.isFinite(ts) && now - ts < cooldownMins * 60_000;
+      };
+
+      // Post: compute input hash only if cached article exists locally
+      let postChanged = false;
+      if (!existingPost) {
+        postChanged = true; // missing summary
+      } else if (e.POST_SUMMARY_ONLY_IF_MISSING) {
+        postChanged = false;
+      } else if (!recentEnough(existingPost.createdISO)) {
+        const cachedMd = await getCachedArticleMarkdownOnly(story);
+        if (cachedMd) {
+          const slice = (await buildPostPrompt(story, cachedMd)) ?? "";
+          const hash = hashString(`${e.SUMMARY_LANG}|${slice}`);
+          postChanged = existingPost.inputHash !== hash;
+        }
+      }
+
+      // Comments: compute prompt hash
+      let commentsChanged = false;
+      if (!existingComments) {
+        commentsChanged = true; // missing summary
+      } else if (!recentEnough(existingComments.createdISO)) {
+        const comments = await readJsonSafeOr<NormalizedComment[]>(
+          pathFor.rawComments(id),
+          NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
+          []
+        );
+        const { prompt } = await buildCommentsPrompt(comments);
+        const hash = hashString(prompt);
+        commentsChanged = existingComments.inputHash !== hash;
+      }
+
+      const priority = (postChanged ? 1 : 0) + (commentsChanged ? 2 : 0);
+      if (priority > 0) {
+        candidates.push({ id, priority, timeISO: story.timeISO });
+      }
+    } catch (error) {
+      log.warn("summarize", "Preselect failed; will attempt full processing", { id, error: String(error) });
+      candidates.push({ id, priority: 1 });
+    }
+  }
+
+  // Sort: higher priority first; then newest by timeISO desc; then id desc
+  candidates.sort((a, b) => {
+    if (b.priority !== a.priority) return b.priority - a.priority;
+    const ta = a.timeISO ? Date.parse(a.timeISO) : Number.NaN;
+    const tb = b.timeISO ? Date.parse(b.timeISO) : Number.NaN;
+    const aHas = Number.isFinite(ta);
+    const bHas = Number.isFinite(tb);
+    if (aHas && bHas) return tb - ta;
+    if (aHas && !bHas) return -1;
+    if (!aHas && bHas) return 1;
+    return b.id - a.id;
+  });
+
+  const selected = candidates.slice(0, maxPerRun);
+  const skipped = Math.max(0, candidates.length - selected.length);
+  if (skipped > 0) {
+    log.info("summarize", "Cap reached; skipping some stories this run", {
+      candidates: candidates.length,
+      selected: selected.length,
+      skipped,
+      maxPerRun,
+      cooldownMins,
+    });
+  }
+
+  for (const { id } of selected) {
     log.info("summarize", "Processing story", { id });
     try {
       await processSingleStory(services, id);
