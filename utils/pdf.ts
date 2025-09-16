@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer';
 
-import Pdf from 'pdf-parse';
+import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 import { log } from '@utils/log';
 
@@ -27,7 +27,7 @@ export async function pdfToText(bytes: Uint8Array, opts?: PdfToTextOptions): Pro
 
   try {
     // Use pdf-parse which is designed for Node.js
-    const data = await Pdf(Buffer.from(bytes));
+    const data = await pdfParse(Buffer.from(bytes));
     const { text: initialText, numpages } = data;
     let text = initialText;
 
