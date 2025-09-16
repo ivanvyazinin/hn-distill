@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 45265235,
+    "by": "groos",
+    "timeISO": "2025-09-16T17:31:48.000Z",
+    "textPlain": "I always see RK(Fe) mentioned but almost never Bulirsch-Stoer (https://en.wikipedia.org/wiki/Bulirsch%E2%80%93Stoer_algorit...). Some years ago, I was looking to do high precision orbital motion (involving several bodies) simulations, and came across this in Numerical Recipes for C. I don't pretend to understand how B-S works, but it produced amazing precision with adaptive step size adjustment. For highly chaotic systems, it held out far longer than RK.",
+    "parent": 45262151,
+    "depth": 1
+  },
+  {
     "id": 45264007,
     "by": "stephencanon",
     "timeISO": "2025-09-16T15:58:06.000Z",
     "textPlain": "The orbital example where BDF loses momentum is really about the difference between a second-order method (BDF2) and a fourth-order method (RK), rather than explicit vs implicit (but: no method with order > 2 can be A-stable; since the whole point of implict methods is to achieve stability, the higher order BDF formulas are relatively niche).There are whole families of _symplectic_ integrators that conserve physical quantities and are much more suitable for this sort of problem than either option discussed. Even a low-order symplectic method will conserve momentum on an example like this.",
+    "parent": 45262151,
+    "depth": 1
+  },
+  {
+    "id": 45265437,
+    "by": "inasio",
+    "timeISO": "2025-09-16T17:47:45.000Z",
+    "textPlain": "I was expecting a mention of symplectic ODE solvers, although perhaps that was beyond the scope of the blog post. For Hamiltonian ODEs, you can design methods that explicitly preserve energy, outperforming more generic methods.",
     "parent": 45262151,
     "depth": 1
   },
@@ -40,6 +56,22 @@
     "depth": 2
   },
   {
+    "id": 45265456,
+    "by": "adgjlsfhk1",
+    "timeISO": "2025-09-16T17:49:44.000Z",
+    "textPlain": "Unfortunately the Numerical Recipies book is known for being pretty horrible in general for ODEs. For chaotic systems at high tolerances, you likely want to be using Vern9 which is a highly efficient 9th order RK solver.",
+    "parent": 45265235,
+    "depth": 2
+  },
+  {
+    "id": 45265730,
+    "by": "ChrisRackauckas",
+    "timeISO": "2025-09-16T18:11:39.000Z",
+    "textPlain": "B-S is just a (bad) explicit Runge-Kutta method. You can see this formally since if you take any order of the B-S method, you can write out its computation as a Runge-Kutta tableau. If you do this, you'll see it ends up being an explict RK method that has much higher f evaluations to achieve the leading truncation error coefficients and order that the leading RK methods get. For example, 9th order B-S  uses IIRC about 2-3 times as many f evaluations as Vern9, while Vern9 gets like 3 orders of magnitude less error (on average w.r.t. LTE measurements). If you're curious about details of optimizing RK methods, check out https://www.youtube.com/watch?v=s_t6dIKjUUc.That isn't to say B-S methods aren't worth anything. The interesting thing is that they are a way to generate arbitrary order RK methods (even if no specific order is efficient, it gives a general scheme) and these RK methods have a lot of parallelism that can be exploited. We really worked through this a few years ago building parallelized implementations. The results are here: https://ieeexplore.ieee.org/abstract/document/9926357/ (free version https://arxiv.org/abs/2207.08135) and are part of the DifferentialEquations.jl library. The results are a bit mixed though, which is why they aren't used as the defaults. For non-stiff equations, even with parallelism it's hard to ever get them to match the best explicit RK methods, they just aren't efficient enough.For stiff equations, if you are in the regime where BLAS does not multithread yet (basically <256 ODEs, so 256x256 LU factorizations but this is BLAS/CPU-dependent), then you can use parallelization in the form of the implicit extrapolation methods in order to factorize different matrices at the same time. Because you're doing more work than something like an optimized Rosenbrock method, you don't get strictly better, but using this to get a high order method that exploits parallelism where other methods end up being serial, you can get a good 2x-4x if you",
+    "parent": 45265235,
+    "depth": 2
+  },
+  {
     "id": 45264655,
     "by": "Certhas",
     "timeISO": "2025-09-16T16:45:33.000Z",
@@ -61,6 +93,22 @@
     "timeISO": "2025-09-16T16:26:42.000Z",
     "textPlain": "leapfrog!",
     "parent": 45264007,
+    "depth": 2
+  },
+  {
+    "id": 45265567,
+    "by": "ChrisRackauckas",
+    "timeISO": "2025-09-16T17:58:23.000Z",
+    "textPlain": "Yeah, that's a separate post https://scicomp.stackexchange.com/questions/29149/what-does-.... I wanted to keep this post as simple as possible. If you could show cases where explicit Runge-Kutta methods outperform (by some metrics) implicit Runge-Kutta methods, then it leads to a whole understanding of \"what matters is what you're trying to measure\". And then yes, symplectic integrators are for long time integrations (explicit RK methods will how lower error for shorter time, so its specifically longer time integrations on symplectic manifolds, though there are implicit RK methods which are symplectic but ... tradeoff tradeoff)",
+    "parent": 45265437,
+    "depth": 2
+  },
+  {
+    "id": 45265600,
+    "by": "ChrisRackauckas",
+    "timeISO": "2025-09-16T18:00:40.000Z",
+    "textPlain": "The whole point of the article is that \"methods are considered more robust and practical if they have larger stability regions\" isn't (or at least shouldn't be) necessarily true :-/.",
+    "parent": 45263167,
     "depth": 2
   },
   {
