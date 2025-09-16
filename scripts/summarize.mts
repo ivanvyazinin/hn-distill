@@ -16,12 +16,14 @@ import {
   type NormalizedStory,
   type PostSummary,
 } from "@config/schemas";
+import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
 import { ensureDir, readTextSafe, writeTextFile } from "@utils/fs";
 import { htmlToMd } from "@utils/html-to-md";
 import { HttpClient } from "@utils/http-client";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
+import { pdfToText } from "@utils/pdf";
 import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 
 import type { z } from "zod";
@@ -48,8 +50,36 @@ export function makeServices(e: Env): Services {
   const openrouter = new OpenRouter(http, e.OPENROUTER_API_KEY ?? "", e.OPENROUTER_MODEL);
 
   async function fetchArticleMarkdown(url: string): Promise<string> {
-    const html = await http.text(url);
-    return htmlToMd(html);
+    const { data, contentType } = await http.bytes(url);
+    const head = data.subarray(0, 8);
+
+    if (looksLikePdf({ url, contentType: contentType ?? undefined, bytesHead: head })) {
+      log.info(LOG_NAMESPACE_ARTICLE, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
+      try {
+        const text = await pdfToText(data, {
+          maxPages: e.PDF_MAX_PAGES,
+          softMaxBytes: e.PDF_MAX_BYTES
+        });
+        log.debug(LOG_NAMESPACE_ARTICLE, "PDF parsed successfully", { url, textLength: text.length });
+        return text;
+      } catch (error) {
+        log.error(LOG_NAMESPACE_ARTICLE, "PDF parse failed", { url, error: String(error) });
+        return '';
+      }
+    } else if (looksLikeHtml(contentType ?? undefined)) {
+      log.debug(LOG_NAMESPACE_ARTICLE, "Processing HTML content", { url, contentType });
+      const html = decodeText(data, contentType);
+      return htmlToMd(html);
+    } else {
+      log.debug(LOG_NAMESPACE_ARTICLE, "Processing as plain text", { url, contentType });
+      try {
+        const text = decodeText(data, contentType);
+        return text.trim();
+      } catch (error) {
+        log.warn(LOG_NAMESPACE_ARTICLE, "Text decode failed", { url, contentType, error: String(error) });
+        return '';
+      }
+    }
   }
 
   log.debug("summarize/services", "initialized", {
@@ -281,23 +311,23 @@ export async function getOrFetchArticleMarkdown(
   const path = pathFor.articleMd(story.id);
   const cached = await readTextSafe(path);
   if (cached?.trim()) {
-    log.debug(LOG_NAMESPACE_ARTICLE, "Using cached markdown", { id: story.id, path });
+    log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
     return cached;
   }
   try {
     await ensureDir(dirname(path));
-    log.info(LOG_NAMESPACE_ARTICLE, "Fetching article and converting via Turndown", { id: story.id, url: story.url });
+    log.info(LOG_NAMESPACE_ARTICLE, "Fetching article and processing content", { id: story.id, url: story.url });
     const md = await services.fetchArticleMarkdown(story.url);
     const text = md.trim();
     if (!text) {
-      log.warn(LOG_NAMESPACE_ARTICLE, "Fetched markdown is empty", { id: story.id, url: story.url });
+      log.warn(LOG_NAMESPACE_ARTICLE, "Fetched content is empty", { id: story.id, url: story.url });
       return undefined;
     }
     await writeTextFile(path, text);
-    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote markdown cache", { id: story.id, path });
+    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", { id: story.id, path });
     return text;
   } catch (error) {
-    log.error(LOG_NAMESPACE_ARTICLE, "Failed to fetch markdown", {
+    log.error(LOG_NAMESPACE_ARTICLE, "Failed to fetch content", {
       id: story.id,
       url: story.url,
       error: String(error),

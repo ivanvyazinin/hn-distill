@@ -47,6 +47,10 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(false),
+
+  // PDF parsing limits
+  PDF_MAX_PAGES: z.coerce.number().int().min(1).max(200).default(12),
+  PDF_MAX_BYTES: z.coerce.number().int().min(100_000).max(50_000_000).default(10_000_000),
 });
 
 export const env = EnvironmentSchema.parse(process.env);

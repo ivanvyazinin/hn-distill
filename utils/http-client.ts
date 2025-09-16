@@ -17,6 +17,8 @@ export class HttpError extends Error {
   }
 }
 
+const EXHAUSTED_RETRIES_MESSAGE = "Exhausted retries";
+
 async function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -37,6 +39,8 @@ type SafeRequestInit = Omit<RequestInit, "body" | "headers" | "signal"> & {
   headers?: HeadersLike;
   retryOnStatuses?: number[];
 };
+
+export type BytesResponse = { data: Uint8Array; contentType?: string | undefined; contentLength?: number | undefined };
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -162,7 +166,7 @@ export class HttpClient {
       }
       return result;
     }
-    throw new HttpError(url, undefined, "Exhausted retries");
+    throw new HttpError(url, undefined, EXHAUSTED_RETRIES_MESSAGE);
   }
 
   async text(url: string, init?: SafeRequestInit): Promise<string> {
@@ -194,6 +198,45 @@ export class HttpClient {
       }
       return result;
     }
-    throw new HttpError(url, undefined, "Exhausted retries");
+    throw new HttpError(url, undefined, EXHAUSTED_RETRIES_MESSAGE);
+  }
+
+  async bytes(url: string, init?: SafeRequestInit): Promise<BytesResponse> {
+    const retryStatuses = new Set([...(init?.retryOnStatuses ?? []), ...this.defaults.retryOnStatuses]);
+    const { retries, timeoutMs, baseBackoffMs } = this.defaults;
+
+    const requestInit = {
+      ...init,
+      headers: {
+        ...this.baseHeaders,
+        ...(init?.headers ?? {}),
+      },
+    };
+
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const result = await this.processAttempt(
+        url,
+        requestInit,
+        async (res) => {
+          const ab = await res.arrayBuffer();
+          return {
+            data: new Uint8Array(ab),
+            contentType: res.headers.get('content-type') ?? undefined,
+            contentLength: Number(res.headers.get('content-length') ?? Number.NaN) || undefined
+          };
+        },
+        retryStatuses,
+        attempt,
+        retries,
+        timeoutMs,
+        baseBackoffMs
+      );
+
+      if (result === "retry") {
+        continue;
+      }
+      return result;
+    }
+    throw new HttpError(url, undefined, EXHAUSTED_RETRIES_MESSAGE);
   }
 }

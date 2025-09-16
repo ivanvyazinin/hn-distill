@@ -58,7 +58,7 @@ describe("Aggregation & grouping", () => {
       expect(extractDomain("https://example.com/y")).toBe("example.com");
       expect(() => extractDomain("not-a-valid-url")).not.toThrow();
       expect(extractDomain("not-a-valid-url")).toBeUndefined();
-      expect(extractDomain(undefined as any)).toBeUndefined();
+      expect(extractDomain(undefined as unknown as string)).toBeUndefined();
     });
   });
 
