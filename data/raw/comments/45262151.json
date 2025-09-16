@@ -1,5 +1,21 @@
 [
   {
+    "id": 45263846,
+    "by": "timefirstgrav",
+    "timeISO": "2025-09-16T15:46:43.000Z",
+    "textPlain": "This aligns with what I've observed in computational physics.Trying to handle instantaneous constraints and propagating modes with a single timestepper is often suboptimal.I developed a framework that systematically separates these components: using direct elliptic solvers for constraints and explicit methods for flux evolution. The resulting algorithms are both more stable and more efficient than unified implicit approaches.The key insight is that many systems (EM, GR, fluids, quantum mechanics) share the same pattern:\n- An elliptic constraint equation (solved directly, not timestepped)\n- A continuity law for charge/mass/probability flux\n- Wave-like degrees of freedom (handled with explicit methods)Witgh this structure, you can avoid the stiffness issues entirely rather than trying to power through them with implicit methods.Paper: https://zenodo.org/records/16968225",
+    "parent": 45262151,
+    "depth": 1
+  },
+  {
+    "id": 45264007,
+    "by": "stephencanon",
+    "timeISO": "2025-09-16T15:58:06.000Z",
+    "textPlain": "The orbital example where BDF loses momentum is really about the difference between a second-order method (BDF2) and a fourth-order method (RK), rather than explicit vs implicit (but: no method with order > 2 can be A-stable; since the whole point of implict methods is to achieve stability, the higher order BDF formulas are relatively niche).There are whole families of _symplectic_ integrators that conserve physical quantities and are much more suitable for this sort of problem than either option discussed. Even a low-order symplectic method will conserve momentum on an example like this.",
+    "parent": 45262151,
+    "depth": 1
+  },
+  {
     "id": 45263167,
     "by": "abhinavsns",
     "timeISO": "2025-09-16T14:55:53.000Z",
@@ -14,5 +30,29 @@
     "textPlain": "> Those kinds of models aren’t really realistic? Energy goes to infinity, angular momentum goes to infinity, the chemical concentration goes to infinity: whatever you’re modeling just goes crazy! If you’re in this scenario, then your model is probably wrong. Or if the model isn’t wrong, the numerical methods aren’t very good anyways.Uh... that's not how it works. The whole point of making a model and using a simulator is you don't already know what's going to happen. If your system is going to blow up, your model needs to tell you that. If it does, that's good, because it caught your mistake. And if it doesn't, it's obviously wrong, possibly in a deadly way.",
     "parent": 45262151,
     "depth": 1
+  },
+  {
+    "id": 45264270,
+    "by": "tomrod",
+    "timeISO": "2025-09-16T16:17:00.000Z",
+    "textPlain": "> Trying to handle instantaneous constraints and propagating modes with a single timestepper is often suboptimal.When I read statements like this, I wonder if this is related to optimal policy conditions required for infinitely lived Bellman equations to have global and per-period policies in alignment",
+    "parent": 45263846,
+    "depth": 2
+  },
+  {
+    "id": 45264387,
+    "by": "ekelsen",
+    "timeISO": "2025-09-16T16:26:42.000Z",
+    "textPlain": "leapfrog!",
+    "parent": 45264007,
+    "depth": 2
+  },
+  {
+    "id": 45263803,
+    "by": "tonyarkles",
+    "timeISO": "2025-09-16T15:43:38.000Z",
+    "textPlain": "Having worked on non-linear simulators/ODE solvers off and on for a decade, I agree and disagree with what you're saying.I agree with you that that is 100% the point: you don't already know what's going to happen and you're doing modelling and simulation because it's cheaper/safer to do simulation than it is to build and test the real physical system. Finding failure modes, unexpected instability and oscillations, code bugs, etc. is an absolutely fantastic output from simulations.Where I disagree: you don't already know what's going to happen, but you DO know generally what is going to happen. If you don't have, at a minimum, an intuition for what's going to happen, you are going to have a very hard time distinguishing between \"numerical instability with the simulation approach taken\", \"a bug in the simulation engine\", \"a model that isn't accurately capturing the physical phenomena\", and \"an unexpected instability in an otherwise reasonably-accurate model\".For the first really challenging simulation engine that I worked on early on in my career I was fortunate: the simulation itself needed to be accurate to 8-9 sig figs with nanosecond resolution, but I also had access to incredibly precise state snapshots from the real system (which was already built and on orbit) every 15 minutes. As I was developing the simulator, I was getting \"reasonable\" values out, but when I started comparing the results against the ground-truth snapshots I could quickly see \"oh, it's out by 10 meters after 30 minutes of timesteps... there's got to be either a problem with the model or a numerical stability problem\". Without that ground truth data, even just identifying that there were missing terms in the model would have been exceptionally challenging. In the end, the final term that needed to get added to the model was Solar Radiation Pressure; I wasn't taking into account the momentum transfer from the photons striking the SV and that was causing just enough error in the simulation that ",
+    "parent": 45263350,
+    "depth": 2
   }
 ]
