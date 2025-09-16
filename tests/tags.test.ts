@@ -84,7 +84,7 @@ describe("Tags extraction & canonicalization", () => {
     expect(mockOr.chat).toHaveBeenCalledTimes(1);
   });
 
-  test("summarizeTagsStructured hard-bad JSON → error surfaced (negative)", async () => {
+  test("summarizeTagsStructured hard-bad JSON → error surfaced (negative)", () => {
     const mockOr = {
       chatStructured: mock(async () => {
         throw new Error("Structured call failed");
@@ -92,7 +92,7 @@ describe("Tags extraction & canonicalization", () => {
       chat: mock(async () => "not json"),
     } as unknown as OpenRouter;
 
-    await expect(summarizeTagsStructured(mockOr, "prompt", env)).rejects.toThrow(
+    return expect(summarizeTagsStructured(mockOr, "prompt", env)).rejects.toThrow(
       "Failed to parse fallback JSON from LLM"
     );
   });

@@ -248,7 +248,7 @@ export async function summarizePost(
   services: Services,
   story: NormalizedStory,
   articleSlice: string
-): Promise<Pick<PostSummary, "id" | "lang" | "summary" | "model">> {
+): Promise<Pick<PostSummary, "id" | "lang" | "model" | "summary">> {
   const messages = buildPostChatMessages(articleSlice);
   const { content, modelUsed } = await callLLMWithMessages(services, messages);
   return { id: story.id, lang: env.SUMMARY_LANG, summary: content, model: modelUsed };
@@ -259,7 +259,7 @@ export async function summarizeComments(
   storyId: number,
   prompt: string,
   sampleIds: number[] = []
-): Promise<Pick<CommentsSummary, "id" | "lang" | "sampleComments" | "summary" | "model">> {
+): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
   const { content, modelUsed } = await callLLM(services, prompt);
   return {
     id: storyId,
@@ -308,7 +308,9 @@ export async function getOrFetchArticleMarkdown(
 
 // Local-only variant: do not hit network; used during pre-selection phase
 async function getCachedArticleMarkdownOnly(story: NormalizedStory): Promise<string | undefined> {
-  if (!story.url) return undefined;
+  if (!story.url) {
+    return undefined;
+  }
   const path = pathFor.articleMd(story.id);
   const cached = await readTextSafe(path);
   return cached?.trim() ? cached : undefined;
@@ -484,15 +486,21 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
     storyIds: [],
   });
 
-  const { OPENROUTER_API_KEY } = e;
+  const {
+    OPENROUTER_API_KEY,
+    SUMMARIZE_COOLDOWN_MINUTES,
+    SUMMARIZE_MAX_STORIES_PER_RUN,
+    POST_SUMMARY_ONLY_IF_MISSING,
+    SUMMARY_LANG,
+  } = e;
   if (!OPENROUTER_API_KEY) {
     log.warn("summarize", "OPENROUTER_API_KEY missing; skipping summarize step");
     return;
   }
 
   // Pre-select candidates to limit token burn per run
-  const cooldownMins = Math.max(0, e.SUMMARIZE_COOLDOWN_MINUTES ?? 0);
-  const maxPerRun = Math.max(1, e.SUMMARIZE_MAX_STORIES_PER_RUN ?? 500);
+  const cooldownMins = Math.max(0, SUMMARIZE_COOLDOWN_MINUTES);
+  const maxPerRun = Math.max(1, SUMMARIZE_MAX_STORIES_PER_RUN);
 
   type Candidate = {
     id: number;
@@ -509,7 +517,9 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
         pathFor.rawItem(id),
         NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
       );
-      if (!story) continue;
+      if (!story) {
+        continue;
+      }
 
       const [existingPost, existingComments] = await Promise.all([
         readJsonSafeOr(pathFor.postSummary(id), PostSummarySchema.nullable()),
@@ -517,8 +527,10 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
       ]);
 
       const now = Date.now();
-      const recentEnough = (iso?: string) => {
-        if (!iso || cooldownMins <= 0) return false;
+      const recentEnough = (iso?: string): boolean => {
+        if (!iso || cooldownMins <= 0) {
+          return false;
+        }
         const ts = Date.parse(iso);
         return Number.isFinite(ts) && now - ts < cooldownMins * 60_000;
       };
@@ -527,13 +539,13 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
       let postChanged = false;
       if (!existingPost) {
         postChanged = true; // missing summary
-      } else if (e.POST_SUMMARY_ONLY_IF_MISSING) {
+      } else if (POST_SUMMARY_ONLY_IF_MISSING) {
         postChanged = false;
       } else if (!recentEnough(existingPost.createdISO)) {
         const cachedMd = await getCachedArticleMarkdownOnly(story);
         if (cachedMd) {
-          const slice = (await buildPostPrompt(story, cachedMd)) ?? "";
-          const hash = hashString(`${e.SUMMARY_LANG}|${slice}`);
+          const slice = await buildPostPrompt(story, cachedMd);
+          const hash = hashString(`${SUMMARY_LANG}|${slice}`);
           postChanged = existingPost.inputHash !== hash;
         }
       }
@@ -565,14 +577,22 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
 
   // Sort: higher priority first; then newest by timeISO desc; then id desc
   candidates.sort((a, b) => {
-    if (b.priority !== a.priority) return b.priority - a.priority;
+    if (b.priority !== a.priority) {
+      return b.priority - a.priority;
+    }
     const ta = a.timeISO ? Date.parse(a.timeISO) : Number.NaN;
     const tb = b.timeISO ? Date.parse(b.timeISO) : Number.NaN;
     const aHas = Number.isFinite(ta);
     const bHas = Number.isFinite(tb);
-    if (aHas && bHas) return tb - ta;
-    if (aHas && !bHas) return -1;
-    if (!aHas && bHas) return 1;
+    if (aHas && bHas) {
+      return tb - ta;
+    }
+    if (aHas && !bHas) {
+      return -1;
+    }
+    if (!aHas && bHas) {
+      return 1;
+    }
     return b.id - a.id;
   });
 

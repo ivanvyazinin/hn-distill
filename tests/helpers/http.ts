@@ -1,3 +1,4 @@
+/* eslint-disable security/detect-non-literal-regexp */
 import type { HttpClient } from "@utils/http-client";
 
 /**
@@ -6,23 +7,25 @@ import type { HttpClient } from "@utils/http-client";
  *   makeMockHttp({ "/\\/topstories\\.json$/": [1,2,3] })
  *   makeMockHttp({ "/^https:\\/\\/example\\.com\\/?$/u": "<h1>Hello</h1>" })
  */
-export function makeMockHttp(routes: Record<string, unknown>) {
-  let calls = 0;
-
-  function toRegExp(key: string): RegExp {
-    // Accept "/pattern/" or "/pattern/flags"
-    const m = /^\/(.*)\/([a-z]*)$/i.exec(key);
-    if (m) {
-      const [, source, flags] = m;
-      try {
-        return new RegExp(source ?? "", flags ?? "");
-      } catch {
-        return new RegExp(source ?? "");
-      }
+function toRegExp(key: string): RegExp {
+  // Accept "/pattern/" or "/pattern/flags"
+  const m = /^\/(?<source>.*)\/(?<flags>[a-z]*)$/iu.exec(key);
+  if (m?.groups) {
+    const source = m.groups["source"] ?? "";
+    const flagsRaw = m.groups["flags"] ?? "";
+    const flags = flagsRaw.includes("u") ? flagsRaw : `${flagsRaw}u`;
+    try {
+      return new RegExp(source, flags);
+    } catch {
+      return new RegExp(source, "u");
     }
-    // Fallback: treat the whole key as the source
-    return new RegExp(key);
   }
+  // Fallback: treat the whole key as the source
+  return new RegExp(key, "u");
+}
+
+export function makeMockHttp(routes: Record<string, unknown>): { http: HttpClient; readonly calls: number } {
+  let calls = 0;
 
   const http = {
     json: async <T>(url: string): Promise<T | null> => {

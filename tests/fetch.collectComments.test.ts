@@ -86,7 +86,10 @@ describe("scripts/fetch-hn collectComments", () => {
       });
 
       expect(comments.length).toBe(1);
-      const c = comments[0]!;
+      const c = comments[0];
+      if (!c) {
+        throw new Error("expected a comment");
+      }
       expect(c.textPlain).not.toContain("<p>");
       expect(c.textPlain.length).toBe(2000);
     });

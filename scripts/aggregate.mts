@@ -252,14 +252,16 @@ async function main(): Promise<void> {
       score: number;
     };
 
-    const searchRows: SearchRow[] = payload.items.map((it) => ({
-      id: it.id,
-      title: it.title,
-      tags: Array.isArray(it.tags) ? it.tags : [],
-      domain: it.domain,
-      timeISO: it.timeISO,
-      score: typeof it.score === "number" ? it.score : 0,
-    }));
+    const searchRows: SearchRow[] = payload.items.map((it) => {
+      const base: Omit<SearchRow, "domain"> & { domain?: string } = {
+        id: it.id,
+        title: it.title,
+        tags: Array.isArray(it.tags) ? it.tags : [],
+        timeISO: it.timeISO,
+        score: typeof it.score === "number" ? it.score : 0,
+      };
+      return it.domain ? { ...base, domain: it.domain } : base;
+    });
 
     await ensureDir(dirname(PATHS.search));
     await writeJsonFile(PATHS.search, searchRows, { atomic: true, pretty: false });

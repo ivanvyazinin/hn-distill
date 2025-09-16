@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import { SCORE_MIN_CLEANUP } from "@config/constants";
 import { PATHS, pathFor } from "@config/paths";
-import { NormalizedStorySchema } from "@config/schemas";
 import { ensureDir, exists } from "@utils/fs";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";

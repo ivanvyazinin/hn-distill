@@ -1,4 +1,4 @@
-import { mkdtemp, rm, mkdir } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -11,7 +11,15 @@ export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T
   }
 }
 
-export function makeTmpPATHS(base: string) {
+export function makeTmpPATHS(
+  base: string
+): {
+  dataDir: string;
+  raw: { items: string; comments: string; articles: string };
+  summaries: string;
+  index: string;
+  aggregated: string;
+} {
   return {
     dataDir: base,
     raw: {
@@ -25,7 +33,16 @@ export function makeTmpPATHS(base: string) {
   };
 }
 
-export function makeTmpPathFor(PATHS: ReturnType<typeof makeTmpPATHS>) {
+export function makeTmpPathFor(
+  PATHS: ReturnType<typeof makeTmpPATHS>
+): {
+  rawItem: (id: number) => string;
+  rawComments: (id: number) => string;
+  articleMd: (id: number) => string;
+  postSummary: (id: number) => string;
+  commentsSummary: (id: number) => string;
+  tagsSummary: (id: number) => string;
+} {
   return {
     rawItem: (id: number) => join(PATHS.raw.items, `${id}.json`),
     rawComments: (id: number) => join(PATHS.raw.comments, `${id}.json`),

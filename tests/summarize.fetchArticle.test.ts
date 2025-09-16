@@ -1,3 +1,4 @@
+/* eslint-disable unicorn/consistent-destructuring */
 import { describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
 import { dirname } from "node:path";

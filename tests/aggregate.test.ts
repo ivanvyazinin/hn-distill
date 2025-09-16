@@ -1,5 +1,4 @@
 import { describe, expect, test } from "bun:test";
-import { join } from "node:path";
 
 import { withTempDir, mockPaths, story as makeStory, comment as makeComment, aggItem, TEST_ISO } from "./helpers";
 import { writeJsonFile } from "@utils/json";
