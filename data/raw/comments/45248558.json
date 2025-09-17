@@ -1,17 +1,25 @@
 [
   {
-    "id": 45272508,
-    "by": "weinzierl",
-    "timeISO": "2025-09-17T06:36:41.000Z",
-    "textPlain": "The way you can write code of the target DSL without wrapping it in a string both gives me fears and excitement:    solver.assert((&x + 4).eq(7));\n\nMy subconsciousness shouts \"MISSING QUOTES\" while my ratio says \"Calm down, that's nice and clean and safe and how it's supposed to be - ever has been\".",
-    "parent": 45248558,
-    "depth": 1
-  },
-  {
     "id": 45268720,
     "by": "cube2222",
     "timeISO": "2025-09-16T21:59:00.000Z",
     "textPlain": "I’d be curious if someone here could explain the initial nonsensical answer for the coin change problem.I understand that not giving the lower bounds effectively lets it find an arbitrarily low (generally very negative) number of coins that satisfy the problem (so the minimization would basically go to negative infinity).But why would it respond with “to get 37 in the lowest number of coins I’ll give you 37 ones”?Or is this kind of like “if the answer to your minimization problem is negative infinity, the answer is undefined behavior”?",
+    "parent": 45248558,
+    "depth": 1
+  },
+  {
+    "id": 45273113,
+    "by": "ebonnafoux",
+    "timeISO": "2025-09-17T07:58:27.000Z",
+    "textPlain": "Does someone, with some experience on this subject, has an opinion on the best solver with binding in Python for a begginer? The OP use Z3 but also mentionned MiniZinc and I heard about Google OR-Tools.",
+    "parent": 45248558,
+    "depth": 1
+  },
+  {
+    "id": 45272508,
+    "by": "weinzierl",
+    "timeISO": "2025-09-17T06:36:41.000Z",
+    "textPlain": "The way you can write code of the target DSL without wrapping it in a string both gives me fears and excitement:    solver.assert((&x + 4).eq(7));\n\nMy subconsciousness shouts \"MISSING QUOTES\" while my ratio says \"Calm down, that's nice and clean and safe and how it's supposed to be - ever has been\".",
     "parent": 45248558,
     "depth": 1
   },
@@ -40,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45271500,
-    "by": "th1nhng0",
-    "timeISO": "2025-09-17T03:56:59.000Z",
-    "textPlain": "I have read that article too and very interest in the solver",
-    "parent": 45248558,
-    "depth": 1
-  },
-  {
     "id": 45268450,
     "by": "sophacles",
     "timeISO": "2025-09-16T21:37:44.000Z",
     "textPlain": "Constraint solvers are a cool bit of magic. The article underplays how hard it is to model problems for them, but when you do have a problem that you can shape into a sat problem... it feels like cheating.",
+    "parent": 45248558,
+    "depth": 1
+  },
+  {
+    "id": 45271500,
+    "by": "th1nhng0",
+    "timeISO": "2025-09-17T03:56:59.000Z",
+    "textPlain": "I have read that article too and very interest in the solver",
     "parent": 45248558,
     "depth": 1
   },
@@ -62,6 +70,14 @@
     "textPlain": "This is great. So many times I’ve wondered how to actually use z3 and I couldn’t figure it out. Thank you!",
     "parent": 45248558,
     "depth": 1
+  },
+  {
+    "id": 45273164,
+    "by": "sirwhinesalot",
+    "timeISO": "2025-09-17T08:06:56.000Z",
+    "textPlain": "It has to do with the algorithm Z3 uses to do optimization I think (there are different ones).It works in a \"bottom-up\" manner, first giving the minimization goal its lowest possible value and then it tries to \"work its way up\" to something satisfiable.So in this case there's something like:goal = c1 + c2 + c3\nminimize goal(even if you write minimize (c1 + c2 + c3), it's still creating that goal variable internally, so to speak)It now wants to give goal the lowest possible value it can assign it, even if not satisfiable, to start the process. It looks at the bounds of c1, c2 and c3 to determine this, and they're all -infinity.The lowest possible value of goal is -infinity, which the optimizer has no idea what to do with, and just basically gives up. When used as an application, Z3 will tell you something's wrong by spitting this out in the terminal:(+ c1 c2 c3) |-> (* (- 1) oo)A different optimization algorithm, like one that works \"top-down\" (find the first satisfiable assignment, then make it better) would actually be able to converge. I think OptiMathSAT would be able to handle it because it also does top-down reasoning for this.CP solvers and MIP solvers all enforce variable bounds so they don't have this issue.",
+    "parent": 45268720,
+    "depth": 2
   },
   {
     "id": 45269261,
@@ -77,6 +93,22 @@
     "timeISO": "2025-09-16T23:20:22.000Z",
     "textPlain": "37 is irreducible in the problem statement, so the answer is 37.Think about it purely in the set-theoretic sense \"what is the minimal set containing 37 elements?\" the answer is \"the set containing 37 elements.\"",
     "parent": 45268720,
+    "depth": 2
+  },
+  {
+    "id": 45273228,
+    "by": "mzl",
+    "timeISO": "2025-09-17T08:18:18.000Z",
+    "textPlain": "If you want to work in Python, I would either use OR-Tools which has a Python library or CPMpy which is a solver agnostic Python library using numpy style for modeling combinatorial optimization problems.There is a Python package for MiniZinc, but it is aimed at structuring calls to MiniZinc, not as a modeling layer for MiniZinc.Personally, I think it is better to start with constraint programming style modeling as it is more flexible, and then move to SMT style models like Z3 if or when it is needed. One of the reasons I think CP is a better initial choice is the focus on higher-level concepts and global constraints.",
+    "parent": 45273113,
+    "depth": 2
+  },
+  {
+    "id": 45272977,
+    "by": "mzl",
+    "timeISO": "2025-09-17T07:39:15.000Z",
+    "textPlain": "One missing thing in Rust is that the comparison operators are hard-coded to return bool values, which means that it is not possible to build up full expression trees form normal code using operator overloading. Thus the need for functions like `eq`.In general, for modeling layers embedded in programming languages, having operator overloading makes the code so much better to work with. Modeling layers where one has to use functions or strings that are evaluated are much harder to work with.",
+    "parent": 45272508,
     "depth": 2
   },
   {
