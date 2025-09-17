@@ -1,0 +1,90 @@
+[
+  {
+    "id": 45277670,
+    "by": "chrismorgan",
+    "timeISO": "2025-09-17T16:11:10.000Z",
+    "textPlain": "A few years ago I made a scheme whereby you could use sequential numeric IDs in your database, but expose them as short random strings (length an even number in the range 4–20, depending on numeric value and sparsity configuration). It used some custom instances of the Speck cipher family, and I think it’s robust and rather neat.Although I finished it, I never quite published it properly for some reason, probably partly because I shelved the projects where I had been going to use it (I might unshelve one of them next year).Well, I might as well share it, because it’s quite relevant here and interesting:https://temp.chrismorgan.info/2025-09-17-tesid/My notes on its construction, pros and cons are fairly detailed.Maybe I’ll go back and publish it properly next year.",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45275983,
+    "by": "aabbdev",
+    "timeISO": "2025-09-17T14:04:10.000Z",
+    "textPlain": "Hi, I’m the author of uuidv47. The idea is simple: keep UUIDv7 internally for database indexing and sortability, but emit UUIDv4-looking façades externally so clients don’t see timing patterns.How it works: the 48-bit timestamp is XOR-masked with a keyed SipHash-2-4 stream derived from the UUID’s random field. The random bits are preserved, the version flips between 7 (inside) and 4 (outside), and the RFC variant is kept. The mapping is injective: (ts, rand) → (encTS, rand). Decode is just encTS ⊕ mask, so round-trip is exact.Security: SipHash is a PRF, so observing façades doesn’t leak the key. Wrong key = wrong timestamp. Rotation can be done with a key-ID outside the UUID.Performance: one SipHash over 10 bytes + a couple of 48-bit loads/stores. Nanosecond overhead, header-only C11, no deps, allocation-free.Tests: SipHash reference vectors, round-trip encode/decode, and version/variant invariants.Curious to hear feedback!",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45277540,
+    "by": "bismark",
+    "timeISO": "2025-09-17T16:04:11.000Z",
+    "textPlain": "My biggest issue w/ UUIDv7 is how challenging they are to visually diff when looking at a list. Having some sort of visual translation layer in psql that would render them with the random bits first while maintaining the time sorting underneath would be a major UX boost...",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45277119,
+    "by": "miningape",
+    "timeISO": "2025-09-17T15:36:10.000Z",
+    "textPlain": "This is interesting, but is almost something I'd rather have the DB handle for me - i.e. I can cast a UUIDv7 to \"UUIDv4\" (and vice versa) and I could use both in queries (with explicit syntax to annotate which kind is being used / expected)",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45277484,
+    "by": "g-mork",
+    "timeISO": "2025-09-17T16:01:40.000Z",
+    "textPlain": "Vaguely related technique with similar goals (but I love the one posted here) http://blog.notdot.net/2007/9/Damn-Cool-Algorithms-Part-2-Se...",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45277323,
+    "by": "tracker1",
+    "timeISO": "2025-09-17T15:52:00.000Z",
+    "textPlain": "Interesting project... just out of curiosity, could you give something resembling a couple practical examples of the risk of exposing the time portion of a v7 UUID?",
+    "parent": 45275973,
+    "depth": 1
+  },
+  {
+    "id": 45277844,
+    "by": "austinjp",
+    "timeISO": "2025-09-17T16:21:44.000Z",
+    "textPlain": "Nice. See also sqids (previously known as hashids)https://sqids.org/",
+    "parent": 45277670,
+    "depth": 2
+  },
+  {
+    "id": 45277706,
+    "by": "JimDabell",
+    "timeISO": "2025-09-17T16:13:03.000Z",
+    "textPlain": "I like the idea.UUIDs are often generated client-side. Am I right in thinking that this isn’t possible with this approach? Even if you let clients give you UUIDs and they gave them back the masked versions, wouldn't you be vulnerable to a client providing two UUIDs with different ts and the same rand? So this is only designed for when you are generating the UUIDv7s yourself?",
+    "parent": 45275983,
+    "depth": 2
+  },
+  {
+    "id": 45277349,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-09-17T15:53:48.000Z",
+    "textPlain": "Two pieces of feedback here:1. You implicitly take away someone else's hypothetical benefit of leveraging UUID v7, which is disappointing for any consumer of your API.2. By storing the UUIDs differently on your API service from internally, you're going to make your life just a tiny bit harder because now you have to go through this indirection of conversion, and I'm not sure if this is worth it.",
+    "parent": 45275983,
+    "depth": 2
+  },
+  {
+    "id": 45277552,
+    "by": "NortySpock",
+    "timeISO": "2025-09-17T16:04:45.000Z",
+    "textPlain": "Suppose it's something where the user may be accused of doing something nefarious if a sequence or pattern of behavior is exposed.- \"Ex-spouse: I looked you up on a dating website, and your userID indicates it was created while you were at Tom's party where you swear nothing happened.\"- \"You say you are in XYZ timezone, but all your imageIDs (that are unique to the image upon creation) are timestamped at what would be 3am in your timezone)\"Granted, for individual messages that are near-real-time, or for transactions that need to be timestamped anyway, it's probably fine, but for user-account-creation or \"evergreen\" asset-creation, it could leak the time to a sufficiently curious individual (or an organized group that is doing data-trawling and cross-correlation)",
+    "parent": 45277323,
+    "depth": 2
+  },
+  {
+    "id": 45277690,
+    "by": "thunderfork",
+    "timeISO": "2025-09-17T16:11:57.000Z",
+    "textPlain": "Let's say you've got a system that collects medical data - like \"store the results of the MRI right after it happens\".For analysis reasons, you want to share this dataset (e.g. for diagnostics on the machine) but first must strip it of potentially identifying information.The uuidv7 timestamp could be used to re-identify the data through correlation - \"I know this person got an MRI on this day, there's only one record with a matching datestamp, thus I know it's their MRI.\"",
+    "parent": 45277323,
+    "depth": 2
+  }
+]
