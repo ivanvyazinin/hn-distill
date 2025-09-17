@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45261303,
-    "by": "Meneth",
-    "timeISO": "2025-09-16T12:25:34.000Z",
-    "textPlain": "This happens because there's no auditing of new packages or versions. The distro's maintainer and the developer is the same person.The general solution is to do what Debian does.Keep a stable distro where new packages aren't added and versions change rarely (security updates and bugfixes only, no new functionality). This is what most people use.Keep a testing/unstable distro where new packages and new versions can be added, but even then added only by the distro maintainer, NOT by the package developers. This is where the audits happen.NPM, Python, Rust, Go, Ruby all suffer from this problem, because they have centralized and open package repositories.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45272291,
     "by": "snickerbockers",
     "timeISO": "2025-09-17T06:02:37.000Z",
@@ -24,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45272421,
-    "by": "joelthelion",
-    "timeISO": "2025-09-17T06:23:22.000Z",
-    "textPlain": "This seems like a great opportunity for someone to push a smaller but fully audited subset of the npm repos.Corporations would love it.",
+    "id": 45261303,
+    "by": "Meneth",
+    "timeISO": "2025-09-16T12:25:34.000Z",
+    "textPlain": "This happens because there's no auditing of new packages or versions. The distro's maintainer and the developer is the same person.The general solution is to do what Debian does.Keep a stable distro where new packages aren't added and versions change rarely (security updates and bugfixes only, no new functionality). This is what most people use.Keep a testing/unstable distro where new packages and new versions can be added, but even then added only by the distro maintainer, NOT by the package developers. This is where the audits happen.NPM, Python, Rust, Go, Ruby all suffer from this problem, because they have centralized and open package repositories.",
     "parent": 45260741,
     "depth": 1
   },
@@ -48,14 +40,6 @@
     "depth": 1
   },
   {
-    "id": 45272041,
-    "by": "pxc",
-    "timeISO": "2025-09-17T05:25:00.000Z",
-    "textPlain": "Letting upstream authors write code that the package manager runs at install time isn't a sane thing for package managers to allow. It promotes all kinds of hacky shit and makes packages harder to work with programmatically, and it also provides this propagation vector. Packages also shouldn't have arbitrary network access at build time for both of those two same reasons!There's been a lot of talk here about selecting and auditing dependencies, which is fine and good. But this attack and lots of other supply chain attacks would also be avoided with a better-behaved package manager. Doesn't Deno solve this? Do any other JS package managers do some common-sense sandboxing?Yes, migration is painful. Yes, granular permissions are more annoying to figure out than anything-can-do-anything. But is either as painful as vendoring/forking your dependencies without the aid of a package manager altogether? If you're really considering just copying and pasting instead of using NPM, maybe you should also consider participating in a saner package ecosystem. If you're ready to do the one, maybe you're ready to do the other.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45263347,
     "by": "theodorejb",
     "timeISO": "2025-09-16T15:07:43.000Z",
@@ -64,18 +48,26 @@
     "depth": 1
   },
   {
-    "id": 45271988,
-    "by": "aorth",
-    "timeISO": "2025-09-17T05:17:13.000Z",
-    "textPlain": "In the story about the Nx compromise a few weeks ago someone posted a neat script that uses bubblewrap on Linux to run tools like npm more safely by confining their filesystem access. https://news.ycombinator.com/item?id=45034496I modified the script slightly based on some of the comments in the thread and my own usage patterns:  #!/usr/bin/env bash\n  #\n  # See: https://news.ycombinator.com/item?id=45034496\n  \n  bin=$(basename \"$0\")\n  \n  echo \"===========================\"\n  echo \"Wrapping $bin in bubblewrap\"\n  echo \"===========================\"\n  \n  exec bwrap \\\n    --bind ~/.cache ~/.cache \\\n    --bind \"${PWD}\" \"${PWD}\" \\\n    --dev /dev \\\n    --die-with-parent \\\n    --disable-userns \\\n    --new-session \\\n    --proc /proc \\\n    --ro-bind /etc/ca-certificates /etc/ca-certificates \\\n    --ro-bind /etc/resolv.conf /etc/resolv.conf \\\n    --ro-bind /etc/ssl /etc/ssl \\\n    --ro-bind /usr /usr \\\n    --setenv PATH /usr/bin \\\n    --symlink /usr/bin /bin \\\n    --symlink /usr/bin /sbin \\\n    --symlink /usr/lib /lib \\\n    --symlink /usr/lib64 /lib64 \\\n    --tmpfs /tmp \\\n    --unshare-all \\\n    --unshare-user \\\n    --share-net \\\n    /usr/bin/env \"$bin\" \"$@\"\n\nPut this in `~/.local/bin` and symlink it to `~/.local/bin/npm` and `~/.local/bin/yarn` (and make sure `~/.local/bin` is first in your `$PATH`). I've been using it to wrap npm and yarn successfully in a few projects. This will protect you against some attacks that use postinstall scripts to do nefarious things outside the project.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45261199,
     "by": "homebrewer",
     "timeISO": "2025-09-16T12:14:36.000Z",
     "textPlain": "When the left-pad debacle happened, one commenter here said of a well known npm maintainer something to the effect of that he's an \"author of 600 npm packages, and 1200 lines of JavaScript\".Not much has changed since then. The best counter-example I know is esbuild, which is a fully featured bundler/minifier/etc that has zero external dependencies except for the Go stdlib + one package maintained by the Go project itself:https://www.npmjs.com/package/esbuild?activeTab=dependencieshttps://github.com/evanw/esbuild/blob/755da31752d759f1ea70b8...Other \"next generation\" projects are trading one problematic ecosystem for another. When you study dependency chains of e.g. biomejs and swc, it looks pretty good:https://www.npmjs.com/package/@biomejs/biome/v/latest?active...https://www.npmjs.com/package/@swc/types?activeTab=dependenc...Replacing the tire fire of eslint (and its hundreds to low thousands of dependencies) with zero of them! Very encouraging, until you find the Rust source:https://github.com/biomejs/biome/blob/a0039fd5457d0df18242fe...https://github.com/swc-project/swc/blob/6c54969d69551f516032...I think as these projects gain more momentum, we will see similar things cropping up in the cargo ecosystem.Does anyone know of other major projects written in as strict a style as esbuild?",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45272041,
+    "by": "pxc",
+    "timeISO": "2025-09-17T05:25:00.000Z",
+    "textPlain": "Letting upstream authors write code that the package manager runs at install time isn't a sane thing for package managers to allow. It promotes all kinds of hacky shit and makes packages harder to work with programmatically, and it also provides this propagation vector. Packages also shouldn't have arbitrary network access at build time for both of those two same reasons!There's been a lot of talk here about selecting and auditing dependencies, which is fine and good. But this attack and lots of other supply chain attacks would also be avoided with a better-behaved package manager. Doesn't Deno solve this? Do any other JS package managers do some common-sense sandboxing?Yes, migration is painful. Yes, granular permissions are more annoying to figure out than anything-can-do-anything. But is either as painful as vendoring/forking your dependencies without the aid of a package manager altogether? If you're really considering just copying and pasting instead of using NPM, maybe you should also consider participating in a saner package ecosystem. If you're ready to do the one, maybe you're ready to do the other.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45271988,
+    "by": "aorth",
+    "timeISO": "2025-09-17T05:17:13.000Z",
+    "textPlain": "In the story about the Nx compromise a few weeks ago someone posted a neat script that uses bubblewrap on Linux to run tools like npm more safely by confining their filesystem access. https://news.ycombinator.com/item?id=45034496I modified the script slightly based on some of the comments in the thread and my own usage patterns:  #!/usr/bin/env bash\n  #\n  # See: https://news.ycombinator.com/item?id=45034496\n  \n  bin=$(basename \"$0\")\n  \n  echo \"===========================\"\n  echo \"Wrapping $bin in bubblewrap\"\n  echo \"===========================\"\n  \n  exec bwrap \\\n    --bind ~/.cache ~/.cache \\\n    --bind \"${PWD}\" \"${PWD}\" \\\n    --dev /dev \\\n    --die-with-parent \\\n    --disable-userns \\\n    --new-session \\\n    --proc /proc \\\n    --ro-bind /etc/ca-certificates /etc/ca-certificates \\\n    --ro-bind /etc/resolv.conf /etc/resolv.conf \\\n    --ro-bind /etc/ssl /etc/ssl \\\n    --ro-bind /usr /usr \\\n    --setenv PATH /usr/bin \\\n    --symlink /usr/bin /bin \\\n    --symlink /usr/bin /sbin \\\n    --symlink /usr/lib /lib \\\n    --symlink /usr/lib64 /lib64 \\\n    --tmpfs /tmp \\\n    --unshare-all \\\n    --unshare-user \\\n    --share-net \\\n    /usr/bin/env \"$bin\" \"$@\"\n\nPut this in `~/.local/bin` and symlink it to `~/.local/bin/npm` and `~/.local/bin/yarn` (and make sure `~/.local/bin` is first in your `$PATH`). I've been using it to wrap npm and yarn successfully in a few projects. This will protect you against some attacks that use postinstall scripts to do nefarious things outside the project.",
     "parent": 45260741,
     "depth": 1
   },
@@ -96,14 +88,6 @@
     "depth": 1
   },
   {
-    "id": 45271531,
-    "by": "shirro",
-    "timeISO": "2025-09-17T04:04:51.000Z",
-    "textPlain": "For years everyone in the programming community has been pushing for convenience and features and code reuse and its got to the point I think the ease of adding a third party package from the languages package manager or github needs to be seriously questioned by security conscious devs. Perhaps we made the wrong things easy.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45262019,
     "by": "cddotdotslash",
     "timeISO": "2025-09-16T13:31:37.000Z",
@@ -116,6 +100,22 @@
     "by": "GuB-42",
     "timeISO": "2025-09-16T13:01:54.000Z",
     "textPlain": "> Shai HuludClever name... but I would have expected malware authors to be a bit less obvious. They literally named their giant worm after a giant worm.> At the core of this attack is a ~3.6MB minified bundle.js fileYep, even malware can be bloated. That's in the spirit of NPM I guess...",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45271531,
+    "by": "shirro",
+    "timeISO": "2025-09-17T04:04:51.000Z",
+    "textPlain": "For years everyone in the programming community has been pushing for convenience and features and code reuse and its got to the point I think the ease of adding a third party package from the languages package manager or github needs to be seriously questioned by security conscious devs. Perhaps we made the wrong things easy.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45272421,
+    "by": "joelthelion",
+    "timeISO": "2025-09-17T06:23:22.000Z",
+    "textPlain": "This seems like a great opportunity for someone to push a smaller but fully audited subset of the npm repos.Corporations would love it.",
     "parent": 45260741,
     "depth": 1
   },
@@ -168,18 +168,18 @@
     "depth": 1
   },
   {
-    "id": 45270447,
-    "by": "utbabya",
-    "timeISO": "2025-09-17T01:22:46.000Z",
-    "textPlain": "Blog author company's runner detects anomalies in them, but we shouldn't need a product for this.Detecting outbound network connection during an npm install is quite cheap to implement in 2025. I think it comes down to tenant and incentives, if security is placed as first priority as it should, for any computing service and in particular for supply chain like package management, this would be built in.One thing that comes to mind that would make it a months long deabte is the potential breakage of many packages. In that case as a first step just make an eye catching summary post install, with gradual push to totally restriction with something like a strict mode, we've done this before.Which, reminds me of another long standing issue with node ecosystem toolings, information overload. It's easy to bombard devs with thesis character count then blame them for eventually getting fatigue and not reading the output. It takes effort to summarize what's most important with layered expansion of detail level, show some.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45261009,
     "by": "thegeomaster",
     "timeISO": "2025-09-16T11:55:15.000Z",
     "textPlain": "Warning: LLM-generated article, terribly difficult to follow and full of irrelevant details.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45270447,
+    "by": "utbabya",
+    "timeISO": "2025-09-17T01:22:46.000Z",
+    "textPlain": "Blog author company's runner detects anomalies in them, but we shouldn't need a product for this.Detecting outbound network connection during an npm install is quite cheap to implement in 2025. I think it comes down to tenant and incentives, if security is placed as first priority as it should, for any computing service and in particular for supply chain like package management, this would be built in.One thing that comes to mind that would make it a months long deabte is the potential breakage of many packages. In that case as a first step just make an eye catching summary post install, with gradual push to totally restriction with something like a strict mode, we've done this before.Which, reminds me of another long standing issue with node ecosystem toolings, information overload. It's easy to bombard devs with thesis character count then blame them for eventually getting fatigue and not reading the output. It takes effort to summarize what's most important with layered expansion of detail level, show some.",
     "parent": 45260741,
     "depth": 1
   },
@@ -224,6 +224,14 @@
     "depth": 1
   },
   {
+    "id": 45261707,
+    "by": "nahuel0x",
+    "timeISO": "2025-09-16T13:05:58.000Z",
+    "textPlain": "Languages/VMs should support capability-based permissions for libraries, no library should be able to open a file or do network requests without explicit granular permissions.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
     "id": 45270362,
     "by": "totetsu",
     "timeISO": "2025-09-17T01:13:05.000Z",
@@ -236,14 +244,6 @@
     "by": "hacker_homie",
     "timeISO": "2025-09-16T23:23:11.000Z",
     "textPlain": "I’m not sure language package mangers were a good idea at all.\nDependencies were supposed to be painful.\nIf the language needed some functionality built in it was supposed to go into the standard library, I understand that for JS this isn’t feasible.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
-    "id": 45261707,
-    "by": "nahuel0x",
-    "timeISO": "2025-09-16T13:05:58.000Z",
-    "textPlain": "Languages/VMs should support capability-based permissions for libraries, no library should be able to open a file or do network requests without explicit granular permissions.",
     "parent": 45260741,
     "depth": 1
   },
@@ -288,14 +288,6 @@
     "depth": 1
   },
   {
-    "id": 45270140,
-    "by": "MonkeyIsNull",
-    "timeISO": "2025-09-17T00:38:39.000Z",
-    "textPlain": "For those of you without a security dept, hopefully this is of some help: https://github.com/Cobenian/shai-hulud-detectmore updates soon and PRs welcome.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45266581,
     "by": "indigodaddy",
     "timeISO": "2025-09-16T19:13:19.000Z",
@@ -304,10 +296,10 @@
     "depth": 1
   },
   {
-    "id": 45268412,
-    "by": "parhamn",
-    "timeISO": "2025-09-16T21:34:22.000Z",
-    "textPlain": "For a large subset of packages (like the browser ones), as a layman, it seems feasible to do static analysis for:1) fetch calls2) obfuscation (like sketchy lookup tables and hex string construction)Like for (1) the hostname should be statically resolvable and immutable. So you can list the hostnames it fetches from as well.Is this feasible or am I underestimating the difficulty? Javascript seems to have no shortage of static analysis tools.",
+    "id": 45270140,
+    "by": "MonkeyIsNull",
+    "timeISO": "2025-09-17T00:38:39.000Z",
+    "textPlain": "For those of you without a security dept, hopefully this is of some help: https://github.com/Cobenian/shai-hulud-detectmore updates soon and PRs welcome.",
     "parent": 45260741,
     "depth": 1
   },
@@ -316,6 +308,14 @@
     "by": "zelias",
     "timeISO": "2025-09-16T13:24:11.000Z",
     "textPlain": "How many packages now have been compromised over the past couple of weeks? The velocity of these attacks are insane. Part of me believes state actors must be involved at this point.In any case, does anyone have an exhaustive list of all recently compromised npm packages + versions across the recent attacks? We need to do an exhaustive scan after this news...",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45268412,
+    "by": "parhamn",
+    "timeISO": "2025-09-16T21:34:22.000Z",
+    "textPlain": "For a large subset of packages (like the browser ones), as a layman, it seems feasible to do static analysis for:1) fetch calls2) obfuscation (like sketchy lookup tables and hex string construction)Like for (1) the hostname should be statically resolvable and immutable. So you can list the hostnames it fetches from as well.Is this feasible or am I underestimating the difficulty? Javascript seems to have no shortage of static analysis tools.",
     "parent": 45260741,
     "depth": 1
   },
