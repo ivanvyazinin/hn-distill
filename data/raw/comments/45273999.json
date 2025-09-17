@@ -1,5 +1,13 @@
 [
   {
+    "id": 45275488,
+    "by": "nathanrf",
+    "timeISO": "2025-09-17T13:17:25.000Z",
+    "textPlain": "Here's a high level overview for a programmer audience (I'm listed as an author but my contributions were fairly minor):[See specifics of the pipeline in Table 3 of the linked paper]* There are 181 million ish essentially different Turing Machines with 5 states, first these were enumerated exhaustively* Then, each machine was run for about 100 million steps. Of the 181 million, about 25% of them halt within this memany step, including the Champion, which ran for  47,176,870 steps before halting.* This leaves 140 million machines which run for a long time.So the question is: do those TMs run FOREVER, or have we just not run them long enough?The goal of the BB challenge project was to answer this question. There is no universal algorithm that works on all TMs, so instead a series of (semi-)deciders were built. Each decider takes a TM, and (based on some proven heuristic) classifies it as either \"definitely runs forever\" or \"maybe halts\".Four deciders ended up being used:* Loops: run the TM for a while, and if it re-enters a previously-seen configuration, it definitely has to loop forever. Around 90% of machines do this or halt, so covers most.6.01 million TMs remain.* NGram CPS: abstractly simulates each TM, tracking a set of binary \"n-grams\" that are allowed to appear on each side. Computes an over-approximation of reachable states. If none of those abstract states enter the halting transition, then the original machine cannot halt either.Covers 6.005 million TMs. Around 7000 TMs remain.* RepWL: Attempts to derive counting rules that describe TM configurations. The NGram model can't \"count\", so this catches many machines whose patterns depend on parity. Covers 6557 TMs.There are only a few hundred TMs left.* FAR: Attempt to describe each TM's state as a regex/FSM.* WFAR: like FAR but adds weighted edges, which allows some non-regular languages (like matching parentheses) to be described* Sporadics: around 13 machines had complicated behavior that none of the previous",
+    "parent": 45273999,
+    "depth": 1
+  },
+  {
     "id": 45274941,
     "by": "fedeb95",
     "timeISO": "2025-09-17T12:17:42.000Z",
@@ -14,6 +22,14 @@
     "textPlain": "I can't quite understand - did they use brute force?",
     "parent": 45273999,
     "depth": 1
+  },
+  {
+    "id": 45275563,
+    "by": "tsterin",
+    "timeISO": "2025-09-17T13:24:32.000Z",
+    "textPlain": "In Coq-BB5 machines are not run for 100M steps but directly thrown in the pipeline of deciders. Most halting machines are detected by Loops using low parameters (max 4,100 steps) and only 183 machines are simulated up to 47M steps to deduce halting.In legacy bbchallenge's seed database, machines were run for exactly 47,176,870 steps, and we were left with about 80M nonhalting candidates. Discrepancy comes from Coq-BB5 not excluding 0RB and other minor factors.Also, \"There are 181 million ish essentially different Turing Machines with 5 states\", it is important to note that we end up with this number only after the proof is completed, knowing this number is as hard as solving BB(5).",
+    "parent": 45275488,
+    "depth": 2
   },
   {
     "id": 45275151,
@@ -36,6 +52,14 @@
     "by": "bc569a80a344f9c",
     "timeISO": "2025-09-17T12:07:56.000Z",
     "textPlain": "Not quite, I think this is the relevant part of the paper:> Structure of the proof. The proof of our main result, Theorem 1.1, is given in Section 6. The structure of the proof is as follows: machines are enumerated arborescently in Tree Normal Form (TNF) [9] – which drastically reduces the search space’s size: from 16,679,880,978,201 5-state machines to “only” 181,385,789; see Section 3. Each enumerated machine is fed through a pipeline of proof techniques, mostly consisting of deciders, which are algorithms trying to decide whether the machine halts or not. Because of the uncomputability of the halting problem, there is no universal decider and all the craft resides in creating deciders able to decide large families of machines in reasonable time. Almost all of our deciders are instances of an abstract interpretation framework that we call Closed Tape Language (CTL), which consists in approximating the set of configurations visited by a Turing machine with a more convenient superset, one that contains no halting configurations and is closed under Turing machine transitions (see Section 4.2). The S(5) pipeline is given in Table 3 – see Table 4 for S(2,4). All the deciders in this work were crafted by The bbchallenge Collaboration; see Section 4. In the case of 5-state machines, 13 Sporadic Machines were not solved by deciders and required individual proofs of nonhalting, see Section 5.So, they figured out how to massively reduce the search space, wrote some generic deciders that were able to prove whether large amounts of the remaining search spaces would halt or not, and then had to manually solve the remaining 13 machines that the generic deciders couldn't reason about.",
+    "parent": 45274744,
+    "depth": 2
+  },
+  {
+    "id": 45275491,
+    "by": "Xcelerate",
+    "timeISO": "2025-09-17T13:17:43.000Z",
+    "textPlain": "There are a few concepts at play here. First you have to consider what can be proven given a particular theory of mathematics (presumably a consistent, recursively axiomatizable one). For any such theory, there is some finite N for which that theory cannot prove the exact value of BB(N). So with \"infinite time\", one could (in principle) enumerate all proofs and confirm successive Busy Beaver values only up to the point where the theory runs out of power. This is the Busy Beaver version of Gödel/Chaitin incompleteness. For BB(5), Peano Arithmetic suffices and RCA₀ likely does as well. Where do more powerful theories come from? That's a bit of a mystery, although there's certainly plenty of research on that (see Feferman's and Friedman's work).Second, you have to consider what's feasible in finite time. You can enumerate machines and also enumerate proofs, but any concrete strategy has limits. In the case of BB(5), the authors did not use naive brute force. They exhaustively enumerated the 5-state machines (after symmetry reductions), applied a collection of certified deciders to prove halting/non-halting behavior for almost all of them, and then provided manual proofs (also formalized) for some holdout machines.",
     "parent": 45274744,
     "depth": 2
   },
