@@ -1,17 +1,17 @@
 [
   {
-    "id": 45273777,
-    "by": "eschatology",
-    "timeISO": "2025-09-17T09:49:48.000Z",
-    "textPlain": "HmmI don’t see the state file as a complete downside. It is very simple and very easy to understand. It makes it easy to tell or predict what terraform will do given the current state and desired state.Its simpleness makes troubleshooting easier: the state files are easy to read and manipulate or repair in the event of a drift, mismatch, or botched provider update.With the solution proposed it feels like the state becomes a black box I shouldn’t put my hands in. I wonder how the troubleshooting scenarios change with it.Personally, I haven’t ran into the scaling issue described; at any given time there is usually only one entity working with the state file. We do use terragrunt for larger systems but it is manageable. ~1000 engineer org.",
+    "id": 45279879,
+    "by": "Too",
+    "timeISO": "2025-09-17T18:53:45.000Z",
+    "textPlain": "This is cool and useful for teams with huge states and slow locks. Terraform, while great, still has lots of room for improvement.I keep wondering though if split state files isn’t a good thing in some sense anyway. It isolates a lot of problems. Access, obviously. Another common theme is that applying tends to be a game of roulette, even if you haven’t changed anything. Cloud vendor added or renamed something in their backed. Provider update made some field deprecated. Expected state drift that wasn’t properly marked as ”ignore_changes”. Unexpected state drift by your over-excited intern. When I as an app-developer apply a simple config file change, I really don’t want to be bothered about dirty state in the networking backbone that I understand nothing about.It’s also not entirely clear how the solution keeps track of the desired state if multiple actors are changing it at the same time. Wouldn’t one successful apply make the next person, who don’t have your local changes, revert it back on first apply? Does this expect heavy use of resource targeting?",
     "parent": 45273352,
     "depth": 1
   },
   {
-    "id": 45278563,
-    "by": "otterley",
-    "timeISO": "2025-09-17T17:10:58.000Z",
-    "textPlain": "I can't help but wonder whether the problem being addressed is the result of two antipatterns.The first is that the scope being managed by a single Terraform application is too broad (e.g., thousands of resources instead of tens or hundreds). File-level locking is fine for small databases with few to no concurrent writers, but as more users come in, and the database gets bigger, you need record-level locking. For Terraform state files, it begs the question why the database got so big and why there were so many concurrent users in the first place.Second, Terraform state files are a cache but they're being mistreated as a source of truth. This isn't the user's fault but it is the result of (understandable) impatience which results in inevitable shortcut-seeking. It's been a risk since Terraform's inception, and it won't go away as long as people complain that collecting current actual state from the resource provider is too slow.",
+    "id": 45273777,
+    "by": "eschatology",
+    "timeISO": "2025-09-17T09:49:48.000Z",
+    "textPlain": "HmmI don’t see the state file as a complete downside. It is very simple and very easy to understand. It makes it easy to tell or predict what terraform will do given the current state and desired state.Its simpleness makes troubleshooting easier: the state files are easy to read and manipulate or repair in the event of a drift, mismatch, or botched provider update.With the solution proposed it feels like the state becomes a black box I shouldn’t put my hands in. I wonder how the troubleshooting scenarios change with it.Personally, I haven’t ran into the scaling issue described; at any given time there is usually only one entity working with the state file. We do use terragrunt for larger systems but it is manageable. ~1000 engineer org.",
     "parent": 45273352,
     "depth": 1
   },
@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45276805,
-    "by": "time0ut",
-    "timeISO": "2025-09-17T15:10:33.000Z",
-    "textPlain": "Very interesting. I found myself nodding YES the whole way through the post. Something like this could lead to a large shift in how we manage infrastructure. We split terraform configs for more reasons than just splitting state of course, but something like this could make other approaches to organizing things more viable. Really cool and will be keeping an eye on this.",
+    "id": 45278563,
+    "by": "otterley",
+    "timeISO": "2025-09-17T17:10:58.000Z",
+    "textPlain": "I can't help but wonder whether the problem being addressed is the result of two antipatterns.The first is that the scope being managed by a single Terraform application is too broad (e.g., thousands of resources instead of tens or hundreds). File-level locking is fine for small databases with few to no concurrent writers, but as more users come in, and the database gets bigger, you need record-level locking. For Terraform state files, it begs the question why the database got so big and why there were so many concurrent users in the first place.Second, Terraform state files are a cache but they're being mistreated as a source of truth. This isn't the user's fault but it is the result of (understandable) impatience which results in inevitable shortcut-seeking. It's been a risk since Terraform's inception, and it won't go away as long as people complain that collecting current actual state from the resource provider is too slow.",
     "parent": 45273352,
     "depth": 1
   },
@@ -44,6 +44,14 @@
     "by": "sausagefeet",
     "timeISO": "2025-09-17T10:12:15.000Z",
     "textPlain": "Hey!  One of the Stategraph developers here and can answer any questions.  The major motivation is just how small scale Terraform/Tofu start to breakdown and creates work for users when they have to refactor for performance issues that shouldn't exist.  So we want a drop in solution that just dissolves those issues without the user having to do anything.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45276805,
+    "by": "time0ut",
+    "timeISO": "2025-09-17T15:10:33.000Z",
+    "textPlain": "Very interesting. I found myself nodding YES the whole way through the post. Something like this could lead to a large shift in how we manage infrastructure. We split terraform configs for more reasons than just splitting state of course, but something like this could make other approaches to organizing things more viable. Really cool and will be keeping an eye on this.",
     "parent": 45273352,
     "depth": 1
   },
@@ -112,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45274438,
-    "by": "anonymousDan",
-    "timeISO": "2025-09-17T11:28:26.000Z",
-    "textPlain": "Are there any statistics/analyses for the popularity of these different configuration management languages/frameworks (Terraform, Pullumi etc) in cloud settings? Trying to figure out which one(s) are worth learning.",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
     "id": 45273941,
     "by": "giveita",
     "timeISO": "2025-09-17T10:17:02.000Z",
     "textPlain": "Not an expert, but doesn't microservices help with this. Each microservice has its own YAMLesque resource descriptor (TF, cloudformation, whatever) and is managed independently. My team can add a SQS or S3 without locking your team.I might be wrong regarding more sophisticated infra though.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45274438,
+    "by": "anonymousDan",
+    "timeISO": "2025-09-17T11:28:26.000Z",
+    "textPlain": "Are there any statistics/analyses for the popularity of these different configuration management languages/frameworks (Terraform, Pullumi etc) in cloud settings? Trying to figure out which one(s) are worth learning.",
     "parent": 45273352,
     "depth": 1
   },
@@ -144,6 +152,14 @@
     "depth": 1
   },
   {
+    "id": 45276250,
+    "by": "cyberax",
+    "timeISO": "2025-09-17T14:28:11.000Z",
+    "textPlain": "I deeply believe that the whole \"state\" approach with TF is flawed. You end up doing a 3-way merge between the actual state, the desired state, and the recorded state every time you try to make changes.Long time ago, I was simply doing stuff like this:> resources = describe_resources_by_tag(env_name=env, some_tag=tag)\n> if resource_doesnt_exist(resources, some_resource):\n>   create_resource(resource)This was very robust and easy to explain. You look around the system, using some tag-based filtering (in AWS, GCP, Azure) and then perform actions to bring the system to the desired state.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
     "id": 45275459,
     "by": "linuxftw",
     "timeISO": "2025-09-17T13:14:56.000Z",
@@ -156,14 +172,6 @@
     "by": "nikolay",
     "timeISO": "2025-09-17T16:09:49.000Z",
     "textPlain": "This is the least of the problems. The big problem is the shared cache. Supposedly OpenTofu fixed it but Terraform proper is still not allowing multiple Terraform plans and/or applies in parallel over the same cache. Atlantis claimed that it fixed it, but it didn't. So pathetic!",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
-    "id": 45276250,
-    "by": "cyberax",
-    "timeISO": "2025-09-17T14:28:11.000Z",
-    "textPlain": "I deeply believe that the whole \"state\" approach with TF is flawed. You end up doing a 3-way merge between the actual state, the desired state, and the recorded state every time you try to make changes.Long time ago, I was simply doing stuff like this:> resources = describe_resources_by_tag(env_name=env, some_tag=tag)\n> if resource_doesnt_exist(resources, some_resource):\n>   create_resource(resource)This was very robust and easy to explain. You look around the system, using some tag-based filtering (in AWS, GCP, Azure) and then perform actions to bring the system to the desired state.",
     "parent": 45273352,
     "depth": 1
   },
@@ -296,14 +304,6 @@
     "depth": 2
   },
   {
-    "id": 45276371,
-    "by": "sausagefeet",
-    "timeISO": "2025-09-17T14:37:28.000Z",
-    "textPlain": "I believe the DORA report has some information on this.  Terraform/Tofu dominate, by far.",
-    "parent": 45274438,
-    "depth": 2
-  },
-  {
     "id": 45273976,
     "by": "sausagefeet",
     "timeISO": "2025-09-17T10:23:17.000Z",
@@ -325,6 +325,14 @@
     "timeISO": "2025-09-17T11:37:35.000Z",
     "textPlain": "It is the usual DRY/WET concern. Having microservices be completely independent and relying only on shared message broker or service discovery has its benefits, but the cost is generally duplication of things. Things like \"whitelist this inbound IP for all services\" or \"configure telemetry endpoint\" often end up in making N changes to N separate repos, and it becomes hell if you have to talk to N teams.",
     "parent": 45273941,
+    "depth": 2
+  },
+  {
+    "id": 45276371,
+    "by": "sausagefeet",
+    "timeISO": "2025-09-17T14:37:28.000Z",
+    "textPlain": "I believe the DORA report has some information on this.  Terraform/Tofu dominate, by far.",
+    "parent": 45274438,
     "depth": 2
   },
   {
