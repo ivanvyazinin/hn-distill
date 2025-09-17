@@ -1,9 +1,41 @@
 [
   {
+    "id": 45276001,
+    "by": "alphazard",
+    "timeISO": "2025-09-17T14:05:36.000Z",
+    "textPlain": "I don't think a DAG makes sense as a model here.  I've always likened terraform apply to setting what would be called a \"waypoint\" in robotics, or a \"keyframe\" in animation.  The system doesn't immediately change state to the new state all at once, but it starts to tend towards the new desired state.While the intermediary states might form a graph when considering different subsystems, the desire to move towards a given state should probably appear serial over time.  When you make a terraform transaction, you have to coordinate in a serializable way with everyone else managing the desired state, even though the actual state will be messy along the way.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45275985,
+    "by": "VectorLock",
+    "timeISO": "2025-09-17T14:04:11.000Z",
+    "textPlain": "Having done some work with building graph representation of compute resources (by importing tfstate & syncing from aws) and its a very useful representation for building things like visualizations and detecting dependencies. Moving tfstate to  a real distributed graph system would help solve a LOT of the nasty hacks they mention in this article that I have run into HARD when working with very large numbers of resources and multiple teams/team sizes.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45275970,
+    "by": "solatic",
+    "timeISO": "2025-09-17T14:02:15.000Z",
+    "textPlain": "Very cool. Biggest question I have is how users with large setups where Terraform state has already been split would migrate to this. Would existing state blobs be namespaced into the One True State Graph in PG? Would Stategraph know how to merge different state blobs that are pointing to the same real-life resources? Will Stategraph promote some kind of convention for how state should be named, so that new projects can on-board to using the same state? Should Terraform fit a monorepo or polyrepo model with this kind of backend?",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
     "id": 45273777,
     "by": "eschatology",
     "timeISO": "2025-09-17T09:49:48.000Z",
     "textPlain": "HmmI don’t see the state file as a complete downside. It is very simple and very easy to understand. It makes it easy to tell or predict what terraform will do given the current state and desired state.Its simpleness makes troubleshooting easier: the state files are easy to read and manipulate or repair in the event of a drift, mismatch, or botched provider update.With the solution proposed it feels like the state becomes a black box I shouldn’t put my hands in. I wonder how the troubleshooting scenarios change with it.Personally, I haven’t ran into the scaling issue described; at any given time there is usually only one entity working with the state file. We do use terragrunt for larger systems but it is manageable. ~1000 engineer org.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45275619,
+    "by": "alance",
+    "timeISO": "2025-09-17T13:31:48.000Z",
+    "textPlain": "I'm wondering how access controls play into this.Team A manages VPCs and Security groups, for example.Team B manages autoscaling groups, EC2, etc.It's great that now the two teams can look after their own things and not be too worried about resource contention with the other team. But if it's a centralized Postgres database (as you seem to be suggesting?) and both teams have write access to it...How do we prevent teams from making changes to stuff that isn't \"theirs\" ?And if the answer is \"well this team only has IAM access to resources xyz\", well then might it be a little tricky to represent the Stategraph DAG permission boundaries in IAM policy?(ps: huge fan of terrateam's offerings -- Alex from tfstate.com)",
     "parent": 45273352,
     "depth": 1
   },
@@ -24,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45273941,
-    "by": "giveita",
-    "timeISO": "2025-09-17T10:17:02.000Z",
-    "textPlain": "Not an expert, but doesn't microservices help with this. Each microservice has its own YAMLesque resource descriptor (TF, cloudformation, whatever) and is managed independently. My team can add a SQS or S3 without locking your team.I might be wrong regarding more sophisticated infra though.",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
     "id": 45275090,
     "by": "sgarland",
     "timeISO": "2025-09-17T12:34:42.000Z",
     "textPlain": "This is very cool. I love the idea of querying the state, and it opens up a ton of very easy reporting options.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45273941,
+    "by": "giveita",
+    "timeISO": "2025-09-17T10:17:02.000Z",
+    "textPlain": "Not an expert, but doesn't microservices help with this. Each microservice has its own YAMLesque resource descriptor (TF, cloudformation, whatever) and is managed independently. My team can add a SQS or S3 without locking your team.I might be wrong regarding more sophisticated infra though.",
     "parent": 45273352,
     "depth": 1
   },
@@ -56,18 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45274438,
-    "by": "anonymousDan",
-    "timeISO": "2025-09-17T11:28:26.000Z",
-    "textPlain": "Are there any statistics/analyses for the popularity of these different configuration management languages/frameworks (Terraform, Pullumi etc) in cloud settings? Trying to figure out which one(s) are worth learning.",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
     "id": 45274052,
     "by": "dwroberts",
     "timeISO": "2025-09-17T10:32:41.000Z",
     "textPlain": "If you use a tool like Atmos (https://atmos.tools/) you kind of fix this issue already for free - because it takes the place of the root module, it actually manages the state of each sub module separately (they each have their own individual state file rather than being converged into one).",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45274438,
+    "by": "anonymousDan",
+    "timeISO": "2025-09-17T11:28:26.000Z",
+    "textPlain": "Are there any statistics/analyses for the popularity of these different configuration management languages/frameworks (Terraform, Pullumi etc) in cloud settings? Trying to figure out which one(s) are worth learning.",
     "parent": 45273352,
     "depth": 1
   },
@@ -112,6 +144,14 @@
     "depth": 2
   },
   {
+    "id": 45275919,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T13:56:53.000Z",
+    "textPlain": "Hi Alex. Great question and definitely something top of mind as we build Stategraph. The short answer is there is always a service layer in front of the database. Users and teams interact with that service, not the database directly. That is where access control and ownership boundaries live.",
+    "parent": 45275619,
+    "depth": 2
+  },
+  {
     "id": 45274359,
     "by": "lawnchair",
     "timeISO": "2025-09-17T11:18:53.000Z",
@@ -120,18 +160,18 @@
     "depth": 2
   },
   {
+    "id": 45275126,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T12:38:31.000Z",
+    "textPlain": "Agreed. One of the frustrating things about using Terraform or OpenTofu is that all the data is sitting there in state but you can't really query or report on it. Making that information accessible is a big part of why we are building this.",
+    "parent": 45275090,
+    "depth": 2
+  },
+  {
     "id": 45273976,
     "by": "sausagefeet",
     "timeISO": "2025-09-17T10:23:17.000Z",
     "textPlain": "Not necessarily.  The guidance is to split your TF code across multiple states which might feel like it make sense but for your microservices to communicate that beed to share some base infrastructure, such as networking, so where does that live?   Putting dependencies in their own state means that you lose the ability to understand how changing them impacts all of your infrastructure because you have this information black hole at the boundary of their state.With Stategraph, you'll get all the benefits and isolation of separate state files, but when you changed resources, you'll get meaningful plans around all of the infrastructure they impact, not just the statically defined boundaries of a state file.",
-    "parent": 45273941,
-    "depth": 2
-  },
-  {
-    "id": 45274519,
-    "by": "mystifyingpoi",
-    "timeISO": "2025-09-17T11:37:35.000Z",
-    "textPlain": "It is the usual DRY/WET concern. Having microservices be completely independent and relying only on shared message broker or service discovery has its benefits, but the cost is generally duplication of things. Things like \"whitelist this inbound IP for all services\" or \"configure telemetry endpoint\" often end up in making N changes to N separate repos, and it becomes hell if you have to talk to N teams.",
     "parent": 45273941,
     "depth": 2
   },
@@ -144,11 +184,11 @@
     "depth": 2
   },
   {
-    "id": 45275126,
-    "by": "lawnchair",
-    "timeISO": "2025-09-17T12:38:31.000Z",
-    "textPlain": "Agreed. One of the frustrating things about using Terraform or OpenTofu is that all the data is sitting there in state but you can't really query or report on it. Making that information accessible is a big part of why we are building this.",
-    "parent": 45275090,
+    "id": 45274519,
+    "by": "mystifyingpoi",
+    "timeISO": "2025-09-17T11:37:35.000Z",
+    "textPlain": "It is the usual DRY/WET concern. Having microservices be completely independent and relying only on shared message broker or service discovery has its benefits, but the cost is generally duplication of things. Things like \"whitelist this inbound IP for all services\" or \"configure telemetry endpoint\" often end up in making N changes to N separate repos, and it becomes hell if you have to talk to N teams.",
+    "parent": 45273941,
     "depth": 2
   },
   {
