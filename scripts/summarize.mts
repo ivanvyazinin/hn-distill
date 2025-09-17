@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { dirname } from "node:path";
 
-
 import { env, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
@@ -177,7 +176,12 @@ function parseRateLimitScope(message?: string): string | undefined {
   if (!trimmed.startsWith(prefix)) {
     return undefined;
   }
-  return trimmed.slice(prefix.length).replace(/\.\s*$/u, "").trim() || undefined;
+  return (
+    trimmed
+      .slice(prefix.length)
+      .replace(/\.\s*$/u, "")
+      .trim() || undefined
+  );
 }
 
 function parseNumberish(value: unknown): number | undefined {
@@ -226,7 +230,7 @@ function extractRateLimitDetails(error: HttpError): RateLimitDetails | undefined
   const { message, metadata } = errorPayload;
   const headers = metadata && typeof metadata === "object" ? (metadata as { headers?: unknown }).headers : undefined;
 
-  const headerRecord = headers && typeof headers === "object" ? headers as Record<string, unknown> : undefined;
+  const headerRecord = headers && typeof headers === "object" ? (headers as Record<string, unknown>) : undefined;
 
   const limit = headerRecord ? parseNumberish(headerRecord["X-RateLimit-Limit"]) : undefined;
   const remaining = headerRecord ? parseNumberish(headerRecord["X-RateLimit-Remaining"]) : undefined;
@@ -333,7 +337,7 @@ function buildCommentsLanguageHeader(): string {
     return (
       "Language: en\n" +
       // Style guardrails to avoid chatty prefaces
-      "Summarize the discussion as 5–9 concise bullet points.\n" +
+      "Summarize the discussion as 5–7 concise bullet points.\n" +
       "Output must be a markdown bullet list only, starting immediately with '- '.\n" +
       "Do not add any introductions, headings, prefaces, phrases like 'Summary:', 'Key takeaways:', or closing sentences.\n" +
       "No extra text before or after the list."
@@ -341,7 +345,7 @@ function buildCommentsLanguageHeader(): string {
   }
   return (
     "Language: ru\n" +
-    "Суммаризируй обсуждение в 5–9 лаконичных буллетах.\n" +
+    "Суммаризируй обсуждение в 5–7 лаконичных буллетах.\n" +
     "Выводи только маркированный список в Markdown, сразу начинай с '- '.\n" +
     "Без вступлений, заголовков и фраз вида 'Саммари:', 'Основные тезисы обсуждения:', 'Вот саммари обсуждения:', и без заключений.\n" +
     "Никакого дополнительного текста до или после списка."
@@ -512,11 +516,7 @@ async function callOpenRouterWithRetry(
     return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL, "fallback", context);
   } catch (error) {
     if (error instanceof RateLimitError) {
-      log.warn(
-        LOG_NAMESPACE_LLM,
-        "Rate limit encountered on fallback model",
-        error.toLogMeta(context)
-      );
+      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered on fallback model", error.toLogMeta(context));
       throw error;
     }
     if (error instanceof LlmCallError) {
