@@ -1,25 +1,9 @@
 [
   {
-    "id": 45273941,
-    "by": "giveita",
-    "timeISO": "2025-09-17T10:17:02.000Z",
-    "textPlain": "Not an expert, but doesn't microservices help with this. Each microservice has its own YAMLesque resource descriptor (TF, cloudformation, whatever) and is managed independently. My team can add a SQS or S3 without locking your team.I might be wrong regarding more sophisticated infra though.",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
-    "id": 45273913,
-    "by": "sausagefeet",
-    "timeISO": "2025-09-17T10:12:15.000Z",
-    "textPlain": "Hey!  One of the Stategraph developers here and can answer any questions.  The major motivation is just how small scale Terraform/Tofu start to breakdown and creates work for users when they have to refactor for performance issues that shouldn't exist.  So we want a drop in solution that just dissolves those issues without the user having to do anything.",
-    "parent": 45273352,
-    "depth": 1
-  },
-  {
-    "id": 45273971,
-    "by": "arccy",
-    "timeISO": "2025-09-17T10:21:58.000Z",
-    "textPlain": "so kind of like crossplane where each resource is managed individually?",
+    "id": 45274348,
+    "by": "sylens",
+    "timeISO": "2025-09-17T11:17:07.000Z",
+    "textPlain": "It's an interesting proposal because they correctly call out that segmenting state files by workspace/environment in a very judicious way causes its own issues as you approach scale or have to work across environments. There is an entire industry of tools and services that help to streamline this process for you, but it still feels very hacky.I'm curious if this will be compatible with tools like Spacelift or Env Zero, or if they are going to build their own runner/agent to compete in that space.",
     "parent": 45273352,
     "depth": 1
   },
@@ -32,10 +16,50 @@
     "depth": 1
   },
   {
+    "id": 45273913,
+    "by": "sausagefeet",
+    "timeISO": "2025-09-17T10:12:15.000Z",
+    "textPlain": "Hey!  One of the Stategraph developers here and can answer any questions.  The major motivation is just how small scale Terraform/Tofu start to breakdown and creates work for users when they have to refactor for performance issues that shouldn't exist.  So we want a drop in solution that just dissolves those issues without the user having to do anything.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45274202,
+    "by": "angio",
+    "timeISO": "2025-09-17T10:58:28.000Z",
+    "textPlain": "How does this compare with Pulumi? AFAIK they also don't have a state file and relay on an external database to store state. Is your locking granularity better?",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45273941,
+    "by": "giveita",
+    "timeISO": "2025-09-17T10:17:02.000Z",
+    "textPlain": "Not an expert, but doesn't microservices help with this. Each microservice has its own YAMLesque resource descriptor (TF, cloudformation, whatever) and is managed independently. My team can add a SQS or S3 without locking your team.I might be wrong regarding more sophisticated infra though.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45274052,
+    "by": "dwroberts",
+    "timeISO": "2025-09-17T10:32:41.000Z",
+    "textPlain": "If you use a tool like Atmos (https://atmos.tools/) you kind of fix this issue already for free - because it takes the place of the root module, it actually manages the state of each sub module separately (they each have their own individual state file rather than being converged into one).",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
     "id": 45273809,
     "by": "pst",
     "timeISO": "2025-09-17T09:55:42.000Z",
     "textPlain": "This is awesome. Having a single state for all resources in an environment is critical for keeping all the moving pieces in check and a core design aspect of Kubestack. But the growing state files quickly become a bottleneck. I'm definitely giving this a good test drive. Very excited.",
+    "parent": 45273352,
+    "depth": 1
+  },
+  {
+    "id": 45273971,
+    "by": "arccy",
+    "timeISO": "2025-09-17T10:21:58.000Z",
+    "textPlain": "so kind of like crossplane where each resource is managed individually?",
     "parent": 45273352,
     "depth": 1
   },
@@ -46,6 +70,62 @@
     "textPlain": "can it be a sqlite db in s3 with locking implemented with s3?",
     "parent": 45273352,
     "depth": 1
+  },
+  {
+    "id": 45274274,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T11:07:30.000Z",
+    "textPlain": "You are right that the simplicity of the state file is a strength and we do not want to lose that. One of our goals with Stategraph is to make state just as easy to inspect through both the command line and the UI.Not every Terraform setup runs into scaling pain. The trouble tends to show up in larger repos with thousands of resources where teams share big chunks of infra. That is where global locks and full refreshes become a bottleneck and where we think graph semantics help.",
+    "parent": 45273777,
+    "depth": 2
+  },
+  {
+    "id": 45274227,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T11:02:29.000Z",
+    "textPlain": "I don't know enough about Pulumi to make a fair comparison on locking granularity. Pulumi's model is pretty different from Terraform/OpenTofu in general and state management is only one part of that. We're focused on optimizing the Terraform execution model and making the state layer match the graph semantics it already uses.",
+    "parent": 45274202,
+    "depth": 2
+  },
+  {
+    "id": 45274273,
+    "by": "johanneskanybal",
+    "timeISO": "2025-09-17T11:07:28.000Z",
+    "textPlain": "I think that’s the article but tl;dr that’s only part of the problem and already widly adopted with mutexes in say dynamo or whatever flavor you chose. This is about not having global locks or 10 arbitary random locks per subdomain but rather figuring out the exact resources affected and locking only those.Sounds very neat if you’re an big enough org.",
+    "parent": 45274202,
+    "depth": 2
+  },
+  {
+    "id": 45274251,
+    "by": "cyberpunk",
+    "timeISO": "2025-09-17T11:04:49.000Z",
+    "textPlain": "I mean take this with a grain of salt and purely anecdotal; but everywhere I've heard of who chose pulumi over tf are no long using pulumi. I'd love to hear some opposing experiences to that though!",
+    "parent": 45274202,
+    "depth": 2
+  },
+  {
+    "id": 45273976,
+    "by": "sausagefeet",
+    "timeISO": "2025-09-17T10:23:17.000Z",
+    "textPlain": "Not necessarily.  The guidance is to split your TF code across multiple states which might feel like it make sense but for your microservices to communicate that beed to share some base infrastructure, such as networking, so where does that live?   Putting dependencies in their own state means that you lose the ability to understand how changing them impacts all of your infrastructure because you have this information black hole at the boundary of their state.With Stategraph, you'll get all the benefits and isolation of separate state files, but when you changed resources, you'll get meaningful plans around all of the infrastructure they impact, not just the statically defined boundaries of a state file.",
+    "parent": 45273941,
+    "depth": 2
+  },
+  {
+    "id": 45273978,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T10:23:27.000Z",
+    "textPlain": "Author here. You are right that splitting by microservice reduces overlap. The problem is shared resources never go away such as VPCs IAM or databases so contention shows up there.Splitting state files is the common workaround but that only creates new problems like cross state dependencies and orchestration glue. The real issue is the storage model which is a single JSON blob with a global lock. Treating state as a graph with proper concurrency control avoids contention while keeping a cohesive view of infrastructure.",
+    "parent": 45273941,
+    "depth": 2
+  },
+  {
+    "id": 45274080,
+    "by": "lawnchair",
+    "timeISO": "2025-09-17T10:37:33.000Z",
+    "textPlain": "I don't think it fixes it. Atmos makes splitting and managing multiple states easier, but it still splits the graph. It doesn't change the underlying execution model.",
+    "parent": 45274052,
+    "depth": 2
   },
   {
     "id": 45273947,
