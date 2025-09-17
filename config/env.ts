@@ -14,11 +14,11 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("moonshotai/kimi-k2:free"),
+  OPENROUTER_MODEL: z.string().default("deepseek/deepseek-chat-v3.1:free"),
   // When primary model fails for summaries, try this model next
   OPENROUTER_FALLBACK_MODEL: z
     .string()
-    .default("deepseek/deepseek-chat-v3.1:free"),
+    .default("moonshotai/kimi-k2:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
   TAGS_MODEL: z.string().default("mistralai/mistral-small-3.2-24b-instruct:free"), // try structured outputs, fallback to JSON
@@ -51,6 +51,12 @@ const EnvironmentSchema = z.object({
   // PDF parsing limits
   PDF_MAX_PAGES: z.coerce.number().int().min(1).max(200).default(12),
   PDF_MAX_BYTES: z.coerce.number().int().min(100_000).max(50_000_000).default(10_000_000),
+
+  // YouTube transcript preferences
+  YT_TRANSCRIPT_LANGS: z
+    .string()
+    .transform((v) => (v ? v.split(",").map((s) => s.trim()).filter(Boolean) : []))
+    .optional(),
 });
 
 export const env = EnvironmentSchema.parse(process.env);

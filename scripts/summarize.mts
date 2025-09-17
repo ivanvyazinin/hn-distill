@@ -19,12 +19,13 @@ import {
 import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
 import { ensureDir, readTextSafe, writeTextFile } from "@utils/fs";
 import { htmlToMd } from "@utils/html-to-md";
-import { HttpClient } from "@utils/http-client";
+import { HttpClient, HttpError } from "@utils/http-client";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
 import { pdfToText } from "@utils/pdf";
 import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
+import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
 
 import type { z } from "zod";
 
@@ -50,35 +51,67 @@ export function makeServices(e: Env): Services {
   const openrouter = new OpenRouter(http, e.OPENROUTER_API_KEY ?? "", e.OPENROUTER_MODEL);
 
   async function fetchArticleMarkdown(url: string): Promise<string> {
-    const { data, contentType } = await http.bytes(url);
-    const head = data.subarray(0, 8);
+    const youtubeText = await tryFetchYouTubeContent(url);
+    if (youtubeText) {
+      return youtubeText;
+    }
 
-    if (looksLikePdf({ url, contentType: contentType ?? undefined, bytesHead: head })) {
+    const { data, contentType } = await http.bytes(url);
+    return parseFetchedContent(url, data, contentType ?? undefined);
+  }
+
+  async function tryFetchYouTubeContent(url: string): Promise<string | undefined> {
+    try {
+      const parsed = new URL(url);
+      if (!isYouTubeUrl(parsed)) {
+        return undefined;
+      }
+      const vid = getVideoId(parsed);
+      if (!vid) {
+        return undefined;
+      }
+      log.info(LOG_NAMESPACE_ARTICLE, "Fetching YouTube transcript", { url, vid });
+      const prefer = (e.YT_TRANSCRIPT_LANGS?.length ?? 0) > 0 ? e.YT_TRANSCRIPT_LANGS : [e.SUMMARY_LANG, "en"];
+      const transcript = await fetchYouTubeTranscript(http, vid, prefer);
+      const trimmed = transcript?.text.trim();
+      if (trimmed) {
+        return trimmed;
+      }
+      log.warn(LOG_NAMESPACE_ARTICLE, "No captions available; falling back to HTML", { url, vid });
+    } catch {
+      // Not a valid URL or transcript fetch failed; fall back to fetching bytes.
+    }
+    return undefined;
+  }
+
+  async function parseFetchedContent(url: string, data: Uint8Array, contentType?: string): Promise<string> {
+    const head = data.subarray(0, 8);
+    if (looksLikePdf({ url, contentType, bytesHead: head })) {
       log.info(LOG_NAMESPACE_ARTICLE, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
       try {
         const text = await pdfToText(data, {
           maxPages: e.PDF_MAX_PAGES,
-          softMaxBytes: e.PDF_MAX_BYTES
+          softMaxBytes: e.PDF_MAX_BYTES,
         });
         log.debug(LOG_NAMESPACE_ARTICLE, "PDF parsed successfully", { url, textLength: text.length });
         return text;
       } catch (error) {
         log.error(LOG_NAMESPACE_ARTICLE, "PDF parse failed", { url, error: String(error) });
-        return '';
+        return "";
       }
-    } else if (looksLikeHtml(contentType ?? undefined)) {
+    }
+    if (looksLikeHtml(contentType)) {
       log.debug(LOG_NAMESPACE_ARTICLE, "Processing HTML content", { url, contentType });
       const html = decodeText(data, contentType);
       return htmlToMd(html);
-    } else {
-      log.debug(LOG_NAMESPACE_ARTICLE, "Processing as plain text", { url, contentType });
-      try {
-        const text = decodeText(data, contentType);
-        return text.trim();
-      } catch (error) {
-        log.warn(LOG_NAMESPACE_ARTICLE, "Text decode failed", { url, contentType, error: String(error) });
-        return '';
-      }
+    }
+    log.debug(LOG_NAMESPACE_ARTICLE, "Processing as plain text", { url, contentType });
+    try {
+      const text = decodeText(data, contentType);
+      return text.trim();
+    } catch (error) {
+      log.warn(LOG_NAMESPACE_ARTICLE, "Text decode failed", { url, contentType, error: String(error) });
+      return "";
     }
   }
 
@@ -97,6 +130,193 @@ const LOG_NAMESPACE_LLM = "summarize/llm" as const;
 const LOG_NAMESPACE_POST = "summarize/post" as const;
 const LOG_NAMESPACE_COMMENTS = "summarize/comments" as const;
 const LOG_NAMESPACE_ARTICLE = "summarize/article" as const;
+
+type LlmLogContext = Record<string, unknown>;
+
+function ensureError(error: unknown): Error {
+  if (error instanceof Error) {
+    return error;
+  }
+  if (typeof error === "string") {
+    return new Error(error);
+  }
+  try {
+    return new Error(JSON.stringify(error));
+  } catch {
+    return new Error(String(error));
+  }
+}
+
+function parseHttpErrorJson(error: HttpError): unknown {
+  const { message } = error;
+  const firstSpace = message.indexOf(" ");
+  if (firstSpace === -1) {
+    return undefined;
+  }
+  const secondSpace = message.indexOf(" ", firstSpace + 1);
+  if (secondSpace === -1) {
+    return undefined;
+  }
+  const jsonPart = message.slice(secondSpace + 1).trim();
+  if (!jsonPart) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(jsonPart);
+  } catch {
+    return undefined;
+  }
+}
+
+function parseRateLimitScope(message?: string): string | undefined {
+  if (!message) {
+    return undefined;
+  }
+  const trimmed = message.trim();
+  const prefix = "Rate limit exceeded:";
+  if (!trimmed.startsWith(prefix)) {
+    return undefined;
+  }
+  return trimmed.slice(prefix.length).replace(/\.\s*$/u, "").trim() || undefined;
+}
+
+function parseNumberish(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+}
+
+function parseResetHeader(value: unknown): number | undefined {
+  const parsed = parseNumberish(value);
+  if (parsed === undefined) {
+    return undefined;
+  }
+  if (parsed > 1_000_000_000_000) {
+    return Math.floor(parsed);
+  }
+  if (parsed > 0) {
+    return Math.floor(parsed * 1000);
+  }
+  return undefined;
+}
+
+type RateLimitDetails = {
+  scope?: string;
+  limit?: number;
+  remaining?: number;
+  resetEpochMs?: number;
+};
+
+function extractRateLimitDetails(error: HttpError): RateLimitDetails | undefined {
+  const json = parseHttpErrorJson(error);
+  if (!json || typeof json !== "object") {
+    return undefined;
+  }
+  const errorPayload = (json as { error?: unknown }).error;
+  if (!errorPayload || typeof errorPayload !== "object") {
+    return undefined;
+  }
+  const { message, metadata } = errorPayload;
+  const headers = metadata && typeof metadata === "object" ? (metadata as { headers?: unknown }).headers : undefined;
+
+  const headerRecord = headers && typeof headers === "object" ? headers as Record<string, unknown> : undefined;
+
+  const limit = headerRecord ? parseNumberish(headerRecord["X-RateLimit-Limit"]) : undefined;
+  const remaining = headerRecord ? parseNumberish(headerRecord["X-RateLimit-Remaining"]) : undefined;
+  const resetEpochMs = headerRecord ? parseResetHeader(headerRecord["X-RateLimit-Reset"]) : undefined;
+
+  return {
+    scope: typeof message === "string" ? parseRateLimitScope(message) : undefined,
+    limit,
+    remaining,
+    resetEpochMs,
+  };
+}
+
+type RateLimitErrorInit = RateLimitDetails & {
+  model: string;
+};
+
+export class RateLimitError extends Error {
+  readonly model: string;
+  readonly limitScope?: string;
+  readonly limit?: number;
+  readonly remaining?: number;
+  readonly resetEpochMs?: number;
+
+  constructor(init: RateLimitErrorInit, options?: { cause?: Error }) {
+    const parts = ["OpenRouter rate limit hit"];
+    if (init.model) {
+      parts.push(`model ${init.model}`);
+    }
+    if (init.scope) {
+      parts.push(`(${init.scope})`);
+    }
+    super(parts.join(" "), options);
+    this.name = "RateLimitError";
+    this.model = init.model;
+    this.limitScope = init.scope;
+    this.limit = init.limit;
+    this.remaining = init.remaining;
+    this.resetEpochMs = init.resetEpochMs;
+  }
+
+  get retryDate(): Date | undefined {
+    return typeof this.resetEpochMs === "number" ? new Date(this.resetEpochMs) : undefined;
+  }
+
+  toLogMeta(extra: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      model: this.model,
+      limitScope: this.limitScope,
+      limit: this.limit,
+      remaining: this.remaining,
+      retryISO: this.retryDate?.toISOString(),
+      resetEpochMs: this.resetEpochMs,
+      ...extra,
+    };
+  }
+}
+
+class LlmCallError extends Error {
+  readonly attempt: "fallback" | "primary";
+  readonly model: string;
+  readonly context: LlmLogContext;
+
+  constructor(attempt: "fallback" | "primary", model: string, context: LlmLogContext, options: { cause: Error }) {
+    super(`OpenRouter ${attempt} call failed for model ${model}`, options);
+    this.name = "LlmCallError";
+    this.attempt = attempt;
+    this.model = model;
+    this.context = context;
+  }
+
+  describe(): string {
+    const causeMessage = this.cause instanceof Error ? this.cause.message : undefined;
+    return causeMessage ? `${this.message}: ${causeMessage}` : this.message;
+  }
+
+  toError(): Error {
+    return this.cause instanceof Error ? this.cause : this;
+  }
+
+  toLogMeta(extra: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      model: this.model,
+      attempt: this.attempt,
+      ...this.context,
+      error: this.cause instanceof Error ? this.cause.message : this.message,
+      ...extra,
+    };
+  }
+}
 
 function hashString(s: string): string {
   return createHash("sha256").update(s).digest("hex");
@@ -203,67 +423,129 @@ export function preserveMarkdownWhitespace(content: string): string {
 
 type LlmResult = { content: string; modelUsed: string };
 
-async function callLLM(services: Services, prompt: string): Promise<LlmResult> {
-  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_MAX_TOKENS } = env;
+function classifyOpenRouterError(
+  error: unknown,
+  attempt: "fallback" | "primary",
+  model: string,
+  context: LlmLogContext
+): LlmCallError | RateLimitError {
+  if (error instanceof RateLimitError) {
+    return error;
+  }
+
+  const httpError = error instanceof HttpError ? error : undefined;
+  if (httpError && httpError.status === 429) {
+    const details = extractRateLimitDetails(httpError) ?? {};
+    return new RateLimitError({ model, ...details }, { cause: ensureError(error) });
+  }
+
+  if (error instanceof Error && /HTTP\s+429/u.test(error.message)) {
+    return new RateLimitError({ model }, { cause: ensureError(error) });
+  }
+
+  return new LlmCallError(attempt, model, context, { cause: ensureError(error) });
+}
+
+async function callOpenRouterAttempt(
+  services: Services,
+  messages: ChatMessage[],
+  model: string,
+  attempt: "fallback" | "primary",
+  context: LlmLogContext
+): Promise<LlmResult> {
+  const logContext = { model, ...context };
+  const logMessage = attempt === "primary" ? "Calling LLM" : "Calling fallback LLM";
+  log.info(LOG_NAMESPACE_LLM, logMessage, logContext);
   try {
-    log.info(LOG_NAMESPACE_LLM, "Calling LLM", { model: OPENROUTER_MODEL, promptChars: prompt.length });
-    const content = await services.openrouter.chat([{ role: "user", content: prompt }], {
+    const content = await services.openrouter.chat(messages, {
       temperature: 0.3,
-      maxTokens: OPENROUTER_MAX_TOKENS,
+      maxTokens: env.OPENROUTER_MAX_TOKENS,
+      model,
     });
     const cleaned = preserveMarkdownWhitespace(content).trim();
-    log.debug(LOG_NAMESPACE_LLM, "LLM response received", { summaryChars: cleaned.length });
-    return { content: cleaned, modelUsed: OPENROUTER_MODEL };
-  } catch (error) {
-    log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
-      primary: OPENROUTER_MODEL,
-      fallback: OPENROUTER_FALLBACK_MODEL,
-      error: String(error),
-    });
-    // Try fallback model once for any error
-    const content = await services.openrouter.chat([{ role: "user", content: prompt }], {
-      temperature: 0.3,
-      maxTokens: OPENROUTER_MAX_TOKENS,
-      model: OPENROUTER_FALLBACK_MODEL,
-    });
-    const cleaned = preserveMarkdownWhitespace(content).trim();
-    log.info(LOG_NAMESPACE_LLM, "Fallback LLM response received", {
-      model: OPENROUTER_FALLBACK_MODEL,
-      summaryChars: cleaned.length,
-    });
-    return { content: cleaned, modelUsed: OPENROUTER_FALLBACK_MODEL };
+    if (attempt === "primary") {
+      log.debug(LOG_NAMESPACE_LLM, "LLM response received", {
+        summaryChars: cleaned.length,
+        ...logContext,
+      });
+    } else {
+      log.info(LOG_NAMESPACE_LLM, "Fallback LLM response received", {
+        summaryChars: cleaned.length,
+        ...logContext,
+      });
+    }
+    return { content: cleaned, modelUsed: model };
+  } catch (rawError) {
+    throw classifyOpenRouterError(rawError, attempt, model, context);
   }
 }
 
-async function callLLMWithMessages(services: Services, messages: ChatMessage[]): Promise<LlmResult> {
-  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_MAX_TOKENS } = env;
+async function callOpenRouterWithRetry(
+  services: Services,
+  messages: ChatMessage[],
+  context: LlmLogContext
+): Promise<LlmResult> {
+  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL } = env;
+  let primaryFailure: LlmCallError | undefined;
+
   try {
-    log.info(LOG_NAMESPACE_LLM, "Calling LLM", { model: OPENROUTER_MODEL, messages: messages.length });
-    const content = await services.openrouter.chat(messages, {
-      temperature: 0.3,
-      maxTokens: OPENROUTER_MAX_TOKENS,
-    });
-    const cleaned = preserveMarkdownWhitespace(content).trim();
-    log.debug(LOG_NAMESPACE_LLM, "LLM response received", { summaryChars: cleaned.length });
-    return { content: cleaned, modelUsed: OPENROUTER_MODEL };
+    return await callOpenRouterAttempt(services, messages, OPENROUTER_MODEL, "primary", context);
   } catch (error) {
-    log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
-      primary: OPENROUTER_MODEL,
-      fallback: OPENROUTER_FALLBACK_MODEL,
-      error: String(error),
-    });
-    const content = await services.openrouter.chat(messages, {
-      temperature: 0.3,
-      maxTokens: OPENROUTER_MAX_TOKENS,
-      model: OPENROUTER_FALLBACK_MODEL,
-    });
-    const cleaned = preserveMarkdownWhitespace(content).trim();
-    log.info(LOG_NAMESPACE_LLM, "Fallback LLM response received", {
-      model: OPENROUTER_FALLBACK_MODEL,
-      summaryChars: cleaned.length,
-    });
-    return { content: cleaned, modelUsed: OPENROUTER_FALLBACK_MODEL };
+    if (error instanceof RateLimitError) {
+      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered", error.toLogMeta(context));
+      throw error;
+    }
+    if (error instanceof LlmCallError) {
+      primaryFailure = error;
+      log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        ...context,
+        error: error.cause instanceof Error ? error.cause.message : error.message,
+      });
+    } else {
+      throw error;
+    }
   }
+
+  try {
+    return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL, "fallback", context);
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      log.warn(
+        LOG_NAMESPACE_LLM,
+        "Rate limit encountered on fallback model",
+        error.toLogMeta(context)
+      );
+      throw error;
+    }
+    if (error instanceof LlmCallError) {
+      const fallbackFailure = error;
+      log.error(LOG_NAMESPACE_LLM, "Fallback model failed", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        ...context,
+        primaryError: primaryFailure.describe(),
+        fallbackError: fallbackFailure.describe(),
+      });
+      throw new AggregateError(
+        [primaryFailure.toError(), fallbackFailure.toError()],
+        `LLM call failed for primary model ${OPENROUTER_MODEL} and fallback model ${OPENROUTER_FALLBACK_MODEL}`
+      );
+    }
+    throw error;
+  }
+}
+
+async function callLLM(services: Services, prompt: string): Promise<LlmResult> {
+  const messages: ChatMessage[] = [{ role: "user", content: prompt }];
+  const context: LlmLogContext = { promptChars: prompt.length };
+  return await callOpenRouterWithRetry(services, messages, context);
+}
+
+async function callLLMWithMessages(services: Services, messages: ChatMessage[]): Promise<LlmResult> {
+  const context: LlmLogContext = { messages: messages.length };
+  return await callOpenRouterWithRetry(services, messages, context);
 }
 
 export function buildPostChatMessages(articleSlice: string): ChatMessage[] {
@@ -510,6 +792,114 @@ async function processSingleStory(services: Services, id: number): Promise<void>
   await processTags(services, story, post?.summary, commentsSummary?.summary);
 }
 
+type Candidate = {
+  id: number;
+  priority: number;
+  timeISO?: string;
+};
+
+type CandidateSelectionConfig = {
+  cooldownMs: number;
+  summaryLang: string;
+  postSummaryOnlyIfMissing: boolean;
+};
+
+function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: number): boolean {
+  if (!iso || cooldownMs <= 0) {
+    return false;
+  }
+  const ts = Date.parse(iso);
+  return Number.isFinite(ts) && now - ts < cooldownMs;
+}
+
+async function computePostChanged(
+  story: NormalizedStory,
+  existingPost: PostSummary | null | undefined,
+  config: CandidateSelectionConfig,
+  now: number
+): Promise<boolean> {
+  if (!existingPost) {
+    return true;
+  }
+  if (config.postSummaryOnlyIfMissing) {
+    return false;
+  }
+  if (isInsideCooldown(existingPost.createdISO, now, config.cooldownMs)) {
+    return false;
+  }
+  const cachedMd = await getCachedArticleMarkdownOnly(story);
+  if (!cachedMd) {
+    return false;
+  }
+  const slice = await buildPostPrompt(story, cachedMd);
+  const hash = hashString(`${config.summaryLang}|${slice}`);
+  return existingPost.inputHash !== hash;
+}
+
+async function computeCommentsChanged(
+  id: number,
+  existingComments: CommentsSummary | null | undefined,
+  cooldownMs: number,
+  now: number
+): Promise<boolean> {
+  if (!existingComments) {
+    return true;
+  }
+  if (isInsideCooldown(existingComments.createdISO, now, cooldownMs)) {
+    return false;
+  }
+  const comments = await readJsonSafeOr<NormalizedComment[]>(
+    pathFor.rawComments(id),
+    NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
+    []
+  );
+  const { prompt } = await buildCommentsPrompt(comments);
+  const hash = hashString(prompt);
+  return existingComments.inputHash !== hash;
+}
+
+async function evaluateCandidate(id: number, config: CandidateSelectionConfig): Promise<Candidate | undefined> {
+  const story = await readJsonSafeOr<NormalizedStory>(
+    pathFor.rawItem(id),
+    NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
+  );
+  if (!story) {
+    return undefined;
+  }
+
+  const [existingPost, existingComments] = await Promise.all([
+    readJsonSafeOr(pathFor.postSummary(id), PostSummarySchema.nullable()),
+    readJsonSafeOr(pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
+  ]);
+
+  const now = Date.now();
+  const postChanged = await computePostChanged(story, existingPost, config, now);
+  const commentsChanged = await computeCommentsChanged(id, existingComments, config.cooldownMs, now);
+  const priority = (postChanged ? 1 : 0) + (commentsChanged ? 2 : 0);
+
+  if (priority <= 0) {
+    return undefined;
+  }
+
+  return { id, priority, timeISO: story.timeISO };
+}
+
+async function collectCandidates(ids: number[], config: CandidateSelectionConfig): Promise<Candidate[]> {
+  const candidates: Candidate[] = [];
+  for (const id of ids) {
+    try {
+      const candidate = await evaluateCandidate(id, config);
+      if (candidate) {
+        candidates.push(candidate);
+      }
+    } catch (error) {
+      log.warn("summarize", "Preselect failed; will attempt full processing", { id, error: String(error) });
+      candidates.push({ id, priority: 1 });
+    }
+  }
+  return candidates;
+}
+
 export async function summarizeWorkflow(services: Services, e: Env = env): Promise<void> {
   const index = await readJsonSafeOr<{ updatedISO: string; storyIds: number[] }>(PATHS.index, IndexSchema, {
     updatedISO: new Date(0).toISOString(),
@@ -531,79 +921,11 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
   // Pre-select candidates to limit token burn per run
   const cooldownMins = Math.max(0, SUMMARIZE_COOLDOWN_MINUTES);
   const maxPerRun = Math.max(1, SUMMARIZE_MAX_STORIES_PER_RUN);
-
-  type Candidate = {
-    id: number;
-    priority: number; // higher first
-    timeISO?: string;
-  };
-
-  const candidates: Candidate[] = [];
-
-  for (const id of index.storyIds) {
-    try {
-      // Load minimal story + summaries
-      const story = await readJsonSafeOr<NormalizedStory>(
-        pathFor.rawItem(id),
-        NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
-      );
-      if (!story) {
-        continue;
-      }
-
-      const [existingPost, existingComments] = await Promise.all([
-        readJsonSafeOr(pathFor.postSummary(id), PostSummarySchema.nullable()),
-        readJsonSafeOr(pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
-      ]);
-
-      const now = Date.now();
-      const recentEnough = (iso?: string): boolean => {
-        if (!iso || cooldownMins <= 0) {
-          return false;
-        }
-        const ts = Date.parse(iso);
-        return Number.isFinite(ts) && now - ts < cooldownMins * 60_000;
-      };
-
-      // Post: compute input hash only if cached article exists locally
-      let postChanged = false;
-      if (!existingPost) {
-        postChanged = true; // missing summary
-      } else if (POST_SUMMARY_ONLY_IF_MISSING) {
-        postChanged = false;
-      } else if (!recentEnough(existingPost.createdISO)) {
-        const cachedMd = await getCachedArticleMarkdownOnly(story);
-        if (cachedMd) {
-          const slice = await buildPostPrompt(story, cachedMd);
-          const hash = hashString(`${SUMMARY_LANG}|${slice}`);
-          postChanged = existingPost.inputHash !== hash;
-        }
-      }
-
-      // Comments: compute prompt hash
-      let commentsChanged = false;
-      if (!existingComments) {
-        commentsChanged = true; // missing summary
-      } else if (!recentEnough(existingComments.createdISO)) {
-        const comments = await readJsonSafeOr<NormalizedComment[]>(
-          pathFor.rawComments(id),
-          NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
-          []
-        );
-        const { prompt } = await buildCommentsPrompt(comments);
-        const hash = hashString(prompt);
-        commentsChanged = existingComments.inputHash !== hash;
-      }
-
-      const priority = (postChanged ? 1 : 0) + (commentsChanged ? 2 : 0);
-      if (priority > 0) {
-        candidates.push({ id, priority, timeISO: story.timeISO });
-      }
-    } catch (error) {
-      log.warn("summarize", "Preselect failed; will attempt full processing", { id, error: String(error) });
-      candidates.push({ id, priority: 1 });
-    }
-  }
+  const candidates = await collectCandidates(index.storyIds, {
+    cooldownMs: cooldownMins * 60_000,
+    summaryLang: SUMMARY_LANG,
+    postSummaryOnlyIfMissing: POST_SUMMARY_ONLY_IF_MISSING,
+  });
 
   // Sort: higher priority first; then newest by timeISO desc; then id desc
   candidates.sort((a, b) => {
@@ -638,14 +960,36 @@ export async function summarizeWorkflow(services: Services, e: Env = env): Promi
     });
   }
 
+  let rateLimitAbort: RateLimitError | undefined;
+
   for (const { id } of selected) {
+    if (rateLimitAbort) {
+      log.warn("summarize", "Skipping story due to prior rate limit", {
+        id,
+        retryISO: rateLimitAbort.retryDate?.toISOString(),
+        model: rateLimitAbort.model,
+      });
+      break;
+    }
     log.info("summarize", "Processing story", { id });
     try {
       await processSingleStory(services, id);
     } catch (error) {
+      if (error instanceof RateLimitError) {
+        rateLimitAbort = error;
+        log.error("summarize", "Aborting summarize run due to OpenRouter rate limit", {
+          id,
+          ...error.toLogMeta(),
+        });
+        break;
+      }
       log.error("summarize", "Unhandled error during story processing", { id, error: String(error) });
       continue;
     }
+  }
+
+  if (rateLimitAbort) {
+    log.warn("summarize", "Summarize run aborted early because of rate limit", rateLimitAbort.toLogMeta());
   }
 }
 

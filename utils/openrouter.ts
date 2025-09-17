@@ -30,6 +30,10 @@ export type StructuredOutputOptions = {
   };
 };
 
+type StructuredRetryCount = number;
+
+const DEFAULT_STRUCTURED_MAX_RETRIES: StructuredRetryCount = 3;
+
 export class OpenRouter {
   private readonly http: HttpClient;
   private readonly apiKey: string;
@@ -132,7 +136,7 @@ export class OpenRouter {
     messages: ChatMessage[],
     options: StructuredOutputOptions,
     zodSchema: z.ZodSchema<T>,
-    maxRetries = 3
+    maxRetries: StructuredRetryCount = DEFAULT_STRUCTURED_MAX_RETRIES
   ): Promise<T> {
     const url = "https://openrouter.ai/api/v1/chat/completions";
     const requestBody = this.buildStructuredRequestBody(messages, options);
@@ -148,7 +152,7 @@ export class OpenRouter {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
         return await this.makeStructuredRequest(url, requestBody, zodSchema, attempt);
-      } catch (error) {
+      } catch (error: unknown) {
         const isLastAttempt = attempt === maxRetries;
         log.warn("openrouter", `Structured parsing failed (attempt ${attempt}/${maxRetries})`, {
           error: error instanceof Error ? error.message : String(error),
