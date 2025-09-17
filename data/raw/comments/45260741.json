@@ -64,26 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45272041,
-    "by": "pxc",
-    "timeISO": "2025-09-17T05:25:00.000Z",
-    "textPlain": "Letting upstream authors write code that the package manager runs at install time isn't a sane thing for package managers to allow. It promotes all kinds of hacky shit and makes packages harder to work with programmatically, and it also provides this propagation vector. Packages also shouldn't have arbitrary network access at build time for both of those two same reasons!There's been a lot of talk here about selecting and auditing dependencies, which is fine and good. But this attack and lots of other supply chain attacks would also be avoided with a better-behaved package manager. Doesn't Deno solve this? Do any other JS package managers do some common-sense sandboxing?Yes, migration is painful. Yes, granular permissions are more annoying to figure out than anything-can-do-anything. But is either as painful as vendoring/forking your dependencies without the aid of a package manager altogether? If you're really considering just copying and pasting instead of using NPM, maybe you should also consider participating in a saner package ecosystem. If you're ready to do the one, maybe you're ready to do the other.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45269081,
     "by": "kafrofrite",
     "timeISO": "2025-09-16T22:29:29.000Z",
     "textPlain": "It's probably not trivial to implement and there's already a bunch of problems that need solving (e.g., trusting keys etc.) but... I think that if we had some sort of lightweight code provenance (on top of my head commits are signed from known/trusted keys, releases are signed by known keys, installing signed packages requires verification), we could probably make it somewhat harder to introduce malicious changes.Edit: It looks like there's already something similar using sigstore in npm https://docs.npmjs.com/generating-provenance-statements#abou.... My understanding is that its use is not widespread though and it's mostly used to verify the publisher.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
-    "id": 45271988,
-    "by": "aorth",
-    "timeISO": "2025-09-17T05:17:13.000Z",
-    "textPlain": "In the story about the Nx compromise a few weeks ago someone posted a neat script that uses bubblewrap on Linux to run tools like npm more safely by confining their filesystem access. https://news.ycombinator.com/item?id=45034496I modified the script slightly based on some of the comments in the thread and my own usage patterns:  #!/usr/bin/env bash\n  #\n  # See: https://news.ycombinator.com/item?id=45034496\n  \n  bin=$(basename \"$0\")\n  \n  echo \"===========================\"\n  echo \"Wrapping $bin in bubblewrap\"\n  echo \"===========================\"\n  \n  exec bwrap \\\n    --bind ~/.cache ~/.cache \\\n    --bind \"${PWD}\" \"${PWD}\" \\\n    --dev /dev \\\n    --die-with-parent \\\n    --disable-userns \\\n    --new-session \\\n    --proc /proc \\\n    --ro-bind /etc/ca-certificates /etc/ca-certificates \\\n    --ro-bind /etc/resolv.conf /etc/resolv.conf \\\n    --ro-bind /etc/ssl /etc/ssl \\\n    --ro-bind /usr /usr \\\n    --setenv PATH /usr/bin \\\n    --symlink /usr/bin /bin \\\n    --symlink /usr/bin /sbin \\\n    --symlink /usr/lib /lib \\\n    --symlink /usr/lib64 /lib64 \\\n    --tmpfs /tmp \\\n    --unshare-all \\\n    --unshare-user \\\n    --share-net \\\n    /usr/bin/env \"$bin\" \"$@\"\n\nPut this in `~/.local/bin` and symlink it to `~/.local/bin/npm` and `~/.local/bin/yarn` (and make sure `~/.local/bin` is first in your `$PATH`). I've been using it to wrap npm and yarn successfully in a few projects. This will protect you against some attacks that use postinstall scripts to do nefarious things outside the project.",
     "parent": 45260741,
     "depth": 1
   },
@@ -104,10 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45271531,
-    "by": "shirro",
-    "timeISO": "2025-09-17T04:04:51.000Z",
-    "textPlain": "For years everyone in the programming community has been pushing for convenience and features and code reuse and its got to the point I think the ease of adding a third party package from the languages package manager or github needs to be seriously questioned by security conscious devs. Perhaps we made the wrong things easy.",
+    "id": 45272041,
+    "by": "pxc",
+    "timeISO": "2025-09-17T05:25:00.000Z",
+    "textPlain": "Letting upstream authors write code that the package manager runs at install time isn't a sane thing for package managers to allow. It promotes all kinds of hacky shit and makes packages harder to work with programmatically, and it also provides this propagation vector. Packages also shouldn't have arbitrary network access at build time for both of those two same reasons!There's been a lot of talk here about selecting and auditing dependencies, which is fine and good. But this attack and lots of other supply chain attacks would also be avoided with a better-behaved package manager. Doesn't Deno solve this? Do any other JS package managers do some common-sense sandboxing?Yes, migration is painful. Yes, granular permissions are more annoying to figure out than anything-can-do-anything. But is either as painful as vendoring/forking your dependencies without the aid of a package manager altogether? If you're really considering just copying and pasting instead of using NPM, maybe you should also consider participating in a saner package ecosystem. If you're ready to do the one, maybe you're ready to do the other.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45271988,
+    "by": "aorth",
+    "timeISO": "2025-09-17T05:17:13.000Z",
+    "textPlain": "In the story about the Nx compromise a few weeks ago someone posted a neat script that uses bubblewrap on Linux to run tools like npm more safely by confining their filesystem access. https://news.ycombinator.com/item?id=45034496I modified the script slightly based on some of the comments in the thread and my own usage patterns:  #!/usr/bin/env bash\n  #\n  # See: https://news.ycombinator.com/item?id=45034496\n  \n  bin=$(basename \"$0\")\n  \n  echo \"===========================\"\n  echo \"Wrapping $bin in bubblewrap\"\n  echo \"===========================\"\n  \n  exec bwrap \\\n    --bind ~/.cache ~/.cache \\\n    --bind \"${PWD}\" \"${PWD}\" \\\n    --dev /dev \\\n    --die-with-parent \\\n    --disable-userns \\\n    --new-session \\\n    --proc /proc \\\n    --ro-bind /etc/ca-certificates /etc/ca-certificates \\\n    --ro-bind /etc/resolv.conf /etc/resolv.conf \\\n    --ro-bind /etc/ssl /etc/ssl \\\n    --ro-bind /usr /usr \\\n    --setenv PATH /usr/bin \\\n    --symlink /usr/bin /bin \\\n    --symlink /usr/bin /sbin \\\n    --symlink /usr/lib /lib \\\n    --symlink /usr/lib64 /lib64 \\\n    --tmpfs /tmp \\\n    --unshare-all \\\n    --unshare-user \\\n    --share-net \\\n    /usr/bin/env \"$bin\" \"$@\"\n\nPut this in `~/.local/bin` and symlink it to `~/.local/bin/npm` and `~/.local/bin/yarn` (and make sure `~/.local/bin` is first in your `$PATH`). I've been using it to wrap npm and yarn successfully in a few projects. This will protect you against some attacks that use postinstall scripts to do nefarious things outside the project.",
     "parent": 45260741,
     "depth": 1
   },
@@ -128,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45271531,
+    "by": "shirro",
+    "timeISO": "2025-09-17T04:04:51.000Z",
+    "textPlain": "For years everyone in the programming community has been pushing for convenience and features and code reuse and its got to the point I think the ease of adding a third party package from the languages package manager or github needs to be seriously questioned by security conscious devs. Perhaps we made the wrong things easy.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
     "id": 45262800,
     "by": "brundolf",
     "timeISO": "2025-09-16T14:33:18.000Z",
@@ -140,14 +140,6 @@
     "by": "jbd0",
     "timeISO": "2025-09-16T11:50:36.000Z",
     "textPlain": "I knew npm was a train wreck when I first used it years ago and it pulled in literally hundreds of dependencies for a simple app. I avoid anything that uses it like the plague.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
-    "id": 45272421,
-    "by": "joelthelion",
-    "timeISO": "2025-09-17T06:23:22.000Z",
-    "textPlain": "This seems like a great opportunity for someone to push a smaller but fully audited subset of the npm repos.Corporations would love it.",
     "parent": 45260741,
     "depth": 1
   },
@@ -172,6 +164,14 @@
     "by": "thegeomaster",
     "timeISO": "2025-09-16T11:55:15.000Z",
     "textPlain": "Warning: LLM-generated article, terribly difficult to follow and full of irrelevant details.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45272421,
+    "by": "joelthelion",
+    "timeISO": "2025-09-17T06:23:22.000Z",
+    "textPlain": "This seems like a great opportunity for someone to push a smaller but fully audited subset of the npm repos.Corporations would love it.",
     "parent": 45260741,
     "depth": 1
   },
@@ -216,18 +216,18 @@
     "depth": 1
   },
   {
-    "id": 45270758,
-    "by": "cyrnel",
-    "timeISO": "2025-09-17T02:10:09.000Z",
-    "textPlain": "Code signing, 2FA, and reducing dependencies are all incomplete solutions. What we need is fine-grained sandboxing, down to the function and type level. You will always be vulnerable as long as you're relying on fallible humans (even yourself) to catch or prevent vulnerabilities.Apparently they've tried to implement this in JavaScript but the language is generally too flexible to resist a malicious package running in the same process.We need to be using different languages with runtimes that don't allow privileged operations by default.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45261707,
     "by": "nahuel0x",
     "timeISO": "2025-09-16T13:05:58.000Z",
     "textPlain": "Languages/VMs should support capability-based permissions for libraries, no library should be able to open a file or do network requests without explicit granular permissions.",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45270758,
+    "by": "cyrnel",
+    "timeISO": "2025-09-17T02:10:09.000Z",
+    "textPlain": "Code signing, 2FA, and reducing dependencies are all incomplete solutions. What we need is fine-grained sandboxing, down to the function and type level. You will always be vulnerable as long as you're relying on fallible humans (even yourself) to catch or prevent vulnerabilities.Apparently they've tried to implement this in JavaScript but the language is generally too flexible to resist a malicious package running in the same process.We need to be using different languages with runtimes that don't allow privileged operations by default.",
     "parent": 45260741,
     "depth": 1
   },
@@ -288,18 +288,18 @@
     "depth": 1
   },
   {
-    "id": 45270254,
-    "by": "DarkmSparks",
-    "timeISO": "2025-09-17T00:55:43.000Z",
-    "textPlain": "Wow it got everything, aws keys, gcp keys, github tokens, thats a lot of cryptocoin mining instances that are going to be spun up. And a lot of unexpected bills people are going to be getting...They really shouldn't have been stored unencrypted on peoples machines.... Ouch.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45261926,
     "by": "zelias",
     "timeISO": "2025-09-16T13:24:11.000Z",
     "textPlain": "How many packages now have been compromised over the past couple of weeks? The velocity of these attacks are insane. Part of me believes state actors must be involved at this point.In any case, does anyone have an exhaustive list of all recently compromised npm packages + versions across the recent attacks? We need to do an exhaustive scan after this news...",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45270254,
+    "by": "DarkmSparks",
+    "timeISO": "2025-09-17T00:55:43.000Z",
+    "textPlain": "Wow it got everything, aws keys, gcp keys, github tokens, thats a lot of cryptocoin mining instances that are going to be spun up. And a lot of unexpected bills people are going to be getting...They really shouldn't have been stored unencrypted on peoples machines.... Ouch.",
     "parent": 45260741,
     "depth": 1
   },
@@ -320,18 +320,18 @@
     "depth": 1
   },
   {
-    "id": 45266767,
-    "by": "racl101",
-    "timeISO": "2025-09-16T19:27:18.000Z",
-    "textPlain": "Maybe stupid question here. And forgive my ignorance.But does yarn or deno suffer from the same issues? That is do they get their packages from npm repositories? I've never used these.",
-    "parent": 45260741,
-    "depth": 1
-  },
-  {
     "id": 45261417,
     "by": "keepamovin",
     "timeISO": "2025-09-16T12:38:41.000Z",
     "textPlain": "I haven't dug into the specifics but technical props and nostalgia to the \"self propagating\" nature. Reminds of the OG \"Worm\" - the https://en.wikipedia.org/wiki/Morris_worm",
+    "parent": 45260741,
+    "depth": 1
+  },
+  {
+    "id": 45266767,
+    "by": "racl101",
+    "timeISO": "2025-09-16T19:27:18.000Z",
+    "textPlain": "Maybe stupid question here. And forgive my ignorance.But does yarn or deno suffer from the same issues? That is do they get their packages from npm repositories? I've never used these.",
     "parent": 45260741,
     "depth": 1
   },
