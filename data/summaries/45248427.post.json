@@ -1,0 +1,8 @@
+{
+  "id": 45248427,
+  "lang": "ru",
+  "summary": "# День, когда линтер сломал мой код\n\nПредставьте задачу: разработать ошибки для сервиса.\n\n*   `DataEOFError` должна содержать имя файла и считаться эквивалентной `io.ErrUnexpectedEOF`.\n*   `ProcessingFailedError` должна содержать ID обработки и оборачивать причину ошибки.\n*   Разные экземпляры `ProcessingFailedError` не должны быть равны.\n\nВы пишете код:\n\n```go\ntype DataEOFError string\n\nfunc (d DataEOFError) Error() string {\n\treturn \"unexpected EOF in file \" + strconv.Quote(string(d))\n}\n\nfunc (DataEOFError) Is(err error) bool {\n\treturn err == io.ErrUnexpectedEOF\n}\n```\n\nИ для второй ошибки:\n\n```go\ntype ProcessingFailedError struct {\n\tID     string\n\tReason error\n}\n\nfunc (p *ProcessingFailedError) Error() string {\n\treturn fmt.Sprintf(\"processing %s failed: %s\", p.ID, p.Reason)\n}\n\nfunc (p *ProcessingFailedError) Unwrap() error {\n\treturn p.Reason\n}\n```\n\nТесты проходят, но CI с линтером `err113` жалуется на прямое сравнение ошибок. Вы автоматически исправляете код через `golangci-lint --fix`, заменяя сравнение на `errors.Is()`.\n\nПосле этого тесты ломаются: `errors.Is()` начинает некорректно сравнивать ошибки из-за изменения логики. Оказывается, прямое сравнение было необходимо для правильной работы кастомной логики эквивалентности.\n\nВывод: слепое следование правилам линтера может привести к ошибкам. Всегда проверяйте контекст и понимайте, почему правило существует.",
+  "model": "deepseek/deepseek-chat-v3.1:free",
+  "inputHash": "e70d45d8f3978bc4d8a5b7168f55d261cf5eae4fdaa207f7da8dae560bc7c841",
+  "createdISO": "2025-09-18T18:36:51.506Z"
+}
