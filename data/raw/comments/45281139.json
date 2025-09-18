@@ -1,9 +1,17 @@
 [
   {
-    "id": 45286204,
-    "by": "am17an",
-    "timeISO": "2025-09-18T06:28:33.000Z",
-    "textPlain": "They must really be having a bad time if Anthropic of all labs is willing to share their infra details. On the actual precision bug, it is quite unfortunate on FMA side, numerical issues are often deeply bewildering and no AI can solve them (yet.) Also goes to show, if you are in a super crunch situation like this one (competitor literally eating your lunch every day), you need humans to understand what went wrong and even then it can take weeks to rectify.",
+    "id": 45287049,
+    "by": "itsgrimetime",
+    "timeISO": "2025-09-18T08:27:57.000Z",
+    "textPlain": "Wish they would have included what the actual failure mode was. I’ve been having issues where Claude Code will just hang after running some tool call, was that caused by one of these bugs?",
+    "parent": 45281139,
+    "depth": 1
+  },
+  {
+    "id": 45286810,
+    "by": "mike_hearn",
+    "timeISO": "2025-09-18T07:50:29.000Z",
+    "textPlain": "The most interesting thing about this is the apparent absence of unit tests. The \"test\" for the XLA compiler bug they show just prints the outputs, it's not actually a unit test in the sense that it'd be run by a test harness and have coverage tracked. And the action items are simply to lean more aggressively into evals.Although unit testing an entire LLM is not really feasible right now, all these bugs were in small deterministic parts of the system. Load balancing, top-k probability calculations and so on are all engineered parts no different to other software, and should in principle all be unit testable. At most you need an injectable PRNG. Yes, non-deterministic optimization bugs are awful but I've personally found compiler and database bugs in the past using just regular app test suites. With CI you get a lot of runs so rare events can still surface as long as you investigate flakes.A few days ago I commented on a thread about the Java launch that people often feel Java is \"enterprisey\" compared to Python because Java code is typically written to be heavily unit testable. A lot of abstraction is driven by the desire for dependency injection, for example. I contrasted that to scripting language culture where I've found testing is often either missing or kinda surface level (e.g. mostly just asserting on types).When I've been learning PyTorch a few years ago I noticed the same thing. The tutorials took you from simple to complex stuff without talking much about how you test or best structure the code. This makes sense for ML research where you don't have a clear goal and success boils down to maxing a score in some kind of human-driven eval, but it doesn't make sense for production deployment at scale.I wonder if the AI labs could use more people with SRE and HA SWE background to focus on things like this. I'm kinda skeptical that more aggressive rolling evals-in-prod are the best way to avoid bugs like these happening again.",
     "parent": 45281139,
     "depth": 1
   },
@@ -16,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45282522,
-    "by": "data-ottawa",
-    "timeISO": "2025-09-17T23:07:13.000Z",
-    "textPlain": "With all due respect to the Anthropic team, I think the Claude status page[1] warrants an internal code red for quality. There were 50 incidents in July, 40 incidents in August, and 21 so far in September. I have worked in places where we started approaching half these numbers and they always resulted in a hard pivot to focusing on uptime and quality.Despite this I'm still a paying customer because Claude is a fantastic product and I get a lot of value from it. After trying the API it became a no brainer to buy a 20x Max membership. The amount of stuff I've gotten done with Claude has been awesome.The last several weeks have strongly made me question my subscription. I appreciate the openness of this post, but as a customer I'm not happy.I don't trust that these issues are all discovered and resolved yet, especially the load balancing ones. At least anecdotally I notice that around 12 ET (9AM pacific) my Claude Code sessions noticeably drop in quality. Again, I hope the team is able to continue finding and fixing these issues. Even running local models on my own machine at home I run into complicated bugs all the time — I won't pretend these are easy problems, they are difficult to find and fix.[1] https://status.anthropic.com/history",
-    "parent": 45281139,
-    "depth": 1
-  },
-  {
     "id": 45282056,
     "by": "cyanf",
     "timeISO": "2025-09-17T22:17:34.000Z",
     "textPlain": "> On August 29, a routine load balancing change unintentionally increased the number of short-context requests routed to the 1M context servers. At the worst impacted hour on August 31, 16% of Sonnet 4 requests were affected.Interesting, this implies that the 1M context servers performs worst at low context.\nPerhaps this is due to some KV cache compression, eviction or sparse attention scheme being applied on these 1M context servers?",
+    "parent": 45281139,
+    "depth": 1
+  },
+  {
+    "id": 45286204,
+    "by": "am17an",
+    "timeISO": "2025-09-18T06:28:33.000Z",
+    "textPlain": "They must really be having a bad time if Anthropic of all labs is willing to share their infra details. On the actual precision bug, it is quite unfortunate on FMA side, numerical issues are often deeply bewildering and no AI can solve them (yet.) Also goes to show, if you are in a super crunch situation like this one (competitor literally eating your lunch every day), you need humans to understand what went wrong and even then it can take weeks to rectify.",
+    "parent": 45281139,
+    "depth": 1
+  },
+  {
+    "id": 45282522,
+    "by": "data-ottawa",
+    "timeISO": "2025-09-17T23:07:13.000Z",
+    "textPlain": "With all due respect to the Anthropic team, I think the Claude status page[1] warrants an internal code red for quality. There were 50 incidents in July, 40 incidents in August, and 21 so far in September. I have worked in places where we started approaching half these numbers and they always resulted in a hard pivot to focusing on uptime and quality.Despite this I'm still a paying customer because Claude is a fantastic product and I get a lot of value from it. After trying the API it became a no brainer to buy a 20x Max membership. The amount of stuff I've gotten done with Claude has been awesome.The last several weeks have strongly made me question my subscription. I appreciate the openness of this post, but as a customer I'm not happy.I don't trust that these issues are all discovered and resolved yet, especially the load balancing ones. At least anecdotally I notice that around 12 ET (9AM pacific) my Claude Code sessions noticeably drop in quality. Again, I hope the team is able to continue finding and fixing these issues. Even running local models on my own machine at home I run into complicated bugs all the time — I won't pretend these are easy problems, they are difficult to find and fix.[1] https://status.anthropic.com/history",
     "parent": 45281139,
     "depth": 1
   },
@@ -88,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45283314,
-    "by": "yomismoaqui",
-    "timeISO": "2025-09-18T00:31:51.000Z",
-    "textPlain": "This reminds me of the story [1] about Facebook intentionally breaking parts of its Android app for some users (including crashing or disabling functionality), to see how far it could degrade before users stopped using Facebook.According to reports, users did not stop coming back even when the app was broken for hours.A similar thing happened to me when playing some initial version of The Binding of Isaac on Linux, when it was made with Flash. Its performance wasn't the best but I couldn't stop playing.So if people still returns maybe Anthropic has something great going on with Claude Code.[1]: https://www.theguardian.com/technology/2016/jan/05/facebook-...",
-    "parent": 45281139,
-    "depth": 1
-  },
-  {
     "id": 45281869,
     "by": "flutas",
     "timeISO": "2025-09-17T21:58:01.000Z",
     "textPlain": "And yet no offers of credits to make things right for the users, for what was essentially degraded performance of what you paid for.I know I'll probably get push back on this, but it left a sour taste in my mouth when I paid for a $200 sub that felt like it was less useful than ChatGPT Plus ($20) at times.Or to summarize: [south park \"we're sorry\" gif]",
+    "parent": 45281139,
+    "depth": 1
+  },
+  {
+    "id": 45283314,
+    "by": "yomismoaqui",
+    "timeISO": "2025-09-18T00:31:51.000Z",
+    "textPlain": "This reminds me of the story [1] about Facebook intentionally breaking parts of its Android app for some users (including crashing or disabling functionality), to see how far it could degrade before users stopped using Facebook.According to reports, users did not stop coming back even when the app was broken for hours.A similar thing happened to me when playing some initial version of The Binding of Isaac on Linux, when it was made with Flash. Its performance wasn't the best but I couldn't stop playing.So if people still returns maybe Anthropic has something great going on with Claude Code.[1]: https://www.theguardian.com/technology/2016/jan/05/facebook-...",
     "parent": 45281139,
     "depth": 1
   },
@@ -128,10 +144,10 @@
     "depth": 1
   },
   {
-    "id": 45283292,
-    "by": "mvdtnz",
-    "timeISO": "2025-09-18T00:28:02.000Z",
-    "textPlain": "I don't believe for one second that response quality dropped because of an infrastructural change and remained degraded, unnoticed, for weeks. This simply does not pass the sniff test.",
+    "id": 45281675,
+    "by": "stellalo",
+    "timeISO": "2025-09-17T21:36:06.000Z",
+    "textPlain": "Title should be fixed: it’s about Claude models in general, not Claude Code",
     "parent": 45281139,
     "depth": 1
   },
@@ -140,14 +156,6 @@
     "by": "ath3nd",
     "timeISO": "2025-09-18T07:12:16.000Z",
     "textPlain": "[dead]",
-    "parent": 45281139,
-    "depth": 1
-  },
-  {
-    "id": 45281675,
-    "by": "stellalo",
-    "timeISO": "2025-09-17T21:36:06.000Z",
-    "textPlain": "Title should be fixed: it’s about Claude models in general, not Claude Code",
     "parent": 45281139,
     "depth": 1
   },
@@ -164,6 +172,14 @@
     "by": "behnamoh",
     "timeISO": "2025-09-17T22:20:52.000Z",
     "textPlain": "Reminder that Anthropic is the only AI company that has never released any open-source/weight models.",
+    "parent": 45281139,
+    "depth": 1
+  },
+  {
+    "id": 45283292,
+    "by": "mvdtnz",
+    "timeISO": "2025-09-18T00:28:02.000Z",
+    "textPlain": "I don't believe for one second that response quality dropped because of an infrastructural change and remained degraded, unnoticed, for weeks. This simply does not pass the sniff test.",
     "parent": 45281139,
     "depth": 1
   },
@@ -208,6 +224,22 @@
     "depth": 2
   },
   {
+    "id": 45282342,
+    "by": "kiratp",
+    "timeISO": "2025-09-17T22:45:14.000Z",
+    "textPlain": "This is due to RoPE scaling.> All the notable open-source frameworks implement static YaRN, which means the scaling factor remains constant regardless of input length, potentially impacting performance on shorter texts. We advise adding the rope_scaling configuration only when processing long contexts is required. It is also recommended to modify the factor as needed. For example, if the typical context length for your application is 524,288 tokens, it would be better to set factor as 2.0.https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking",
+    "parent": 45282056,
+    "depth": 2
+  },
+  {
+    "id": 45282188,
+    "by": "kruxigt",
+    "timeISO": "2025-09-17T22:29:19.000Z",
+    "textPlain": "[dead]",
+    "parent": 45282056,
+    "depth": 2
+  },
+  {
     "id": 45282849,
     "by": "ruszki",
     "timeISO": "2025-09-17T23:41:58.000Z",
@@ -245,22 +277,6 @@
     "timeISO": "2025-09-18T02:57:17.000Z",
     "textPlain": "This is always why you should put as few incidents on status page as possible. People's opinion will drop and then the negative effect will fade over time. But if you have a status page then it's incontrovertible proof. Better to lie. They'll forget.e.g. S3 has many times encountered increased error rate but doesn't report. No one says anything about S3.People will say many things, but their behaviour is to reward the lie. Every growth hack startup guy knows this already.",
     "parent": 45282522,
-    "depth": 2
-  },
-  {
-    "id": 45282342,
-    "by": "kiratp",
-    "timeISO": "2025-09-17T22:45:14.000Z",
-    "textPlain": "This is due to RoPE scaling.> All the notable open-source frameworks implement static YaRN, which means the scaling factor remains constant regardless of input length, potentially impacting performance on shorter texts. We advise adding the rope_scaling configuration only when processing long contexts is required. It is also recommended to modify the factor as needed. For example, if the typical context length for your application is 524,288 tokens, it would be better to set factor as 2.0.https://huggingface.co/Qwen/Qwen3-Next-80B-A3B-Thinking",
-    "parent": 45282056,
-    "depth": 2
-  },
-  {
-    "id": 45282188,
-    "by": "kruxigt",
-    "timeISO": "2025-09-17T22:29:19.000Z",
-    "textPlain": "[dead]",
-    "parent": 45282056,
     "depth": 2
   },
   {
@@ -376,27 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45284142,
-    "by": "blackqueeriroh",
-    "timeISO": "2025-09-18T02:02:13.000Z",
-    "textPlain": "Can you provide any proof of what you’re saying? Any examples that would bear out what you’re asserting? Anything at all?“I refuse to believe what the people who would know the best said, for no real reason except that it doesn’t feel right” isn’t exactly the level of considered response we’re hoping for here on HN. :)",
-    "parent": 45283292,
-    "depth": 2
-  },
-  {
     "id": 45285805,
     "by": "dang",
     "timeISO": "2025-09-18T05:31:17.000Z",
     "textPlain": "Fixed now, thanks! (Submitted title was \"Claude Code Degradation: A postmortem of three recent issues\".)",
     "parent": 45281675,
-    "depth": 2
-  },
-  {
-    "id": 45286387,
-    "by": "_zoltan_",
-    "timeISO": "2025-09-18T06:54:36.000Z",
-    "textPlain": "and?",
-    "parent": 45282098,
     "depth": 2
   }
 ]
