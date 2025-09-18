@@ -1,21 +1,5 @@
 [
   {
-    "id": 45291554,
-    "by": "ChrisRackauckas",
-    "timeISO": "2025-09-18T16:22:04.000Z",
-    "textPlain": "Interesting to see this here! This example is one of the ones mentioned in the appendix of https://arxiv.org/abs/2406.09699, specifically \"4.1.2.4 When AD is algorithmically correct but numerically wrong\".If people want a tl;dr, the main idea is you can construct an ODE where the forward pass is trivial, i.e. the ODE solution going forwards is exact, but its derivative is \"hard\". An easy way to do this is to make it so you have for example `x' = x - y, y' = y - x`, with initial conditions x(0)=y(0). If you start with things being the same value, then the solution to the ODE is constant since `x' = y' = 0`. But the derivative of the ODE solution with respect to its initial condition is very non-zero: you can write out its expression and what you get is an ODE that has to be solved.What happens in this case though is that automatic differentiation \"runs the same code as the primal case\", and the primal case is trivial, so the ODE solver goes \"this is easy, let's make dt as big as possible and step through this easily\". But this means that `dt` is not error controlled in the derivative, so you via this construction you can make automatic differentiation give as much error as you want just by tweaking the parameters around.Thus by this construction, automatic differentiation has no bound to the error it can give, and no this isn't floating point errors this is strictly building a function that does not converge to the correct derivative. It just goes to show that automatic differentiation of a function that computes a nice error controlled answer does not naively give a derivative that also has any sense of error control, that is a property that has to be proved and is not true in general. This of course is a bit of a contrived example to show the point that the error is unbounded, but then it points to real issues that can show up in user code (in fact, this example was found because a user opened an issue with a related model)",
-    "parent": 45289829,
-    "depth": 1
-  },
-  {
-    "id": 45290888,
-    "by": "Lerc",
-    "timeISO": "2025-09-18T15:30:05.000Z",
-    "textPlain": "With floats getting smaller and smaller in ML, It's hard to imagine anyone failing to learn this as one of their early experiences in the field.The focus should not be on the possibility of error, but managing the error to be within acceptable limits.   There's a hour long video there, and it's 3am, so I'm not sure how much of this covers management.  Anyone familiar with it care to say?",
-    "parent": 45289829,
-    "depth": 1
-  },
-  {
     "id": 45290602,
     "by": "ComplexSystems",
     "timeISO": "2025-09-18T15:06:16.000Z",
@@ -32,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45291056,
-    "by": "ismailmaj",
-    "timeISO": "2025-09-18T15:42:51.000Z",
-    "textPlain": "The way I explained it to myself in the past why so much of the CUDA algorithms don't care much about numerical stability is that the error is a form of regularization (i.e. less overfitting over the data) in deep learning.",
+    "id": 45290888,
+    "by": "Lerc",
+    "timeISO": "2025-09-18T15:30:05.000Z",
+    "textPlain": "With floats getting smaller and smaller in ML, It's hard to imagine anyone failing to learn this as one of their early experiences in the field.The focus should not be on the possibility of error, but managing the error to be within acceptable limits.   There's a hour long video there, and it's 3am, so I'm not sure how much of this covers management.  Anyone familiar with it care to say?",
     "parent": 45289829,
     "depth": 1
   },
@@ -48,11 +32,27 @@
     "depth": 1
   },
   {
-    "id": 45291417,
-    "by": "Legend2440",
-    "timeISO": "2025-09-18T16:12:05.000Z",
-    "textPlain": "Floats are getting smaller and smaller only in neural networks - which works ok because NNs are designed for nice easy backprop. Normalization and skip connections really help avoid numerical instability.The author is talking about ODEs and PDEs, which come from physical systems and don't have such nice properties.",
-    "parent": 45290888,
+    "id": 45291554,
+    "by": "ChrisRackauckas",
+    "timeISO": "2025-09-18T16:22:04.000Z",
+    "textPlain": "Interesting to see this here! This example is one of the ones mentioned in the appendix of https://arxiv.org/abs/2406.09699, specifically \"4.1.2.4 When AD is algorithmically correct but numerically wrong\".If people want a tl;dr, the main idea is you can construct an ODE where the forward pass is trivial, i.e. the ODE solution going forwards is exact, but its derivative is \"hard\". An easy way to do this is to make it so you have for example `x' = x - y, y' = y - x`, with initial conditions x(0)=y(0). If you start with things being the same value, then the solution to the ODE is constant since `x' = y' = 0`. But the derivative of the ODE solution with respect to its initial condition is very non-zero: a small change away from equality and boom the solution explodes. You write out the expression for dy(t)/dy(0) and what you get is a non-trivial ODE that has to be solved.What happens in this case though is that automatic differentiation \"runs the same code as the primal case\". I.e., automatic differentiation has the property that it walks through your code and differentiates the steps of your code, and so the control flow always matches the control flow of the non-differentiated code, slapping the derivative parts on each step. But here the primal case is trivial, so the ODE solver goes \"this is easy, let's make dt as big as possible and step through this easily\". But this means that `dt` is not error controlled in the derivative (the derivative, being a non-trivial ODE, needs to have a smaller dt and take small steps in order to get an accurate answer), so the derivative then gets error due to this large dt (or small number of steps). Via this construction you can make automatic differentiation give as much error as you want just by tweaking the parameters around.Thus by this construction, automatic differentiation has no bound to the error it can give, and no this isn't floating point errors this is strictly building a function that does not converge to the correct de",
+    "parent": 45289829,
+    "depth": 1
+  },
+  {
+    "id": 45291056,
+    "by": "ismailmaj",
+    "timeISO": "2025-09-18T15:42:51.000Z",
+    "textPlain": "The way I explained it to myself in the past why so much of the CUDA algorithms don't care much about numerical stability is that the error is a form of regularization (i.e. less overfitting over the data) in deep learning.",
+    "parent": 45289829,
+    "depth": 1
+  },
+  {
+    "id": 45291885,
+    "by": "goosedragons",
+    "timeISO": "2025-09-18T16:45:35.000Z",
+    "textPlain": "It can be both. A mistake in AD primitives can lead to theoretically incorrect derivatives. With the system I use I have run into a few scenarios where edge cases aren't totally covered leading to the wrong result.I have also run into numerical instability too.",
+    "parent": 45290602,
     "depth": 2
   },
   {
@@ -61,6 +61,30 @@
     "timeISO": "2025-09-18T15:15:02.000Z",
     "textPlain": "Yeah, perhaps the actual title would be better: \"The Numerical Analysis of Differentiable Simulation\".  (Rather than the subtitle, which is itself a poor rewording of the actual subtitle in the video.)",
     "parent": 45290602,
+    "depth": 2
+  },
+  {
+    "id": 45291417,
+    "by": "Legend2440",
+    "timeISO": "2025-09-18T16:12:05.000Z",
+    "textPlain": "Floats are getting smaller and smaller only in neural networks - which works ok because NNs are designed for nice easy backprop. Normalization and skip connections really help avoid numerical instability.The author is talking about ODEs and PDEs, which come from physical systems and don't have such nice properties.",
+    "parent": 45290888,
+    "depth": 2
+  },
+  {
+    "id": 45292122,
+    "by": "dleary",
+    "timeISO": "2025-09-18T17:03:08.000Z",
+    "textPlain": "Thank you for this good description.",
+    "parent": 45291554,
+    "depth": 2
+  },
+  {
+    "id": 45292166,
+    "by": "Nevermark",
+    "timeISO": "2025-09-18T17:06:15.000Z",
+    "textPlain": "I am not quite sure what that means! :)But reasons why deep learning training is robust to some inaccuracy in gradients:1. Locally, sigmoid and similar functions are the simplest smoothest possible non-linearity to propagate gradients through.2. Globally, outside of deep recurrent networks, there is no recursion which makes the total function smooth and well behaved.3. While the perfect gradient indicates the ideal direction to adjust parameters, for fastest improvement, all that is really needed to reduce error is to move parameters in the direction of the gradient signs, with a small enough step. That is a very low bar.It's like telling an archer they just need to shoot an arrow in the direction of a target, but there is no need to hit it.4. Finally, the current perfect gradient is only meaningful at one point of the optimization surface. Moving away from that point, i.e. updating the parameters at all, and the gradient changes quickly.So we are in gradient heuristic land even then. The most perfectly calculated gradient isn't actually \"accurate\" in the way we might assume.",
+    "parent": 45291056,
     "depth": 2
   }
 ]
