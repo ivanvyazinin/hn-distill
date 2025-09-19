@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45306158,
+    "by": "cyberax",
+    "timeISO": "2025-09-19T20:29:24.000Z",
+    "textPlain": "Polling for the safepoint signal adds overhead to tight loop, so Golang uses asynchronous signals to interrupt threads. It needs it for async pre-emption, not just GC. It also results in not knowing the exact state of the frame, so it has to scan the last frame of the stack conservatively.There are no good ways to deal with that currently. Some VMs even used CPU instruction simulators to interpret the code until it hit the known good safepoint.I had one idea about improving that: have a \"doppelganger\" mirror for the inner tight loops, that is instruction-by-instruction identical to the regular version. Except that backjumps are replaced with the call into the GC safepoint handler.It'd be interesting to try this approach with Fil-C.",
+    "parent": 45258029,
+    "depth": 1
+  },
+  {
     "id": 45305944,
     "by": "foota",
     "timeISO": "2025-09-19T20:09:09.000Z",
@@ -32,11 +40,43 @@
     "depth": 2
   },
   {
+    "id": 45306218,
+    "by": "pizlonator",
+    "timeISO": "2025-09-19T20:33:48.000Z",
+    "textPlain": "I don't support vfork(2) right now, only fork(2).I have some super crazy ideas about how to make vfork(2) work, but I don't particularly like any of them. I'll implement it if I find some situation where vfork(2) is strongly required (so far I haven't found even one such case). The closest is that I've found cases where I have to add the CLOEXEC pipe trick to do error handling the fork(2) way rather than the vfork(2) way.",
+    "parent": 45305505,
+    "depth": 2
+  },
+  {
+    "id": 45306253,
+    "by": "pizlonator",
+    "timeISO": "2025-09-19T20:37:08.000Z",
+    "textPlain": "Yeah you could do that. It's tantamount to having an FFI. It's super risky though - lots of ways that the assembly code could break Fil-C's assumptions and then you'd get memory safety issues.My long term plan is to give folks a way to write memory safe assembly. I have some crazy ideas for how to do that",
+    "parent": 45305539,
+    "depth": 2
+  },
+  {
+    "id": 45306215,
+    "by": "pjmlp",
+    "timeISO": "2025-09-19T20:33:42.000Z",
+    "textPlain": "Note that it is very simplistic to say Java has a compacting garbage collector, between Oracle JDK, OpenJDK, Temurin, Azul, PTC, Aicas, microEJ, OpenJ9, GraalVM, Jikes RVM, and the cousin Android, there is pleothora of GC configurations to chose from, that go beyond that.",
+    "parent": 45305310,
+    "depth": 2
+  },
+  {
     "id": 45305585,
     "by": "cryptonector",
     "timeISO": "2025-09-19T19:39:10.000Z",
     "textPlain": "TFA is really good at explaining how a threaded GC works with minimal impact when it's not running.",
     "parent": 45305310,
+    "depth": 2
+  },
+  {
+    "id": 45306236,
+    "by": "pizlonator",
+    "timeISO": "2025-09-19T20:35:21.000Z",
+    "textPlain": "> Polling for the safepoint signal adds overhead to tight loopThe usual trick, which Fil-C doesn't do yet, is to just unroll super tight loopsAlso, the pollcheck doesn't have to be a load-and-branch. There are other ways. There's a bottomless pit of optimization strategies you can do.Conservative scanning wouldn't be sound in Fil-C, because the LLVM passes that run after FilPizlonator could break the fundamental assumptions of conservative scanning",
+    "parent": 45306158,
     "depth": 2
   }
 ]
