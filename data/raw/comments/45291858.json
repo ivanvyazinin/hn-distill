@@ -1,9 +1,9 @@
 [
   {
-    "id": 45295128,
-    "by": "stevekrouse",
-    "timeISO": "2025-09-18T21:19:07.000Z",
-    "textPlain": "The people behind KSON are geniuses. No joke. I worked with Daniel. And he's an amazing human too. Congrats on launching!!!",
+    "id": 45294902,
+    "by": "comex",
+    "timeISO": "2025-09-18T20:54:33.000Z",
+    "textPlain": "Sounds interesting as a format, but the implementation is a big supply-chain attack risk if you're not already in the JVM ecosystem.This is because the only implementation is written in Kotlin.  There are Python and Rust packages, but they both just link against the Kotlin version.How do you build the Kotlin version?  Well, let's look at the Rust package's build.rs:https://github.com/kson-org/kson/blob/main/lib-rust/kson-sys...It defaults to simply downloading a precompiled library from GitHub, without any hash verification.You can instead pass an environment variable to build libkson from source.  However, this will run the ./gradlew script in the repo root, which… downloads an giant OpenJDK binary from GitHub and executes it.  Later in the build process it does the same for pixi and GraalVM.The build scripts also only support a small list of platforms (Windows/Linux/macOS on x86_64/arm64), and don't seem to handle cross-compilation.The compiled library is 2MB for me, which is actually a lot less than I was expecting, so props for that.  But that's fairly heavy by Rust standards.",
     "parent": 45291858,
     "depth": 1
   },
@@ -16,10 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45294902,
-    "by": "comex",
-    "timeISO": "2025-09-18T20:54:33.000Z",
-    "textPlain": "Sounds interesting as a format, but the implementation is a big supply-chain attack risk if you're not already in the JVM ecosystem.This is because the only implementation is written in Kotlin.  There are Python and Rust packages, but they both just link against the Kotlin version.How do you build the Kotlin version?  Well, let's look at the Rust package's build.rs:https://github.com/kson-org/kson/blob/main/lib-rust/kson-sys...It defaults to simply downloading a precompiled library from GitHub, without any hash verification.You can instead pass an environment variable to build libkson from source.  However, this will run the ./gradlew script in the repo root, which… downloads an giant OpenJDK binary from GitHub and executes it.  Later in the build process it does the same for pixi and GraalVM.The build scripts also only support a small list of platforms (Windows/Linux/macOS on x86_64/arm64), and don't seem to handle cross-compilation.The compiled library is 2MB for me, which is actually a lot less than I was expecting, so props for that.  But that's fairly heavy by Rust standards.",
+    "id": 45295199,
+    "by": "taeric",
+    "timeISO": "2025-09-18T21:26:27.000Z",
+    "textPlain": "Meanwhile, I peek at my emacs config and continue to wonder why people don't just embrace a programming language.Yes, there are bad consequences that can happen.  No, you don't dodge having problems by picking a different data format.  You just pick different problems.  And take away tools from the users to deal with them.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45295551,
+    "by": "your_fin",
+    "timeISO": "2025-09-18T22:01:49.000Z",
+    "textPlain": "I came across https://kdl.dev recently, and it has become my favored yaml-replacement when normal code doesn't work.The data model is closer to XML than JSON, though, so unfortunately it's not a drop-in replacement for yaml.Small sample:  package { \n    name my-pkg \n    version \"1.2.3\"\n    dependencies { \n      // Nodes can have standalone values as well as // key/value pairs. \n      lodash \"^3.2.1\" optional=#true alias=underscore \n    }\n }",
     "parent": 45291858,
     "depth": 1
   },
@@ -40,10 +48,90 @@
     "depth": 1
   },
   {
+    "id": 45294624,
+    "by": "JohnMakin",
+    "timeISO": "2025-09-18T20:29:35.000Z",
+    "textPlain": "Having now worked with terraform for 8 years, I could not agree more. Now, also because of having worked with terraform for 8 years and seeing how that's played out, I've heard and become tired of the whole \"superset of json, transcribable to YAML, whitespace is not significant (which has never been a gripe of mine ever, not sure why every product cares so much about that)\" promise of a silver bullet, and you very much face the same exact problems, just in different form. Terraform (HCL, to be specific) in particular can become fantastically ugly and verbose and \"difficult to modify.\"Configuration is difficult, the tooling is rarely the problem (at least in my experience).",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45295178,
+    "by": "epolanski",
+    "timeISO": "2025-09-18T21:24:56.000Z",
+    "textPlain": "Imho the best configuration file is code written in the language itself.Configuring TypeScript applications with the `defineConfig` pattern that takes asynchronous callbacks allowing you to code over settings is very useful. And it's fully typed and programmable.It's particularly useful because it also allows you to trivially use one single configuration file where you only set what's different between environments with some env === \"local\" then use this db dependency or turn on/off sentry, etc.Zig is another language that shows that configuration and building should just be code in the language itself.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45292294,
+    "by": "ruuda",
+    "timeISO": "2025-09-18T17:14:41.000Z",
+    "textPlain": "From the application point of view, recently I'm converging on this: define data structures for your config. Ensure it can be deserialized from json and toml. (In Rust this is easy to do with Serde; in Python with Pydantic or dataclasses.) Users can start simple and write toml by hand. If you prefer KSON, sure, write KSON and render to json. If config is UI, I think the structure of the data, and names of fields and values, matter much more than the syntax. (E.g. `timeout = 300` is meaningless regardless of syntax; `timeout_ms = 300` or `timeout = \"300 ms\"` are self-documenting.)When the configuration grows complex, and you feel the need to abstract and generate things, switch to a configuration language like Cue or RCL, and render to json. The application doesn't need to force a format onto the user!",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
     "id": 45292765,
     "by": "mholt",
     "timeISO": "2025-09-18T17:52:46.000Z",
     "textPlain": "This is why Caddy has config adapters: bring any config file language you like, and Caddy will run it. It's built-into the binary and just takes a command line flag to switch languages: https://caddyserver.com/docs/config-adapters",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45295271,
+    "by": "matsemann",
+    "timeISO": "2025-09-18T21:33:21.000Z",
+    "textPlain": "Question: if whitespace isn't significant, how does it determine ambiguity? Like, if I have a Person that has a Dog, and both have a Name attribute. If I then add a Name after my dog definition, how does it know if it's the name of the dog or the person?",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45295128,
+    "by": "stevekrouse",
+    "timeISO": "2025-09-18T21:19:07.000Z",
+    "textPlain": "The people behind KSON are geniuses. No joke. I worked with Daniel. And he's an amazing human too. Congrats on launching!!!",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45293024,
+    "by": "VectorLock",
+    "timeISO": "2025-09-18T18:13:54.000Z",
+    "textPlain": "I like where their head is at here, especially the \"superset of JSON\" part.  Some of the things I'm not _in love_ with like the %% ending blocks or how maybe a bit of significant whitespace might make things a bit less misleading with indentation as others have said, but overall I think I like this better than YAML.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45293866,
+    "by": "i_s",
+    "timeISO": "2025-09-18T19:24:16.000Z",
+    "textPlain": "KSON looks interesting. Where I work we did a metadata type project in Pkl recently, which is somewhat similar. Unfortunately, developments on the tooling front for Pkl have taken an extremely very long time. Not sure the the tooling/LSPs are anywhere close to what the language offers yet.I like the language embedding feature in KSON - we would use that. Have you thought about having functions and variables? That is something you get in Pkl and Dhall which are useful.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45292733,
+    "by": "skydhash",
+    "timeISO": "2025-09-18T17:50:33.000Z",
+    "textPlain": "There’s two configuration that I like:- The key-value pair. Maybe some section marker (INI,..). Easy to sed.- The command kind. Where the file contains the same command that can be used in other place (vim, mg, sway). More suited to TUI and bigger applications.With these two, include statement are nice.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45293237,
+    "by": "gricardo99",
+    "timeISO": "2025-09-18T18:28:33.000Z",
+    "textPlain": "With all the code syntax highlighting support as a feature, I feel it will become tempting to put code in configuration files (which some of their examples show).   That just feels wrong.  Code should go in code files/modules/libraries, not mixed with configuration files.  If your configuration starts to become code, maybe you need to rethink your software architecture.  Or perhaps KSON proves that principle to be too rigid and inferior, and leads to more intelligible, manageable software.  I guess we'll have to see.",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45294892,
+    "by": "giveita",
+    "timeISO": "2025-09-18T20:53:34.000Z",
+    "textPlain": "I think it is telling no programming language has settled on YAML or JSON as a syntax. Because that would drive you nuts.But we allow it for files that tend to make production changes usually without any unit tests!I'd prefer something syntaxed like a programming language but without  turing completeness.",
     "parent": 45291858,
     "depth": 1
   },
@@ -64,62 +152,6 @@
     "depth": 1
   },
   {
-    "id": 45294892,
-    "by": "giveita",
-    "timeISO": "2025-09-18T20:53:34.000Z",
-    "textPlain": "I think it is telling no programming language has settled on YAML or JSON as a syntax. Because that would drive you nuts.But we allow it for files that tend to make production changes usually without any unit tests!I'd prefer something syntaxed like a programming language but without  turing completeness.",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45294624,
-    "by": "JohnMakin",
-    "timeISO": "2025-09-18T20:29:35.000Z",
-    "textPlain": "Having now worked with terraform for 8 years, I could not agree more. Now, also because of having worked with terraform for 8 years and seeing how that's played out, I've heard and become tired of the whole \"superset of json, transcribable to YAML, whitespace is not significant (which has never been a gripe of mine ever, not sure why every product cares so much about that)\" promise of a silver bullet, and you very much face the same exact problems, just in different form. Terraform (HCL, to be specific) in particular can become fantastically ugly and verbose and \"difficult to modify.\"Configuration is difficult, the tooling is rarely the problem (at least in my experience).",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45292294,
-    "by": "ruuda",
-    "timeISO": "2025-09-18T17:14:41.000Z",
-    "textPlain": "From the application point of view, recently I'm converging on this: define data structures for your config. Ensure it can be deserialized from json and toml. (In Rust this is easy to do with Serde; in Python with Pydantic or dataclasses.) Users can start simple and write toml by hand. If you prefer KSON, sure, write KSON and render to json. If config is UI, I think the structure of the data, and names of fields and values, matter much more than the syntax. (E.g. `timeout = 300` is meaningless regardless of syntax; `timeout_ms = 300` or `timeout = \"300 ms\"` are self-documenting.)When the configuration grows complex, and you feel the need to abstract and generate things, switch to a configuration language like Cue or RCL, and render to json. The application doesn't need to force a format onto the user!",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45293866,
-    "by": "i_s",
-    "timeISO": "2025-09-18T19:24:16.000Z",
-    "textPlain": "KSON looks interesting. Where I work we did a metadata type project in Pkl recently, which is somewhat similar. Unfortunately, developments on the tooling front for Pkl have taken an extremely very long time. Not sure the the tooling/LSPs are anywhere close to what the language offers yet.I like the language embedding feature in KSON - we would use that. Have you thought about having functions and variables? That is something you get in Pkl and Dhall which are useful.",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45293024,
-    "by": "VectorLock",
-    "timeISO": "2025-09-18T18:13:54.000Z",
-    "textPlain": "I like where their head is at here, especially the \"superset of JSON\" part.  Some of the things I'm not _in love_ with like the %% ending blocks or how maybe a bit of significant whitespace might make things a bit less misleading with indentation as others have said, but overall I think I like this better than YAML.",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45293237,
-    "by": "gricardo99",
-    "timeISO": "2025-09-18T18:28:33.000Z",
-    "textPlain": "With all the code syntax highlighting support as a feature, I feel it will become tempting to put code in configuration files (which some of their examples show).   That just feels wrong.  Code should go in code files/modules/libraries, not mixed with configuration files.  If your configuration starts to become code, maybe you need to rethink your software architecture.  Or perhaps KSON proves that principle to be too rigid and inferior, and leads to more intelligible, manageable software.  I guess we'll have to see.",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
-    "id": 45292733,
-    "by": "skydhash",
-    "timeISO": "2025-09-18T17:50:33.000Z",
-    "textPlain": "There’s two configuration that I like:- The key-value pair. Maybe some section marker (INI,..). Easy to sed.- The command kind. Where the file contains the same command that can be used in other place (vim, mg, sway). More suited to TUI and bigger applications.With these two, include statement are nice.",
-    "parent": 45291858,
-    "depth": 1
-  },
-  {
     "id": 45292341,
     "by": "bee_rider",
     "timeISO": "2025-09-18T17:18:23.000Z",
@@ -128,10 +160,10 @@
     "depth": 1
   },
   {
-    "id": 45294930,
-    "by": "atoav",
-    "timeISO": "2025-09-18T20:58:01.000Z",
-    "textPlain": "My personal opinion is:  \nIf your config needs to be so complex you can't make do with TOML you should just use a interpreted programming language instead. It is totally acceptable to use a config.py for example. You get lists, dicts, classes, and all more or less known and well behaved and people can automate away the boring stuff.But I'd strongly encourage everybody to think about whether that deep configurability is really needed.",
+    "id": 45295537,
+    "by": "kiitos",
+    "timeISO": "2025-09-18T21:59:53.000Z",
+    "textPlain": "two huge thumbs down for KSON",
     "parent": 45291858,
     "depth": 1
   },
@@ -148,6 +180,14 @@
     "by": "dustingetz",
     "timeISO": "2025-09-18T18:31:19.000Z",
     "textPlain": "yes but to validate it you need dynamic runtime logic and therefore a live server with all the I/O glue code that entails. i.e., static types alone cannot render your tax forms",
+    "parent": 45291858,
+    "depth": 1
+  },
+  {
+    "id": 45294930,
+    "by": "atoav",
+    "timeISO": "2025-09-18T20:58:01.000Z",
+    "textPlain": "My personal opinion is:  \nIf your config needs to be so complex you can't make do with TOML you should just use a interpreted programming language instead. It is totally acceptable to use a config.py for example. You get lists, dicts, classes, and all more or less known and well behaved and people can automate away the boring stuff.But I'd strongly encourage everybody to think about whether that deep configurability is really needed.",
     "parent": 45291858,
     "depth": 1
   },
@@ -176,6 +216,14 @@
     "depth": 1
   },
   {
+    "id": 45295326,
+    "by": "wofo",
+    "timeISO": "2025-09-18T21:38:18.000Z",
+    "textPlain": "Glad you liked the format. I hope we can close the implementation gaps as development advances, and I'd love to see native libraries sprout for all conceivable programming languages!Edit: point taken about verifying checksums, just created an issue for it (https://github.com/kson-org/kson/issues/222)",
+    "parent": 45294902,
+    "depth": 2
+  },
+  {
     "id": 45293318,
     "by": "andrewla",
     "timeISO": "2025-09-18T18:34:31.000Z",
@@ -192,6 +240,14 @@
     "depth": 2
   },
   {
+    "id": 45293148,
+    "by": "SebastianKra",
+    "timeISO": "2025-09-18T18:21:57.000Z",
+    "textPlain": "Assuming this takes off, there would be a prettier-plugin that corrects any weird formatting.When I think about it, any language should come with a strict, non-configurable built-in formatter anyways.",
+    "parent": 45292807,
+    "depth": 2
+  },
+  {
     "id": 45294790,
     "by": "kookamamie",
     "timeISO": "2025-09-18T20:45:09.000Z",
@@ -200,11 +256,11 @@
     "depth": 2
   },
   {
-    "id": 45293148,
-    "by": "SebastianKra",
-    "timeISO": "2025-09-18T18:21:57.000Z",
-    "textPlain": "Assuming this takes off, there would be a prettier-plugin that corrects any weird formatting.When I think about it, any language should come with a strict, non-configurable built-in formatter anyways.",
-    "parent": 45292807,
+    "id": 45295588,
+    "by": "olejorgenb",
+    "timeISO": "2025-09-18T22:06:40.000Z",
+    "textPlain": "I wish they had some sort of include/composable file mechanism though",
+    "parent": 45295551,
     "depth": 2
   },
   {
@@ -240,19 +296,11 @@
     "depth": 2
   },
   {
-    "id": 45293707,
-    "by": "kevmo314",
-    "timeISO": "2025-09-18T19:09:26.000Z",
-    "textPlain": "This makes it difficult to configure Caddy in anything except the native Caddyfile language due to a lack of thorough documentation. It's an interesting idea, but configuring Caddy with a yaml config that someone prior deemed a great idea was quite painful.Curiously, LLMs have made it a lot easier. One step away from an English adapter that routes through an LLM to generate the config.",
-    "parent": 45292765,
-    "depth": 2
-  },
-  {
-    "id": 45294992,
-    "by": "knome",
-    "timeISO": "2025-09-18T21:04:15.000Z",
-    "textPlain": "Azure and GitHub build pipelines are written in yaml and have conditionals, variables, template expansions, etc",
-    "parent": 45294892,
+    "id": 45295328,
+    "by": "eternityforest",
+    "timeISO": "2025-09-18T21:38:30.000Z",
+    "textPlain": "Programmatically manipulating it and validating it gets harder though.",
+    "parent": 45295178,
     "depth": 2
   },
   {
@@ -272,11 +320,27 @@
     "depth": 2
   },
   {
+    "id": 45293707,
+    "by": "kevmo314",
+    "timeISO": "2025-09-18T19:09:26.000Z",
+    "textPlain": "This makes it difficult to configure Caddy in anything except the native Caddyfile language due to a lack of thorough documentation. It's an interesting idea, but configuring Caddy with a yaml config that someone prior deemed a great idea was quite painful.Curiously, LLMs have made it a lot easier. One step away from an English adapter that routes through an LLM to generate the config.",
+    "parent": 45292765,
+    "depth": 2
+  },
+  {
     "id": 45294413,
     "by": "wofo",
     "timeISO": "2025-09-18T20:13:48.000Z",
     "textPlain": "Thanks for the kind words :)This sounds like the kind of question for Daniel himself to chime in, since he has the best overview of the language's design and vision. He's not super active on HN, but I'll give him a heads up! Otherwise feel free to join our Zulip (https://kson-org.zulipchat.com) and we can chat over there.",
     "parent": 45293866,
+    "depth": 2
+  },
+  {
+    "id": 45294992,
+    "by": "knome",
+    "timeISO": "2025-09-18T21:04:15.000Z",
+    "textPlain": "Azure and GitHub build pipelines are written in yaml and have conditionals, variables, template expansions, etc",
+    "parent": 45294892,
     "depth": 2
   },
   {
