@@ -1,9 +1,9 @@
 [
   {
-    "id": 45295540,
-    "by": "harshaw",
-    "timeISO": "2025-09-18T22:00:31.000Z",
-    "textPlain": "Sounds more like an object system (immutable) with the veneer of a file system for their use cases.   I sort of read the doc - sounds like data is replicated and not erasure encoded (so perhaps more expensive?).I think many people have said this, but \"file systems\" get a lot easier if you don't have to worry about overwrites, appends, truncates, etc. Anyway, always interesting to see what people come up with for their use cases.",
+    "id": 45295973,
+    "by": "charleshn",
+    "timeISO": "2025-09-18T22:50:14.000Z",
+    "textPlain": "A few questions if the authors are around!> Is hardware agnostic and uses TCP/IP to communicate.So no RDMA?\nIt's very hard to make effective use of modern NVMe drives bandwidth over TCP/IP.> A logical shard is further split into five physical instances, one leader and four followers, in a typical distributed consensus setup. The distributed consensus engine is provided by a purpose-built Raft-like implementation, which we call LogsDBRaft-like, so not Raft, a custom algorithm?\nImplementing distributed consensus correctly from scratch is very hard - why not use some battle-tested implementations?> Read/write access to the block service is provided using a simple TCP API currently implemented by a Go process. This process is hardware agnostic and uses the Go standard library to read and write blocks to a conventional local file system. We originally planned to rewrite the Go process in C++, and possibly write to block devices directly, but the idiomatic Go implementation has proven performant enough for our needs so far.The document mentions it's designed to reach TB/s though. \nWhich means that for an IO intensive workload, one would end up wasting a lot of drive bandwidth, and require a huge number of nodes.Modern parallel filesystems can reach 80-90GB/s per node, using RDMA, DPDK etc.> This is in contrast to protocols like NFS, whereby each connection is very stateful, holding resources such as open files, locks, and so on.This is not true for NFSv3 and older, it tends to be stateless (no notion of open file).No mention of the way this was developed and tested - does it use some formal methods, simulator, chaos engineering etc?",
     "parent": 45290245,
     "depth": 1
   },
@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45294871,
-    "by": "hardwaregeek",
-    "timeISO": "2025-09-18T20:51:46.000Z",
-    "textPlain": "Hudson River Trading's distributed file system for comparison: https://www.hudsonrivertrading.com/hrtbeat/distributed-files...",
+    "id": 45295540,
+    "by": "harshaw",
+    "timeISO": "2025-09-18T22:00:31.000Z",
+    "textPlain": "Sounds more like an object system (immutable) with the veneer of a file system for their use cases.   I sort of read the doc - sounds like data is replicated and not erasure encoded (so perhaps more expensive?).I think many people have said this, but \"file systems\" get a lot easier if you don't have to worry about overwrites, appends, truncates, etc. Anyway, always interesting to see what people come up with for their use cases.",
     "parent": 45290245,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "hintymad",
     "timeISO": "2025-09-18T20:11:39.000Z",
     "textPlain": "> Most of the metadata activity is contained within a single shard:\n>\n>    - File creation, same-directory renames, and deletion.\n>    - Listing directory contents.\n>    - Getting attributes of files or directories.I guess this is a trade-off between a file system and an object store? As in S3, ListObjects() is a heavy hitter and there can be potentially billions of objects under any prefix. Scanning only on a single instance won't be sufficient.",
+    "parent": 45290245,
+    "depth": 1
+  },
+  {
+    "id": 45296210,
+    "by": "chatmasta",
+    "timeISO": "2025-09-18T23:21:47.000Z",
+    "textPlain": "> There's a reason why every major tech company has developed its own distributed filesystemI haven't worked at FAANG, but is this a well-known fact? I've never heard of it. Unless they're referring to things like S3? Are these large corps running literal custom filesystem implementations?",
     "parent": 45290245,
     "depth": 1
   },
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45292908,
-    "by": "d12bb",
-    "timeISO": "2025-09-18T18:05:36.000Z",
-    "textPlain": "> The firm started out with a couple of desktops and an NFS server, and 10 years later ended up with tens of thousands of high-end GPUs, hundreds of thousands of CPUs, and hundreds of petabytes of storage.So much resources for producing nothing of real value. What a waste.Great project though, appreciate open sourcing it.",
+    "id": 45294871,
+    "by": "hardwaregeek",
+    "timeISO": "2025-09-18T20:51:46.000Z",
+    "textPlain": "Hudson River Trading's distributed file system for comparison: https://www.hudsonrivertrading.com/hrtbeat/distributed-files...",
     "parent": 45290245,
     "depth": 1
   },
@@ -60,6 +68,14 @@
     "by": "ttfvjktesd",
     "timeISO": "2025-09-18T15:15:49.000Z",
     "textPlain": "How does TernFS compare to CephFS and why not CephFS, since it is also tested for the multiple Petabyte range?",
+    "parent": 45290245,
+    "depth": 1
+  },
+  {
+    "id": 45292908,
+    "by": "d12bb",
+    "timeISO": "2025-09-18T18:05:36.000Z",
+    "textPlain": "> The firm started out with a couple of desktops and an NFS server, and 10 years later ended up with tens of thousands of high-end GPUs, hundreds of thousands of CPUs, and hundreds of petabytes of storage.So much resources for producing nothing of real value. What a waste.Great project though, appreciate open sourcing it.",
     "parent": 45290245,
     "depth": 1
   },
@@ -128,11 +144,19 @@
     "depth": 1
   },
   {
-    "id": 45295573,
-    "by": "rostayob",
-    "timeISO": "2025-09-18T22:05:21.000Z",
-    "textPlain": "We do use Reed-Solomon codes, as the blog post explains.",
-    "parent": 45295540,
+    "id": 45297017,
+    "by": "AtlasBarfed",
+    "timeISO": "2025-09-19T01:33:45.000Z",
+    "textPlain": "Not to mention you simply want a large distributed system implemented in multiple clouds / on prems / use cases, with battle tested procedures on node failure, replacement, expansion, contraction, backup/restore, repair/verification, install guides, an error \"zoo\".Not to mention a Jepsen test suite, detailed CAP tradeoff explanation, etc.There's a reason those big DFS at the FAANGs aren't really implemented anywhere else: they NEED the original authors with a big, deeply experienced infrastructure/team in house.",
+    "parent": 45295973,
+    "depth": 2
+  },
+  {
+    "id": 45296297,
+    "by": "foota",
+    "timeISO": "2025-09-18T23:33:58.000Z",
+    "textPlain": "Out of curiosity, you seem knowledgeable here, is it possible to do NVME over RDMA in public cloud (e.g., on AWS)? I was recently looking into this and my conclusion was no, but I'd love to be wrong :)",
+    "parent": 45295973,
     "depth": 2
   },
   {
@@ -152,11 +176,27 @@
     "depth": 2
   },
   {
-    "id": 45295280,
-    "by": "rickette",
-    "timeISO": "2025-09-18T21:34:09.000Z",
-    "textPlain": "Cool. Also https://github.com/deepseek-ai/3FS by DeepSeek which came out of High-Flyer a Chinese HFT firm.",
-    "parent": 45294871,
+    "id": 45295573,
+    "by": "rostayob",
+    "timeISO": "2025-09-18T22:05:21.000Z",
+    "textPlain": "We do use Reed-Solomon codes, as the blog post explains.",
+    "parent": 45295540,
+    "depth": 2
+  },
+  {
+    "id": 45296816,
+    "by": "allset_",
+    "timeISO": "2025-09-19T01:01:07.000Z",
+    "textPlain": "I can only comment about the one I work for, but yes. It's also discussed publicly to some degree.https://cloud.google.com/blog/products/storage-data-transfer...",
+    "parent": 45296210,
+    "depth": 2
+  },
+  {
+    "id": 45296486,
+    "by": "foota",
+    "timeISO": "2025-09-19T00:03:42.000Z",
+    "textPlain": "Not sure about everyone, but probably yes. Imo the killer feature is durability and replication. You can use single disks if you don't care about data loss, but once you need to start replicating data you need a distributed filesystem.Tectonic is Facebooks, Google's is Colossus. I'm not sure about the others.",
+    "parent": 45296210,
     "depth": 2
   },
   {
@@ -208,35 +248,11 @@
     "depth": 2
   },
   {
-    "id": 45293913,
-    "by": "scandox",
-    "timeISO": "2025-09-18T19:28:44.000Z",
-    "textPlain": "Your comment contradicts itself. They produced this project at least.",
-    "parent": 45292908,
-    "depth": 2
-  },
-  {
-    "id": 45293573,
-    "by": "candiddevmike",
-    "timeISO": "2025-09-18T18:56:05.000Z",
-    "textPlain": "If price action trading is horoscopes for adults, they're a modern a day oracle.",
-    "parent": 45292908,
-    "depth": 2
-  },
-  {
-    "id": 45293053,
-    "by": "EugeneG",
-    "timeISO": "2025-09-18T18:15:42.000Z",
-    "textPlain": "In theory what they are doing of value, is that at any time you can go to an exchange and say \"I want to buy x\" or \"I want to sell y\" and someone will buy it from you our sell it from you... at a price that's likely to be the accurate price.At the extreme if nobody was providing this service, investors (e.g. pension funds), wouldn't be confident that they can buy/sell their assets as needed in size and at the right price... and because of that, in aggregate stocks would be worth less, and companies wouldn't be able to raise as much capital.The theoretical model is:\n- You want to have efficient primary markets that allow companies to raise a lot of assets at the best possible prices\n- To enable efficient primary markets, investors want efficient secondary markets (so they don't need to buy and hold forever, but feel they can sell)\n- To enable efficient secondary markets, you need many folks that are in the business of XTX\n... it just so happens that XTX is quite good at it, and so they do a lot of this work.",
-    "parent": 45292908,
-    "depth": 2
-  },
-  {
-    "id": 45295331,
-    "by": "miovoid",
-    "timeISO": "2025-09-18T21:38:59.000Z",
-    "textPlain": "higher competition increases market efficiency - this is the real value",
-    "parent": 45292908,
+    "id": 45295280,
+    "by": "rickette",
+    "timeISO": "2025-09-18T21:34:09.000Z",
+    "textPlain": "Cool. Also https://github.com/deepseek-ai/3FS by DeepSeek which came out of High-Flyer a Chinese HFT firm.",
+    "parent": 45294871,
     "depth": 2
   },
   {
@@ -244,6 +260,14 @@
     "by": "rostayob",
     "timeISO": "2025-09-18T15:24:26.000Z",
     "textPlain": "(Disclaimer: I'm one of the authors of TernFS and while we evaluated Ceph I am not intimately familiar with it)Main factors:* Ceph stores both metadata and file contents using the same object store (RADOS). TernFS uses a specialized database for metadata which takes advantage of various properties of our datasets (immutable files, few moves between directories, etc.).* While Ceph is capable of storing PBs, we currently store ~600PBs on a single TernFS deployment. Last time we checked this would be an order of magnitude more than even very large Ceph deployments.* More generally, we wanted a system that we knew we could easily adapt to our needs and more importantly quickly fix when something went wrong, and we estimated that building out something new rather than adapting Ceph (or some other open source solution) would be less costly overall.",
+    "parent": 45290720,
+    "depth": 2
+  },
+  {
+    "id": 45292318,
+    "by": "jleahy",
+    "timeISO": "2025-09-18T17:16:14.000Z",
+    "textPlain": "The seamless realtime intercontinental replication is a key feature for us, maybe the most important single feature, and AFAIK you can’t do that with Ceph (even if Ceph could scale to our original 10 exabyte target in one instance).",
     "parent": 45290720,
     "depth": 2
   },
@@ -264,11 +288,35 @@
     "depth": 2
   },
   {
-    "id": 45292318,
-    "by": "jleahy",
-    "timeISO": "2025-09-18T17:16:14.000Z",
-    "textPlain": "The seamless realtime intercontinental replication is a key feature for us, maybe the most important single feature, and AFAIK you can’t do that with Ceph (even if Ceph could scale to our original 10 exabyte target in one instance).",
-    "parent": 45290720,
+    "id": 45293573,
+    "by": "candiddevmike",
+    "timeISO": "2025-09-18T18:56:05.000Z",
+    "textPlain": "If price action trading is horoscopes for adults, they're a modern a day oracle.",
+    "parent": 45292908,
+    "depth": 2
+  },
+  {
+    "id": 45293053,
+    "by": "EugeneG",
+    "timeISO": "2025-09-18T18:15:42.000Z",
+    "textPlain": "In theory what they are doing of value, is that at any time you can go to an exchange and say \"I want to buy x\" or \"I want to sell y\" and someone will buy it from you our sell it from you... at a price that's likely to be the accurate price.At the extreme if nobody was providing this service, investors (e.g. pension funds), wouldn't be confident that they can buy/sell their assets as needed in size and at the right price... and because of that, in aggregate stocks would be worth less, and companies wouldn't be able to raise as much capital.The theoretical model is:\n- You want to have efficient primary markets that allow companies to raise a lot of assets at the best possible prices\n- To enable efficient primary markets, investors want efficient secondary markets (so they don't need to buy and hold forever, but feel they can sell)\n- To enable efficient secondary markets, you need many folks that are in the business of XTX\n... it just so happens that XTX is quite good at it, and so they do a lot of this work.",
+    "parent": 45292908,
+    "depth": 2
+  },
+  {
+    "id": 45293913,
+    "by": "scandox",
+    "timeISO": "2025-09-18T19:28:44.000Z",
+    "textPlain": "Your comment contradicts itself. They produced this project at least.",
+    "parent": 45292908,
+    "depth": 2
+  },
+  {
+    "id": 45295331,
+    "by": "miovoid",
+    "timeISO": "2025-09-18T21:38:59.000Z",
+    "textPlain": "higher competition increases market efficiency - this is the real value",
+    "parent": 45292908,
     "depth": 2
   },
   {
