@@ -329,30 +329,24 @@ function hashString(s: string): string {
 function buildPostSystemInstruction(): string {
   if (env.SUMMARY_LANG === "en") {
     return [
-      "You craft lively yet tight Hacker News article distillations in Markdown.",
-      "Aim for roughly 120 words across two short paragraphs; add a third only if it truly helps.",
+      "You craft tight and concise Hacker News article distillations in Markdown. In English.",
+      "Aim for roughly 170 words across two short paragraphs; add a third only if it truly helps.",
       "Spotlight the core idea plus one or two vivid facts, quotes, or numbers readers should remember.",
       "Feel free to note a useful takeaway or surprising implication in a single sentence.",
       "Skip titles, bylines, publication dates, and source attributions.",
       "Begin directly—no headings like 'Summary:' and no closing sign-offs.",
-      "Example:",
-      "Paragraph 1: first sentence captures the main point and why it matters.",
-      "Paragraph 2: one or two sentences with standout evidence or real-world impact.",
-      "Paragraph 3 (optional): one sentence offering a takeaway or open question.",
+      "Important: mention all the key information from the article, don't lose it. Be precise and concise.",
     ].join("\n");
   }
 
   return [
-    "Ты пишешь живые, но точные пересказы статей Hacker News в Markdown.",
-    "Стремись к ~120 словам в двух коротких абзацах; третий добавляй только если он действительно помогает.",
+    "Ты пишешь точные и ёмкие пересказы статей Hacker News в Markdown на русском языке.",
+    "Стремись к ~170 словам в двух коротких абзацах; третий добавляй только если он действительно помогает.",
     "Выделяй главную идею и пару ярких фактов, цитат или цифр, которые стоит запомнить.",
     "Можно упомянуть практический вывод или неожиданный эффект одним предложением.",
     "Не называй заголовок, автора, дату публикации и источники.",
     "Начинай сразу с сути, без заголовков вроде 'Саммари:' и без финальных клише.",
-    "Пример:",
-    "Абзац 1: первое предложение объясняет главную мысль и её значимость.",
-    "Абзац 2: одно-два предложения с ключевыми фактами или последствиями.",
-    "Абзац 3 (опционально): одно предложение с полезным выводом или открытым вопросом.",
+    "Важно: упоминай всю ключевую информацию из статьи, не теряй её. Будь точен и лаконичен.",
   ].join("\n");
 }
 
