@@ -1,17 +1,17 @@
 [
   {
-    "id": 45310332,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-09-20T04:21:20.000Z",
-    "textPlain": "[delayed]",
-    "parent": 45259623,
-    "depth": 1
-  },
-  {
     "id": 45309542,
     "by": "derefr",
     "timeISO": "2025-09-20T02:14:28.000Z",
     "textPlain": "CRAN’s approach here sounds like it has all the disadvantages of a monorepo without any of the advantages.In a true monorepo — the one for the FreeBSD base system, say — if you make a PR that updates some low-level code, then the expectation is that you 1. compile the tree and run all the tests (so far so good), 2. update the high-level code so the tests pass (hmm), and 3. include those updates in your PR. In a true centralized monorepo, a single atomic commit can affect vertical-slice change through a dependency and all of its transitive dependents.I don’t know what the equivalent would be in distributed “meta-monorepo” development ala CRAN, but it’s not what they’re currently doing.(One hypothetical approach I could imagine, is that a dependency major-version release of a package can ship with AST-rewriting-algorithm code migrations, which automatically push both “dependency-computed” PRs to the dependents’ repos, while also pushing those same patches as temporary forced overlays onto releases of dependent packages until such time as the related PRs get merged. So your dependents’ tests still have to pass before you can release your package — but you can iteratively update things on your end until those tests do pass, and then trigger a simultaneous release of your package and your dependent packages. It’s then in your dependents’ court to modify + merge your PR to undo the forced overlay, asynchronously, as they wish.)",
+    "parent": 45259623,
+    "depth": 1
+  },
+  {
+    "id": 45310332,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-09-20T04:21:20.000Z",
+    "textPlain": "The author is a little confused. A system that blocks releases on defects and doesn't pin versions is continuous integration, not a monorepo. The two are not synonymous. Monorepos often use continuous integration to ensure their integrity, but you can use continuous integration without a monorepo, and monorepos can be used without continuous integration.> But the migration had a steep cost: over 6 years later, there are thousands of projects still stuck on an older version.This is a feature, not a bug. The pinning of versions allows systems to independently maintain their own dependency trees. This is how your Linux distribution actually remains stable (or used to, before the onslaught of \"rolling release\" distributions, and the infection of the \"automatically updating application\" into product development culture, which constantly leaves me with non-functional Mobile applications whereupon I am forced to update them once a week). You set the versions, and nothing changes, so you can keep using the same software, and it doesn't break. Until you choose to upgrade it and deal with all the breaking shit.Every decision in life is a tradeoff. Do you go with no version numbers at all, always updating, always fixing things? Or do you always require version numbers, keeping things stable, but having difficulty updating because of a lack of compatible versions? Or do you find some middle ground? There are pros and cons to all these decisions. There is no one best way, only different ways.",
     "parent": 45259623,
     "depth": 1
   },
@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45309209,
-    "by": "kazinator",
-    "timeISO": "2025-09-20T01:43:38.000Z",
-    "textPlain": "> But… CRAN had also rerun the tests for all packages that depend on mine, even if they don’t belong to me!When you propose a change to something that other things depend on, it makes sense to test those dependents for a regression; this is not earth shattering.If you want to change something which breaks them, you have to then do it in a different way. First provide a new way of doing something. Then get all the dependencies that use the old way to migrate to the new way.  Then when the dependents are no longer relying on the old way, you can push out a change which removes it.",
+    "id": 45310548,
+    "by": "pabs3",
+    "timeISO": "2025-09-20T05:05:07.000Z",
+    "textPlain": "Debian is kind of like that, except packages broken by upgrades are mostly just removed.",
     "parent": 45259623,
     "depth": 1
   },
@@ -36,6 +36,22 @@
     "by": "esafak",
     "timeISO": "2025-09-20T01:19:19.000Z",
     "textPlain": ">  In what other ecosystem would a top package introduce itself using an eight-variable equation?That's the objective function of Hastie et al's GLM. I had a good chuckle when I realized the author's last name is Tibshirani. If you know you know.",
+    "parent": 45259623,
+    "depth": 1
+  },
+  {
+    "id": 45309209,
+    "by": "kazinator",
+    "timeISO": "2025-09-20T01:43:38.000Z",
+    "textPlain": "> But… CRAN had also rerun the tests for all packages that depend on mine, even if they don’t belong to me!When you propose a change to something that other things depend on, it makes sense to test those dependents for a regression; this is not earth shattering.If you want to change something which breaks them, you have to then do it in a different way. First provide a new way of doing something. Then get all the dependencies that use the old way to migrate to the new way.  Then when the dependents are no longer relying on the old way, you can push out a change which removes it.",
+    "parent": 45259623,
+    "depth": 1
+  },
+  {
+    "id": 45310530,
+    "by": "cortesoft",
+    "timeISO": "2025-09-20T04:59:41.000Z",
+    "textPlain": "I feel like if more package repositories did this, you would end up just finding more and more workarounds and alternative distribution methods.I mean, just look at how many projects use “curl and bash” as their distribution method even though the project repositories they could use instead don’t even require anything nearly as onerous as the reverse dependency checks described in this article. If the minimal requirements the current repos have are enough to push projects to alternate distribution, I can’t imagine what would happen if it was added.",
     "parent": 45259623,
     "depth": 1
   },
@@ -77,6 +93,22 @@
     "timeISO": "2025-09-20T03:02:12.000Z",
     "textPlain": "> One hypothetical approach I could imagine, is that a dependency major-version release of a package can ship with AST-rewriting-algorithm code migrationsJane Street has something similar called a \"tree smash\" [1]. When someone makes a breaking change to their internal dialect of OCaml, they also push a commit updating the entire company monorepo.It's not explicitly stated whether such migrations happen via AST rewrites, but one can imagine leveraging the existing compiler infrastructure to do that.[1]: https://signalsandthreads.com/future-of-programming/#3535",
     "parent": 45309542,
+    "depth": 2
+  },
+  {
+    "id": 45310479,
+    "by": "skybrian",
+    "timeISO": "2025-09-20T04:48:02.000Z",
+    "textPlain": "Yes, it's nice when you can update arbitrarily distant files in a single commit.  But when an API is popular enough to be used by dozens of independent projects, this is no longer practical. Even in a monorepo, you'll still need to break it up, adding the new API, gradually migrating the usages, and then deleting the old API.",
+    "parent": 45309542,
+    "depth": 2
+  },
+  {
+    "id": 45310570,
+    "by": "summis",
+    "timeISO": "2025-09-20T05:10:36.000Z",
+    "textPlain": "For me the comparison to monorepo made a lot sense. One of the main features of monorepo is maintaining a DAG of dependencies and use that to decide which tests to run given a code change. CRAN package publishing seems to follow same idea.",
+    "parent": 45310332,
     "depth": 2
   },
   {
