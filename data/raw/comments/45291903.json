@@ -1,5 +1,13 @@
 [
   {
+    "id": 45322120,
+    "by": "vitus",
+    "timeISO": "2025-09-21T12:29:26.000Z",
+    "textPlain": "> The GPU implementation's logarithmic scaling becomes evident at longer sequence lengths.I don't see logarithmic scaling, actually. From the table for GRU performance, going from 16384 -> 65536 (namely: increasing the input by 4x) is roughly a 4x increase in time whether looking at CPU-scan or GPU-scan. Okay, maybe the inputs need to be bigger. Looking at the next plot, which goes up to 524288, we see the same behavior: the delta between CPU-scan and GPU-scan doubles as we double the input. That's a constant multiplicative factor. Same holds for LSTM performance.Is this an artifact of the benchmark setup? Are we actually measuring the amount of time needed to load the full context into RAM? Or perhaps we're bottlenecked on memory bandwidth?> Success: The gate extraction kernel, which was a huge bottleneck, now only takes 8% of the total time and is memory-bandwidth bound, saturating L2 bandwidth at 1.9 TB/s. This is a good place to be.Sounds like that might be the case.",
+    "parent": 45291903,
+    "depth": 1
+  },
+  {
     "id": 45320984,
     "by": "bob1029",
     "timeISO": "2025-09-21T08:14:04.000Z",
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45320055,
-    "by": "lettergram",
-    "timeISO": "2025-09-21T04:26:53.000Z",
-    "textPlain": "Back in 2016 - 2018 my work at Capital One resulted in a modified C-RNN style architecture that was producing gpt-2 level results. Using that model we were able to build a general purpose system that could generate data for any dataset (with minimal training, from scratch):https://medium.com/capital-one-tech/why-you-dont-necessarily...At the time it was clear to all on the team that RNNs, just like transformers later on, are general purpose frameworks that really only require more data and size to function. In the 2018-2020 era and probably today, they are slower to train. They also are less prone to certain pitfalls, but overall had the same characteristics.In the 2019-2020 I was convinced that transformers would give way to better architecture. The RNNs in particular trained faster and required less data, particularly when combined with several architectural components I won’t get into. I believe that’s still true today, though I haven’t worked on it in the last 2-3 years.That said, transformers “won” because they are better overall building blocks and don’t require the nuances of RNNs. Combined with the compute optimizations that are now present I don’t see that changing in the near term. Folks are even working to convert transformers to RNNs:https://medium.com/@techsachin/supra-technique-for-linearizi...There are also RNN based models beating Qwen 3 8B in certain benchmarkshttps://www.rwkv.com/I suspect over time the other methods my team explored and other types of networks and nodes will continue to expand beyond transformers for state of the art LLMs",
-    "parent": 45291903,
-    "depth": 1
-  },
-  {
     "id": 45310419,
     "by": "DoctorOetker",
     "timeISO": "2025-09-20T04:36:03.000Z",
     "textPlain": "Is it not much simpler to parallelize by having different \"readers\" (using the same model parameters/weights) process different parts of the corpus in parallel? reader A is reading book A, while reader B is reading book B etc...?Is there a deeper reason why more complicated parallelization as in the OP or the article it references is more desirable?",
+    "parent": 45291903,
+    "depth": 1
+  },
+  {
+    "id": 45320055,
+    "by": "lettergram",
+    "timeISO": "2025-09-21T04:26:53.000Z",
+    "textPlain": "Back in 2016 - 2018 my work at Capital One resulted in a modified C-RNN style architecture that was producing gpt-2 level results. Using that model we were able to build a general purpose system that could generate data for any dataset (with minimal training, from scratch):https://medium.com/capital-one-tech/why-you-dont-necessarily...At the time it was clear to all on the team that RNNs, just like transformers later on, are general purpose frameworks that really only require more data and size to function. In the 2018-2020 era and probably today, they are slower to train. They also are less prone to certain pitfalls, but overall had the same characteristics.In the 2019-2020 I was convinced that transformers would give way to better architecture. The RNNs in particular trained faster and required less data, particularly when combined with several architectural components I won’t get into. I believe that’s still true today, though I haven’t worked on it in the last 2-3 years.That said, transformers “won” because they are better overall building blocks and don’t require the nuances of RNNs. Combined with the compute optimizations that are now present I don’t see that changing in the near term. Folks are even working to convert transformers to RNNs:https://medium.com/@techsachin/supra-technique-for-linearizi...There are also RNN based models beating Qwen 3 8B in certain benchmarkshttps://www.rwkv.com/I suspect over time the other methods my team explored and other types of networks and nodes will continue to expand beyond transformers for state of the art LLMs",
     "parent": 45291903,
     "depth": 1
   },
@@ -88,14 +96,6 @@
     "depth": 2
   },
   {
-    "id": 45320813,
-    "by": "algo_trader",
-    "timeISO": "2025-09-21T07:32:29.000Z",
-    "textPlain": "> RNN based models beating Qwen 3 8B\n> https://www.rwkv.com/Counter consensus is where the alpha is...Do you think rnn/rwkv have an edge with verifiable domains and tree search inference time? You can use cheaper gpus and do multiple sampling.(but of course, its hard to beat the sunk cost of a foundation model)",
-    "parent": 45320055,
-    "depth": 2
-  },
-  {
     "id": 45319385,
     "by": "jsharf",
     "timeISO": "2025-09-21T02:05:54.000Z",
@@ -109,6 +109,14 @@
     "timeISO": "2025-09-21T08:18:46.000Z",
     "textPlain": "AIUI, the thinking when developing transformers might have been that \"reading text A vs. text B\" just isn't parallel enough for truly large-scale training.  The problem was to somehow also parallelize the learning of very long range dependencies within a single sequence, and transformers managed to do that.",
     "parent": 45310419,
+    "depth": 2
+  },
+  {
+    "id": 45320813,
+    "by": "algo_trader",
+    "timeISO": "2025-09-21T07:32:29.000Z",
+    "textPlain": "> RNN based models beating Qwen 3 8B\n> https://www.rwkv.com/Counter consensus is where the alpha is...Do you think rnn/rwkv have an edge with verifiable domains and tree search inference time? You can use cheaper gpus and do multiple sampling.(but of course, its hard to beat the sunk cost of a foundation model)",
+    "parent": 45320055,
     "depth": 2
   },
   {
