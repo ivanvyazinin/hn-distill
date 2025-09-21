@@ -1,5 +1,13 @@
 [
   {
+    "id": 45321755,
+    "by": "tmtvl",
+    "timeISO": "2025-09-21T11:13:23.000Z",
+    "textPlain": "Nothing about zram/zswap? I know that zram is more performant but I wonder how it holds up under high memory pressure compared to zswap.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
     "id": 45321328,
     "by": "jitl",
     "timeISO": "2025-09-21T09:37:37.000Z",
@@ -16,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45321374,
-    "by": "naniwaduni",
-    "timeISO": "2025-09-21T09:51:09.000Z",
-    "textPlain": "The way I learned it, swap is basically the inverse of file caching: in much the way that extra memory can be used to cache more frequently-used files, then evicted when a \"better\" use for that memory comes around; swap can be used to save rarely-used anonymous memory so that you can \"evict\" them when there are other things you'd rather have in memory, then pull them back into memory if they ever become relevant again.Or to look at it from another perspective... it lets you reclaim unprovable memory leaks.",
-    "parent": 45318798,
-    "depth": 1
-  },
-  {
     "id": 45320269,
     "by": "creshal",
     "timeISO": "2025-09-21T05:22:20.000Z",
@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45321398,
-    "by": "shatsky",
-    "timeISO": "2025-09-21T09:58:11.000Z",
-    "textPlain": "Author pushes abstract idea about \"page reclamation\" in front of ideas of performance, reliability and controllable service degradation which people actually want; because author believes that it is the one and only solution to them; and then defends swap because it is good for it.No, this is just plain wrong. There are very specific problems which happen when there is not enough memory.1. File-backed page reads causing more disk reads, eventually ending with \"programs being executed from disk\" (shared libraries are also mmaped) which feels like system lockup. This does not need any \"egalitarian reclamation\" abstraction and swap, and swap does not solve it. But it can be solved simply by reserving some minimal amount of memory for buf/cache, with which system is still responsive.\n2. Eventually failure to allocate more memory for some process. Any solutions like \"page reclamation\" with pushing unused pages to some swap can only increase maximum amount of memory which can be used before it happens, from one finite value to bigger finite value. When there is no memory to free without losing data, some process must be killed. Swap does not solve this. The least bad solution would be to warn user in advance and let them choose processes to kill.See also https://github.com/hakavlad/prelockd",
-    "parent": 45318798,
-    "depth": 1
-  },
-  {
     "id": 45319888,
     "by": "ggm",
     "timeISO": "2025-09-21T03:47:51.000Z",
     "textPlain": "Recognition that older linux swap strategies were unhelpful sometimes, which this piece of writing does, validates out past sense it wasn't working well. Regaining trust takes time.Sometimes I think if backing store and swap were more clearly delineated we might have got to decent algorithms sooner. Having a huge amount of swap pre-emptively claimed was making it look like starvation, when it was just a runtime planning strategy. It's also confusing how top and vmstat report things.Also, as a BSD mainly person, I think the differences stand out. I haven't noticed an OOM killer approach on BSD.Ancient model: twice as much swap as memoryOld model: same amount of swap as memoryNew model: amount of swap your experience tells you this job mix demands to manage memory pressure fairly, which is a bit of a tall ask sometimes, but basically pick a number up to memory size.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45321374,
+    "by": "naniwaduni",
+    "timeISO": "2025-09-21T09:51:09.000Z",
+    "textPlain": "The way I learned it, swap is basically the inverse of file caching: in much the way that extra memory can be used to cache more frequently-used files, then evicted when a \"better\" use for that memory comes around; swap can be used to save rarely-used anonymous memory so that you can \"evict\" them when there are other things you'd rather have in memory, then pull them back into memory if they ever become relevant again.Or to look at it from another perspective... it lets you reclaim unprovable memory leaks.",
     "parent": 45318798,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "Panzerschrek",
     "timeISO": "2025-09-21T06:30:43.000Z",
     "textPlain": "As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs? And how many memory such daemons can consume? A couple of hundred megabytes total? Is it really that much on modern systems?My experience with swap shows, that it only makes things worse. When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working - even mouse cursor can't move. If I am happy, OOM killer will eventually kill my buggy program, but after that it's not over - almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry program and all other programs just continue working as before.I think that overall reliance on swap is noways just a legacy of old times when main memory was scarce and back than it maybe was useful to have swap. OS kernels should be redesigned to work without swap, this will make system behavior smoother and kernel code may be simpler (all this swapping code may be removed) and thus faster.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45321398,
+    "by": "shatsky",
+    "timeISO": "2025-09-21T09:58:11.000Z",
+    "textPlain": "Author pushes abstract idea about \"page reclamation\" in front of ideas of performance, reliability and controllable service degradation which people actually want; because author believes that it is the one and only solution to them; and then defends swap because it is good for it.No, this is just plain wrong. There are very specific problems which happen when there is not enough memory.1. File-backed page reads causing more disk reads, eventually ending with \"programs being executed from disk\" (shared libraries are also mmaped) which feels like system lockup. This does not need any \"egalitarian reclamation\" abstraction and swap, and swap does not solve it. But it can be solved simply by reserving some minimal amount of memory for buf/cache, with which system is still responsive.\n2. Eventually failure to allocate more memory for some process. Any solutions like \"page reclamation\" with pushing unused pages to some swap can only increase maximum amount of memory which can be used before it happens, from one finite value to bigger finite value. When there is no memory to free without losing data, some process must be killed. Swap does not solve this. The least bad solution would be to warn user in advance and let them choose processes to kill.See also https://github.com/hakavlad/prelockd",
     "parent": 45318798,
     "depth": 1
   },
@@ -112,11 +120,27 @@
     "depth": 1
   },
   {
-    "id": 45321490,
+    "id": 45321584,
+    "by": "zozbot234",
+    "timeISO": "2025-09-21T10:40:34.000Z",
+    "textPlain": "The problem with heavy swapping on NVMe (or other flash memory) is that it wears out the flash storage very quickly, even for seemingly \"reasonable\" workloads. In a way, the high performance of NVMe can work against you. Definitely something you want to check out via SMART or similar wearout stats.",
+    "parent": 45321328,
+    "depth": 2
+  },
+  {
+    "id": 45321591,
+    "by": "hugo1789",
+    "timeISO": "2025-09-21T10:41:56.000Z",
+    "textPlain": "That works if there is enough memory after the \"bad\" process has been killed. The question is, is it necessary? Many systems can live with processes performing a little bit poorly for some minutes and I wouldn't do it.",
+    "parent": 45320192,
+    "depth": 2
+  },
+  {
+    "id": 45321574,
     "by": "man8alexd",
-    "timeISO": "2025-09-21T10:20:23.000Z",
+    "timeISO": "2025-09-21T10:38:02.000Z",
     "textPlain": "[dead]",
-    "parent": 45321398,
+    "parent": 45320192,
     "depth": 2
   },
   {
@@ -176,6 +200,14 @@
     "depth": 2
   },
   {
+    "id": 45321490,
+    "by": "man8alexd",
+    "timeISO": "2025-09-21T10:20:23.000Z",
+    "textPlain": "Neither executables nor shared libraries are going to be evicted if they are in active use and have the \"accessed\" bit set in their page tables. This code has been present in the kernel mm/vmscan.c at least since 2012.",
+    "parent": 45321398,
+    "depth": 2
+  },
+  {
     "id": 45321198,
     "by": "rwmj",
     "timeISO": "2025-09-21T09:06:57.000Z",
@@ -200,18 +232,18 @@
     "depth": 2
   },
   {
-    "id": 45320982,
-    "by": "bawolff",
-    "timeISO": "2025-09-21T08:13:01.000Z",
-    "textPlain": "> OP tries to argue that a long period of thrashing will give you an opportunity for more visibility and controlled intervention.I didn't get that impression. My read was that OP was arguing for user-space process killers so the system doesn't get to the point where the system becomes unresponsive due to thrashing.",
-    "parent": 45319896,
-    "depth": 2
-  },
-  {
     "id": 45320534,
     "by": "mickeyp",
     "timeISO": "2025-09-21T06:29:36.000Z",
     "textPlain": "That assumes the OOM killer kills the right thing. It may well choose to kill something ancillary, which causes your OOM program to just hang or misbehave wildly.The real danger in all of this, swap or no, is the shitty OOMKiller in Linux.",
+    "parent": 45319896,
+    "depth": 2
+  },
+  {
+    "id": 45320982,
+    "by": "bawolff",
+    "timeISO": "2025-09-21T08:13:01.000Z",
+    "textPlain": "> OP tries to argue that a long period of thrashing will give you an opportunity for more visibility and controlled intervention.I didn't get that impression. My read was that OP was arguing for user-space process killers so the system doesn't get to the point where the system becomes unresponsive due to thrashing.",
     "parent": 45319896,
     "depth": 2
   },
