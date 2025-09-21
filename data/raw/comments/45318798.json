@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45321374,
-    "by": "naniwaduni",
-    "timeISO": "2025-09-21T09:51:09.000Z",
-    "textPlain": "The way I learned it, swap is basically the inverse of file caching: in much the way that extra memory can be used to cache more frequently-used files, then evicted when a \"better\" use for that memory comes around; swap can be used to save rarely-used anonymous memory so that you can \"evict\" them when there are other things you'd rather have in memory, then pull them back into memory if they ever become relevant again.Or to look at it from another perspective... it lets you reclaim unprovable memory leaks.",
-    "parent": 45318798,
-    "depth": 1
-  },
-  {
     "id": 45320539,
     "by": "Panzerschrek",
     "timeISO": "2025-09-21T06:30:43.000Z",
     "textPlain": "As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs? And how many memory such daemons can consume? A couple of hundred megabytes total? Is it really that much on modern systems?My experience with swap shows, that it only makes things worse. When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working - even mouse cursor can't move. If I am happy, OOM killer will eventually kill my buggy program, but after that it's not over - almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry program and all other programs just continue working as before.I think that overall reliance on swap is noways just a legacy of old times when main memory was scarce and back than it maybe was useful to have swap. OS kernels should be redesigned to work without swap, this will make system behavior smoother and kernel code may be simpler (all this swapping code may be removed) and thus faster.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45321374,
+    "by": "naniwaduni",
+    "timeISO": "2025-09-21T09:51:09.000Z",
+    "textPlain": "The way I learned it, swap is basically the inverse of file caching: in much the way that extra memory can be used to cache more frequently-used files, then evicted when a \"better\" use for that memory comes around; swap can be used to save rarely-used anonymous memory so that you can \"evict\" them when there are other things you'd rather have in memory, then pull them back into memory if they ever become relevant again.Or to look at it from another perspective... it lets you reclaim unprovable memory leaks.",
     "parent": 45318798,
     "depth": 1
   },
@@ -160,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 45322396,
+    "by": "fuzzfactor",
+    "timeISO": "2025-09-21T13:09:26.000Z",
+    "textPlain": ">There's also a lot of misunderstanding about the purpose of swap – many people just see it as a kind of \"slow extra memory\" for use in emergencies, but don't understand how it can contribute during normal load to the healthy operation of an operating system as a whole.That's the long-standing defect that needs to be corrected then, there should be no dependence on swap existing whatsoever as long as you have more than enough memory for the entire workload.",
+    "parent": 45321134,
+    "depth": 2
+  },
+  {
     "id": 45321584,
     "by": "zozbot234",
     "timeISO": "2025-09-21T10:40:34.000Z",
@@ -184,10 +192,10 @@
     "depth": 2
   },
   {
-    "id": 45322147,
-    "by": "kalleboo",
-    "timeISO": "2025-09-21T12:34:26.000Z",
-    "textPlain": "> When I program, my application may sometimes allocate a lot of memory due to some silly bugI had one of those cases a few years ago when a program I was working on was leaking 12 MP raw image buffers in a drawing routine. I set it off running and went browsing HN/chatting with friends. A few minutes later I was like \"this process is definitely taking too long\" and when I went to check on it, it was using up 200+ GB of RAM (on a 16 GB machine) which had all gone to swap.I hadn't noticed a thing! Modern SSDs are truly a marvel... (this was also on macOS rather than Linux, which may have a better swap implementation for desktop purposes)",
+    "id": 45320673,
+    "by": "Rohansi",
+    "timeISO": "2025-09-21T07:00:57.000Z",
+    "textPlain": "> As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs?Ideally yes, but is that something you keep in mind when you write software? Do you ever consider freeing memory just because it hasn't been used in a while? How do you decide when to free it? This is all handled automatically when you have swap enabled, and at a granularity that is much higher than you can practically manually implement it.",
     "parent": 45320539,
     "depth": 2
   },
@@ -200,18 +208,10 @@
     "depth": 2
   },
   {
-    "id": 45320673,
-    "by": "Rohansi",
-    "timeISO": "2025-09-21T07:00:57.000Z",
-    "textPlain": "> As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs?Ideally yes, but is that something you keep in mind when you write software? Do you ever consider freeing memory just because it hasn't been used in a while? How do you decide when to free it? This is all handled automatically when you have swap enabled, and at a granularity that is much higher than you can practically manually implement it.",
-    "parent": 45320539,
-    "depth": 2
-  },
-  {
-    "id": 45321786,
-    "by": "Ferret7446",
-    "timeISO": "2025-09-21T11:20:28.000Z",
-    "textPlain": "Kinda, basically.  Swap is a cost optimization for \"bad\" programs.Having more RAM is always better performance, but swap allows you to skimp out on RAM in certain cases for almost identical performance but lower cost (of buying more RAM), if you run programs that allocate a lot of memory that it subsequently doesn't use.  I hear Java is notoriously bad at this, so if you run a lot of heavy enterprise Java software, swap can get you the same performance with half the RAM.(It is also a \"GC strategy\", or stopgap for memory leaks.  Rather than managing memory, you \"could\" just never free memory, and allocate a fat blob of swap and let the kernel swap it out.)",
+    "id": 45322147,
+    "by": "kalleboo",
+    "timeISO": "2025-09-21T12:34:26.000Z",
+    "textPlain": "> When I program, my application may sometimes allocate a lot of memory due to some silly bugI had one of those cases a few years ago when a program I was working on was leaking 12 MP raw image buffers in a drawing routine. I set it off running and went browsing HN/chatting with friends. A few minutes later I was like \"this process is definitely taking too long\" and when I went to check on it, it was using up 200+ GB of RAM (on a 16 GB machine) which had all gone to swap.I hadn't noticed a thing! Modern SSDs are truly a marvel... (this was also on macOS rather than Linux, which may have a better swap implementation for desktop purposes)",
     "parent": 45320539,
     "depth": 2
   },
@@ -224,6 +224,14 @@
     "depth": 2
   },
   {
+    "id": 45321339,
+    "by": "jcynix",
+    "timeISO": "2025-09-21T09:40:58.000Z",
+    "textPlain": "> When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working [...]You can limit resource usage per process thus your buggy application could be killed long before the system comes to a crawl. See your shell' s entry on its  limit/ulimit built-in or useman prlimit(1) - get and set process resource limits",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
     "id": 45320990,
     "by": "blueflow",
     "timeISO": "2025-09-21T08:17:00.000Z",
@@ -232,10 +240,18 @@
     "depth": 2
   },
   {
-    "id": 45321339,
-    "by": "jcynix",
-    "timeISO": "2025-09-21T09:40:58.000Z",
-    "textPlain": "> When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working [...]You can limit resource usage per process thus your buggy application could be killed long before the system comes to a crawl. See your shell' s entry on its  limit/ulimit built-in or useman prlimit(1) - get and set process resource limits",
+    "id": 45321786,
+    "by": "Ferret7446",
+    "timeISO": "2025-09-21T11:20:28.000Z",
+    "textPlain": "Kinda, basically.  Swap is a cost optimization for \"bad\" programs.Having more RAM is always better performance, but swap allows you to skimp out on RAM in certain cases for almost identical performance but lower cost (of buying more RAM), if you run programs that allocate a lot of memory that it subsequently doesn't use.  I hear Java is notoriously bad at this, so if you run a lot of heavy enterprise Java software, swap can get you the same performance with half the RAM.(It is also a \"GC strategy\", or stopgap for memory leaks.  Rather than managing memory, you \"could\" just never free memory, and allocate a fat blob of swap and let the kernel swap it out.)",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45322359,
+    "by": "creshal",
+    "timeISO": "2025-09-21T13:04:33.000Z",
+    "textPlain": "> But wouldn't it be better to avoid writing such programs?Yes, indeed, the world would be a better place if we had just stopped writing Java 20 years ago.> And how many memory such daemons can consume? A couple of hundred megabytes total?Consider the average Java or .net enterprise programmer, who spends his entire career gluing together third-party dependencies without ever understanding what he's doing: Your executable is a couple hundred megabytes already, then you recursively initialize all the AbstractFactorySingletonFactorySingletonFactories with all their dependencies monkey patched with something worse for compliance reasons, and soon your program spends 90 seconds simply booting up and sits at two or three dozen gigabytes of memory consumption before it has served its first request.> Is it really that much on modern systems?If each of your Java/.net business app VMs needs 50 or so gigabytes to run smoothly, you can only squeeze ten of them in an 1U pizza box with a mere half terabyte RAM; while modern servers allow you to cram in multiple terabytes, do you really want to spend several tens of thousands of dollars on extra RAM, when swap storage is basically free?Cloud providers do the same math, and if you look at e.g. AWS, swap on EBS costs as much per month as the same amount of RAM costs per hour. That's almost three orders of magnitude cheaper.> When I program, my application may sometimes allocate a lot of memory due to some silly bug.Yeah, that's on you. Many, many mechanism let you limit the per-process memory consumption.But as TFA tries to explain, dealing with this situation is not the purpose of swap, and never has been. This is a pathological edge case.> almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.This requires multiple conditions to be met- the broken program is allocating",
     "parent": 45320539,
     "depth": 2
   },

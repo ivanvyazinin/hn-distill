@@ -1,17 +1,17 @@
 [
   {
-    "id": 45322120,
-    "by": "vitus",
-    "timeISO": "2025-09-21T12:29:26.000Z",
-    "textPlain": "> The GPU implementation's logarithmic scaling becomes evident at longer sequence lengths.I don't see logarithmic scaling, actually. From the table for GRU performance, going from 16384 -> 65536 (namely: increasing the input by 4x) is roughly a 4x increase in time whether looking at CPU-scan or GPU-scan. Okay, maybe the inputs need to be bigger. Looking at the next plot, which goes up to 524288, we see the same behavior: the delta between CPU-scan and GPU-scan doubles as we double the input. That's a constant multiplicative factor. Same holds for LSTM performance.Is this an artifact of the benchmark setup? Are we actually measuring the amount of time needed to load the full context into RAM? Or perhaps we're bottlenecked on memory bandwidth?> Success: The gate extraction kernel, which was a huge bottleneck, now only takes 8% of the total time and is memory-bandwidth bound, saturating L2 bandwidth at 1.9 TB/s. This is a good place to be.Sounds like that might be the case.",
-    "parent": 45291903,
-    "depth": 1
-  },
-  {
     "id": 45320984,
     "by": "bob1029",
     "timeISO": "2025-09-21T08:14:04.000Z",
     "textPlain": "> You simply cannot compute the gates for the entire sequence in one shot, because each step requires the output from the one before it. This forces a sequential loop, which is notoriously inefficient on parallel hardware like GPUs.> The crux of the paper is to remove this direct dependency. The simplified models, minGRU and minLSTM, redefine the gates to depend only on the current inputThe entire hypothesis of my machine learning experiments has been that we should embrace the time domain and causal dependencies. I really think biology got these elements correct. Now, the question remains - Which kind of computer system is most ideal to run a very branchy and recursive workload?Constantly adapting our experiments to satisfy the constraints of a single kind of compute vendor is probably not healthy for science over the long term.",
+    "parent": 45291903,
+    "depth": 1
+  },
+  {
+    "id": 45322120,
+    "by": "vitus",
+    "timeISO": "2025-09-21T12:29:26.000Z",
+    "textPlain": "> The GPU implementation's logarithmic scaling becomes evident at longer sequence lengths.I don't see logarithmic scaling, actually. From the table for GRU performance, going from 16384 -> 65536 (namely: increasing the input by 4x) is roughly a 4x increase in time whether looking at CPU-scan or GPU-scan. Okay, maybe the inputs need to be bigger. Looking at the next plot, which goes up to 524288, we see the same behavior: the delta between CPU-scan and GPU-scan doubles as we double the input. That's a constant multiplicative factor. Same holds for LSTM performance.Is this an artifact of the benchmark setup? Are we actually measuring the amount of time needed to load the full context into RAM? Or perhaps we're bottlenecked on memory bandwidth?> Success: The gate extraction kernel, which was a huge bottleneck, now only takes 8% of the total time and is memory-bandwidth bound, saturating L2 bandwidth at 1.9 TB/s. This is a good place to be.Sounds like that might be the case.",
     "parent": 45291903,
     "depth": 1
   },
@@ -62,6 +62,14 @@
     "textPlain": "Well, on the title, our brain seems to be equivalent to a RNN... so yeah, possibly.Anyway, claiming that they are equivalent to transformers when RNNs are Turing complete, and forward-only NNs are not is such a strange take.",
     "parent": 45291903,
     "depth": 1
+  },
+  {
+    "id": 45322355,
+    "by": "inciampati",
+    "timeISO": "2025-09-21T13:04:19.000Z",
+    "textPlain": "It turns out you can use a fused triton kernel for a true RNN GRU and run just as fast as the minGRU model in training. Yeah, it doesn't work for very long context but neither does minGRU (activation memory...)",
+    "parent": 45320984,
+    "depth": 2
   },
   {
     "id": 45321502,
