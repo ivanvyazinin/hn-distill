@@ -1,5 +1,13 @@
 [
   {
+    "id": 45321328,
+    "by": "jitl",
+    "timeISO": "2025-09-21T09:37:37.000Z",
+    "textPlain": "I am testing a distributed database-like system at work that makes heavy use of swap. At startup, we read a table from S3 and compute a recursive materialized view over it. This needs about 4TB of “memory” per node while computing, which we provide as 512gb of RAM + 3900GB of NVMe zswap enabled swap devices. Once the computation is complete, we’re left with a much smaller working set index (about 400gb) we use to serve queries. For this use-case, swap serves as a performant and less labor intensive approach to manually spilling the computation to disk in  application code (although there is some mlock going on; it’s not entirely automatic). This is like a very extreme version of the initialization-only pages idea discussed in the articule.The warm up computation does take like 1/4 the time if it can live entirely in RAM, but using NVMe as “discount RAM” reduces the United States dollar cost of the system by 97% compared to RAM-only.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
     "id": 45320192,
     "by": "LegionMammal978",
     "timeISO": "2025-09-21T05:01:41.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45320539,
-    "by": "Panzerschrek",
-    "timeISO": "2025-09-21T06:30:43.000Z",
-    "textPlain": "As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs? And how many memory such daemons can consume? A couple of hundred megabytes total? Is it really that much on modern systems?My experience with swap shows, that it only makes things worse. When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working - even mouse cursor can't move. If I am happy, OOM killer will eventually kill my buggy program, but after that it's not over - almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry program and all other programs just continue working as before.I think that overall reliance on swap is noways just a legacy of old times when main memory was scarce and back than it maybe was useful to have swap. OS kernels should be redesigned to work without swap, this will make system behavior smoother and kernel code may be simpler (all this swapping code may be removed) and thus faster.",
+    "id": 45321374,
+    "by": "naniwaduni",
+    "timeISO": "2025-09-21T09:51:09.000Z",
+    "textPlain": "The way I learned it, swap is basically the inverse of file caching: in much the way that extra memory can be used to cache more frequently-used files, then evicted when a \"better\" use for that memory comes around; swap can be used to save rarely-used anonymous memory so that you can \"evict\" them when there are other things you'd rather have in memory, then pull them back into memory if they ever become relevant again.Or to look at it from another perspective... it lets you reclaim unprovable memory leaks.",
     "parent": 45318798,
     "depth": 1
   },
@@ -24,10 +32,34 @@
     "depth": 1
   },
   {
+    "id": 45321398,
+    "by": "shatsky",
+    "timeISO": "2025-09-21T09:58:11.000Z",
+    "textPlain": "Author pushes abstract idea about \"page reclamation\" in front of ideas of performance, reliability and controllable service degradation which people actually want; because author believes that it is the one and only solution to them; and then defends swap because it is good for it.No, this is just plain wrong. There are very specific problems which happen when there is not enough memory.1. File-backed page reads causing more disk reads, eventually ending with \"programs being executed from disk\" (shared libraries are also mmaped) which feels like system lockup. This does not need any \"egalitarian reclamation\" abstraction and swap, and swap does not solve it. But it can be solved simply by reserving some minimal amount of memory for buf/cache, with which system is still responsive.\n2. Eventually failure to allocate more memory for some process. Any solutions like \"page reclamation\" with pushing unused pages to some swap can only increase maximum amount of memory which can be used before it happens, from one finite value to bigger finite value. When there is no memory to free without losing data, some process must be killed. Swap does not solve this. The least bad solution would be to warn user in advance and let them choose processes to kill.See also https://github.com/hakavlad/prelockd",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
     "id": 45319888,
     "by": "ggm",
     "timeISO": "2025-09-21T03:47:51.000Z",
     "textPlain": "Recognition that older linux swap strategies were unhelpful sometimes, which this piece of writing does, validates out past sense it wasn't working well. Regaining trust takes time.Sometimes I think if backing store and swap were more clearly delineated we might have got to decent algorithms sooner. Having a huge amount of swap pre-emptively claimed was making it look like starvation, when it was just a runtime planning strategy. It's also confusing how top and vmstat report things.Also, as a BSD mainly person, I think the differences stand out. I haven't noticed an OOM killer approach on BSD.Ancient model: twice as much swap as memoryOld model: same amount of swap as memoryNew model: amount of swap your experience tells you this job mix demands to manage memory pressure fairly, which is a bit of a tall ask sometimes, but basically pick a number up to memory size.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45321134,
+    "by": "tsoukase",
+    "timeISO": "2025-09-21T08:51:55.000Z",
+    "textPlain": "In my humble experience, if you run out of memory in Linux you are f... up, irrespective of swap present and/or OOM getting in.On the other side, a Raspberry Pi freezed unexpectedly (not due to low memory) until a very small swap file was enabled. It was almost never used but the freezes stopped. Fun swap stories.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45320539,
+    "by": "Panzerschrek",
+    "timeISO": "2025-09-21T06:30:43.000Z",
+    "textPlain": "As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs? And how many memory such daemons can consume? A couple of hundred megabytes total? Is it really that much on modern systems?My experience with swap shows, that it only makes things worse. When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working - even mouse cursor can't move. If I am happy, OOM killer will eventually kill my buggy program, but after that it's not over - almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry program and all other programs just continue working as before.I think that overall reliance on swap is noways just a legacy of old times when main memory was scarce and back than it maybe was useful to have swap. OS kernels should be redesigned to work without swap, this will make system behavior smoother and kernel code may be simpler (all this swapping code may be removed) and thus faster.",
     "parent": 45318798,
     "depth": 1
   },
@@ -40,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45319896,
-    "by": "kijin",
-    "timeISO": "2025-09-21T03:49:24.000Z",
-    "textPlain": "> 6. Disabling swap doesn't prevent pathological behaviour at near-OOM, although it's true that having swap may prolong it. Whether the global OOM killer is invoked with or without swap, or was invoked sooner or later, the result is the same: you are left with a system in an unpredictable state. Having no swap doesn't avoid this.This is the most important reason I try to avoid having a large swap. The duration of pathological behavior at near-OOM is proportional to the amount of swap you have. The sooner your program is killed, the sooner your monitoring system can detect it (\"Connection refused\" is much more clear cut than random latency spikes) and reboot/reprovision the faulty server. We no longer live in a world where we need to keep a particular server online at all cost. When you have an army of servers, a dead server is preferable to a misbehaving server.OP tries to argue that a long period of thrashing will give you an opportunity for more visibility and controlled intervention. This does not match my experience. It takes ages even to log in to a machine that is thrashing hard, let alone run any serious commands on it. The sooner you just let it crash, the sooner you can restore the system to a working state and inspect the logs in a more comfortable environment.",
-    "parent": 45318798,
-    "depth": 1
-  },
-  {
     "id": 45319812,
     "by": "01HNNWZ0MV43FF",
     "timeISO": "2025-09-21T03:34:11.000Z",
     "textPlain": "`sudo apt-get install earlyoom`Configure it to fire at like 5% and forget it.I've never seen the OOM do its dang job with or without swap.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45319896,
+    "by": "kijin",
+    "timeISO": "2025-09-21T03:49:24.000Z",
+    "textPlain": "> 6. Disabling swap doesn't prevent pathological behaviour at near-OOM, although it's true that having swap may prolong it. Whether the global OOM killer is invoked with or without swap, or was invoked sooner or later, the result is the same: you are left with a system in an unpredictable state. Having no swap doesn't avoid this.This is the most important reason I try to avoid having a large swap. The duration of pathological behavior at near-OOM is proportional to the amount of swap you have. The sooner your program is killed, the sooner your monitoring system can detect it (\"Connection refused\" is much more clear cut than random latency spikes) and reboot/reprovision the faulty server. We no longer live in a world where we need to keep a particular server online at all cost. When you have an army of servers, a dead server is preferable to a misbehaving server.OP tries to argue that a long period of thrashing will give you an opportunity for more visibility and controlled intervention. This does not match my experience. It takes ages even to log in to a machine that is thrashing hard, let alone run any serious commands on it. The sooner you just let it crash, the sooner you can restore the system to a working state and inspect the logs in a more comfortable environment.",
     "parent": 45318798,
     "depth": 1
   },
@@ -80,35 +112,11 @@
     "depth": 1
   },
   {
-    "id": 45320990,
-    "by": "blueflow",
-    "timeISO": "2025-09-21T08:17:00.000Z",
-    "textPlain": "Programs run of program text, program text is mapped in as named pages (disk cache). They are evictable! And without swap, they will get evicted on high memory pressure. Program text thrashing is worse than having swap.The problem is not the existence of swap, but that people are unaware that the disk cache is equally important for performance.",
-    "parent": 45320539,
-    "depth": 2
-  },
-  {
-    "id": 45320818,
-    "by": "zozbot234",
-    "timeISO": "2025-09-21T07:33:23.000Z",
-    "textPlain": "> I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry programThat's not how it works in practice.  What happens is that program pages (and read-only data pages) get gradually evicted from memory and the system still slows to a crawl (to the point where it becomes practically unresponsive) because every access to program text outside the current 4KB page now potentially involves a swap-in.  Sure, eventually, the memory-hungry task will either complete successfully or the OOM killer will be called, but that doesn't help you if you care about responsiveness first and foremost (and in practice, desktop users do care about that - especially when they're trying to terminate that memory hog).",
-    "parent": 45320539,
-    "depth": 2
-  },
-  {
-    "id": 45320673,
-    "by": "Rohansi",
-    "timeISO": "2025-09-21T07:00:57.000Z",
-    "textPlain": "> As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs?Ideally yes, but is that something you keep in mind when you write software? Do you ever consider freeing memory just because it hasn't been used in a while? How do you decide when to free it? This is all handled automatically when you have swap enabled, and at a granularity that is much higher than you can practically manually implement it.",
-    "parent": 45320539,
-    "depth": 2
-  },
-  {
-    "id": 45320966,
-    "by": "MomsAVoxell",
-    "timeISO": "2025-09-21T08:08:07.000Z",
-    "textPlain": "> But wouldn't it be better to avoid writing such programs?Think long-term recording applications, such as audio or studio situations where you want to \"fire and forget\" reliable recording systems of large amounts of data consistently from multiple streams for extended durations, for example.",
-    "parent": 45320539,
+    "id": 45321490,
+    "by": "man8alexd",
+    "timeISO": "2025-09-21T10:20:23.000Z",
+    "textPlain": "[dead]",
+    "parent": 45321398,
     "depth": 2
   },
   {
@@ -125,6 +133,70 @@
     "timeISO": "2025-09-21T06:06:35.000Z",
     "textPlain": "For modern Linux servers with large amounts of RAM, my rule of thumb is between 1/8 and 1/32 of RAM, depending on what the machine is for.For example, one of my database servers has 128GB of RAM and 8GB of swap. It tends to stabilize around 108GB of RAM and 5GB of swap usage under normal load, so I know that a 4GB swap would have been less than optimal. A larger swap would have been a waste as well.",
     "parent": 45319888,
+    "depth": 2
+  },
+  {
+    "id": 45320673,
+    "by": "Rohansi",
+    "timeISO": "2025-09-21T07:00:57.000Z",
+    "textPlain": "> As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs?Ideally yes, but is that something you keep in mind when you write software? Do you ever consider freeing memory just because it hasn't been used in a while? How do you decide when to free it? This is all handled automatically when you have swap enabled, and at a granularity that is much higher than you can practically manually implement it.",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45320818,
+    "by": "zozbot234",
+    "timeISO": "2025-09-21T07:33:23.000Z",
+    "textPlain": "> I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry programThat's not how it works in practice.  What happens is that program pages (and read-only data pages) get gradually evicted from memory and the system still slows to a crawl (to the point where it becomes practically unresponsive) because every access to program text outside the current 4KB page now potentially involves a swap-in.  Sure, eventually, the memory-hungry task will either complete successfully or the OOM killer will be called, but that doesn't help you if you care about responsiveness first and foremost (and in practice, desktop users do care about that - especially when they're trying to terminate that memory hog).",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45321339,
+    "by": "jcynix",
+    "timeISO": "2025-09-21T09:40:58.000Z",
+    "textPlain": "> When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working [...]You can limit resource usage per process thus your buggy application could be killed long before the system comes to a crawl. See your shell' s entry on its  limit/ulimit built-in or useman prlimit(1) - get and set process resource limits",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45320990,
+    "by": "blueflow",
+    "timeISO": "2025-09-21T08:17:00.000Z",
+    "textPlain": "Programs run from program text, program text is mapped in as named pages (disk cache). They are evictable! And without swap, they will get evicted on high memory pressure. Program text thrashing is worse than having swap.The problem is not the existence of swap, but that people are unaware that the disk cache is equally important for performance.",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45320966,
+    "by": "MomsAVoxell",
+    "timeISO": "2025-09-21T08:08:07.000Z",
+    "textPlain": "> But wouldn't it be better to avoid writing such programs?Think long-term recording applications, such as audio or studio situations where you want to \"fire and forget\" reliable recording systems of large amounts of data consistently from multiple streams for extended durations, for example.",
+    "parent": 45320539,
+    "depth": 2
+  },
+  {
+    "id": 45321198,
+    "by": "rwmj",
+    "timeISO": "2025-09-21T09:06:57.000Z",
+    "textPlain": "I wrote a chat server back in the 2000s which would gradually use more and more memory over a period of months.  After extensive debugging, I couldn't find any memory leak and concluded the problem was likely inside glibc or caused by memory fragmentation.  Solution was to have a cron job that ran every 3 months and rebooted the machine.",
+    "parent": 45320082,
+    "depth": 2
+  },
+  {
+    "id": 45320088,
+    "by": "cmckn",
+    "timeISO": "2025-09-21T04:34:39.000Z",
+    "textPlain": "If you've tried `systemd-oomd`, I'm curious what your thoughts are: https://www.freedesktop.org/software/systemd/man/latest/syst...",
+    "parent": 45319812,
+    "depth": 2
+  },
+  {
+    "id": 45320600,
+    "by": "internet_points",
+    "timeISO": "2025-09-21T06:42:43.000Z",
+    "textPlain": "I enable oom_kill on sysrq, so I can hit alt+sysrq+f to invoke OOM; in /etc/sysctl.d/10-magic-sysrq.conf I have `kernel.sysrq = 240` (ie. 128+64+32+16, 128 being the one for the f key).",
+    "parent": 45319812,
     "depth": 2
   },
   {
@@ -157,22 +229,6 @@
     "timeISO": "2025-09-21T05:21:05.000Z",
     "textPlain": "Maybe I'm just insane, but if I'm on a machine with ample memory, and a process for some reason can't allocate resources, I want that process to fail ASAP. Same thing with high memory pressure situations, just kill greedy/hungry processes, please.Like something is going very wrong if the system is in that state, so I want everything to die immediately.",
     "parent": 45319896,
-    "depth": 2
-  },
-  {
-    "id": 45320088,
-    "by": "cmckn",
-    "timeISO": "2025-09-21T04:34:39.000Z",
-    "textPlain": "If you've tried `systemd-oomd`, I'm curious what your thoughts are: https://www.freedesktop.org/software/systemd/man/latest/syst...",
-    "parent": 45319812,
-    "depth": 2
-  },
-  {
-    "id": 45320600,
-    "by": "internet_points",
-    "timeISO": "2025-09-21T06:42:43.000Z",
-    "textPlain": "I enable oom_kill on sysrq, so I can hit alt+sysrq+f to invoke OOM; in /etc/sysctl.d/10-magic-sysrq.conf I have `kernel.sysrq = 240` (ie. 128+64+32+16, 128 being the one for the f key).",
-    "parent": 45319812,
     "depth": 2
   },
   {
