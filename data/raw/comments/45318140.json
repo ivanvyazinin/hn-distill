@@ -1,5 +1,37 @@
 [
   {
+    "id": 45319426,
+    "by": "fooblaster",
+    "timeISO": "2025-09-21T02:16:25.000Z",
+    "textPlain": "Why ain't the first answer.. use a bazel provided tool chain instead of using system toolchains? This article is totally mad.",
+    "parent": 45318140,
+    "depth": 1
+  },
+  {
+    "id": 45319677,
+    "by": "klodolph",
+    "timeISO": "2025-09-21T03:06:17.000Z",
+    "textPlain": "JFC the author has done everything wrong here.A heterogenous build cluster with non-hermetic builds and shared caching. The fact that this is only a glibc symbol versioning problem and not something far more severe is, well, a blessing.At the bare fucking minimum, I would expect the CI builds to have a homogenous configuration and their own cache, not writable from outside CI. If you’re lazy, just wipe the cache every time you upgrade the CI cluster.I want to feel sympathetic, because I know Bazel is a pain in the ass to learn, but it sounds like the author was juggling knives in a windstorm and caught a few pointy ends.",
+    "parent": 45318140,
+    "depth": 1
+  },
+  {
+    "id": 45319430,
+    "by": "notpushkin",
+    "timeISO": "2025-09-21T02:17:00.000Z",
+    "textPlain": "> the service crashes with a mysterious error: version 'GLIBC_2.28' not foundMysterious?This is by the way why many binary Python packages use https://github.com/pypa/manylinux for builds: if you build on an old glibc, your library will still (generally) work with newer versions.",
+    "parent": 45318140,
+    "depth": 1
+  },
+  {
+    "id": 45319557,
+    "by": "10000truths",
+    "timeISO": "2025-09-21T02:40:49.000Z",
+    "textPlain": "One of the niceties of Zig's build system is its batteries-included support for targeting an explicitly provided glibc version. No need for alternate sysroots or dedicated old-distro containers like you would with the traditional C/C++ compilers, all you have to do is append it to the target triplet, like so:zig cc -target x86_64-linux-gnu.2.17 file.c",
+    "parent": 45318140,
+    "depth": 1
+  },
+  {
     "id": 45319011,
     "by": "shykes",
     "timeISO": "2025-09-21T00:46:32.000Z",
@@ -8,10 +40,42 @@
     "depth": 1
   },
   {
-    "id": 45319281,
+    "id": 45319679,
+    "by": "jeffbee",
+    "timeISO": "2025-09-21T03:07:03.000Z",
+    "textPlain": "You make it sound simple.  Bazel's docs are minimal and what exists is often wrong. For a C or C++ toolchain you might turn to a contributing project such as toolchains_llvm, but even those experts are still figuring it out, and they give you little guidance on how to assemble your sysroot, which is the actual issue in the article. And, the upstream distributions of LLVM are built under certain assumptions, so unless you know exactly what you are doing, you probably also want to build LLVM instead of using their archives. If you figure out how to build LLVM in a completely consistent and correct way with respect to the STL and support libraries, you will be perhaps the 3rd or 4th person in history to achieve it.",
+    "parent": 45319426,
+    "depth": 2
+  },
+  {
+    "id": 45319461,
+    "by": "lokar",
+    "timeISO": "2025-09-21T02:23:30.000Z",
+    "textPlain": "Yeah, making the entire tool chain hermetic and versioned is one of the main benefits of bazel.You can have every developer cross-compile from a different os/cpu platform",
+    "parent": 45319426,
+    "depth": 2
+  },
+  {
+    "id": 45319458,
+    "by": "jmmv",
+    "timeISO": "2025-09-21T02:22:48.000Z",
+    "textPlain": "Because those Bazel toolchains don’t come with a glibc? How could they?",
+    "parent": 45319426,
+    "depth": 2
+  },
+  {
+    "id": 45319509,
     "by": "paulddraper",
-    "timeISO": "2025-09-21T01:40:13.000Z",
-    "textPlain": "Bazel has number of strategies, including containers.But that’s only a minority of what it does.",
+    "timeISO": "2025-09-21T02:31:11.000Z",
+    "textPlain": "Agreed.",
+    "parent": 45319426,
+    "depth": 2
+  },
+  {
+    "id": 45319668,
+    "by": "klodolph",
+    "timeISO": "2025-09-21T03:04:07.000Z",
+    "textPlain": "I don’t think there’s any real insights there.Containers tend to be coarse-grained. For example, maybe you are writing a program, so you put the entire build environment in a container. If you have lots of programs with different dependencies, do you need lots of containers? Do you need to rebuild lots of containers when dependencies change? Bazel is much more fine-grained, and in Bazel, each individual build action gets its own build environment.By default, that build environment includes the host (build system) glibc, compiler, system headers, system libraries, etc. If you want repeatable builds, you turn that off, and give Bazel the exact glibc, compiler, libraries, etc. to use for building your program.You get the isolation of containers, but much faster builds and better caching.",
     "parent": 45319011,
     "depth": 2
   },
@@ -20,6 +84,14 @@
     "by": "jeffbee",
     "timeISO": "2025-09-21T00:58:55.000Z",
     "textPlain": "Bazel comes with ironclad sandboxing features, but people don't use them because build correctness is such a chore.",
+    "parent": 45319011,
+    "depth": 2
+  },
+  {
+    "id": 45319281,
+    "by": "paulddraper",
+    "timeISO": "2025-09-21T01:40:13.000Z",
+    "textPlain": "Bazel has number of strategies, including containers.But that’s only a minority of what it does.",
     "parent": 45319011,
     "depth": 2
   }
