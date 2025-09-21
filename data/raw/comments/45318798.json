@@ -1,9 +1,17 @@
 [
   {
-    "id": 45320219,
-    "by": "vbezhenar",
-    "timeISO": "2025-09-21T05:09:27.000Z",
-    "textPlain": "I've always created swap of 1.5x - 4x RAM size on every Linux computer I've had to manage and never had any issues with it. That's my rule that I learned many years ago, follow to this day and will follow.Worst thing: I left 5% of my SSD unused which will actually be used for garbage collection and other staff. That's OK.What I don't understand is why modern Linux is so shy of touching swap. With old kernels, Linux happily pushed unused pages to a swap, so even if you don't eat memory, your swap will be filled with tens or hundreds MB of memory and that's a great thing. Modern kernel just keeps swap usage at 0, until memory is exhausted.",
+    "id": 45320539,
+    "by": "Panzerschrek",
+    "timeISO": "2025-09-21T06:30:43.000Z",
+    "textPlain": "As I understand this article, swap is useful for cases where many long-lived programs (daemons) allocate a lot of memory, but almost never access it. But wouldn't it be better to avoid writing such programs? And how many memory such daemons can consume? A couple of hundred megabytes total? Is it really that much on modern systems?My experience with swap shows, that it only makes things worse. When I program, my application may sometimes allocate a lot of memory due to some silly bug. In such case the whole system practically stops working - even mouse cursor can't move. If I am happy, OOM killer will eventually kill my buggy program, but after that it's not over - almost all used memory is now in swap and the whole system works snail-slow, presumably because kernel doesn't think it should really unswap previously swapped memory and does this only on demand and only page by page.I a hypothetical case without swap this case isn't so painful. When main system memory is almost fully consumed, OOM killer kills the most memory hungry program and all other programs just continue working as before.I think that overall reliance on swap is noways just a legacy of old times when main memory was scarce and back than it maybe was useful to have swap. OS kernels should be redesigned to work without swap, this will make system behavior smoother and kernel code may be simpler (all this swapping code may be removed) and thus faster.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45319888,
+    "by": "ggm",
+    "timeISO": "2025-09-21T03:47:51.000Z",
+    "textPlain": "Recognition that older linux swap strategies were unhelpful sometimes, which this piece of writing does, validates out past sense it wasn't working well. Regaining trust takes time.Sometimes I think if backing store and swap were more clearly delineated we might have got to decent algorithms sooner. Having a huge amount of swap pre-emptively claimed was making it look like starvation, when it was just a runtime planning strategy. It's also confusing how top and vmstat report things.Also, as a BSD mainly person, I think the differences stand out. I haven't noticed an OOM killer approach on BSD.Ancient model: twice as much swap as memoryOld model: same amount of swap as memoryNew model: amount of swap your experience tells you this job mix demands to manage memory pressure fairly, which is a bit of a tall ask sometimes, but basically pick a number up to memory size.",
     "parent": 45318798,
     "depth": 1
   },
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45319888,
-    "by": "ggm",
-    "timeISO": "2025-09-21T03:47:51.000Z",
-    "textPlain": "Recognition that older linux swap strategies were unhelpful sometimes, which this piece of writing does, validates out past sense it wasn't working well. Regaining trust takes time.Sometimes I think if backing store and swap were more clearly delineated we might have got to decent algorithms sooner. Having a huge amount of swap pre-emptively claimed was making it look like starvation, when it was just a runtime planning strategy. It's also confusing how top and vmstat report things.Also, as a BSD mainly person, I think the differences stand out. I haven't noticed an OOM killer approach on BSD.Ancient model: twice as much swap as memoryOld model: same amount of swap as memoryNew model: amount of swap your experience tells you this job mix demands to manage memory pressure fairly, which is a bit of a tall ask sometimes, but basically pick a number up to memory size.",
+    "id": 45320269,
+    "by": "creshal",
+    "timeISO": "2025-09-21T05:22:20.000Z",
+    "textPlain": "I wish people would actually read TFA instead of reflexively repeating nonsensical folk remedies.",
     "parent": 45318798,
     "depth": 1
   },
@@ -64,11 +72,43 @@
     "depth": 1
   },
   {
-    "id": 45320240,
-    "by": "kevin_thibedeau",
-    "timeISO": "2025-09-21T05:16:40.000Z",
-    "textPlain": "I haven't used swap for 15 years. You have to be judicious about heavy app usage with only 16GiB. With 32GiB, I've never triggered OOM.",
-    "parent": 45320219,
+    "id": 45320219,
+    "by": "vbezhenar",
+    "timeISO": "2025-09-21T05:09:27.000Z",
+    "textPlain": "I've always created swap of 1.5x - 4x RAM size on every Linux computer I've had to manage and never had any issues with it. That's my rule that I learned many years ago, follow to this day and will follow.Worst thing: I left 5% of my SSD unused which will actually be used for garbage collection and other staff. That's OK.What I don't understand is why modern Linux is so shy of touching swap. With old kernels, Linux happily pushed unused pages to a swap, so even if you don't eat memory, your swap will be filled with tens or hundreds MB of memory and that's a great thing. Modern kernel just keeps swap usage at 0, until memory is exhausted.",
+    "parent": 45318798,
+    "depth": 1
+  },
+  {
+    "id": 45320445,
+    "by": "creshal",
+    "timeISO": "2025-09-21T06:06:38.000Z",
+    "textPlain": "> Also, as a BSD mainly person, I think the differences stand out. I haven't noticed an OOM killer approach on BSD.BSD allocators simply return errors if no more memory is available; for backwards compatibility reasons Linux is stuck with a fatally flawed API that doesn't.",
+    "parent": 45319888,
+    "depth": 2
+  },
+  {
+    "id": 45320444,
+    "by": "kijin",
+    "timeISO": "2025-09-21T06:06:35.000Z",
+    "textPlain": "For modern Linux servers with large amounts of RAM, my rule of thumb is between 1/8 and 1/32 of RAM, depending on what the machine is for.For example, one of my database servers has 128GB of RAM and 8GB of swap. It tends to stabilize around 108GB of RAM and 5GB of swap usage under normal load, so I know that a 4GB swap would have been less than optimal. A larger swap would have been a waste as well.",
+    "parent": 45319888,
+    "depth": 2
+  },
+  {
+    "id": 45320534,
+    "by": "mickeyp",
+    "timeISO": "2025-09-21T06:29:36.000Z",
+    "textPlain": "That assumes the OOM killer kills the right thing. It may well choose to kill something ancillary, which causes your OOM program to just hang or misbehave wildly.The real danger in all of this, swap or no, is the shitty OOMKiller in Linux.",
+    "parent": 45319896,
+    "depth": 2
+  },
+  {
+    "id": 45320258,
+    "by": "heavyset_go",
+    "timeISO": "2025-09-21T05:21:05.000Z",
+    "textPlain": "Maybe I'm just insane, but if I'm on a machine with ample memory, and a process for some reason can't allocate resources, I want that process to fail ASAP. Same thing with high memory pressure situations, just kill greedy/hungry processes, please.Like something is going very wrong if the system is in that state, so I want everything to die immediately.",
+    "parent": 45319896,
     "depth": 2
   },
   {
@@ -77,6 +117,30 @@
     "timeISO": "2025-09-21T04:34:39.000Z",
     "textPlain": "If you've tried `systemd-oomd`, I'm curious what your thoughts are: https://www.freedesktop.org/software/systemd/man/latest/syst...",
     "parent": 45319812,
+    "depth": 2
+  },
+  {
+    "id": 45320292,
+    "by": "creshal",
+    "timeISO": "2025-09-21T05:28:12.000Z",
+    "textPlain": "Welcome to the wonderful world of Java programs. When your tomcat abomination pulls in 500 dependencies for one method call each, and 80% of the methods aren't even called in regular use except to perform dependency injection mumbo jumbo during the 90 seconds your tomcat needs to start up, you easily end up with 70% of your application's anon pages being completely useless, but if you can't banish them to swap, they'll prevent the code on the hot path from having any memory left over for file caching.So even if you never run into OOM situations, adding a couple gigabytes of swap lets you free up that many gigabytes of RAM for file caching, and suddenly your application is on average 5x faster - but takes 3 seconds longer to service that one obscure API call that needs to dig all those pages back up. YMMV if you prefer consistently poor performance over inconsistent but usually much better performance.",
+    "parent": 45320111,
+    "depth": 2
+  },
+  {
+    "id": 45320256,
+    "by": "creshal",
+    "timeISO": "2025-09-21T05:20:57.000Z",
+    "textPlain": "> I've always created swap of 1.5x - 4x RAM size on every Linux computer I've had to manage and never had any issues with it.That's a couple terabyte of swap on servers these days, and even on laptops I wouldn't want to deal with 300-ish GB swap.",
+    "parent": 45320219,
+    "depth": 2
+  },
+  {
+    "id": 45320240,
+    "by": "kevin_thibedeau",
+    "timeISO": "2025-09-21T05:16:40.000Z",
+    "textPlain": "I haven't used swap for 15 years. You have to be judicious about heavy app usage with only 16GiB. With 32GiB, I've never triggered OOM.",
+    "parent": 45320219,
     "depth": 2
   }
 ]
