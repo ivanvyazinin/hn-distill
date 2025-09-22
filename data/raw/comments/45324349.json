@@ -184,6 +184,14 @@
     "depth": 2
   },
   {
+    "id": 45331881,
+    "by": "Someone",
+    "timeISO": "2025-09-22T11:20:09.000Z",
+    "textPlain": "I wouldn’t rate those as very serious issues for this project. They’ll only be triggered if there are over MAX_INT lines or depth levels in the input. Yes, an attacker might be able to do that, but you’d have to put that input in a memory buffer to call this code. On many smaller systems, that will OOM.Skimming the code, they also are loose in parsing incorrect json, it seems:    static bool sj__is_number_cont(char c) {\n        return (c >= '0' && c <= '9')\n            ||  c == 'e' || c == 'E' || c == '.' || c == '-' || c == '+';\n    }\n\n    case '-': case '0': case '1': case '2': case '3': case '4':\n    case '5': case '6': case '7': case '8': case '9':\n        res.type = SJ_NUMBER;\n        while (r->cur != r->end && sj__is_number_cont(*r->cur)) { r->cur++; }\n        break;\n\nthat seems to imply it treats “00.-E.e-8..7-E7E12” as a valid json number.    case '}': case ']':\n        res.type = SJ_END;\n        if (--r->depth < 0) {\n            r->error = (*r->cur == '}') ? \"stray '}'\" : \"stray ']'\";\n            goto top;\n        }\n        r->cur++;\n        break;\n\nI think that means the code finds [1,2} a valid array and {\"foo\": 42] a valid struct (maybe, it even is happy with [1,2,\"foo\":42})Those, to me, seem a more likely attack vector. The example code, for example, calls atoi on something parsed by the first piece of code.⇒ I only would use this for parsing json config files.Being tiny is one thing, but the json grammar isn’t that complex. They could easily do a better job at this without adding zillions of lines of code.",
+    "parent": 45325061,
+    "depth": 2
+  },
+  {
     "id": 45325417,
     "by": "hypeatei",
     "timeISO": "2025-09-21T18:38:14.000Z",
@@ -232,18 +240,18 @@
     "depth": 2
   },
   {
-    "id": 45327647,
-    "by": "robmccoll",
-    "timeISO": "2025-09-21T23:36:24.000Z",
-    "textPlain": "Could just change the input len to an int instead of size_t. Not technically the correct type, but it would make it clear to the user that the input can't be greater than 2^31 in length.",
-    "parent": 45325061,
-    "depth": 2
-  },
-  {
     "id": 45325149,
     "by": "EmilStenstrom",
     "timeISO": "2025-09-21T18:06:39.000Z",
     "textPlain": "Submit a PR!",
+    "parent": 45325061,
+    "depth": 2
+  },
+  {
+    "id": 45327647,
+    "by": "robmccoll",
+    "timeISO": "2025-09-21T23:36:24.000Z",
+    "textPlain": "Could just change the input len to an int instead of size_t. Not technically the correct type, but it would make it clear to the user that the input can't be greater than 2^31 in length.",
     "parent": 45325061,
     "depth": 2
   },
@@ -388,14 +396,6 @@
     "by": "flohofwoe",
     "timeISO": "2025-09-21T17:42:10.000Z",
     "textPlain": "Trivial to integrate into an existing code base, minimal size overhead, no heap allocations, no stdlib usage (only stdbool.h and stddef.h included for type definitions), no C++ template shenanigans and very simple and straightforward API. C libraries which tick all those boxes are actually quite rare, and C++ libraries are much rarer.",
-    "parent": 45324602,
-    "depth": 2
-  },
-  {
-    "id": 45324792,
-    "by": "bb88",
-    "timeISO": "2025-09-21T17:27:05.000Z",
-    "textPlain": "Embedded cpus is an easy one.  You could maybe run an api server on a vape now.",
     "parent": 45324602,
     "depth": 2
   }
