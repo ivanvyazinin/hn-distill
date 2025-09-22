@@ -1,0 +1,122 @@
+[
+  {
+    "id": 45328261,
+    "by": "nemo1618",
+    "timeISO": "2025-09-22T01:30:27.000Z",
+    "textPlain": "Over the course of ~10 years of writing Go, my ratio of \"embedding a struct\" to \"regretting embedding a struct\" is nearly 1:1.I do not embed structs anymore. It is almost always a mistake. I would confidently place it in the \"you should be required to import 'unsafe' to use this feature\" bin.",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327803,
+    "by": "Olreich",
+    "timeISO": "2025-09-22T00:07:38.000Z",
+    "textPlain": "If you need to grab a particular struct's version of the data, you can via `opts.BarService.URL` or `opts.FooService.URL`: https://go.dev/play/p/MUSYJhmoC2DStill worth being careful, but it can be useful when you have a set of common fields that everything of a certain group will have (such as a response object with basic status, debug info, etc. and then additional data based on the particular struct). I don't know why they let you embed multiple layers and multiple objects though. I've never gotten value out of anything but a \"here's a single set of common fields struct embedding\".",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327847,
+    "by": "tymscar",
+    "timeISO": "2025-09-22T00:13:27.000Z",
+    "textPlain": "So I got curious and I looked at the compiler source code, and it does a depth-first search.The fascinating bit to me is that there is a consolidateMultiples function in go/src/go/types/lookup.go (lines 286-304) that detects when multiple embedded types at the same depth provide the same field name. I wonder why they don’t do this for all levels. How deep could this even be in practice for it to matter? You could just have a hashmap with them all.",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327918,
+    "by": "digianarchist",
+    "timeISO": "2025-09-22T00:25:17.000Z",
+    "textPlain": "I'm surprised this wasn't in the recent post submitted here: https://blog.habets.se/2025/07/Go-is-still-not-good.htmlIt's a one of a few rough edges in Go.",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327942,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-09-22T00:28:09.000Z",
+    "textPlain": "Huh my IDE linter spits out warnings about this. Not sure which extension does it.",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327740,
+    "by": "tymscar",
+    "timeISO": "2025-09-21T23:57:00.000Z",
+    "textPlain": "That’s actually crazy.\nWhy is this even a feature?",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327868,
+    "by": "linhan_dot_dev",
+    "timeISO": "2025-09-22T00:17:36.000Z",
+    "textPlain": "I like the Go language because it's straightforward and clear, even if it looks a bit plain.I hope the feature mentioned in the article will cause a compiler error.However, I wouldn't use this approach when writing my own code.",
+    "parent": 45327531,
+    "depth": 1
+  },
+  {
+    "id": 45327878,
+    "by": "dgl",
+    "timeISO": "2025-09-22T00:18:30.000Z",
+    "textPlain": "> I wonder why they don’t do this for all levels. How deep could this even be in practice for it to matter? You could just have a hashmap with them all.While it may seem questionable for fields; it applies to methods too and is potentially more useful as a way to override them when doing struct embedding but wanting to preserve an interface.",
+    "parent": 45327847,
+    "depth": 2
+  },
+  {
+    "id": 45328294,
+    "by": "amiga386",
+    "timeISO": "2025-09-22T01:37:57.000Z",
+    "textPlain": "Because it's useful.https://go.dev/doc/effective_go#embedding> Embedding types introduces the problem of name conflicts but the rules to resolve them are simple. First, a field or method X hides any other item X in a more deeply nested part of the type. If log.Logger contained a field or method called Command, the Command field of Job would dominate it.> Second, if the same name appears at the same nesting level, it is usually an error; it would be erroneous to embed log.Logger if the Job struct contained another field or method called Logger. However, if the duplicate name is never mentioned in the program outside the type definition, it is OK. This qualification provides some protection against changes made to types embedded from outside; there is no problem if a field is added that conflicts with another field in another subtype if neither field is ever used.",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45327896,
+    "by": "dgl",
+    "timeISO": "2025-09-22T00:21:12.000Z",
+    "textPlain": "See how it's used in the standard library io types, it makes for quite nice composition: https://go.googlesource.com/go/+/refs/heads/master/src/io/io...",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45327775,
+    "by": "jrockway",
+    "timeISO": "2025-09-22T00:04:24.000Z",
+    "textPlain": "Because type Foo struct { \n       sync.Mutex\n       whatever string\n   }\n   var foo Foo\n   foo.Lock()\n   foo.whatever = 42\n   foo.Unlock()\n\nis convenient.",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45327906,
+    "by": "mananaysiempre",
+    "timeISO": "2025-09-22T00:23:25.000Z",
+    "textPlain": "At the very least, the Go authors have been convinced this should be a feature since the Plan 9 C dialect[1].[1] http://doc.cat-v.org/plan_9/4th_edition/papers/comp, look for “anonymous structure or union” and note that a (different) part of that extension has since been standardized.",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45328246,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-09-22T01:26:55.000Z",
+    "textPlain": "Normally you wouldn’t contrive to use embedded struct fields in this way. And you can’t have the same kind of composition with methods - it’s a compiler error:https://go.dev/play/p/r04tPta1xZoSo the whole article is basically about using the language in a way you normally would ever do.",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45327779,
+    "by": "mikepurvis",
+    "timeISO": "2025-09-22T00:04:39.000Z",
+    "textPlain": "At risk of being excessively sassy this looks like a case of wanting the ergonomics of multiple inheritance without fully grappling with the complexities or implications of it.",
+    "parent": 45327740,
+    "depth": 2
+  },
+  {
+    "id": 45327790,
+    "by": "metadat",
+    "timeISO": "2025-09-22T00:05:56.000Z",
+    "textPlain": "IMHO it should be a compiler error.  This is just so loose... a wheel fell off.",
+    "parent": 45327740,
+    "depth": 2
+  }
+]
