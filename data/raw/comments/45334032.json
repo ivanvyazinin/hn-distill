@@ -1,0 +1,218 @@
+[
+  {
+    "id": 45334443,
+    "by": "anttiharju",
+    "timeISO": "2025-09-22T15:01:59.000Z",
+    "textPlain": "I think YAML anchors in GitHub Actions are very welcome, for example for DRYing the push/pull_request 'paths:' filters [1].Now only if they supported paths filter for `workflow_call` [2] event in addition to push/pull_request and my life would be a lot easier. Nontrivial repos have an unfortunate habit of building some sort of broken version of change detection themselves.The limit of 20 unique workflow calls is quite low too but searching the docs for a source maybe they have removed it? It used to say> You can call a maximum of 20 unique reusable workflows from a single workflow file.but now it's max of 4 nested workflows without loops, which gives a lot of power for the more complex repos [3]. Ooh. Need to go test this.[1] https://docs.github.com/en/actions/reference/workflows-and-a...[2] https://docs.github.com/en/actions/reference/workflows-and-a...[3] https://docs.github.com/en/actions/how-tos/reuse-automations...",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334725,
+    "by": "junon",
+    "timeISO": "2025-09-22T15:23:19.000Z",
+    "textPlain": "I disagree. Instead of anchors we had to rely on third party file change actions to only trigger jobs on certain file path changes, instead of using the built in mechanism, because each job required the list, and the list was long.Using anchors would have improved the security of this, as well as  the maintenance. The examples cited don't remotely demonstrate the cases where anchors would have been useful in GA.I agree that YAML is a poor choice of format regardless but still, anchor support would have benefitted a number of projects ages ago.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334486,
+    "by": "pacoWebConsult",
+    "timeISO": "2025-09-22T15:05:33.000Z",
+    "textPlain": "Can YAML go away entirely and instead allow pipelines to be defined with an actual language? What benefits does the runner-interpreted yaml-defined pipeline paradigm actually achieve? Especially with runners that can't be executed and tested locally, working with them is a nightmare.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334394,
+    "by": "dan_manges",
+    "timeISO": "2025-09-22T14:58:11.000Z",
+    "textPlain": "We support anchors in our CI/CD syntax at RWX, but only in a specific `aliases` section. I think this is a nice compromise.  aliases:\n    common-env: &common-env\n      key1: value1\n      key2: value2\n\n  tasks:\n    - key: some-task\n      run: ...\n      env:\n        <<: *common-env\n\nhttps://www.rwx.com/docs/mint/aliases",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334365,
+    "by": "baobun",
+    "timeISO": "2025-09-22T14:56:12.000Z",
+    "textPlain": "YAML anchors are a welcome feature and will allow us to DRY some of our uglier workflows that currently have a lot of redundancy/duplication.OPs main argument seems to be \"I don't have a use for it and find it hard to read so it should be removed\".",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334423,
+    "by": "willseth",
+    "timeISO": "2025-09-22T15:00:23.000Z",
+    "textPlain": "YAML anchors may be a sharp tool but no one is forced to use them. I have written many verbose Github workflows that would have benefited from using anchors, and I am relieved to learn I can clean those up now.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334444,
+    "by": "a_t48",
+    "timeISO": "2025-09-22T15:02:00.000Z",
+    "textPlain": "Anchors will be exceptionally useful for a few workflows for me. We have what is essentially the same setup/teardown for three jobs within one workflow. I’d love to be able to factor that stuff out without introducing yet another yaml file to the repo, this will be a big help.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334654,
+    "by": "kpcyrd",
+    "timeISO": "2025-09-22T15:18:13.000Z",
+    "textPlain": "For context:- The complaint is Github using a non-standard, custom fork of yaml- This makes it harder to develop linters/security tools (as those have to explicitly deal with all features available)- The author of this blogpost is also the author of zizmor, the most well-known Github Actions security linter (also the only one I'm aware of)",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334469,
+    "by": "theamk",
+    "timeISO": "2025-09-22T15:04:12.000Z",
+    "textPlain": "Author's replacement for anchors is to use global syntax, like a top-level \"env:\" block.This is a terrible advice from security endpoint - given that env variables are often used for secrets data, you really _don't_ want them to set them at the top level. The secrets should be scoped as narrow as possible!For example, if you have a few jobs, and some of them need to download some data in first step (which needs a secret), then your choices are (a) copy-paste \"env\" block 3 times in each step, (b) use the new YAML anchor and (c) set secret at top-level scope. It is pretty clear to me that (c) is the worst idea, security wise - this will make secret available to every step in the workflow, making it much easier for malware to exfiltrate.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334435,
+    "by": "raincole",
+    "timeISO": "2025-09-22T15:00:55.000Z",
+    "textPlain": "It seems that any data-orient approach would inevitably evolve into a programming language given enough time.One day we might even see for-loop in CSS...",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334558,
+    "by": "javcasas",
+    "timeISO": "2025-09-22T15:11:56.000Z",
+    "textPlain": "General YAML anchors as implemented by the standard: good (not great, just good).Custom YAML anchors with custom support and surprise corner cases: bad.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334458,
+    "by": "qwerty2000",
+    "timeISO": "2025-09-22T15:02:48.000Z",
+    "textPlain": "Just because it is expressed in YAML doesn't make YAML the party to blame here.  I would say one of the main concerns I have with anything in GitHub Actions related to the word \"merge\" has to do with identifying the last commit for a merge, not merging of objects in YAML.If you have two workflows... one to handle a PR creation/update and another to address the merge operation, it is like pulling teeth to get the final commit properly identified so you can grab any uploaded artifacts from the PR workflow.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334489,
+    "by": "devmor",
+    "timeISO": "2025-09-22T15:05:55.000Z",
+    "textPlain": "Obviously they are very useful. I still don't think they should exist in this usage of yaml.Once you allow setting and reading of variables in a configuration file, you lose  the safety that makes the format useful. You might as well be using a bash script at that point.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334522,
+    "by": "Pxtl",
+    "timeISO": "2025-09-22T15:08:46.000Z",
+    "textPlain": "Honestly, everything about GH actions/AzDO pipelines is infuriating.  The poor tooling with poor write-time assertions are just so frustrating.Give me a proper platform that I can run locally on my development machine.but, if those anchors are a blessed standard YAML feature that YAML tools will provide real assertions about unlike the ${{}} stuff that basically you're doing a commit-push-run-wait-without any proper debug tools besides prints?Then yes, they should use them.",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334680,
+    "by": "techlatest_net",
+    "timeISO": "2025-09-22T15:19:52.000Z",
+    "textPlain": "[dead]",
+    "parent": 45334032,
+    "depth": 1
+  },
+  {
+    "id": 45334494,
+    "by": "TheDong",
+    "timeISO": "2025-09-22T15:06:08.000Z",
+    "textPlain": "Wanna DRY out your github actions yaml?Generate it from Dhall, or cue, or python, or some real language that supports actual abstractions.If your problem is you want to DRY out yaml, and you use more yaml features to do it, you now have more problems, not fewer.",
+    "parent": 45334443,
+    "depth": 2
+  },
+  {
+    "id": 45334723,
+    "by": "jbjbjbjb",
+    "timeISO": "2025-09-22T15:23:15.000Z",
+    "textPlain": "[delayed]",
+    "parent": 45334486,
+    "depth": 2
+  },
+  {
+    "id": 45334530,
+    "by": "red_hare",
+    "timeISO": "2025-09-22T15:09:37.000Z",
+    "textPlain": "I'm surprised by this take. I love YAML for this use case. Easy to write and read by hand, while also being easy to write and read with code in just about every language.",
+    "parent": 45334486,
+    "depth": 2
+  },
+  {
+    "id": 45334534,
+    "by": "datadrivenangel",
+    "timeISO": "2025-09-22T15:09:49.000Z",
+    "textPlain": "Locally hard to test is the point. Lockin.",
+    "parent": 45334486,
+    "depth": 2
+  },
+  {
+    "id": 45334598,
+    "by": "mhh__",
+    "timeISO": "2025-09-22T15:14:25.000Z",
+    "textPlain": "I'm not convinced there should be anything to define at all versus basically just some extremely broad but bare platform and a slot to stick an executable in.",
+    "parent": 45334486,
+    "depth": 2
+  },
+  {
+    "id": 45334539,
+    "by": "Pxtl",
+    "timeISO": "2025-09-22T15:09:57.000Z",
+    "textPlain": "Yes. Most of my custom pipeline stuff is a thin wrapper around a normal-ass scripting-language because the yaml/macro stuff is so hard to check and debug.",
+    "parent": 45334486,
+    "depth": 2
+  },
+  {
+    "id": 45334538,
+    "by": "nirvdrum",
+    "timeISO": "2025-09-22T15:09:54.000Z",
+    "textPlain": "The argument that this is a security issue isn't very well fleshed out either. As far as I can tell, it boils down to his opinion that this makes YAML harder to read and thus less secure. But, the reality is we have to copy & paste config today and that's a process I've seen fail when a change needs to be made and isn't properly carried forward to all locations. I suppose I could argue that's a security concern as well.Half the argument against supporting YAML anchors appears to boil down some level of tool breakage. While you can rely on simplifying assumptions, you take a risk that your software breaks when that assumption is invalidated. I don't think that's a reason to stop evolving software.I've never seen a project use any of the tools the author listed, but I have seen duplicated config. That's not to say the tools have no value, but rather I don't want to be artificially restricted to better support tools I don't use. I'll grant that the inability to merge keys isn't ideal but, I'll take what I can get.",
+    "parent": 45334365,
+    "depth": 2
+  },
+  {
+    "id": 45334422,
+    "by": "woodruffw",
+    "timeISO": "2025-09-22T15:00:22.000Z",
+    "textPlain": "(I'm the author.)I don't think this is a fair characterization: it's not that I don't have a use for it, but that I think the uses are redundant with existing functionality while also making static and human analysis of workflows harder.",
+    "parent": 45334365,
+    "depth": 2
+  },
+  {
+    "id": 45334714,
+    "by": "jerf",
+    "timeISO": "2025-09-22T15:22:49.000Z",
+    "textPlain": "I have a theory that in such cases one might as well just give up and write a Turing-complete language in the first place, as the sort of TC-complete languages we get with this sort of \"slowly but surely backed against the wall\" situations are way worse than just starting from scratch.I hypothesize a TC-complete language for something like CSS that included deep tracking under the hood for where values are coming from and where they are going would be very useful, i.e., you would have the ability to point at a particular part of the final output and the language runtime could give you a complete accounting of where it came from and what went into making the decisions, could end up giving us the auditability that we really want from the \"declarative\" languages while giving us the full power of the programming langauges we clearly want. However I don't have the time to try to manifest such a thing myself, and I don't know of any existing language that does what I'm thinking of. Some of the more powerful languages could theoretically do it as a library. It's not entirely unlike the auditing monad I mention towards the end of https://www.jerf.org/iri/post/2958/ . It's not something I'd expect a general-purpose language to do by default since it would have bad general-purpose performance, but I think for specialized cases of a TC-complete configuration langauge it could have value, and one could always run it as an debugging option and have an optimized code path that didn't track the sources of everything.",
+    "parent": 45334435,
+    "depth": 2
+  },
+  {
+    "id": 45334485,
+    "by": "andreareina",
+    "timeISO": "2025-09-22T15:05:29.000Z",
+    "textPlain": "There are languages specifically for writing configs. Like dhall https://dhall-lang.org/",
+    "parent": 45334435,
+    "depth": 2
+  },
+  {
+    "id": 45334501,
+    "by": "eblume",
+    "timeISO": "2025-09-22T15:06:28.000Z",
+    "textPlain": "That's my thought as well. I predict we'll be seeing SDK's for generating github workflows by mid-2026. Maybe pulumi will get an extension for it. (I'm well aware that codegen yaml has been a thing for a long time, but I'm thinking about something targeting github workflows _specifically_.)TBH it's getting a bit exhausting watching us go through this hamster wheel again and again and again.",
+    "parent": 45334435,
+    "depth": 2
+  },
+  {
+    "id": 45334582,
+    "by": "nirvdrum",
+    "timeISO": "2025-09-22T15:13:29.000Z",
+    "textPlain": "You already can set and read variables. The `matrix` section is often used to test against multiple versions of software. Environment variables can be referenced. And the project configuration supports both secrets and variables configured at the project level.",
+    "parent": 45334489,
+    "depth": 2
+  }
+]
