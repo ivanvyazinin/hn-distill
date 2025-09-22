@@ -1,17 +1,33 @@
 [
   {
-    "id": 45338093,
-    "by": "vunderba",
-    "timeISO": "2025-09-22T19:12:36.000Z",
-    "textPlain": "Nice job. I made a similar python script available as a Github gist [1] a while back that given an audio file does the following:- Converts to 16kHz WAV- Transcribes using native ggerganov whisper- Calls out to a local LLM to clean the text- Prints out the final cleaned up transcriptionI found that accuracy/success significantly when I added the LLM post-processor even with modestly sized 12-14b models.I've been using it with great success to convert very old dictated memos from over a decade ago despite a lot of background noise (wind, traffic, etc).[1] https://gist.github.com/scpedicini/455409fe7656d3cca8959c123...",
+    "id": 45340199,
+    "by": "theologic",
+    "timeISO": "2025-09-22T22:07:37.000Z",
+    "textPlain": "I always thought this was a great implementation if you have a Cuda layer:  https://github.com/rgcodeai/Kit-WhisperxI had an old Acer laptop hanging around, so I implemented this:  https://github.com/Sanborn-Young/MP3ToTXTI forget all the details of my tweaks, but I remember that I had better throughput on my version.I know the OP talked about wanting it local, but thomasmol/whisper-diarization on replicate is fast and cheap.  Here's a hacked front end to parse teh JSON:  https://github.com/Sanborn-Young/MP3_2transcript",
     "parent": 45337400,
     "depth": 1
   },
   {
-    "id": 45337978,
-    "by": "oidar",
-    "timeISO": "2025-09-22T19:04:19.000Z",
-    "textPlain": "What's the best solution right now for TTS that supports speaker diarisation?",
+    "id": 45338694,
+    "by": "nvdnadj92",
+    "timeISO": "2025-09-22T19:59:27.000Z",
+    "textPlain": "I'm working on the same project myself and was planning to write a blog post similar to the author's. However, I'll share some additional tips and tricks that really made a difference for me.For preprocessing, I found it best to convert files to a 16kHz WAV format for optimal processing. I also add low-pass and high-pass filters to remove non-speech sounds. To avoid hallucinations, I run Silero VAD on the entire audio file to find timestamps where there's a speaker. A side note on this: Silero requires careful tuning to prevent audio segments from being chopped up and clipped. I also use a post-processing step to merge adjacent VAD chunks, which helps ensure cohesive Whisper recordings.For the Whisper task, I run Whisper in small audio chunks that correspond to the VAD timestamps. Otherwise, it will hallucinate during silences and regurgitate the passed-in prompt. If you're on a Mac, use the whisper-mlx models from Hugging Face to speed up transcription. I ran a performance benchmark, and it made a 22x difference to use a model designed for the Apple Neural Engine.For post-processing, I've found that running the generated SRT files through ChatGPT to identify and remove hallucination chunks has a better yield.",
+    "parent": 45337400,
+    "depth": 1
+  },
+  {
+    "id": 45340306,
+    "by": "canadiantim",
+    "timeISO": "2025-09-22T22:18:17.000Z",
+    "textPlain": "All I can say is you’re a legend. This is a great resource, thank you!",
+    "parent": 45337400,
+    "depth": 1
+  },
+  {
+    "id": 45338093,
+    "by": "vunderba",
+    "timeISO": "2025-09-22T19:12:36.000Z",
+    "textPlain": "Nice job. I made a similar python script available as a Github gist [1] a while back that given an audio file does the following:- Converts to 16kHz WAV- Transcribes using native ggerganov whisper- Calls out to a local LLM to clean the text- Prints out the final cleaned up transcriptionI found that accuracy/success increased significantly when I added the LLM post-processor even with modestly sized 12-14b models.I've been using it with great success to convert very old dictated memos from over a decade ago despite a lot of background noise (wind, traffic, etc).[1] https://gist.github.com/scpedicini/455409fe7656d3cca8959c123...",
     "parent": 45337400,
     "depth": 1
   },
@@ -20,6 +36,22 @@
     "by": "drewbuschhorn",
     "timeISO": "2025-09-22T19:04:17.000Z",
     "textPlain": "You should throw in some diarization, there's some pretty effective libraries that don't need pertraining on the voice separation in python.",
+    "parent": 45337400,
+    "depth": 1
+  },
+  {
+    "id": 45338442,
+    "by": "xnx",
+    "timeISO": "2025-09-22T19:38:53.000Z",
+    "textPlain": "This tool requires ffmpeg, but don't forget that the latest version of ffmpeg has speech-to-text built in!I'm sure there are use cases where using Whisper directly is better, but it's a great addition to an already versatile tool.",
+    "parent": 45337400,
+    "depth": 1
+  },
+  {
+    "id": 45337978,
+    "by": "oidar",
+    "timeISO": "2025-09-22T19:04:19.000Z",
+    "textPlain": "What's the best solution right now for TTS that supports speaker diarisation?",
     "parent": 45337400,
     "depth": 1
   },
@@ -40,11 +72,11 @@
     "depth": 1
   },
   {
-    "id": 45338100,
-    "by": "makaimc",
-    "timeISO": "2025-09-22T19:12:56.000Z",
-    "textPlain": "AssemblyAI (YC S17) is currently the one that stands out in the WER and accuracy benchmarks (https://www.assemblyai.com/benchmarks). Though its models are accessed through a web API rather than locally hosted, and speaker diarization is enabled through a parameter in the API call (https://www.assemblyai.com/docs/speech-to-text/pre-recorded-...).",
-    "parent": 45337978,
+    "id": 45339017,
+    "by": "nvdnadj92",
+    "timeISO": "2025-09-22T20:28:55.000Z",
+    "textPlain": "I would suggest 2 speaker-diarization libraries:- https://huggingface.co/pyannote/speaker-diarization-3.1\n- https://github.com/narcotic-sh/senkoI personally love senko since it can run in seconds, whereas py-annote took hours, but there is a 10% WER (word error rate) that is tough to get around.",
+    "parent": 45337977,
     "depth": 2
   },
   {
@@ -53,6 +85,30 @@
     "timeISO": "2025-09-22T19:09:17.000Z",
     "textPlain": "Nice suggestion, I'll look them up.",
     "parent": 45337977,
+    "depth": 2
+  },
+  {
+    "id": 45339402,
+    "by": "hoherd",
+    "timeISO": "2025-09-22T21:01:56.000Z",
+    "textPlain": "I was going to go the opposite way and suggest that if you want python audio transcription, you can skip ffmpeg and just use whisper directly. Using the whisper module directly gives you a variety of outputs, including text and srt.",
+    "parent": 45338442,
+    "depth": 2
+  },
+  {
+    "id": 45338100,
+    "by": "makaimc",
+    "timeISO": "2025-09-22T19:12:56.000Z",
+    "textPlain": "AssemblyAI (YC S17) is currently the one that stands out in the WER and accuracy benchmarks (https://www.assemblyai.com/benchmarks). Though its models are accessed through a web API rather than locally hosted, and speaker diarization is enabled through a parameter in the API call (https://www.assemblyai.com/docs/speech-to-text/pre-recorded-...).",
+    "parent": 45337978,
+    "depth": 2
+  },
+  {
+    "id": 45338412,
+    "by": "xnx",
+    "timeISO": "2025-09-22T19:36:48.000Z",
+    "textPlain": "I like this version of Whisper which has diarization built in: https://github.com/Purfview/whisper-standalone-win",
+    "parent": 45337978,
     "depth": 2
   }
 ]
