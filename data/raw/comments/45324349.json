@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45324883,
-    "by": "codr7",
-    "timeISO": "2025-09-21T17:36:20.000Z",
-    "textPlain": "JSON parser libraries in general is a black hole of suffering imo.They're either written with a different use case in mind, or a complex mess of abstractions; often both.It's not a very difficult problem to solve if you only write exactly what you need for your specific use case.",
+    "id": 45333433,
+    "by": "queuebert",
+    "timeISO": "2025-09-22T13:48:10.000Z",
+    "textPlain": "What is the purpose of declaring an sj_Reader object with an sj_read method if you don't support lazy parsing?  Seems like you could tighten up the code by combining the declaration and parsing into one subroutine.",
     "parent": 45324349,
     "depth": 1
   },
   {
-    "id": 45329514,
-    "by": "lelanthran",
-    "timeISO": "2025-09-22T05:51:23.000Z",
-    "textPlain": "This is quite neat. I wrote a similar library for no-alloc JSON  parsing, but never had use for it. This does actual parsing, though; my approach is to just navigate through a JSON tree.https://github.com/lelanthran/libxcgi/blob/master/library/sr...https://github.com/lelanthran/libxcgi/blob/master/library/sr...",
+    "id": 45324883,
+    "by": "codr7",
+    "timeISO": "2025-09-21T17:36:20.000Z",
+    "textPlain": "JSON parser libraries in general is a black hole of suffering imo.They're either written with a different use case in mind, or a complex mess of abstractions; often both.It's not a very difficult problem to solve if you only write exactly what you need for your specific use case.",
     "parent": 45324349,
     "depth": 1
   },
@@ -48,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45329658,
-    "by": "rurban",
-    "timeISO": "2025-09-22T06:13:56.000Z",
-    "textPlain": "Too simple, I prefer jsmn for that, https://github.com/zserge/jsmnWhich does much more in 200 lines of C89 in a single header",
+    "id": 45329514,
+    "by": "lelanthran",
+    "timeISO": "2025-09-22T05:51:23.000Z",
+    "textPlain": "This is quite neat. I wrote a similar library for no-alloc JSON  parsing, but never had use for it. This does actual parsing, though; my approach is to just navigate through a JSON tree.https://github.com/lelanthran/libxcgi/blob/master/library/sr...https://github.com/lelanthran/libxcgi/blob/master/library/sr...",
     "parent": 45324349,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "dustbunny",
     "timeISO": "2025-09-21T19:57:41.000Z",
     "textPlain": "It looks like it's kinda half a parser in that it doesn't turn numbers into floats or ints, so you'd have to build that on top of it.Im still impressed and might use it, but just noting this.",
+    "parent": 45324349,
+    "depth": 1
+  },
+  {
+    "id": 45329658,
+    "by": "rurban",
+    "timeISO": "2025-09-22T06:13:56.000Z",
+    "textPlain": "Too simple, I prefer jsmn for that, https://github.com/zserge/jsmnWhich does much more in 200 lines of C89 in a single header",
     "parent": 45324349,
     "depth": 1
   },
@@ -184,18 +192,18 @@
     "depth": 2
   },
   {
-    "id": 45331881,
-    "by": "Someone",
-    "timeISO": "2025-09-22T11:20:09.000Z",
-    "textPlain": "I wouldn’t rate those as very serious issues for this project. They’ll only be triggered if there are over MAX_INT lines or depth levels in the input. Yes, an attacker might be able to do that, but you’d have to put that input in a memory buffer to call this code. On many smaller systems, that will OOM.Skimming the code, they also are loose in parsing incorrect json, it seems:    static bool sj__is_number_cont(char c) {\n        return (c >= '0' && c <= '9')\n            ||  c == 'e' || c == 'E' || c == '.' || c == '-' || c == '+';\n    }\n\n    case '-': case '0': case '1': case '2': case '3': case '4':\n    case '5': case '6': case '7': case '8': case '9':\n        res.type = SJ_NUMBER;\n        while (r->cur != r->end && sj__is_number_cont(*r->cur)) { r->cur++; }\n        break;\n\nthat seems to imply it treats “00.-E.e-8..7-E7E12” as a valid json number.    case '}': case ']':\n        res.type = SJ_END;\n        if (--r->depth < 0) {\n            r->error = (*r->cur == '}') ? \"stray '}'\" : \"stray ']'\";\n            goto top;\n        }\n        r->cur++;\n        break;\n\nI think that means the code finds [1,2} a valid array and {\"foo\": 42] a valid struct (maybe, it even is happy with [1,2,\"foo\":42})Those, to me, seem a more likely attack vector. The example code, for example, calls atoi on something parsed by the first piece of code.⇒ I only would use this for parsing json config files.Being tiny is one thing, but the json grammar isn’t that complex. They could easily do a better job at this without adding zillions of lines of code.",
-    "parent": 45325061,
-    "depth": 2
-  },
-  {
     "id": 45325417,
     "by": "hypeatei",
     "timeISO": "2025-09-21T18:38:14.000Z",
     "textPlain": "You're not aware of the simplistic, single header C library culture that some developers like to partake in. Tsoding (a streamer) is a prime example of someone who likes developing/using these types of libraries. They acknowledge that these things aren't focused on \"security\" or \"features\" and that's okay. Not everything is a super serious business project exposed to thousands of paying customers.",
+    "parent": 45325061,
+    "depth": 2
+  },
+  {
+    "id": 45331881,
+    "by": "Someone",
+    "timeISO": "2025-09-22T11:20:09.000Z",
+    "textPlain": "I wouldn’t rate those as very serious issues for this project. They’ll only be triggered if there are over MAX_INT lines or depth levels in the input. Yes, an attacker might be able to do that, but you’d have to put that input in a memory buffer to call this code. On many smaller systems, that will OOM.Skimming the code, they also are loose in parsing incorrect json, it seems:    static bool sj__is_number_cont(char c) {\n        return (c >= '0' && c <= '9')\n            ||  c == 'e' || c == 'E' || c == '.' || c == '-' || c == '+';\n    }\n\n    case '-': case '0': case '1': case '2': case '3': case '4':\n    case '5': case '6': case '7': case '8': case '9':\n        res.type = SJ_NUMBER;\n        while (r->cur != r->end && sj__is_number_cont(*r->cur)) { r->cur++; }\n        break;\n\nthat seems to imply it treats “00.-E.e-8..7-E7E12” as a valid json number.    case '}': case ']':\n        res.type = SJ_END;\n        if (--r->depth < 0) {\n            r->error = (*r->cur == '}') ? \"stray '}'\" : \"stray ']'\";\n            goto top;\n        }\n        r->cur++;\n        break;\n\nI think that means the code finds [1,2} a valid array and {\"foo\": 42] a valid struct (maybe, it even is happy with [1,2,\"foo\":42})Those, to me, seem a more likely attack vector. The example code, for example, calls atoi on something parsed by the first piece of code.⇒ I only would use this for parsing json config files.Being tiny is one thing, but the json grammar isn’t that complex. They could easily do a better job at this without adding zillions of lines of code.",
     "parent": 45325061,
     "depth": 2
   },
@@ -389,14 +397,6 @@
     "timeISO": "2025-09-22T02:31:45.000Z",
     "textPlain": "r->depth would have been initialized to zero here https://github.com/rxi/sj.h/blob/5cb5df45c8c37fd8c2322026a11...",
     "parent": 45328336,
-    "depth": 2
-  },
-  {
-    "id": 45324957,
-    "by": "flohofwoe",
-    "timeISO": "2025-09-21T17:42:10.000Z",
-    "textPlain": "Trivial to integrate into an existing code base, minimal size overhead, no heap allocations, no stdlib usage (only stdbool.h and stddef.h included for type definitions), no C++ template shenanigans and very simple and straightforward API. C libraries which tick all those boxes are actually quite rare, and C++ libraries are much rarer.",
-    "parent": 45324602,
     "depth": 2
   }
 ]
