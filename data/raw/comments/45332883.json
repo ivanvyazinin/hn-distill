@@ -1,9 +1,17 @@
 [
   {
-    "id": 45336028,
-    "by": "spankalee",
-    "timeISO": "2025-09-22T16:45:02.000Z",
-    "textPlain": "Looking at this quickly, it does seem to require (or strongly encourage?) a stateful server to hold on to the import and export tables and the state of objects in each.One thing about a traditional RPC system where every call is top-level and you pass keys and such on every call is that multiple calls in a sequence can usually land on different servers and work fine.Is there a way to serialize and store the import/export tables to a database so you can do the same here, or do you really need something like server affinity or Durable Objects?",
+    "id": 45337528,
+    "by": "mrbluecoat",
+    "timeISO": "2025-09-22T18:29:20.000Z",
+    "textPlain": "> \"Cap'n\" is short for \"capabilities and\"Learn something new every day",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337000,
+    "by": "mtrovo",
+    "timeISO": "2025-09-22T17:51:05.000Z",
+    "textPlain": "The section on how they solved arrays is fascinating and terrifying at the same time https://blog.cloudflare.com/capnweb-javascript-rpc-library/#....> .map() is special. It does not send JavaScript code to the server, but it does send something like \"code\", restricted to a domain-specific, non-Turing-complete language. The \"code\" is a list of instructions that the server should carry out for each member of the array.> But the application code just specified a JavaScript method. How on Earth could we convert this into the narrow DSL? The answer is record-replay: On the client side, we execute the callback once, passing in a special placeholder value. The parameter behaves like an RPC promise. However, the callback is required to be synchronous, so it cannot actually await this promise. The only thing it can do is use promise pipelining to make pipelined calls. These calls are intercepted by the implementation and recorded as instructions, which can then be sent to the server, where they can be replayed as needed.",
     "parent": 45332883,
     "depth": 1
   },
@@ -12,6 +20,22 @@
     "by": "davexunit",
     "timeISO": "2025-09-22T15:19:59.000Z",
     "textPlain": "This has some similarities and significant differences from OCapN [0]. Capability transfer and promise pipelining are part of both, and both are schemaless. Cap'n web lacks out-of-band capabilities, which OCapN has in the form of URIs known as sturdyrefs. I suppose this difference is why the examples show API key authentication since anyone can connect to the Cap'n Web endpoint. This is not necessary in OCapN because a sturdyref is an unguessable token so by possessing it you have the authority to send messages to the endpoint it designates. Cap'n Web also seems to lack the ability for Alice to introduce Bob to Carol, a feature in OCapN called third-party handoffs. Handoffs are needed for distributed applications. So I guess Cap'n Web is more for traditional client-server SaaS but now with a dash of ocaps.[0] https://ocapn.org/",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45336028,
+    "by": "spankalee",
+    "timeISO": "2025-09-22T16:45:02.000Z",
+    "textPlain": "Looking at this quickly, it does seem to require (or strongly encourage?) a stateful server to hold on to the import and export tables and the state of objects in each.One thing about a traditional RPC system where every call is top-level and you pass keys and such on every call is that multiple calls in a sequence can usually land on different servers and work fine.Is there a way to serialize and store the import/export tables to a database so you can do the same here, or do you really need something like server affinity or Durable Objects?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337443,
+    "by": "Yoric",
+    "timeISO": "2025-09-22T18:22:24.000Z",
+    "textPlain": "That's more or less a dynamically-typed version of what we had with Opalang ~15 years ago and it worked great. Happy to see that someone else has picked the idea of sending capabilities, including server->client calls!",
     "parent": 45332883,
     "depth": 1
   },
@@ -32,10 +56,26 @@
     "depth": 1
   },
   {
+    "id": 45337242,
+    "by": "ianbicking",
+    "timeISO": "2025-09-22T18:06:09.000Z",
+    "textPlain": "Couple random thoughts:I'm trying to see if there's something specifically for streaming/generators. I don't think so? Of course you can use callbacks, but you have to implement your own sentinel to mark the end, and other little corner cases. It seems like you can create a callback to an anonymous function, but then the garbage collector probably can't collect that function?---I don't see anything about exceptions (though Error objects can be passed through).---Looking at array mapping: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...I get how it works: remotePromise.map(callback) will invoke the callback to see how it behaves, then make it behave similarly on the server. But it seems awfully fragile... I am assuming something like this would fail (in this case probably silently losing the conditional):    friendsPromise.map(friend => {friend, lastStatus: friend.isBestFriend ? api.getStatus(friend.id) : null})\n\n---The array escape is clever and compact: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...---I think the biggest question I have is: how would I apply this to my boring stateless-HTTP server? I can imagine something where there's a worker that's fairly simple and neutral that the browser connects to, and proxies to my server. But then my server can also get callbacks that it can use to connect back to the browser, and put those callbacks (capability?) into a database or something. Then it can connect to a worker (maybe?) and do server-initiated communication. But that's only good for a session. It has to be rebuilt when the browser network connection is interrupted, or if the browser page is reloaded.I can imagine building that on top of Cap'n Web, but it feels very complicated and I can equally imagine lots of headaches.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45335170,
     "by": "benpacker",
     "timeISO": "2025-09-22T15:51:25.000Z",
     "textPlain": "This seems great and I'm really excited to try it in place of trpc/orpc.Although it seems to solve one of the problems that GraphQL solved that trpc doesn't (the ability to request nested information from items in a list or properties of an object without changes to server side code), there is no included solution for the server side problem that creates that the data loader pattern was intended to solve, where a naive GraphQL server implementation makes a database query per item in a list.Until the server side tooling for this matures and has equivalents for the dataloader pattern, persisted/allowlist queries, etc., I'll probably only use this for server <-> server (worker <-> worker) or client <-> iframe communication and keep my client <-> server communication alongside more pre-defined boundaries.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337335,
+    "by": "tanepiper",
+    "timeISO": "2025-09-22T18:14:30.000Z",
+    "textPlain": "Reminds me of dnode (2015) - https://www.npmjs.com/package/dnode",
     "parent": 45332883,
     "depth": 1
   },
@@ -48,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45336394,
-    "by": "benmmurphy",
-    "timeISO": "2025-09-22T17:08:19.000Z",
-    "textPlain": "are there security issues with no schemas + callback stubs + language on the server with little typing. for example with this `hello(name)` example the server expects a string but can the client pass an callback object that is string-like and then use this to try and trick the server into doing something bad?",
+    "id": 45334592,
+    "by": "beckford",
+    "timeISO": "2025-09-22T15:14:00.000Z",
+    "textPlain": "Since Cap'n Web is a simplification of Cap'n Proto RPC, it would be amazing if eventually the simplification traveled back to all the languages that Cap'n Proto RPC supports (C++, etc.). Or at least could be made to be binary compatible. Regardless, this is great.",
     "parent": 45332883,
     "depth": 1
   },
@@ -64,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45334592,
-    "by": "beckford",
-    "timeISO": "2025-09-22T15:14:00.000Z",
-    "textPlain": "Since Cap'n Web is a simplification of Cap'n Proto RPC, it would be amazing if eventually the simplification traveled back to all the languages that Cap'n Proto RPC supports (C++, etc.). Or at least could be made to be binary compatible. Regardless, this is great.",
+    "id": 45335841,
+    "by": "dimal",
+    "timeISO": "2025-09-22T16:34:23.000Z",
+    "textPlain": "Looks very cool, especially passing functions back and forth. But then I wonder, what would I actually use that for?You mention that it’s schemaless as if that’s a good thing. Having a well defined schema is one of the things I like about tRPC and zod. Is there some way that you get the benefits of a schema with less work?",
     "parent": 45332883,
     "depth": 1
   },
@@ -80,26 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45335841,
-    "by": "dimal",
-    "timeISO": "2025-09-22T16:34:23.000Z",
-    "textPlain": "Looks very cool, especially passing functions back and forth. But then I wonder, what would I actually use that for?You mention that it’s schemaless as if that’s a good thing. Having a well defined schema is one of the things I like about tRPC and zod. Is there some way that you get the benefits of a schema with less work?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45335826,
-    "by": "cbarrick",
-    "timeISO": "2025-09-22T16:33:13.000Z",
-    "textPlain": "What's going on under the hood with that authentication example?Is the server holding onto some state in memory that this specific client has already authenticated? Or is the API key somehow stored in the new AuthenticatedSession stub on the client side and included in subsequent requests? Or is it something else entirely?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335043,
     "by": "evansd",
     "timeISO": "2025-09-22T15:43:32.000Z",
     "textPlain": "I need time to try this out for real, but the simplicity/power ratio here looks like it could be pretty extraordinary. Very exciting!Tiny remark for @kentonv if you're reading: it looks like you've got the wrong code sample immediately following the text \"Putting it together, a code sequence like this\".",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337451,
+    "by": "cyberax",
+    "timeISO": "2025-09-22T18:23:04.000Z",
+    "textPlain": "ETOOMAGIC for me.",
     "parent": 45332883,
     "depth": 1
   },
@@ -112,10 +144,18 @@
     "depth": 1
   },
   {
-    "id": 45335400,
-    "by": "random3",
-    "timeISO": "2025-09-22T16:05:51.000Z",
-    "textPlain": "It's inspired by and created by a coauthor of [Cap'n Proto](https://capnproto.org), which is also what OCapN (referenced in a separate comment) name refers to.Cap'n Proto is inspired by ProtoBuf, protobuf has gRPC and gRPC web.We've been using ProtoBuf/gRPC/gRPC-web both in the backends and for public endpoints powering React / TS UI's, at my last startup. It worked great, particularly with the GCP Kubernetes infrastructure. Basically both API and operational aspects were non-problems. However, navigating the dumpster fire around protobuf, gRPC, gRPC web with the lack of community leadership from Google was a clusterfuck.This said, I'm a bit at loss with the meaning of schemaless. You can have different approaches wrt schema (see Avro vs ProtoBuf) but otherwise, can't fundamentally eschew schema/types. It's purely information tied to a communication channel that needs to be somewhere, whether that's explicit, implicit, handled by the RCP layer, passed to the type system, or worse all the way to the user/dev. Moreover, schemas tend to evolve and any protocol needs to take that into account.Historically, ProtoBuf has done a good job managing various tradeoffs, here but had no experience using Capt'n Proto, yet seen mostly good stuff about it, so perhaps I'm just missing something here.",
+    "id": 45335826,
+    "by": "cbarrick",
+    "timeISO": "2025-09-22T16:33:13.000Z",
+    "textPlain": "What's going on under the hood with that authentication example?Is the server holding onto some state in memory that this specific client has already authenticated? Or is the API key somehow stored in the new AuthenticatedSession stub on the client side and included in subsequent requests? Or is it something else entirely?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45336394,
+    "by": "benmmurphy",
+    "timeISO": "2025-09-22T17:08:19.000Z",
+    "textPlain": "are there security issues with no schemas + callback stubs + language on the server with little typing. for example with this `hello(name)` example the server expects a string but can the client pass an callback object that is string-like and then use this to try and trick the server into doing something bad?",
     "parent": 45332883,
     "depth": 1
   },
@@ -124,6 +164,14 @@
     "by": "electric_muse",
     "timeISO": "2025-09-22T15:21:25.000Z",
     "textPlain": "This is such a useful pattern.I’ve ended up building similar things over and over again. For example, simplifying the worker-page connection in a browser or between chrome extension “background” scripts and content scripts.There’s a reason many prefer “npm install” on some simple sdk that just wraps an API.This also reminds me a lot of MCP, especially the bi-directional nature and capability focus.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45335400,
+    "by": "random3",
+    "timeISO": "2025-09-22T16:05:51.000Z",
+    "textPlain": "It's inspired by and created by a coauthor of [Cap'n Proto](https://capnproto.org), which is also what OCapN (referenced in a separate comment) name refers to.Cap'n Proto is inspired by ProtoBuf, protobuf has gRPC and gRPC web.We've been using ProtoBuf/gRPC/gRPC-web both in the backends and for public endpoints powering React / TS UI's, at my last startup. It worked great, particularly with the GCP Kubernetes infrastructure. Basically both API and operational aspects were non-problems. However, navigating the dumpster fire around protobuf, gRPC, gRPC web with the lack of community leadership from Google was a clusterfuck.This said, I'm a bit at loss with the meaning of schemaless. You can have different approaches wrt schema (see Avro vs ProtoBuf) but otherwise, can't fundamentally eschew schema/types. It's purely information tied to a communication channel that needs to be somewhere, whether that's explicit, implicit, handled by the RCP layer, passed to the type system, or worse all the way to the user/dev. Moreover, schemas tend to evolve and any protocol needs to take that into account.Historically, ProtoBuf has done a good job managing various tradeoffs, here but had no experience using Capt'n Proto, yet seen mostly good stuff about it, so perhaps I'm just missing something here.",
     "parent": 45332883,
     "depth": 1
   },
@@ -144,11 +192,27 @@
     "depth": 1
   },
   {
-    "id": 45336507,
-    "by": "afiori",
-    "timeISO": "2025-09-22T17:15:29.000Z",
-    "textPlain": "My limited knowledge of Cap'n'Proto (read the docs once years ago) server and clients can peer stubs, so that is server C receives a stub originated from server A via client B then C can try to call A directly.",
-    "parent": 45336028,
+    "id": 45336569,
+    "by": "jauntywundrkind",
+    "timeISO": "2025-09-22T17:19:05.000Z",
+    "textPlain": "I really dig the flexibility of transport. Having something that works over postMessage is totally clutch!!> Similarly, supports passing objects by reference: If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.Can this be relaxed? Having to design the object model ahead of time for RpcTarget is constraining. If we could just attach a ThingClass.prototype[Symbol.for('RpcTarget')] = true then there would be a lot more flexibility, less need to design explciitly for RpcTarget, to use RpcTarget with the objects/classes of 3rd party libraries.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337146,
+    "by": "spankalee",
+    "timeISO": "2025-09-22T17:59:48.000Z",
+    "textPlain": "I presume conditionals are banned - sort of like the rules of hooks - but how?",
+    "parent": 45337000,
+    "depth": 2
+  },
+  {
+    "id": 45334797,
+    "by": "kentonv",
+    "timeISO": "2025-09-22T15:27:15.000Z",
+    "textPlain": "I’d love to add 3PH support in the future, but it wasn’t a priority for an initial release as this is very focused on enabling browser<->web server communications specifically.SturdyRefs are tricky. My feeling is that they don’t really belong in the RPC protocol itself, because the mechanism by which you restore a SturdyRef is very dependent on the platform in which you're running. Cloudflare Workers, for example, may soon support storing capabilities into Durable Object storage. But the way this will work is very tied to the Cloudflare Workers platform. Sandstorm, similarly, had a persistent capability mechanism, but it only made sense inside Sandstorm – which is why I removed the whole notion of persistent capabilities from Cap’n Proto itself.The closest thing to a web standard for SturdyRefs is OAuth. I could imagine defining a mechanism for SturdyRefs based on OAuth refresh tokens, which would be pretty cool, but it probably wouldn’t actually be what you want inside a specific platform like Sandstorm or Workers.",
+    "parent": 45334682,
     "depth": 2
   },
   {
@@ -168,11 +232,19 @@
     "depth": 2
   },
   {
-    "id": 45334797,
+    "id": 45336507,
+    "by": "afiori",
+    "timeISO": "2025-09-22T17:15:29.000Z",
+    "textPlain": "My limited knowledge of Cap'n'Proto (read the docs once years ago) server and clients can peer stubs, so that is server C receives a stub originated from server A via client B then C can try to call A directly.",
+    "parent": 45336028,
+    "depth": 2
+  },
+  {
+    "id": 45337489,
     "by": "kentonv",
-    "timeISO": "2025-09-22T15:27:15.000Z",
-    "textPlain": "I’d love to add 3PH support in the future, but it wasn’t a priority for an initial release as this is very focused on enabling browser<->web server communications specifically.SturdyRefs are tricky. My feeling is that they don’t really belong in the RPC protocol itself, because the mechanism by which you restore a SturdyRef is very dependent on the platform in which you're running. Cloudflare Workers, for example, may soon support storing capabilities into Durable Object storage. But the way this will work is very tied to the Cloudflare Workers platform. Sandstorm, similarly, had a persistent capability mechanism, but it only made sense inside Sandstorm – which is why I removed the whole notion of persistent capabilities from Cap’n Proto itself.The closest thing to a web standard for SturdyRefs is OAuth. I could imagine defining a mechanism for SturdyRefs based on OAuth refresh tokens, which would be pretty cool, but it probably wouldn’t actually be what you want inside a specific platform like Sandstorm or Workers.",
-    "parent": 45334682,
+    "timeISO": "2025-09-22T18:26:00.000Z",
+    "textPlain": "FWIW, Cap'n Proto is a statically-typed version of this that has been around since 2013, and is actually used heavily in the implementation of Cloudflare Workers.",
+    "parent": 45337443,
     "depth": 2
   },
   {
@@ -184,11 +256,27 @@
     "depth": 2
   },
   {
+    "id": 45336668,
+    "by": "closeparen",
+    "timeISO": "2025-09-22T17:25:10.000Z",
+    "textPlain": "\"RPC\" originally referred to a programming paradigm where remote calls looked just like any other method calls, and it might not even be any of the programmer's business whether they're implemented in-process or on another machine. This obviously required wire protocols, client and server libraries, etc. to implement.There's been a renaissance in the tools, but now we mainly use them like \"REST\" endpoints with the type signatures of functions. Programming language features like Future and Optional make it easier to clearly delineate properties like \"this might take a while\" or \"this might fail\" whereas earlier in RPC, these properties were kind of hidden.",
+    "parent": 45335433,
+    "depth": 2
+  },
+  {
     "id": 45335717,
     "by": "kentonv",
     "timeISO": "2025-09-22T16:26:33.000Z",
     "textPlain": "What do you mean? Async programming exists in tons of languages. Just off the top of my head, I've used async/await in JavaScript, C++, Python, Rust, C#, ...Anyway, the point here is that early RPC systems worked by blocking the calling thread while performing the network request, which was obviously a terrible idea.",
     "parent": 45335433,
+    "depth": 2
+  },
+  {
+    "id": 45337359,
+    "by": "kentonv",
+    "timeISO": "2025-09-22T18:16:18.000Z",
+    "textPlain": "You can define a stream like:    interface Stream extends RpcTarget {\n      write(chunk): void;\n      end(): void;\n      [Symbol.dispose](): void;\n    }\n\nNote that the dispose method will be called automatically when the caller disposes the stub or when they disconnect the RPC session. The `end()` method is still useful as a way to distinguish a clean end vs. an abort.In any case, you implement this interface, and pass it over the RPC connection. The other side can now call it back to write chunks. Voila, streaming.That said, getting flow control right is a little tricky here: if you await every `write()`, you won't fully utilize the connection, but if you don't await, you might buffer excessively. You end up wanting to count the number of bytes that aren't acknowledged yet and hold off on further writes if it goes over some threshold. Cap'n Proto actually has built-in features for this, but Cap'n Web does not (yet).Workers RPC actually supports sending `ReadableStream` and `WritableStream` (JavaScript types) over RPC. I'd like to support that in Cap'n Web, too, but haven't gotten around to it yet. It'd basically work exactly like above, but you get to use the standard types.---------------------Exceptions work exactly like you'd expect. If the callee throws an exception, it is serialized, passed back to the caller, and used to reject the promise. The error also propagates to all pipelined calls that derive from the call that threw.---------------------The mapper function receives, as its parameter, an `RpcPromise`. So you cannot actually inspect the value, you can only pipeline on it. `friend.isBestFriend ?` won't work, because `friend.isBestFriend` will resolve as another RpcPromise (for the future property). I suppose that'll be considered truthy by JavaScript, so the branch will always evaluate true. But if you're using TypeScript, note that the type system is fully aware that `friend` is type `RpcPromise<Friend>`, so hopefully that helps steer you away from doi",
+    "parent": 45337242,
     "depth": 2
   },
   {
@@ -200,11 +288,11 @@
     "depth": 2
   },
   {
-    "id": 45336497,
+    "id": 45334846,
     "by": "kentonv",
-    "timeISO": "2025-09-22T17:14:53.000Z",
-    "textPlain": "The protocol explicitly blocks overriding `toString()` (and all other Object.prototype members), as well as `toJSON()`, to prevent the obvious ways that you might accidentally invoke a callback when you weren't expecting to. How else might you invoke a callback by accident?That said, type checking is called out both in the blog post (in the section on TypeScript) and in the readme (under \"Security Considerations\"). You probably should use some runtime type checking library, just like you should with traditional JSON inputs.In the future I'm hoping someone comes up with a way to auto-generate type checks based on TypeScript types.",
-    "parent": 45336394,
+    "timeISO": "2025-09-22T15:31:15.000Z",
+    "textPlain": "Yeah I now want to go back and redesign the Cap'n Proto RPC protocol to be based on this new design, as it accomplishes all the same features with a lot less complexity!But it may be tough to justify when we already have working Cap'n Proto implementations speaking the existing protocol, that took a lot of work to build. Yes, the new implementations will be less work than the original, but it's still a lot of work that is essentially running-in-place.OTOH, it might make it easier for Cap'n Proto RPC to be implemented in more languages, which might be worth it... idk.",
+    "parent": 45334592,
     "depth": 2
   },
   {
@@ -216,11 +304,19 @@
     "depth": 2
   },
   {
-    "id": 45334846,
+    "id": 45336177,
     "by": "kentonv",
-    "timeISO": "2025-09-22T15:31:15.000Z",
-    "textPlain": "Yeah I now want to go back and redesign the Cap'n Proto RPC protocol to be based on this new design, as it accomplishes all the same features with a lot less complexity!But it may be tough to justify when we already have working Cap'n Proto implementations speaking the existing protocol, that took a lot of work to build. Yes, the new implementations will be less work than the original, but it's still a lot of work that is essentially running-in-place.OTOH, it might make it easier for Cap'n Proto RPC to be implemented in more languages, which might be worth it... idk.",
-    "parent": 45334592,
+    "timeISO": "2025-09-22T16:54:02.000Z",
+    "textPlain": "You can use TypeScript to define your API, and get all the benefits of schemas.Well, except you don't get runtime type checking with TypeScript, which might be something you really want over RPC. For now I actually suggest using zod for type checks, but my dream is to auto-generate type checks based on the TypeScript types...",
+    "parent": 45335841,
+    "depth": 2
+  },
+  {
+    "id": 45336600,
+    "by": "oulipo2",
+    "timeISO": "2025-09-22T17:20:45.000Z",
+    "textPlain": "I guess it's if some data is quite heavy and is located either client-side or server-side, and you want to do calls without having to transfer the data",
+    "parent": 45335841,
     "depth": 2
   },
   {
@@ -248,14 +344,6 @@
     "depth": 2
   },
   {
-    "id": 45336177,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T16:54:02.000Z",
-    "textPlain": "You can use TypeScript to define your API, and get all the benefits of schemas.Well, except you don't get runtime type checking with TypeScript, which might be something you really want over RPC. For now I actually suggest using zod for type checks, but my dream is to auto-generate type checks based on the TypeScript types...",
-    "parent": 45335841,
-    "depth": 2
-  },
-  {
     "id": 45335163,
     "by": "kentonv",
     "timeISO": "2025-09-22T15:51:02.000Z",
@@ -269,6 +357,22 @@
     "timeISO": "2025-09-22T16:38:11.000Z",
     "textPlain": "The .map() callback receives as its input an RpcPromise, not the actual value. You can't do any computation (including branching) on an RpcPromise, the only thing you can do is pipeline on it. Since the map callback must be synchronous, you can't await the promise either.So it turns out it's actually not easy to mess up in a map callback. The main thing you have to avoid is side effects that modify stuff outside the callback. If you do that, the effect you'll see is those modifications only get applied once, rather than N times. And any stubs you exfiltrate from the callback simply won't work if called later.",
     "parent": 45335215,
+    "depth": 2
+  },
+  {
+    "id": 45336576,
+    "by": "kentonv",
+    "timeISO": "2025-09-22T17:19:37.000Z",
+    "textPlain": "The server constructs a new AuthenticatedSession implementation each time authenticate() is called, and can store the key (or just the authenticated user info) in the server-side object.This does mean the server is holding onto state, but remember the state only lasts for the lifetime of the particular connection. (In HTTP batch mode, it's only for the one batch. In WebSocket mode, it's for the lifetime of the WebSocket.)",
+    "parent": 45335826,
+    "depth": 2
+  },
+  {
+    "id": 45336497,
+    "by": "kentonv",
+    "timeISO": "2025-09-22T17:14:53.000Z",
+    "textPlain": "The protocol explicitly blocks overriding `toString()` (and all other Object.prototype members), as well as `toJSON()`, to prevent the obvious ways that you might accidentally invoke a callback when you weren't expecting to. How else might you invoke a callback by accident?That said, type checking is called out both in the blog post (in the section on TypeScript) and in the readme (under \"Security Considerations\"). You probably should use some runtime type checking library, just like you should with traditional JSON inputs.In the future I'm hoping someone comes up with a way to auto-generate type checks based on TypeScript types.",
+    "parent": 45336394,
     "depth": 2
   },
   {
@@ -293,22 +397,6 @@
     "timeISO": "2025-09-22T16:11:22.000Z",
     "textPlain": "100% agreed (as will anyone sane who's tried to use it), grpc-web is a trainwreck.",
     "parent": 45335400,
-    "depth": 2
-  },
-  {
-    "id": 45336050,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T16:46:02.000Z",
-    "textPlain": "I'm hoping the answer will be:* Use Cap'n Proto in your Rust backend. This is what you want in a type-safe language like Rust: generated code based on a well-defined schema.* We'll build some sort of proxy that, given a Cap'n Proto schema, converts between Cap'n Web and Cap'n Proto. So your frontend can speak Cap'n Web.But this proxy is just an idea for now. No idea if or when it'll exist.",
-    "parent": 45335334,
-    "depth": 2
-  },
-  {
-    "id": 45335095,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T15:46:34.000Z",
-    "textPlain": "No, in fact this is the first I've heard of Cap'n Jazz.The name \"Cap'n Proto\" came from \"capabilities and protobuf\". The first, never-released version was based on Protobuf serialization. The first public release (way back on April 1, 2013) had its own, all-new serialization.There's also a pun with it being a \"cerealization protocol\" (Cap'n Cruch is a well-known brand of cereal).",
-    "parent": 45334873,
     "depth": 2
   }
 ]
