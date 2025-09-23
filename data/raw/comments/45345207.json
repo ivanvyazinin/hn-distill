@@ -16,14 +16,6 @@
     "depth": 1
   },
   {
-    "id": 45347889,
-    "by": "madethemcry",
-    "timeISO": "2025-09-23T14:50:58.000Z",
-    "textPlain": "That was as great reading, thank you.I've a related observation. In my experience the amount of hallucinated urls with structured output (think of a field `url` or `link`) is pretty high. Especially compared to the alternative approach, where you let the llm generate text and then use a second llm to convert the text into the desired structured format.With structured output, it's like the llm is forced to answer in a very specific way. So if there is no url for the given field, it makes up the url.Here a related quote from the article:> Structured outputs builds on top of sampling by constraining the model's output to a specific format.",
-    "parent": 45345207,
-    "depth": 1
-  },
-  {
     "id": 45347100,
     "by": "minimaxir",
     "timeISO": "2025-09-23T13:55:39.000Z",
@@ -32,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45350501,
-    "by": "heckintime",
-    "timeISO": "2025-09-23T17:51:30.000Z",
-    "textPlain": "I've found that writing a very simple DSL that resembles human speech and an interpreter that can output JSON is very effective.Human4x1200 with 30 second restAI DSL outputRepeat 4 times:- Run 1200 meters- Rest 30 secondsI hand wrote a recursive descent parser in Python to process DSL. Human speech to DSL is pretty effective with a simple prompt and some examples.I created a tool that can program Garmin & Apple Watches for interval training based on what I wrote above.https://speedystride.comLooking for beta testers- please give it a try :)",
+    "id": 45347889,
+    "by": "madethemcry",
+    "timeISO": "2025-09-23T14:50:58.000Z",
+    "textPlain": "That was as great reading, thank you.I've a related observation. In my experience the amount of hallucinated urls with structured output (think of a field `url` or `link`) is pretty high. Especially compared to the alternative approach, where you let the llm generate text and then use a second llm to convert the text into the desired structured format.With structured output, it's like the llm is forced to answer in a very specific way. So if there is no url for the given field, it makes up the url.Here a related quote from the article:> Structured outputs builds on top of sampling by constraining the model's output to a specific format.",
     "parent": 45345207,
     "depth": 1
   },
@@ -44,6 +36,14 @@
     "by": "hellovai",
     "timeISO": "2025-09-23T14:58:31.000Z",
     "textPlain": "Have you tried techniques that don’t require modifying the LLM and the sampling strategy for structure outputs? For example, schema aligned passing, where you build error tolerance into the parser instead of coercing to a grammar.https://boundaryml.com/blog/schema-aligned-parsing",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
+    "id": 45350501,
+    "by": "heckintime",
+    "timeISO": "2025-09-23T17:51:30.000Z",
+    "textPlain": "I've found that writing a very simple DSL that resembles human speech and an interpreter that can output JSON is very effective.Human4x1200 with 30 second restAI DSL outputRepeat 4 times:- Run 1200 meters- Rest 30 secondsI hand wrote a recursive descent parser in Python to process DSL. Human speech to DSL is pretty effective with a simple prompt and some examples.I created a tool that can program Garmin & Apple Watches for interval training based on what I wrote above.https://speedystride.comLooking for beta testers- please give it a try :)",
     "parent": 45345207,
     "depth": 1
   },
@@ -224,30 +224,6 @@
     "depth": 2
   },
   {
-    "id": 45348679,
-    "by": "miki123211",
-    "timeISO": "2025-09-23T15:45:42.000Z",
-    "textPlain": "What I've found is that it is very important to make structured outputs as easy for the LLM as possible. This means making your schemas LLM-friendly instead of programmer-friendly.E.g. if the LLM hallucinates non-existing URLs, you may add a boolean \"contains_url\" field to your entity's JSON schema, placing it before the URL field itself. This way, the URL extraction is split into two simpler steps, checking if the URL is there and actually extracting it. If the URL is missing, the `\"contains_url\": false` field in the context will strongly urge the LLM to output an empty string there.This also comes up with quantities a lot. Imagine you're trying to sort job adverts by salary ranges, which you extract via LLm. . These may be expressed as monthly instead of annual (common in some countries), in different currencies, pre / post tax etc.Instead of having an `annual_pretax_salary_usd` field, which is what you actually want, but which the LLM is extremely ill-equipped to generate, have a detailed schema like `type: monthly|yearly, currency:str, low:float, high:float, tax: pre_tax|post_tax`.That schema is much easier for an LLM to generate, and you can then convert it to a single number via straight code.",
-    "parent": 45347889,
-    "depth": 2
-  },
-  {
-    "id": 45348862,
-    "by": "hansvm",
-    "timeISO": "2025-09-23T15:59:25.000Z",
-    "textPlain": "That's definitely possible.As you know, (most current) LLMs build text autoregressively. This allows them to generate text with _exactly_ the same distribution as the training data.When you constrain LLM output at each token, that gives a completely different distribution from letting the LLM generate a full output and then doing something with that (trying again, returning an error, post-processing, etc).E.g.: Suppose the LLM has a training set of (aa, ab, ab, ba), noting that \"ab\" appears twice. Suppose your valid grammar is the set (ab, ba). Then your output distributions are:Baseline: {invalid: 25%, ab: 50%, ba: 25%}Constrained: {invalid: 0%, ab: 75%, ba: 25%}Note that _all_ the previously invalid outputs were dumped into the \"ab\" bucket, skewing the ratio between \"ab\" and \"ba\". That skew may or may not be desirable, but assuming the training process was any good it's likely undesirable.You've observed it in URLs, but I see it in JSON output as well. LLMs like to truncate long strings from time to time, but when they do they're more likely to provide invalid JSON (adding an ellipsis at the end of the fragment and doing nothing else). If that truncation starts to happen in a constrained environment, a period is a valid character in a long string, and eventually the grammar constraint will force a closing quote to appear. The result is still garbage, but instead of a detectable parse failure you have an undetectable corrupt field.",
-    "parent": 45347889,
-    "depth": 2
-  },
-  {
-    "id": 45349095,
-    "by": "anentropic",
-    "timeISO": "2025-09-23T16:17:07.000Z",
-    "textPlain": "> let the llm generate text and then use a second llm to convert the text into the desired structured formatthis sounds similar to what they discussed in the article with regards to \"thinking\" models, i.e. let them generate their <think>blah blah</think> preamble first before starting to constrain the output to structured format",
-    "parent": 45347889,
-    "depth": 2
-  },
-  {
     "id": 45348878,
     "by": "gdudeman",
     "timeISO": "2025-09-23T16:00:11.000Z",
@@ -269,6 +245,30 @@
     "timeISO": "2025-09-23T14:20:30.000Z",
     "textPlain": "gemini api has propertyOrdering field for that",
     "parent": 45347100,
+    "depth": 2
+  },
+  {
+    "id": 45348679,
+    "by": "miki123211",
+    "timeISO": "2025-09-23T15:45:42.000Z",
+    "textPlain": "What I've found is that it is very important to make structured outputs as easy for the LLM as possible. This means making your schemas LLM-friendly instead of programmer-friendly.E.g. if the LLM hallucinates non-existing URLs, you may add a boolean \"contains_url\" field to your entity's JSON schema, placing it before the URL field itself. This way, the URL extraction is split into two simpler steps, checking if the URL is there and actually extracting it. If the URL is missing, the `\"contains_url\": false` field in the context will strongly urge the LLM to output an empty string there.This also comes up with quantities a lot. Imagine you're trying to sort job adverts by salary ranges, which you extract via LLm. . These may be expressed as monthly instead of annual (common in some countries), in different currencies, pre / post tax etc.Instead of having an `annual_pretax_salary_usd` field, which is what you actually want, but which the LLM is extremely ill-equipped to generate, have a detailed schema like `type: monthly|yearly, currency:str, low:float, high:float, tax: pre_tax|post_tax`.That schema is much easier for an LLM to generate, and you can then convert it to a single number via straight code.",
+    "parent": 45347889,
+    "depth": 2
+  },
+  {
+    "id": 45348862,
+    "by": "hansvm",
+    "timeISO": "2025-09-23T15:59:25.000Z",
+    "textPlain": "That's definitely possible.As you know, (most current) LLMs build text autoregressively. This allows them to generate text with _exactly_ the same distribution as the training data.When you constrain LLM output at each token, that gives a completely different distribution from letting the LLM generate a full output and then doing something with that (trying again, returning an error, post-processing, etc).E.g.: Suppose the LLM has a training set of (aa, ab, ab, ba), noting that \"ab\" appears twice. Suppose your valid grammar is the set (ab, ba). Then your output distributions are:Baseline: {invalid: 25%, ab: 50%, ba: 25%}Constrained: {invalid: 0%, ab: 75%, ba: 25%}Note that _all_ the previously invalid outputs were dumped into the \"ab\" bucket, skewing the ratio between \"ab\" and \"ba\". That skew may or may not be desirable, but assuming the training process was any good it's likely undesirable.You've observed it in URLs, but I see it in JSON output as well. LLMs like to truncate long strings from time to time, but when they do they're more likely to provide invalid JSON (adding an ellipsis at the end of the fragment and doing nothing else). If that truncation starts to happen in a constrained environment, a period is a valid character in a long string, and eventually the grammar constraint will force a closing quote to appear. The result is still garbage, but instead of a detectable parse failure you have an undetectable corrupt field.",
+    "parent": 45347889,
+    "depth": 2
+  },
+  {
+    "id": 45349095,
+    "by": "anentropic",
+    "timeISO": "2025-09-23T16:17:07.000Z",
+    "textPlain": "> let the llm generate text and then use a second llm to convert the text into the desired structured formatthis sounds similar to what they discussed in the article with regards to \"thinking\" models, i.e. let them generate their <think>blah blah</think> preamble first before starting to constrain the output to structured format",
+    "parent": 45347889,
     "depth": 2
   },
   {
