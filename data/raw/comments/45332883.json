@@ -1,17 +1,17 @@
 [
   {
-    "id": 45340610,
-    "by": "prngl",
-    "timeISO": "2025-09-22T22:52:42.000Z",
-    "textPlain": "This is cool.There's an interesting parallel with ML compilation libraries (TensorFlow 1, JAX jit, PyTorch compile) where a tracing approach is taken to build up a graph of operations that are then essentially compiled (or otherwise lowered and executed by a specialized VM). We're often nowadays working in dynamic languages, so they become essentially the frontend to new DSLs, and instead of defining new syntax, we embed the AST construction into the scripting language.For ML, we're delaying the execution of GPU/linalg kernels so that we can fuse them. For RPC, we're delaying the execution of network requests so that we can fuse them.Of course, compiled languages themselves delay the execution of ops (add/mul/load/store/etc) so that we can fuse them, i.e. skip over the round-trip of the interpreter/VM loop.The power of code as data in various guises.Another angle on this is the importance of separating control plane (i.e. instructions) from data plane in distributed systems, which is any system where you can observe a \"delay\". When you zoom into a single CPU, it acknowledges its nature as a distributed system with memory far away by separating out the instruction pipeline and instruction cache from the data. In Cap'n Web, we've got the instructions as the RPC graph being built up.I just thought these were some interesting patterns. I'm not sure I yet see all the way down to the bottom though. Feels like we go in circles, or rather, the stack is replicated (compiler built on interpreter built on compiler built on interpreter ...). In some respect this is the typical Lispy code is data, data is code, but I dunno, feels like there's something here to cut through...",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45337000,
     "by": "mtrovo",
     "timeISO": "2025-09-22T17:51:05.000Z",
     "textPlain": "The section on how they solved arrays is fascinating and terrifying at the same time https://blog.cloudflare.com/capnweb-javascript-rpc-library/#....> .map() is special. It does not send JavaScript code to the server, but it does send something like \"code\", restricted to a domain-specific, non-Turing-complete language. The \"code\" is a list of instructions that the server should carry out for each member of the array.> But the application code just specified a JavaScript method. How on Earth could we convert this into the narrow DSL? The answer is record-replay: On the client side, we execute the callback once, passing in a special placeholder value. The parameter behaves like an RPC promise. However, the callback is required to be synchronous, so it cannot actually await this promise. The only thing it can do is use promise pipelining to make pipelined calls. These calls are intercepted by the implementation and recorded as instructions, which can then be sent to the server, where they can be replayed as needed.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45340610,
+    "by": "prngl",
+    "timeISO": "2025-09-22T22:52:42.000Z",
+    "textPlain": "This is cool.There's an interesting parallel with ML compilation libraries (TensorFlow 1, JAX jit, PyTorch compile) where a tracing approach is taken to build up a graph of operations that are then essentially compiled (or otherwise lowered and executed by a specialized VM). We're often nowadays working in dynamic languages, so they become essentially the frontend to new DSLs, and instead of defining new syntax, we embed the AST construction into the scripting language.For ML, we're delaying the execution of GPU/linalg kernels so that we can fuse them. For RPC, we're delaying the execution of network requests so that we can fuse them.Of course, compiled languages themselves delay the execution of ops (add/mul/load/store/etc) so that we can fuse them, i.e. skip over the round-trip of the interpreter/VM loop.The power of code as data in various guises.Another angle on this is the importance of separating control plane (i.e. instructions) from data plane in distributed systems, which is any system where you can observe a \"delay\". When you zoom into a single CPU, it acknowledges its nature as a distributed system with memory far away by separating out the instruction pipeline and instruction cache from the data. In Cap'n Web, we've got the instructions as the RPC graph being built up.I just thought these were some interesting patterns. I'm not sure I yet see all the way down to the bottom though. Feels like we go in circles, or rather, the stack is replicated (compiler built on interpreter built on compiler built on interpreter ...). In some respect this is the typical Lispy code is data, data is code, but I dunno, feels like there's something here to cut through...",
     "parent": 45332883,
     "depth": 1
   },
@@ -32,6 +32,22 @@
     "depth": 1
   },
   {
+    "id": 45341364,
+    "by": "thethimble",
+    "timeISO": "2025-09-23T00:20:32.000Z",
+    "textPlain": "I'm curious about two things:1. What's the best way to do app deploys that update the RPC semantics? In other words how do you ensure that the client and server are speaking the same version of the RPC? This is a challenge that protos/grpc/avro explicitly sought to solve.2. Relatedly, what's the best way to handle flaky connections? It seems that the export/import table is attached directly to a stateful WS connection such that if the connection breaks you'd lose the state. In principle there should be nothing preventing a client/server caching this state and reinstantiating it on reconnect. That said, given these tables can contain closures, they're not exactly serializable so you could run into memory issues. Curious if the team has thought about this.Absolutely mind blowing work!",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45340890,
+    "by": "deepsun",
+    "timeISO": "2025-09-22T23:25:56.000Z",
+    "textPlain": "The main problem was always the same -- all the RPC libraries are designed to hide where the round-trip happens, but in real world you always want to know where and how the round-trip happens.Just read about Cap'n Web array .map() [1] -- it's hard to understand where the round-trip is. And that is not a feature, that's a bug -- in reality you want to easily tell what the code does, not hide it.[1] https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45336028,
     "by": "spankalee",
     "timeISO": "2025-09-22T16:45:02.000Z",
@@ -40,18 +56,26 @@
     "depth": 1
   },
   {
-    "id": 45335373,
-    "by": "krosaen",
-    "timeISO": "2025-09-22T16:03:29.000Z",
-    "textPlain": "This looks pretty awesome, and excited it's not only a cloudflare product (Cap'n Web exists alongside cloudflare Workers). Reading this section [1], can you say more about:> as of this writing, the feature set is not exactly the same between the two. We aim to fix this over time, by adding missing features to both sides until they match.do you think once the two reach parity, that that parity will remain, or more likely that Cap'n Web will trail cloudflare workers, and if so, by what length of time?[1] https://github.com/cloudflare/capnweb/tree/main?tab=readme-o...",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335433,
     "by": "divan",
     "timeISO": "2025-09-22T16:07:45.000Z",
     "textPlain": ">  RPC is often accused of committing many of the fallacies of distributed computing.\n> But this reputation is outdated. When RPC was first invented some 40 years ago, async programming barely existed. We did not have Promises, much less async and await.I'm confused. How is this a \"protocol\" if its core premises rely on very specific implementation of concurrency in a very specific language?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341345,
+    "by": "srameshc",
+    "timeISO": "2025-09-23T00:17:17.000Z",
+    "textPlain": "If you have ever had to use gRPC & web, then you will know how painful Protobuf is to make it work on the web. I love the simplicity of Cap'n Web https://capnproto.org/language.html , hopefully this will lead us to better and easier RPC.Update: Unlike Cap'n Proto, Cap'n Web has no schemas. In fact, it has almost no boilerplate whatsoever. This means it works more like the JavaScript-native RPC system in Cloudflare Workers. https://github.com/cloudflare/capnweb",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45335373,
+    "by": "krosaen",
+    "timeISO": "2025-09-22T16:03:29.000Z",
+    "textPlain": "This looks pretty awesome, and excited it's not only a cloudflare product (Cap'n Web exists alongside cloudflare Workers). Reading this section [1], can you say more about:> as of this writing, the feature set is not exactly the same between the two. We aim to fix this over time, by adding missing features to both sides until they match.do you think once the two reach parity, that that parity will remain, or more likely that Cap'n Web will trail cloudflare workers, and if so, by what length of time?[1] https://github.com/cloudflare/capnweb/tree/main?tab=readme-o...",
     "parent": 45332883,
     "depth": 1
   },
@@ -88,22 +112,6 @@
     "depth": 1
   },
   {
-    "id": 45339793,
-    "by": "gethly",
-    "timeISO": "2025-09-22T21:35:49.000Z",
-    "textPlain": "This looks like something you tinker with during a weekend when you are bored out of your mind.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45339497,
-    "by": "meindnoch",
-    "timeISO": "2025-09-22T21:12:23.000Z",
-    "textPlain": "What happens if I pass a recursive function to map()?  let traverse = (dir) => {\n    name: dir.name,\n    files: api.ls(dir).map(traverse) // api.ls() returns [] for files\n  };\n  let tree = api.ls(\"/\").map(traverse);",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335096,
     "by": "fitzn",
     "timeISO": "2025-09-22T15:46:38.000Z",
@@ -120,18 +128,18 @@
     "depth": 1
   },
   {
-    "id": 45337242,
-    "by": "ianbicking",
-    "timeISO": "2025-09-22T18:06:09.000Z",
-    "textPlain": "Couple random thoughts:I'm trying to see if there's something specifically for streaming/generators. I don't think so? Of course you can use callbacks, but you have to implement your own sentinel to mark the end, and other little corner cases. It seems like you can create a callback to an anonymous function, but then the garbage collector probably can't collect that function?---I don't see anything about exceptions (though Error objects can be passed through).---Looking at array mapping: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...I get how it works: remotePromise.map(callback) will invoke the callback to see how it behaves, then make it behave similarly on the server. But it seems awfully fragile... I am assuming something like this would fail (in this case probably silently losing the conditional):    friendsPromise.map(friend => {friend, lastStatus: friend.isBestFriend ? api.getStatus(friend.id) : null})\n\n---The array escape is clever and compact: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...---I think the biggest question I have is: how would I apply this to my boring stateless-HTTP server? I can imagine something where there's a worker that's fairly simple and neutral that the browser connects to, and proxies to my server. But then my server can also get callbacks that it can use to connect back to the browser, and put those callbacks (capability?) into a database or something. Then it can connect to a worker (maybe?) and do server-initiated communication. But that's only good for a session. It has to be rebuilt when the browser network connection is interrupted, or if the browser page is reloaded.I can imagine building that on top of Cap'n Web, but it feels very complicated and I can equally imagine lots of headaches.",
+    "id": 45335334,
+    "by": "unshavedyak",
+    "timeISO": "2025-09-22T16:00:52.000Z",
+    "textPlain": "What would this look like for other language backends to support? Eg would be neat if Rust (my webservers) could support this on the backendedit: Downvoted, is this a bad question? The title is generically \"web servers\", obviously the content of the post focuses primarily on TypeScript, but i'm trying to determine if there's something unique about this that means it cannot be implemented in other languages. The serverside DSL execution could be difficult to impl, but as it's not strictly JavaScript i imagine it's not impossible?",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45339260,
-    "by": "yayitswei",
-    "timeISO": "2025-09-22T20:46:16.000Z",
-    "textPlain": "One of the authors is the Kenton who built this awesome lan party house: https://lanparty.house/",
+    "id": 45337242,
+    "by": "ianbicking",
+    "timeISO": "2025-09-22T18:06:09.000Z",
+    "textPlain": "Couple random thoughts:I'm trying to see if there's something specifically for streaming/generators. I don't think so? Of course you can use callbacks, but you have to implement your own sentinel to mark the end, and other little corner cases. It seems like you can create a callback to an anonymous function, but then the garbage collector probably can't collect that function?---I don't see anything about exceptions (though Error objects can be passed through).---Looking at array mapping: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...I get how it works: remotePromise.map(callback) will invoke the callback to see how it behaves, then make it behave similarly on the server. But it seems awfully fragile... I am assuming something like this would fail (in this case probably silently losing the conditional):    friendsPromise.map(friend => {friend, lastStatus: friend.isBestFriend ? api.getStatus(friend.id) : null})\n\n---The array escape is clever and compact: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...---I think the biggest question I have is: how would I apply this to my boring stateless-HTTP server? I can imagine something where there's a worker that's fairly simple and neutral that the browser connects to, and proxies to my server. But then my server can also get callbacks that it can use to connect back to the browser, and put those callbacks (capability?) into a database or something. Then it can connect to a worker (maybe?) and do server-initiated communication. But that's only good for a session. It has to be rebuilt when the browser network connection is interrupted, or if the browser page is reloaded.I can imagine building that on top of Cap'n Web, but it feels very complicated and I can equally imagine lots of headaches.",
     "parent": 45332883,
     "depth": 1
   },
@@ -144,10 +152,18 @@
     "depth": 1
   },
   {
-    "id": 45335334,
-    "by": "unshavedyak",
-    "timeISO": "2025-09-22T16:00:52.000Z",
-    "textPlain": "What would this look like for other language backends to support? Eg would be neat if Rust (my webservers) could support this on the backendedit: Downvoted, is this a bad question? The title is generically \"web servers\", obviously the content of the post focuses primarily on TypeScript, but i'm trying to determine if there's something unique about this that means it cannot be implemented in other languages. The serverside DSL execution could be difficult to impl, but as it's not strictly JavaScript i imagine it's not impossible?",
+    "id": 45339497,
+    "by": "meindnoch",
+    "timeISO": "2025-09-22T21:12:23.000Z",
+    "textPlain": "What happens if I pass a recursive function to map()?  let traverse = (dir) => {\n    name: dir.name,\n    files: api.ls(dir).map(traverse) // api.ls() returns [] for files\n  };\n  let tree = api.ls(\"/\").map(traverse);",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341017,
+    "by": "isaiahballah",
+    "timeISO": "2025-09-22T23:41:22.000Z",
+    "textPlain": "This looks awesome! Does anyone know if this also works in React Native?",
     "parent": 45332883,
     "depth": 1
   },
@@ -160,14 +176,6 @@
     "depth": 1
   },
   {
-    "id": 45338338,
-    "by": "garaetjjte",
-    "timeISO": "2025-09-22T19:30:50.000Z",
-    "textPlain": "I think Cap'n Proto plays with web platform pretty nicely too... okay, some might say that my webapp that is mostly written in C++, compiled with Emscripten and talks to server with capnp rpc-over-websocket is in fact not playing nice with web.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335215,
     "by": "crabmusket",
     "timeISO": "2025-09-22T15:54:17.000Z",
@@ -176,10 +184,18 @@
     "depth": 1
   },
   {
-    "id": 45339790,
-    "by": "indolering",
-    "timeISO": "2025-09-22T21:35:31.000Z",
-    "textPlain": "I find the choice of TypeScript to be disappointing.  One of the reasons that capproto has struggled for market share is the lack of implementations.Is the overhead for calling into WASM too high for a Rust implementation to be feasible?A Haxe or Dafny implementation have let us generate libraries in multiple languages from the same source.",
+    "id": 45338338,
+    "by": "garaetjjte",
+    "timeISO": "2025-09-22T19:30:50.000Z",
+    "textPlain": "I think Cap'n Proto plays with web platform pretty nicely too... okay, some might say that my webapp that is mostly written in C++, compiled with Emscripten and talks to server with capnp rpc-over-websocket is in fact not playing nice with web.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45335826,
+    "by": "cbarrick",
+    "timeISO": "2025-09-22T16:33:13.000Z",
+    "textPlain": "What's going on under the hood with that authentication example?Is the server holding onto some state in memory that this specific client has already authenticated? Or is the API key somehow stored in the new AuthenticatedSession stub on the client side and included in subsequent requests? Or is it something else entirely?",
     "parent": 45332883,
     "depth": 1
   },
@@ -200,18 +216,10 @@
     "depth": 1
   },
   {
-    "id": 45335826,
-    "by": "cbarrick",
-    "timeISO": "2025-09-22T16:33:13.000Z",
-    "textPlain": "What's going on under the hood with that authentication example?Is the server holding onto some state in memory that this specific client has already authenticated? Or is the API key somehow stored in the new AuthenticatedSession stub on the client side and included in subsequent requests? Or is it something else entirely?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45337548,
-    "by": "pzo",
-    "timeISO": "2025-09-22T18:30:25.000Z",
-    "textPlain": "Any idea how its compares to tRPC and oRPC? Wish all such project always had section of 'Why' and explained why it was needed and what it solved that other projects didn't.",
+    "id": 45339793,
+    "by": "gethly",
+    "timeISO": "2025-09-22T21:35:49.000Z",
+    "textPlain": "This looks like something you tinker with during a weekend when you are bored out of your mind.",
     "parent": 45332883,
     "depth": 1
   },
@@ -224,10 +232,10 @@
     "depth": 1
   },
   {
-    "id": 45338421,
-    "by": "nly",
-    "timeISO": "2025-09-22T19:37:16.000Z",
-    "textPlain": "Last time I used capnProto for RPC I found it an incredibly chatty protocol with tonnes of small memory allocations.",
+    "id": 45337548,
+    "by": "pzo",
+    "timeISO": "2025-09-22T18:30:25.000Z",
+    "textPlain": "Any idea how its compares to tRPC and oRPC? Wish all such project always had section of 'Why' and explained why it was needed and what it solved that other projects didn't.",
     "parent": 45332883,
     "depth": 1
   },
@@ -240,10 +248,18 @@
     "depth": 1
   },
   {
-    "id": 45338350,
-    "by": "mdasen",
-    "timeISO": "2025-09-22T19:31:45.000Z",
-    "textPlain": "This looks really nice. Are there plans to bring support to languages other than JS/TS?",
+    "id": 45338421,
+    "by": "nly",
+    "timeISO": "2025-09-22T19:37:16.000Z",
+    "textPlain": "Last time I used capnProto for RPC I found it an incredibly chatty protocol with tonnes of small memory allocations.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341170,
+    "by": "paradox460",
+    "timeISO": "2025-09-22T23:58:05.000Z",
+    "textPlain": "Feels a little like how erlang calls things across different nodes",
     "parent": 45332883,
     "depth": 1
   },
@@ -256,10 +272,10 @@
     "depth": 1
   },
   {
-    "id": 45339119,
-    "by": "spullara",
-    "timeISO": "2025-09-22T20:36:36.000Z",
-    "textPlain": "The spiritual descendant of Java RMI.",
+    "id": 45338350,
+    "by": "mdasen",
+    "timeISO": "2025-09-22T19:31:45.000Z",
+    "textPlain": "This looks really nice. Are there plans to bring support to languages other than JS/TS?",
     "parent": 45332883,
     "depth": 1
   },
@@ -272,18 +288,18 @@
     "depth": 1
   },
   {
-    "id": 45339610,
-    "by": "stavros",
-    "timeISO": "2025-09-22T21:22:06.000Z",
-    "textPlain": "I was really excited when I saw the headline, but I was kind of disappointed to see it doesn't support schemas natively. I know you can specify them via zod, but I'm really not looking forward to any more untyped APIs, given that the lack of strict API typing has been by far the #1 reason for the bugs I've had to deal with in my career.",
+    "id": 45339260,
+    "by": "yayitswei",
+    "timeISO": "2025-09-22T20:46:16.000Z",
+    "textPlain": "One of the authors is the Kenton who built this awesome lan party house: https://lanparty.house/",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45340087,
-    "by": "truth_seeker",
-    "timeISO": "2025-09-22T21:57:02.000Z",
-    "textPlain": "JSON Serialization, seriously ???Why not \"application/octet-stream\" header and sending ArrayBuffer over the network  ?",
+    "id": 45339119,
+    "by": "spullara",
+    "timeISO": "2025-09-22T20:36:36.000Z",
+    "textPlain": "The spiritual descendant of Java RMI.",
     "parent": 45332883,
     "depth": 1
   },
@@ -296,10 +312,34 @@
     "depth": 1
   },
   {
+    "id": 45339610,
+    "by": "stavros",
+    "timeISO": "2025-09-22T21:22:06.000Z",
+    "textPlain": "I was really excited when I saw the headline, but I was kind of disappointed to see it doesn't support schemas natively. I know you can specify them via zod, but I'm really not looking forward to any more untyped APIs, given that the lack of strict API typing has been by far the #1 reason for the bugs I've had to deal with in my career.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45334873,
     "by": "HDThoreaun",
     "timeISO": "2025-09-22T15:33:22.000Z",
     "textPlain": "This a reference to cap'n jazz?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45339790,
+    "by": "indolering",
+    "timeISO": "2025-09-22T21:35:31.000Z",
+    "textPlain": "I find the choice of TypeScript to be disappointing.  One of the reasons that capproto has struggled for market share is the lack of implementations.Is the overhead for calling into WASM too high for a Rust implementation to be feasible?A Haxe or Dafny implementation have let us generate libraries in multiple languages from the same source.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45340087,
+    "by": "truth_seeker",
+    "timeISO": "2025-09-22T21:57:02.000Z",
+    "textPlain": "JSON Serialization, seriously ???Why not \"application/octet-stream\" header and sending ArrayBuffer over the network  ?",
     "parent": 45332883,
     "depth": 1
   },
@@ -328,14 +368,6 @@
     "depth": 1
   },
   {
-    "id": 45340840,
-    "by": "ryanrasti",
-    "timeISO": "2025-09-22T23:19:01.000Z",
-    "textPlain": "Agree -- I think that's a powerful generalization you're making.> We're often nowadays working in dynamic languages, so they become essentially the frontend to new DSLs, and instead of defining new syntax, we embed the AST construction into the scripting language.And I'd say that TypeScript is the real game-changer here. You get the flexibility of the JavaScript runtime (e.g., how Cap'n Web cleverly uses `Proxy`s) while still being able to provide static types for the embedded DSL you're creating. It’s the best of both worlds.I've been spending all of my time in the ORM-analog here. Most ORMs are severely lacking on composability because they're fundamentally imperative and eager. A call like `db.orders.findAll()` executes immediately and you're stuck without a way to add operations before it hits the database.A truly composable ORM should act like the compilers you mentioned: use TypeScript to define a fully typed DSL over the entirety of SQL, build an AST from the query, and then only at the end compile the graph into the final SQL query. That's the core idea I'm working on with my project, Typegres.If you find the pattern interesting: https://typegres.com/play/",
-    "parent": 45340610,
-    "depth": 2
-  },
-  {
     "id": 45338228,
     "by": "mdasen",
     "timeISO": "2025-09-22T19:22:09.000Z",
@@ -360,43 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45339065,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T20:32:56.000Z",
-    "textPlain": "Some of the tests are LLM-generated, but none of the library itself is.I don't think LLMs would be capable of writing this library (at least at present). The pieces fit together like a very intricate puzzle. I spent a lot more time thinking about how to do it right, than actually coding.Very different from my workers-oauth-provider library, where it was just implementing a well-known spec with a novel (yet straightforward) API.The code might port nicely to another dynamic language, like Python, but I think you'd have a hard time porting it to a statically-typed language. There's a whole lot of iterating over arbitrary objects without knowing their types.",
-    "parent": 45338964,
-    "depth": 2
-  },
-  {
-    "id": 45334797,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T15:27:15.000Z",
-    "textPlain": "I’d love to add 3PH support in the future, but it wasn’t a priority for an initial release as this is very focused on enabling browser<->web server communications specifically.SturdyRefs are tricky. My feeling is that they don’t really belong in the RPC protocol itself, because the mechanism by which you restore a SturdyRef is very dependent on the platform in which you're running. Cloudflare Workers, for example, may soon support storing capabilities into Durable Object storage. But the way this will work is very tied to the Cloudflare Workers platform. Sandstorm, similarly, had a persistent capability mechanism, but it only made sense inside Sandstorm – which is why I removed the whole notion of persistent capabilities from Cap’n Proto itself.The closest thing to a web standard for SturdyRefs is OAuth. I could imagine defining a mechanism for SturdyRefs based on OAuth refresh tokens, which would be pretty cool, but it probably wouldn’t actually be what you want inside a specific platform like Sandstorm or Workers.",
-    "parent": 45334682,
-    "depth": 2
-  },
-  {
-    "id": 45336098,
-    "by": "kentonv",
-    "timeISO": "2025-09-22T16:49:16.000Z",
-    "textPlain": "The state only lives for a single RPC session.When using WebSockets, that's the lifetime of the WebSocket.But when using the HTTP batch transport, a session is a single HTTP request, that performs a batch of calls all at once.So there's actually no need to hold state across multiple HTTP requests or connections, at least as far as Cap'n Web is concerned.This does imply that you shouldn't design a protocol where it would be catastrophic if the session suddenly disconnected in the middle and you lost all your capabilities. It should be possible to reconnect and reconstruct them.",
-    "parent": 45336028,
-    "depth": 2
-  },
-  {
-    "id": 45336262,
-    "by": "cogman10",
-    "timeISO": "2025-09-22T16:59:53.000Z",
-    "textPlain": "That's what I noticed reading through this.It looks like the server affinity is accomplished by using websockets.  The http batching simply sends all the requests at once and then waits for the response.I don't love this because it makes load balancing hard.  If a bunch of chatty clients get a socket to the same server, now that server is burdened and potentially overloadable.Further, it makes scaling in/out servers really annoying.  Persistent long lived connections are beasts to deal with because now you have to handle that \"what do I do if multiple requests are in flight?\".One more thing I don't really love about this, it requires a timely client.  This seems like it might be trivial to DDOS as a client can simply send a stream of push events and never pull.  The server would then be burdened to keep those responses around so long as the client remains connected.  That seems bad.",
-    "parent": 45336028,
-    "depth": 2
-  },
-  {
-    "id": 45336507,
-    "by": "afiori",
-    "timeISO": "2025-09-22T17:15:29.000Z",
-    "textPlain": "My limited knowledge of Cap'n'Proto (read the docs once years ago) server and clients can peer stubs, so that is server C receives a stub originated from server A via client B then C can try to call A directly.",
-    "parent": 45336028,
+    "id": 45340840,
+    "by": "ryanrasti",
+    "timeISO": "2025-09-22T23:19:01.000Z",
+    "textPlain": "Agree -- I think that's a powerful generalization you're making.> We're often nowadays working in dynamic languages, so they become essentially the frontend to new DSLs, and instead of defining new syntax, we embed the AST construction into the scripting language.And I'd say that TypeScript is the real game-changer here. You get the flexibility of the JavaScript runtime (e.g., how Cap'n Web cleverly uses `Proxy`s) while still being able to provide static types for the embedded DSL you're creating. It’s the best of both worlds.I've been spending all of my time in the ORM-analog here. Most ORMs are severely lacking on composability because they're fundamentally imperative and eager. A call like `db.orders.findAll()` executes immediately and you're stuck without a way to add operations before it hits the database.A truly composable ORM should act like the compilers you mentioned: use TypeScript to define a fully typed DSL over the entirety of SQL, build an AST from the query, and then only at the end compile the graph into the final SQL query. That's the core idea I'm working on with my project, Typegres.If you find the pattern interesting: https://typegres.com/play/",
+    "parent": 45340610,
     "depth": 2
   }
 ]
