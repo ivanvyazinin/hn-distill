@@ -1,9 +1,25 @@
 [
   {
+    "id": 45346403,
+    "by": "electroglyph",
+    "timeISO": "2025-09-23T12:57:15.000Z",
+    "textPlain": "If the current position in the structure only has one possibility (like a comma, bracket, etc.) do you just force that as the next token and continue?",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
     "id": 45346185,
     "by": "frotaur",
     "timeISO": "2025-09-23T12:38:40.000Z",
     "textPlain": "When doing structured sampling, why is the token sampled, checked against the grammar, and resampled if it's wrong by applying the mask ?Why wouldn't we apply the mask immediately for the first sampling? Is this an optimization somehow, is masking expensive?",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
+    "id": 45346030,
+    "by": "myflash13",
+    "timeISO": "2025-09-23T12:24:27.000Z",
+    "textPlain": "Hmm, so if structured output affects the quality of the response maybe it's better to convert the output to a structured format as a post-processing step?",
     "parent": 45345207,
     "depth": 1
   },
@@ -24,18 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45346030,
-    "by": "myflash13",
-    "timeISO": "2025-09-23T12:24:27.000Z",
-    "textPlain": "Hmm, so if structured output affects the quality of the response maybe it's better to convert the output to a structured format as a post-processing step?",
-    "parent": 45345207,
-    "depth": 1
-  },
-  {
-    "id": 45345208,
-    "by": "SamLeBarbare",
-    "timeISO": "2025-09-23T10:40:41.000Z",
-    "textPlain": "This post dives into that \"black magic\" layer, especially in the context of emerging thinking models and tools like Ollama or GPT-OSS. It’s a thoughtful look at why sampling, formatting, and standardization are not just implementation details, but core to the future of working with LLMs.",
+    "id": 45345654,
+    "by": "k__",
+    "timeISO": "2025-09-23T11:48:08.000Z",
+    "textPlain": "Sounds like brute force to me.",
     "parent": 45345207,
     "depth": 1
   },
@@ -48,12 +56,52 @@
     "depth": 1
   },
   {
-    "id": 45345654,
-    "by": "k__",
-    "timeISO": "2025-09-23T11:48:08.000Z",
-    "textPlain": "Sounds like brute force to me.",
+    "id": 45345208,
+    "by": "SamLeBarbare",
+    "timeISO": "2025-09-23T10:40:41.000Z",
+    "textPlain": "This post dives into that \"black magic\" layer, especially in the context of emerging thinking models and tools like Ollama or GPT-OSS. It’s a thoughtful look at why sampling, formatting, and standardization are not just implementation details, but core to the future of working with LLMs.",
     "parent": 45345207,
     "depth": 1
+  },
+  {
+    "id": 45346656,
+    "by": "maccam912",
+    "timeISO": "2025-09-23T13:22:25.000Z",
+    "textPlain": "I don't think so, because multiple tokens might match. If it needs a comma as the next character, but you have tokens for `, \"blah` and `, \"foo` you still want to leave those on the table.",
+    "parent": 45346403,
+    "depth": 2
+  },
+  {
+    "id": 45346774,
+    "by": "2THFairy",
+    "timeISO": "2025-09-23T13:30:12.000Z",
+    "textPlain": "Implementation preference.> is masking expensive?It's not expensive per-se; A single element-wise multiplication of the output vector.The real \"expense\" is that you need to prepare masks for every element of your grammar as they are expensive to recompute as needed; LLM tokens do not cleanly map onto elements of your grammar. (Consider JSON: LLM tokens often combine various special characters such as curly braces, colons, and quotes.)This isn't that hard to compute, it's just more work to implement.",
+    "parent": 45346185,
+    "depth": 2
+  },
+  {
+    "id": 45346286,
+    "by": "NitpickLawyer",
+    "timeISO": "2025-09-23T12:47:58.000Z",
+    "textPlain": "It's a tradeoff between getting \"good enough\" performance w/ guided/constrained generation and using 2x calls to do the same task. Sometimes it works, sometimes it's better to have a separate model. One good case of 2 calls is the \"code merging\" thing, where you \"chat\" with a model giving it a source file + some instruction, and if it replies with something like ... //unchanged code here ... some new code ... //the rest stays the same, then you can use a code merging model to apply the changes. But that's become somewhat obsolete by the new \"agentic\" capabilities where models learn how to diff files directly.",
+    "parent": 45346030,
+    "depth": 2
+  },
+  {
+    "id": 45346294,
+    "by": "cyptus",
+    "timeISO": "2025-09-23T12:48:42.000Z",
+    "textPlain": "What if the converted version is not in the wanted syntax?",
+    "parent": 45346191,
+    "depth": 2
+  },
+  {
+    "id": 45346771,
+    "by": "barrkel",
+    "timeISO": "2025-09-23T13:30:06.000Z",
+    "textPlain": "Using grammar constrained output in llama.cpp - which has been available for ages and I think is a different implementation to the one described here - does slow down generation quite a bit. I expect it has a naive implementation.As to why providers don't give you a nice API, maybe it's hard to implement efficiently.It's not too bad if inference is happening token by token and reverting to the CPU every time, but I understand high performance LLM inference uses speculative decoding, with a smaller model guessing multiple tokens in advance and the main model doing verification. Doing grammar constraints across multiple tokens is tougher, there's an exponential number of states that need caching.So you'd need to think about putting the parser automaton onto the GPU/TPU and use it during inference without needing to stall a pipeline by going back CPU.And then you start thinking about how big that automaton is going to be. How many states, pushdown stack. You're basically taking code from the API call and running it on your hardware. There's dragons here, around fair use, denial of service etc.",
+    "parent": 45346094,
+    "depth": 2
   },
   {
     "id": 45346218,
@@ -61,6 +109,22 @@
     "timeISO": "2025-09-23T12:41:30.000Z",
     "textPlain": "Wouldn't that have implications for inference batching, since you would have to track state and apply a different mask for each sequence in the batch? If so, I think it would directly affect utilisation and hence costs. But I could be talking out of my ass here.",
     "parent": 45346094,
+    "depth": 2
+  },
+  {
+    "id": 45346405,
+    "by": "esafak",
+    "timeISO": "2025-09-23T12:57:38.000Z",
+    "textPlain": "When you say custom grammar, do you mean something other than a JSON schema, because they support that?",
+    "parent": 45346094,
+    "depth": 2
+  },
+  {
+    "id": 45346448,
+    "by": "electroglyph",
+    "timeISO": "2025-09-23T13:01:41.000Z",
+    "textPlain": "I don't know if you're purposely trying to be funny, but this is obnoxious, lol",
+    "parent": 45345208,
     "depth": 2
   }
 ]
