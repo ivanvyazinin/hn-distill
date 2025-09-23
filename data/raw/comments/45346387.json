@@ -1,5 +1,13 @@
 [
   {
+    "id": 45350980,
+    "by": "Animats",
+    "timeISO": "2025-09-23T18:30:26.000Z",
+    "textPlain": "He has a point. Backlinks in Rust are too hard. You can do them safely with Rc, Weak, and RefCell, and .borrow(), but it's not trivial.If your program runs for a short time and then exits, arena editing is an option. That seems to be what the author means by \"CLI tools\". It's the lifetime, not the input format.\"Rust is amazing, if you’re building something massive, multithreaded, or long-lived, where compile-time guarantees actually save your life. The borrow checker, lifetimes, and ownership rules are a boon in large systems.\"Yes. That's really what Rust is for. I've written a large metaverse client in Rust, and one of the regression tests I run is to put an avatar in a tour vehicle and let it ride around for 24 hours. About 20 threads. No memory leaks. No crashes. That would take a whole QA team and lots of external tools such as Valgrind in C++, and it would be way too slow in any of the interpreted languages.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
     "id": 45346903,
     "by": "simonask",
     "timeISO": "2025-09-23T13:40:41.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45350135,
-    "by": "Someone",
-    "timeISO": "2025-09-23T17:21:57.000Z",
-    "textPlain": "[delayed]",
+    "id": 45349949,
+    "by": "K0nserv",
+    "timeISO": "2025-09-23T17:10:00.000Z",
+    "textPlain": "I mostly don't agree with this take. A couple of my quibbles:\"Cognitive overhead: You’re constantly thinking about lifetimes, ownership, and borrow scopes, even for simple tasks. A small CLI like my notes tool suddenly feels like juggling hot potatoes.\"None of this goes away if you are using C or Zig, you just get less help from the compiler.\"Developers are not idiots\"Even intelligent people will make mistakes because they are tired or distracted. Not being an idiot is recognising your own fallibility and trying to guard against it.What I will say, that the post fails to touch on, is: The Rust compiler's ability to reason about the subset of programs that are safe is currently not good enough, it too often rejects perfectly good programs. A good example of this it the inability to express that the following is actually fine:    struct Foo {\n        bar: String,\n        baz: String,\n    }\n\n    impl Foo {\n        fn barify(&mut self) -> &mut String { \n            self.bar.push_str(\"!\");\n            &mut self.bar\n        }\n        \n        fn bazify(&self) -> &str {\n            &self.baz\n        }\n    }\n\n    fn main() {\n        let mut foo = Foo {\n            bar: \"hello\".to_owned(),\n            baz: \"wordl\".to_owned(),\n        };\n        let s = foo.barify();\n        let a = foo.bazify();\n        s.push_str(\"!!\");\n    }\n\nwhich leads to awkward constructs like    fn barify(bar: &mut String) -> &mut String { \n        bar.push_str(\"!\");\n        bar\n    }\n\n    // in main\n    let s = barify(&mut foo.bar);",
     "parent": 45346387,
     "depth": 1
   },
@@ -32,50 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45349949,
-    "by": "K0nserv",
-    "timeISO": "2025-09-23T17:10:00.000Z",
-    "textPlain": "I mostly don't agree with this take. A couple of my quibbles:\"Cognitive overhead: You’re constantly thinking about lifetimes, ownership, and borrow scopes, even for simple tasks. A small CLI like my notes tool suddenly feels like juggling hot potatoes.\"None of this goes away if you are using C or Zig, you just get less help from the compiler.\"Developers are not idiots\"Even intelligent people will make mistakes because they are tired or distracted. Not being an idiot is recognising your own fallibility and trying to guard against it.What I will say, that the post fails to touch on, is: The Rust compiler's ability to reason about the subset of programs that are safe is currently not good enough, it too often rejects perfectly good programs. A good example of this it's inability to express that the following is actually fine:    struct Foo {\n        bar: String,\n        baz: String,\n    }\n\n    impl Foo {\n        fn barify(&mut self) -> &mut String { \n            self.bar.push_str(\"!\");\n            &mut self.bar\n        }\n        \n        fn bazify(&self) -> &str {\n            &self.baz\n        }\n    }\n\n    fn main() {\n        let mut foo = Foo {\n            bar: \"hello\".to_owned(),\n            baz: \"wordl\".to_owned(),\n        };\n        let s = foo.barify();\n        let a = foo.bazify();\n        s.push_str(\"!!\");\n    }\n\nwhich leads to awkward constructs like    fn barify(bar: &mut String) -> &mut String { \n        bar.push_str(\"!\");\n        bar\n    }\n\n    // in main\n    let s = barify(&mut foo.bar);",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45349885,
-    "by": "nmilo",
-    "timeISO": "2025-09-23T17:06:48.000Z",
-    "textPlain": "I don't know why anyone would write CLI tools in rust or zig. I/O is going to be your bottleneck way more often than GC, in fact I don't really get the GC hate outside of game dev, databases and other memory intensive applications. Why not use Go, Python, etc? People try to make a false dichotomy between memory safety vs. non-memory safety when really it's GC vs. no GC --- memory safety without it is going to be hard either way. More time should be spent on justifying to yourself why you shouldn't be using a GC, and less on which kind of GC-less language you use.(If you go no GC \"because it's fun\" then there's no need for the post in the first place --- just use what's fun!)",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
     "id": 45346916,
     "by": "giancarlostoro",
     "timeISO": "2025-09-23T13:41:23.000Z",
     "textPlain": "I want to like Zig, but D still exists and feels like everything I want from a C-like alternative to C++ I just wish the rest of the industry had adopted it long ago. Zig has a strange syntax, and Rust is basically eating chunks of the industry, especially in programmer tooling across various languages as is Go (it powers most cloud providers and is the 2nd top choice for AI right after Python).",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45349578,
-    "by": "travisgriggs",
-    "timeISO": "2025-09-23T16:47:54.000Z",
-    "textPlain": "> memory safety is one puzzle piece of overall software safetySo this. We currently spent about a month carefully instrumenting and coming to understand a subtle bug in our distributed radio network. This all runs on bare metal C (samd21 chips). Because timing, and hundreds of little processors, and radios were all involved, it was a pita to surface what the issue was. It was algorithmic. Not a memory problem. Writing this in rust or zig (instead of straight C) would not have fixed this problem.I’d like to consider doing next generations of this product in zig or rust. I’m not opposed. I like the extra tools to make the product better. But they’re a small part of the picture in writing good software. The borrow checker may improve your code, it doesn’t guarantee successful software.",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45346759,
-    "by": "Imustaskforhelp",
-    "timeISO": "2025-09-23T13:29:17.000Z",
-    "textPlain": "What are your thoughts on nim, odin and v-lang, D-lang?I feel like I am most interested about nim given how easy it was to pick up and how interoperable it is with C and it has a garbage collector and can change it which seems to be great for someone like me who doesn't want to worry about manual memory management right now but maybe if it becomes a bottleneck later, I can atleast fix it without worrying too much..",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45347058,
-    "by": "antoineMoPa",
-    "timeISO": "2025-09-23T13:53:10.000Z",
-    "textPlain": "I also loved Zig when manually typing code, but I increasingly use AI to write my code even in personal projects. In that context, I'd rather use Rust more, since the AI takes care of complex syntax anyway. Also, the rust ecosystem is bigger, so I'd rather stick to this community.> Developers are not IdiotsI'm often distracted and AIs are idiots, so a stricter language can keep both me and AIs from doing extra dumb stuff.",
     "parent": 45346387,
     "depth": 1
   },
@@ -88,10 +56,34 @@
     "depth": 1
   },
   {
-    "id": 45349713,
-    "by": "GardenLetter27",
-    "timeISO": "2025-09-23T16:55:41.000Z",
-    "textPlain": "Nope, rust-analyzer is incredible whereas the Zig LSP felt worse than Go.I agree the borrow checker can be a pain though, I wish there were something like Rust with a great GC. Go has loads of other bad design decisions (err != nil, etc.) and Cargo is fantastic.",
+    "id": 45349578,
+    "by": "travisgriggs",
+    "timeISO": "2025-09-23T16:47:54.000Z",
+    "textPlain": "> memory safety is one puzzle piece of overall software safetySo this. We currently spent about a month carefully instrumenting and coming to understand a subtle bug in our distributed radio network. This all runs on bare metal C (samd21 chips). Because timing, and hundreds of little processors, and radios were all involved, it was a pita to surface what the issue was. It was algorithmic. Not a memory problem. Writing this in rust or zig (instead of straight C) would not have fixed this problem.I’d like to consider doing next generations of this product in zig or rust. I’m not opposed. I like the extra tools to make the product better. But they’re a small part of the picture in writing good software. The borrow checker may improve your code, it doesn’t guarantee successful software.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45349885,
+    "by": "nmilo",
+    "timeISO": "2025-09-23T17:06:48.000Z",
+    "textPlain": "I don't know why anyone would write CLI tools in rust or zig. I/O is going to be your bottleneck way more often than GC, in fact I don't really get the GC hate outside of game dev, databases and other memory intensive applications. Why not use Go, Python, etc? People try to make a false dichotomy between memory safety vs. non-memory safety when really it's GC vs. no GC --- memory safety without it is going to be hard either way. More time should be spent on justifying to yourself why you shouldn't be using a GC, and less on which kind of GC-less language you use.(If you go no GC \"because it's fun\" then there's no need for the post in the first place --- just use what's fun!)",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45347058,
+    "by": "antoineMoPa",
+    "timeISO": "2025-09-23T13:53:10.000Z",
+    "textPlain": "I also loved Zig when manually typing code, but I increasingly use AI to write my code even in personal projects. In that context, I'd rather use Rust more, since the AI takes care of complex syntax anyway. Also, the rust ecosystem is bigger, so I'd rather stick to this community.> Developers are not IdiotsI'm often distracted and AIs are idiots, so a stricter language can keep both me and AIs from doing extra dumb stuff.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45346759,
+    "by": "Imustaskforhelp",
+    "timeISO": "2025-09-23T13:29:17.000Z",
+    "textPlain": "What are your thoughts on nim, odin and v-lang, D-lang?I feel like I am most interested about nim given how easy it was to pick up and how interoperable it is with C and it has a garbage collector and can change it which seems to be great for someone like me who doesn't want to worry about manual memory management right now but maybe if it becomes a bottleneck later, I can atleast fix it without worrying too much..",
     "parent": 45346387,
     "depth": 1
   },
@@ -104,10 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45347872,
-    "by": "kennykartman",
-    "timeISO": "2025-09-23T14:49:30.000Z",
-    "textPlain": "If I had a penny for every time I heard that devs are not idiots, I'd be billionaire.It's true, but devs are not infallible and that's the point of Rust. Not idiots, not infallible either.IMO admitting that one can make mistakes even if they don't think they have is a sign of an experienced and trustworthy developer.It's not that Rust compiler engineers think that devs are idiots, in fact you CAN have footguns in Rust, but one should never use a footgun easily, because that's how you get security vulnerabilities.",
+    "id": 45350135,
+    "by": "Someone",
+    "timeISO": "2025-09-23T17:21:57.000Z",
+    "textPlain": "“Rust lifetimes can be chore, so use a C-like language that requires you to manage them in your head”Weird that they don’t consider other options, in particular languages with reference counting or garbage collection. Those will not solve all ownership issues, but for immutable objects, they typically do. For short-running CLI tools, garbage collecting languages may even be faster than ones with manual memory management because they may be able to postpone all memory freeing until the program exits.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45349713,
+    "by": "GardenLetter27",
+    "timeISO": "2025-09-23T16:55:41.000Z",
+    "textPlain": "Nope, rust-analyzer is incredible whereas the Zig LSP felt worse than Go.I agree the borrow checker can be a pain though, I wish there were something like Rust with a great GC. Go has loads of other bad design decisions (err != nil, etc.) and Cargo is fantastic.",
     "parent": 45346387,
     "depth": 1
   },
@@ -128,26 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45348758,
-    "by": "pjmlp",
-    "timeISO": "2025-09-23T15:51:49.000Z",
-    "textPlain": "I love the irony to see the C crowd rediscovering Modula-2 and Object Pascal safety, through Zig.Apparently it isn't programming with a straightjacket any longer, like on Usenet discussions.",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
     "id": 45346800,
     "by": "Nevermark",
     "timeISO": "2025-09-23T13:32:29.000Z",
     "textPlain": "> So when it comes to memory management there are two [THREE] terms you really need to know, [THE REGISTER BANK,] the stack and the heap.Edits mine.I like to keep the spacetime topologies complete.Constant = time atom of value.Register = time sequence of values.Stack = time hierarchy of values.Heap = time graph of values.",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45349459,
-    "by": "carodgers",
-    "timeISO": "2025-09-23T16:40:56.000Z",
-    "textPlain": "This really misses a major point. If you write something in Zig, you can have some confidence in the stability of the program, if you trust yourself as a developer. If someone else writes something else in Zig, you have to live with the possibility that they have not been as responsible as you would have preferred.",
     "parent": 45346387,
     "depth": 1
   },
@@ -168,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45347435,
-    "by": "illuminator83",
-    "timeISO": "2025-09-23T14:21:31.000Z",
-    "textPlain": "Actually, developers are idiots. Everyone is. Some just don't know it or won't admit it.I once joined a company with a large C/C++ codebase. There I worked with some genuinely expert developers - people who were undeniably smart and deeply experienced. I'm not exaggerating and mean it.But when I enabled the compiler warnings (which annoyed them) they had disabled and ran a static analyzer over the codebase for the first time, hundreds of classic C bugs popped up: memory leaks, potential heap corruptions, out-of-bounds array accesses, you name it.And yet, these same people pushed back when I introduced things like libfmt to replace printf, or suggested unique_ptr and vector instead of new and malloc.I kept hearing:\"People just need to be disciplined allocations. std::unique_ptr has bad performance\"\n\"My implementation is more optimized than some std algorithm.\"\n\"This printf is more readable than that libfmt stuff.\"\netc.The fact is, developers, especially the smart ones probably, need to be prevented from making avoidable mistakes. You're building software that processes medical data. Or steers a car. Your promise to \"pay attention\" and \"be careful\" cannot be the safeguard against catastrophe.",
+    "id": 45348758,
+    "by": "pjmlp",
+    "timeISO": "2025-09-23T15:51:49.000Z",
+    "textPlain": "I love the irony to see the C crowd rediscovering Modula-2 and Object Pascal safety, through Zig.Apparently it isn't programming with a straightjacket any longer, like on Usenet discussions.",
     "parent": 45346387,
     "depth": 1
   },
@@ -200,6 +184,30 @@
     "depth": 1
   },
   {
+    "id": 45350656,
+    "by": "quotemstr",
+    "timeISO": "2025-09-23T18:03:25.000Z",
+    "textPlain": "I'm still having a hard time understanding who is supposed to use Zig.If I don't need absolute best performance, I can use GC-ed systems like Node, Python, Go, OCaml, or even Java (which starts fast now thanks to Graal AOT) and enjoy both the safety and expressive power of using a high-level language. When I use a GCed language, I don't have to worry about allocation, lifetimes, and so on, and the user gets a plenty good experience.If I need the performance only manual memory management can provide (and this situation arises a lot less often than people think it does), I can justify spending the extra time expressing my thoughts in Rust, which will get me both performance and safety.Why would I go to the trouble of using Zig instead of Rust? Zig, like Rust, incurs a complexity and ecosystem cost. It doesn't give me safety in exchange. I put in about as much effort as I would into a Rust program but don't get anything extra back. (Same goes if you substitute \"C++\" for \"Rust\".)> All it took was some basic understanding of memory management and a bit of discipline.Is the idea behind Zig just that it's perfectly safe if you know what you're doing --- therefore using Zig is some kind of costly signal of competence? That's like someone saying free-solo-ing a cliff face is perfectly safe if you know what you're doing. Someone falls to his death? Skill issue, right?We have decades of experience showing that nobody, no matter how much \"understanding\" and \"discipline\" he has, can consistently write memory-safe code with manual memory management in a language that doesn't enforce memory safety rules.So what's the value proposition for Zig?Are you supposed to use it instead of something like Go or Python or AOT-Kotlin and spend more of your time dealing with memory than you would in one of these languages? Why?Or are you supposed to use it instead of Rust and get, what, slightly faster compile times, maybe? And no memory safety?",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45347872,
+    "by": "kennykartman",
+    "timeISO": "2025-09-23T14:49:30.000Z",
+    "textPlain": "If I had a penny for every time I heard that devs are not idiots, I'd be billionaire.It's true, but devs are not infallible and that's the point of Rust. Not idiots, not infallible either.IMO admitting that one can make mistakes even if they don't think they have is a sign of an experienced and trustworthy developer.It's not that Rust compiler engineers think that devs are idiots, in fact you CAN have footguns in Rust, but one should never use a footgun easily, because that's how you get security vulnerabilities.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45347435,
+    "by": "illuminator83",
+    "timeISO": "2025-09-23T14:21:31.000Z",
+    "textPlain": "Actually, developers are idiots. Everyone is. Some just don't know it or won't admit it.I once joined a company with a large C/C++ codebase. There I worked with some genuinely expert developers - people who were undeniably smart and deeply experienced. I'm not exaggerating and mean it.But when I enabled the compiler warnings (which annoyed them) they had disabled and ran a static analyzer over the codebase for the first time, hundreds of classic C bugs popped up: memory leaks, potential heap corruptions, out-of-bounds array accesses, you name it.And yet, these same people pushed back when I introduced things like libfmt to replace printf, or suggested unique_ptr and vector instead of new and malloc.I kept hearing:\"People just need to be disciplined allocations. std::unique_ptr has bad performance\"\n\"My implementation is more optimized than some std algorithm.\"\n\"This printf is more readable than that libfmt stuff.\"\netc.The fact is, developers, especially the smart ones probably, need to be prevented from making avoidable mistakes. You're building software that processes medical data. Or steers a car. Your promise to \"pay attention\" and \"be careful\" cannot be the safeguard against catastrophe.",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
     "id": 45349009,
     "by": "anon-3988",
     "timeISO": "2025-09-23T16:10:35.000Z",
@@ -208,18 +216,10 @@
     "depth": 1
   },
   {
-    "id": 45348755,
-    "by": "rubiquity",
-    "timeISO": "2025-09-23T15:51:43.000Z",
-    "textPlain": "This blog is atrocious from an ad standpoint and the recent flood of posts feels promotional and intentionally controversial. The articles are also devoid of any interesting perspectives. Are people actually reading this?",
-    "parent": 45346387,
-    "depth": 1
-  },
-  {
-    "id": 45349478,
-    "by": "andrewshadura",
-    "timeISO": "2025-09-23T16:42:14.000Z",
-    "textPlain": "Does it?",
+    "id": 45349459,
+    "by": "carodgers",
+    "timeISO": "2025-09-23T16:40:56.000Z",
+    "textPlain": "This really misses a major point. If you write something in Zig, you can have some confidence in the stability of the program, if you trust yourself as a developer. If someone else writes something else in Zig, you have to live with the possibility that they have not been as responsible as you would have preferred.",
     "parent": 45346387,
     "depth": 1
   },
@@ -232,18 +232,18 @@
     "depth": 1
   },
   {
-    "id": 45349970,
-    "by": "Svoka",
-    "timeISO": "2025-09-23T17:11:15.000Z",
-    "textPlain": "Amazing how today HN features some amazing rust written real world CLI tools and posts by zig fanboys with skill issues.Especially considering author's https://github.com/dayvster?tab=repositories",
+    "id": 45349478,
+    "by": "andrewshadura",
+    "timeISO": "2025-09-23T16:42:14.000Z",
+    "textPlain": "Does it?",
     "parent": 45346387,
     "depth": 1
   },
   {
-    "id": 45349166,
-    "by": "bitwize",
-    "timeISO": "2025-09-23T16:22:07.000Z",
-    "textPlain": "Two words: Skill issue.The catgirls have no problems producing lots of great software in  Rust. It seems more such software comes out every day, nya :3",
+    "id": 45348755,
+    "by": "rubiquity",
+    "timeISO": "2025-09-23T15:51:43.000Z",
+    "textPlain": "This blog is atrocious from an ad standpoint and the recent flood of posts feels promotional and intentionally controversial. The articles are also devoid of any interesting perspectives. Are people actually reading this?",
     "parent": 45346387,
     "depth": 1
   },
@@ -252,6 +252,14 @@
     "by": "tonetegeatinst",
     "timeISO": "2025-09-23T13:21:28.000Z",
     "textPlain": "As far as my understanding of zig goes....it can compile into C....so if you really want secure C code you can compile zig into C?",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
+    "id": 45349166,
+    "by": "bitwize",
+    "timeISO": "2025-09-23T16:22:07.000Z",
+    "textPlain": "Two words: Skill issue.The catgirls have no problems producing lots of great software in  Rust. It seems more such software comes out every day, nya :3",
     "parent": 45346387,
     "depth": 1
   },
@@ -288,10 +296,26 @@
     "depth": 1
   },
   {
+    "id": 45349970,
+    "by": "Svoka",
+    "timeISO": "2025-09-23T17:11:15.000Z",
+    "textPlain": "[flagged]",
+    "parent": 45346387,
+    "depth": 1
+  },
+  {
     "id": 45348881,
     "by": "mattwilsonn888",
     "timeISO": "2025-09-23T16:00:33.000Z",
     "textPlain": "As long as the audience accepts the framing that ergonomics doesn't matter because it can't be quantified, the hand-waving exemplified above will confound.\"This chair is guaranteed not to collapse out from under you. It might be a little less comfortable and a little heavier, but most athletic people get used to that and don't even notice!\"Let's quote the article:> I’d say as it currently stands Rust has poor developer ergonomics but produces memory safe software, whereas Zig has good developer ergonomics and allows me to produce memory safe software with a bit of discipline.The Rust community should be upfront about this tradeoff - it's a universal tradeoff, that is: Safety is less ergonomic. It's true when you ride a skateboard with a helmet on, it's true when you program, it's true for sex.Instead you see a lot of arguments with anecdotal or indeterminate language. \"Most people [that I talk to] don't seem to have much trouble unless they're less experienced.\"It's an amazing piece of rhetoric. In one sentence the ergonomic argument has been dismissed by denying subjectivity exists or matters and then implying that those who disagree are stupid.",
+    "parent": 45346903,
+    "depth": 2
+  },
+  {
+    "id": 45347708,
+    "by": "tialaramex",
+    "timeISO": "2025-09-23T14:39:43.000Z",
+    "textPlain": "> Seasoned Rust coders don’t spend time fighting the borrow checkerI like the fact that \"fighting the borrow checker\" is an idea from the period when the borrowck only understood purely lexical lifetimes. So you have to fight to explain why the thing you wrote, which is obviously correct, is in fact correct.That's already ancient history by the time I learned Rust in 2021. But, this idea that Rust will mean \"fighting the borrow checker\" took off anyway even though the actual thing it's about was solved.Now for many people it really is a significant adjustment to learn Rust if your background is exclusively say, Python, or C, or Javascript. For me it came very naturally and most people will not have that experience. But even if you're a C programmer who has never had most of this [gestures expansively] before you likely are not often \"fighting the borrow checker\". That diagnostic saying you can't make a pointer via a spurious mutable reference? Not the borrow checker. The warning about failing to use the result of a function? Not the borrow checker.Now, \"In Rust I had to read all the diagnostics to make my software compile\" does sound less heroic than \"battling with the borrow checker\" but if that's really the situation maybe we need to come up with a braver way to express this.",
     "parent": 45346903,
     "depth": 2
   },
@@ -304,10 +328,10 @@
     "depth": 2
   },
   {
-    "id": 45347708,
-    "by": "tialaramex",
-    "timeISO": "2025-09-23T14:39:43.000Z",
-    "textPlain": "> Seasoned Rust coders don’t spend time fighting the borrow checkerI like the fact that \"fighting the borrow checker\" is an idea from the period when the borrowck only understood purely lexical lifetimes. So you have to fight to explain why the thing you wrote, which is obviously correct, is in fact correct.That's already ancient history by the time I learned Rust in 2021. But, this idea that Rust will mean \"fighting the borrow checker\" took off anyway even though the actual thing it's about was solved.Now for many people it really is a significant adjustment to learn Rust if your background is exclusively say, Python, or C, or Javascript. For me it came very naturally and most people will not have that experience. But even if you're a C programmer who has never had most of this [gestures expansively] before you likely are not often \"fighting the borrow checker\". That diagnostic saying you can't make a pointer via a spurious mutable reference? Not the borrow checker. The warning about failing to use the result of a function? Not the borrow checker.Now, \"In Rust I had to read all the diagnostics to make my software compile\" does sound less heroic than \"battling with the borrow checker\" but if that's really the situation maybe we need to come up with a braver way to express this.",
+    "id": 45350666,
+    "by": "aiono",
+    "timeISO": "2025-09-23T18:04:04.000Z",
+    "textPlain": "A lot of criticism of Rust (not denying that there are also a lot useful criticisms of Rust out there) boils down to \"it requires me to think/train in a different way than I used to, therefore it's hard\" and goes on to how the other way is easier which is not the case but it's just familiar to them hence they think it's easier and simpler. More people should watch the talk \"Simple made easy\" https://www.youtube.com/watch?v=SxdOUGdseq4",
     "parent": 45346903,
     "depth": 2
   },
@@ -328,10 +352,10 @@
     "depth": 2
   },
   {
-    "id": 45348868,
-    "by": "tleyden5iwx",
-    "timeISO": "2025-09-23T15:59:37.000Z",
-    "textPlain": "I don't think like a C programmer, my problem is that I think like a Java/Python/Go programmer, and I'm spoiled by getting used to having a garbage collector always running behind me cleaning up my memory poops.Even though Rust can end up with some ugly/crazy code, I love it overall because I can feel pretty safe that I'm not going to create hard-to-find memory errors.Sure, I can (and do) write code that causes my (rust) app to crash, but so far they've all been super trivial errors to debug and fix.I haven't tried Zig yet though.  Does it give me all the same compile time memory usage guarantees?",
+    "id": 45347111,
+    "by": "melodyogonna",
+    "timeISO": "2025-09-23T13:56:09.000Z",
+    "textPlain": "I believe the benefit of Zig is that it allows you the familiarity of writing code like in C, but has other elements in the language and tooling to make things safer. For example, Zig has optionals, which can eliminate nil deference. Another example is how you can pass some debug or custom allocators during testing that have all sorts of runtime checks to detect bad memory access and resource leaks.I have some issues with Zig's design, especially around the lack of explicit interface/trait, but I agree with the post that it is a more practical language, just because of how much simpler its adoption is.",
     "parent": 45346903,
     "depth": 2
   },
@@ -344,10 +368,10 @@
     "depth": 2
   },
   {
-    "id": 45347111,
-    "by": "melodyogonna",
-    "timeISO": "2025-09-23T13:56:09.000Z",
-    "textPlain": "I believe the benefit of Zig is that it allows you the familiarity of writing code like in C, but has other elements in the language and tooling to make things safer. For example, Zig has optionals, which can eliminate nil deference. Another example is how you can pass some debug or custom allocators during testing that have all sorts of runtime checks to detect bad memory access and resource leaks.I have some issues with Zig's design, especially around the lack of explicit interface/trait, but I agree with the post that it is a more practical language, just because of how much simpler its adoption is.",
+    "id": 45348868,
+    "by": "tleyden5iwx",
+    "timeISO": "2025-09-23T15:59:37.000Z",
+    "textPlain": "I don't think like a C programmer, my problem is that I think like a Java/Python/Go programmer, and I'm spoiled by getting used to having a garbage collector always running behind me cleaning up my memory poops.Even though Rust can end up with some ugly/crazy code, I love it overall because I can feel pretty safe that I'm not going to create hard-to-find memory errors.Sure, I can (and do) write code that causes my (rust) app to crash, but so far they've all been super trivial errors to debug and fix.I haven't tried Zig yet though.  Does it give me all the same compile time memory usage guarantees?",
     "parent": 45346903,
     "depth": 2
   },
@@ -360,43 +384,19 @@
     "depth": 2
   },
   {
+    "id": 45350282,
+    "by": "ajross",
+    "timeISO": "2025-09-23T17:34:31.000Z",
+    "textPlain": "> Seasoned Rust coders don’t spend time fighting the borrow checker - their code is already written in a way that just works.That hasn't been my experience at all.  At best, the first version of code pops out quickly and cleanly because the author knows the appropriate idiom to choose.  Refactoring rust code to handle changes in that allocation idiom is extremely expensive, even for the most seasoned developers.Case in point:> Once you’ve been using Rust for a while, you don’t have to “restructure” your code to please the borrow checker, because you’ve already thought about “oh, these two variables need to be mutated concurrently, so I’ll store them separately”.Which fails to handle \"these two variables didn't need to be mutated concurrently, but now they do\".",
+    "parent": 45346903,
+    "depth": 2
+  },
+  {
     "id": 45347510,
     "by": "seivan",
     "timeISO": "2025-09-23T14:25:47.000Z",
     "textPlain": "[dead]",
     "parent": 45346903,
-    "depth": 2
-  },
-  {
-    "id": 45347233,
-    "by": "dayvster",
-    "timeISO": "2025-09-23T14:06:05.000Z",
-    "textPlain": "Uh I'm confused, so you think my take is bad because memory safety should not matter ?",
-    "parent": 45347145,
-    "depth": 2
-  },
-  {
-    "id": 45347300,
-    "by": "kllrnohj",
-    "timeISO": "2025-09-23T14:11:52.000Z",
-    "textPlain": "> I don't see why CLI tools are special in any respect.Because they don't grow large or need a multi-person team. CLI tools tend to be one & done. In other words, it's saying \"Zig, like C, doesn't scale well. Use something else for larger, longer lived codebases.\"This really comes across in the article's push that Zig treats you like an adult while Rust is a babysitter. This is not unlike the sentiment for Java back in the day. But the reality is that most codebases don't need to be clever and they do need a babysitter.",
-    "parent": 45347034,
-    "depth": 2
-  },
-  {
-    "id": 45349509,
-    "by": "hansvm",
-    "timeISO": "2025-09-23T16:44:11.000Z",
-    "textPlain": "> Regardless, code that doesn't use unsafe can't have two threads concurrently writing the same memory.It's a bit messier than that. Basically the only concurrency-related bug I ever actually want help with from the compiler is memory ordering issues. Rust chose to make those particular racey memory writes safe instead of unsafe.",
-    "parent": 45347034,
-    "depth": 2
-  },
-  {
-    "id": 45350070,
-    "by": "Svoka",
-    "timeISO": "2025-09-23T17:17:24.000Z",
-    "textPlain": "Looking at your code I have more confidence that quoted statement is false.",
-    "parent": 45349949,
     "depth": 2
   }
 ]
