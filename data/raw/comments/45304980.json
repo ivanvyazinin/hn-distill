@@ -1,5 +1,13 @@
 [
   {
+    "id": 45351365,
+    "by": "AnotherGoodName",
+    "timeISO": "2025-09-23T19:06:02.000Z",
+    "textPlain": "The problem is the linear nature of markov chains. Sure they can branch but after an observation you are absolutely at a new state. A goes to B goes to C etc. A classic problem to understand why this is an issue is feeding in a 2D bitmap where the patterns are vertical but you’re passing in data left to right which Markov chains can’t handle since they are navigating exclusively on the current left to right inout. They miss the patterns completely. Similar things happen with language. Language is not linear and context from a few sentences ago should change probabilities in the current sequence of characters. The attention mechanism is the best we have for this and Markov chains struggle beyond stringing together a few syllables.I have played with Markov chains a lot. I tried having skip states and such but ultimately you’re always pushed towards doing something similar to the attention mechanism to handle context.",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
     "id": 45351488,
     "by": "jcynix",
     "timeISO": "2025-09-23T19:17:11.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45351365,
-    "by": "AnotherGoodName",
-    "timeISO": "2025-09-23T19:06:02.000Z",
-    "textPlain": "The problem is the linear nature of markov chains. Sure they can branch but after an observation you are absolutely at a new state. A goes to B goes to C etc. A classic problem to understand why this is an issue is feeding in a 2D bitmap where the patterns are vertical but you’re passing in data left to right which Markov chains can’t handle since they are navigating exclusively on the current left to right inout. They miss the patterns completely. Similar things happen with language. Language is not linear and context from a few sentences ago should change probabilities in the current sequence of characters. The attention mechanism is the best we have for this and Markov chains struggle beyond stringing together a few syllables.I have played with Markov chains a lot. I tried having skip states and such but ultimately you’re always pushed towards doing something similar to the attention mechanism to handle context.",
+    "id": 45351813,
+    "by": "kragen",
+    "timeISO": "2025-09-23T19:42:50.000Z",
+    "textPlain": "A first-order Markov-chain text generator is not complex at all; it's a one-line shell script, reformatted here onto three lines for clarity:    perl -ane 'push@{$m{$a}},$a=$_ for@F;END{\n      print$a=$m{$a}[rand@{$m{$a}}],\" \"for 1..100_000\n    }' <<<'fish fish for fish.'\n\nGiven the King James Bible instead of \"fish fish for fish.\" as input, this program produces output like this:25:13 As the hands upon his disciple; but make great matter wisely in their calamity; 1:14 Sanctify unto the arches thereof unto them: 28:14 Happy is our judges ruled, that believe. 19:36 Thus saith the first being one another's feet.This leans pretty hard on Perl DWIM; a Python version is many times longer:    import random, sys\n\n    model, last, word = {None: []}, None, None\n    for word in (word for line in sys.stdin for word in line.split()):\n        model.setdefault(last, []).append(last := word)\n\n    sys.stdout.writelines(str(word := random.choice(model.get(word) or words)) + \" \"\n                          for words in [list(model.keys())] for i in range(100_000))\n\n(If you write code like that at a job, you might get fired.  I would reject your pull request.)It's probably worth mentioning:- Markov-chain states don't have to be words.  For text modeling, a common thing to do is to use N-grams (of either words or characters) instead of single words for your states.- It's good to have some nonzero probability to take a transition that hasn't occurred in the training set; this is especially important if you use a larger universe of states, because each state will occur fewer times in the training set.  \"Laplacian smoothing\" is one way to do this.- Usually (and in my code examples above) the probability distribution of transitions we take in our text generator is the probability distribution we inferred from the input.  Potter's approach of multiplying his next-state-occupancy vector Ms⃗ by a random diagonal matrix R and then taking the index of the highest value in the resulting vector pro",
     "parent": 45304980,
     "depth": 1
   },
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45351444,
-    "by": "cestith",
-    "timeISO": "2025-09-23T19:12:53.000Z",
-    "textPlain": "I’ve been telling people for years that a reasonably workable initial, simplified mental model of a large language model is a Markov chain generator with an unlimited, weighted corpus trained in. Very few people who know LLMs have said anything to critique that thought more than that it’s a coarse description and downplays the details. Since being simplified is in the initial statement and it’s not meant to capture detail, I say if it walks like a really big duck and it honks instead of quacking then it’s maybe a goose or swan which are both pretty duck-like birds.",
+    "id": 45351367,
+    "by": "taolson",
+    "timeISO": "2025-09-23T19:06:19.000Z",
+    "textPlain": "If you program a Markov chain to generate based upon a fairly short sequence length (4 - 5 characters), it can create some neat portamenteaus.  I remember back in the early 90's I trained one on some typical tech literature and it came up with the word \"marketecture\".",
     "parent": 45304980,
     "depth": 1
   },
@@ -48,10 +56,50 @@
     "depth": 1
   },
   {
-    "id": 45351367,
-    "by": "taolson",
-    "timeISO": "2025-09-23T19:06:19.000Z",
-    "textPlain": "If you program a Markov chain to generate based upon a fairly short sequence length (4 - 5 characters), it can create some neat portamenteaus.  I remember back in the early 90's I trained one on some typical tech literature and it came up with the word \"marketecture\".",
+    "id": 45351561,
+    "by": "benob",
+    "timeISO": "2025-09-23T19:23:57.000Z",
+    "textPlain": "Like it or not, LLMs are effectively high-order Markov chains",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45351895,
+    "by": "robotnikman",
+    "timeISO": "2025-09-23T19:49:38.000Z",
+    "textPlain": "I remember creating a chatbot for my minecraft server over a decade ago that used Markov chains. It was funny seeing the crazy things it spat out and the other players enjoyed it.",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45351779,
+    "by": "fair_enough",
+    "timeISO": "2025-09-23T19:40:21.000Z",
+    "textPlain": "On a humorous note OP, you seem like exactly the kind of guy who would get a kick out of this postmodern essay generator that a STEM professor wrote using a Recursive Transition Network in 1996:https://www.elsewhere.org/journal/pomo/Every now and again, I come back to it for a good chuckle. Here's what I got this time (link to the full essay below the excerpt):\"If one examines subcultural capitalist theory, one is faced with a choice:\neither reject subdialectic cultural theory or conclude that the significance of\nthe artist is significant form, but only if culture is interchangeable with\nart. It could be said that many desituationisms concerning the capitalist\nparadigm of context exist. The subject is contextualised into a presemanticist\ndeappropriation that includes truth as a totality.\"https://www.elsewhere.org/journal/pomo/?1298795365",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45352039,
+    "by": "saylisteins",
+    "timeISO": "2025-09-23T20:01:24.000Z",
+    "textPlain": "There is an interesting video about this from Veritasiumhttps://www.youtube.com/watch?v=KZeIEiBrT_w",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45352227,
+    "by": "pessimizer",
+    "timeISO": "2025-09-23T20:18:17.000Z",
+    "textPlain": "Loved playing with Babble! when I was a teenager: https://archive.org/details/Babble_1020You could load it up with anything, and it would just babble on.",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45351444,
+    "by": "cestith",
+    "timeISO": "2025-09-23T19:12:53.000Z",
+    "textPlain": "I’ve been telling people for years that a reasonably workable initial, simplified mental model of a large language model is a Markov chain generator with an unlimited, weighted corpus trained in. Very few people who know LLMs have said anything to critique that thought more than that it’s a coarse description and downplays the details. Since being simplified is in the initial statement and it’s not meant to capture detail, I say if it walks like a really big duck and it honks instead of quacking then it’s maybe a goose or swan which are both pretty duck-like birds.",
     "parent": 45304980,
     "depth": 1
   },
@@ -64,11 +112,139 @@
     "depth": 1
   },
   {
+    "id": 45351789,
+    "by": "jedberg",
+    "timeISO": "2025-09-23T19:40:57.000Z",
+    "textPlain": "For funsies one of the early reddit engineers wrote a Markov comment generator trained on all the existing comments.It worked surprisingly well. :)",
+    "parent": 45304980,
+    "depth": 1
+  },
+  {
+    "id": 45351989,
+    "by": "roadside_picnic",
+    "timeISO": "2025-09-23T19:57:24.000Z",
+    "textPlain": "> after an observation you are absolutely at a new stateThe essential property of a Markov chain is maintaining the Markov property:P(X_n+1 = x_n+1 | X_n = x_n, ..., x_1) = P(X_n+1 = x_n+1 | X_n = x_n)That is the future, given the present state, is conditionally independent of the past states.It's worth recognizing that decoder only LLMs (which are most the major LLMs used by people) maintain the Markov  property and can be properly understood as Markov chains.> The attention mechanism is the best we have for this and Markov chains struggle beyond stringing together a few syllables.Attention has nothing to do with the maintaining the Markov property but allows for a fantastically more complex representation of state which is where decoder only LLMs derive the majority of their power.tl;dr most of the LLMs people use are effectively Markov Chains.",
+    "parent": 45351365,
+    "depth": 2
+  },
+  {
+    "id": 45351766,
+    "by": "6r17",
+    "timeISO": "2025-09-23T19:39:42.000Z",
+    "textPlain": "Would you say it's interesting to explore after spending much time on them ? Do you feel like one could make an use for it pragmatically within certain context or it's way too much of a toy where most of the time getting a service / coherent llm would ease-in the work ?",
+    "parent": 45351365,
+    "depth": 2
+  },
+  {
+    "id": 45351756,
+    "by": "cuttothechase",
+    "timeISO": "2025-09-23T19:38:42.000Z",
+    "textPlain": "Would having a Markov chain of Markov chains help in this situation. One chain does this when 2D bitmap patterns are vertical and another one for left to right?",
+    "parent": 45351365,
+    "depth": 2
+  },
+  {
+    "id": 45352015,
+    "by": "chilipepperhott",
+    "timeISO": "2025-09-23T19:59:15.000Z",
+    "textPlain": "It's a great explainer. Definitely better than mine.",
+    "parent": 45351488,
+    "depth": 2
+  },
+  {
+    "id": 45352006,
+    "by": "chilipepperhott",
+    "timeISO": "2025-09-23T19:58:36.000Z",
+    "textPlain": "This is actually sick! I have to admit, my implementation is far more (likely unnecessarily) complex.",
+    "parent": 45351813,
+    "depth": 2
+  },
+  {
+    "id": 45352121,
+    "by": "3abiton",
+    "timeISO": "2025-09-23T20:08:09.000Z",
+    "textPlain": "I brushed with MCMC decades ago, and your code is truely beautiful",
+    "parent": 45351813,
+    "depth": 2
+  },
+  {
+    "id": 45351865,
+    "by": "ronsor",
+    "timeISO": "2025-09-23T19:47:31.000Z",
+    "textPlain": "That sounds like a corporate buzzword generator",
+    "parent": 45351367,
+    "depth": 2
+  },
+  {
     "id": 45351106,
     "by": "vunderba",
     "timeISO": "2025-09-23T18:41:12.000Z",
     "textPlain": "I had a similar program designed as my \"AWAY\" bot that was trained on transcripts of my previous conversations and connected to Skype. At the time (2009) I was living in Taiwan so I would activate it when I went to bed to chat with my friends back in the States given the ~12 hour time difference. Reading back some of  the transcripts made it sound like I was on the verge of a psychotic break though.",
     "parent": 45350834,
+    "depth": 2
+  },
+  {
+    "id": 45351509,
+    "by": "jcynix",
+    "timeISO": "2025-09-23T19:19:22.000Z",
+    "textPlain": "And Mark V. Shaney was designed by Rob Pike and posted on Usenet, but that happened a long time ago:https://en.wikipedia.org/wiki/Mark_V._Shaney",
+    "parent": 45350768,
+    "depth": 2
+  },
+  {
+    "id": 45351706,
+    "by": "BenoitEssiambre",
+    "timeISO": "2025-09-23T19:35:59.000Z",
+    "textPlain": "Exactly. I think of them as Markov Chains in grammar space or in Abstract Syntax Tree space instead of n-gram chain-of-words space. The attention mechanism likely plays a role in identifying the parent in the grammar tree or identifying other types of back references like pronouns or if it's for programming languages, variable back references.",
+    "parent": 45351561,
+    "depth": 2
+  },
+  {
+    "id": 45351585,
+    "by": "guluarte",
+    "timeISO": "2025-09-23T19:26:24.000Z",
+    "textPlain": "markov chains with limited self correction",
+    "parent": 45351561,
+    "depth": 2
+  },
+  {
+    "id": 45352028,
+    "by": "chilipepperhott",
+    "timeISO": "2025-09-23T20:00:33.000Z",
+    "textPlain": "That essay generator is pretty cool. There are definitely a lot of undergrads whose essays look about the same.",
+    "parent": 45351779,
+    "depth": 2
+  },
+  {
+    "id": 45351497,
+    "by": "nerdponx",
+    "timeISO": "2025-09-23T19:18:24.000Z",
+    "textPlain": "It's not a Markov chain because it doesn't obey the Markov property.What it is, and what I assume you mean, is a next-word prediction model based solely on the previous sequence of words, up to some limit. It literally is that, because it was designed to be that.",
+    "parent": 45351444,
+    "depth": 2
+  },
+  {
+    "id": 45351964,
+    "by": "rytill",
+    "timeISO": "2025-09-23T19:55:32.000Z",
+    "textPlain": "So, I have heard a number of people say this, and I feel like I'm the person in your conversations saying it's a coarse description and downplays the details. What I don't understand is, what specifically do we gain from thinking of it as a Markov chain.Like, what is one insight beyond that LLMs are Markov chains that you've derived from thinking of LLMs as Markov chains? I'm genuinely very curious.",
+    "parent": 45351444,
+    "depth": 2
+  },
+  {
+    "id": 45351542,
+    "by": "jama211",
+    "timeISO": "2025-09-23T19:22:01.000Z",
+    "textPlain": "Sure, but arguably by that definition so are we ;)",
+    "parent": 45351444,
+    "depth": 2
+  },
+  {
+    "id": 45350682,
+    "by": "foobarian",
+    "timeISO": "2025-09-23T18:05:13.000Z",
+    "textPlain": "I'm old now, but thanks to LLMs I can now again tinker with things I don't understand :-)",
+    "parent": 45350642,
     "depth": 2
   },
   {
@@ -80,11 +256,11 @@
     "depth": 2
   },
   {
-    "id": 45350682,
-    "by": "foobarian",
-    "timeISO": "2025-09-23T18:05:13.000Z",
-    "textPlain": "I'm old now, but thanks to LLMs I can now again tinker with things I don't understand :-)",
-    "parent": 45350642,
+    "id": 45351862,
+    "by": "huseyinkeles",
+    "timeISO": "2025-09-23T19:47:14.000Z",
+    "textPlain": "https://www.reddit.com/r/SubredditSimulatorSeems like it stopped around 5 years ago.",
+    "parent": 45351789,
     "depth": 2
   }
 ]
