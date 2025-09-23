@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45342468,
+    "by": "bern4444",
+    "timeISO": "2025-09-23T03:19:59.000Z",
+    "textPlain": "This looks awesome, I had two questions:Is there a structured concurrency library being used to manage the chained promise calls and lazy evaluation (IE when the final promise result is actually awaited) of the chained functions?If an await call is never added, would function calls continue to build up taking up more and more memory - I imagine the system would return an error and clear out the stack of calls before it became overwhelmed, what would these errors look like if they do indeed exist?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45340610,
     "by": "prngl",
     "timeISO": "2025-09-22T22:52:42.000Z",
@@ -40,14 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45341959,
-    "by": "sgarland",
-    "timeISO": "2025-09-23T01:55:40.000Z",
-    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45336028,
     "by": "spankalee",
     "timeISO": "2025-09-22T16:45:02.000Z",
@@ -72,10 +72,26 @@
     "depth": 1
   },
   {
+    "id": 45341959,
+    "by": "sgarland",
+    "timeISO": "2025-09-23T01:55:40.000Z",
+    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45340890,
     "by": "deepsun",
     "timeISO": "2025-09-22T23:25:56.000Z",
     "textPlain": "The main problem was always the same -- all the RPC libraries are designed to hide where the round-trip happens, but in real world you always want to know where and how the round-trip happens.Just read about Cap'n Web array .map() [1] -- it's hard to understand where the round-trip is. And that is not a feature, that's a bug -- in reality you want to easily tell what the code does, not hide it.[1] https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45342514,
+    "by": "porridgeraisin",
+    "timeISO": "2025-09-23T03:26:51.000Z",
+    "textPlain": "I really like the idea. Especially the idea where you return different RpcTargets based on the \"context\", that's really quite nice. Not just for authentication and such, but for representing various things like \"completely structurally different output for GET /thingies for admin and users\".The promise-passing lazily evaluated approach is also nice -- any debugging woes are solved by just awaiting and logging before the await -- and it solves composability at the server - client layer. The hackiness of `map()` is unfortunate, but that's just how JS is.However, I don't see this being too useful without there also being composability at the server - database layer. This is notoriously difficult in most databases. I wonder what the authors / others here think about this.For an example of what I mean  const user = rpc.getUser(id)\n  const friends = await rpc.getFriends(user)\n\nSure beats  GET /user/id\n  GET /graph?outbound=id\n\nBut, at the end, both cases are running two different SQL queries. Most of the time when we fuse operations in APIs we do it all the way down to the SQL layer (with a join).  GET /user/id?include=friends\n\nWhich does a join and gets the data in a single query.So while its a nice programming model for sure, I think in practice we'll end up having a `rpc.getUserAndFriends()` anyways.I'm not that experienced, so I don't know in how many projects composability at just one layer would actually be enough to solve most composability issues. If it's a majority, then great, but if not, then I don't think this is doing much.One situation where this actually works that comes to mind is SQLite apps, where multiple queries are more or less OK due to lack of network round trip. Or if your DB is colocated with your app in one of the new fancy datacenters where you get DB RAM to app RAM transfer through some crazy fast network interconnect fabric (RDMA) that's quicker than even local disk sometimes.",
     "parent": 45332883,
     "depth": 1
   },
@@ -168,18 +184,18 @@
     "depth": 1
   },
   {
-    "id": 45339497,
-    "by": "meindnoch",
-    "timeISO": "2025-09-22T21:12:23.000Z",
-    "textPlain": "What happens if I pass a recursive function to map()?  let traverse = (dir) => {\n    name: dir.name,\n    files: api.ls(dir).map(traverse) // api.ls() returns [] for files\n  };\n  let tree = api.ls(\"/\").map(traverse);",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335215,
     "by": "crabmusket",
     "timeISO": "2025-09-22T15:54:17.000Z",
     "textPlain": "Really nice to have something I could potentially use across the whole app. I've been looking into things I can use over HTTP, websockets, and also over message channels to web workers. I've usually ended up implementing something that rounds to JSON-RPC (i.e. just use an `id` per request and response to tie them together). But this looks much sturdier.Building an operation description from the callback inside the `map` is wild. Does that add much in the way of restrictions programmers need to be careful of? I could imagine branching inside that closure, for example, could make things awkward. Reminiscent of the React hook rules.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45339497,
+    "by": "meindnoch",
+    "timeISO": "2025-09-22T21:12:23.000Z",
+    "textPlain": "What happens if I pass a recursive function to map()?  let traverse = (dir) => {\n    name: dir.name,\n    files: api.ls(dir).map(traverse) // api.ls() returns [] for files\n  };\n  let tree = api.ls(\"/\").map(traverse);",
     "parent": 45332883,
     "depth": 1
   },
@@ -288,18 +304,18 @@
     "depth": 1
   },
   {
-    "id": 45341170,
-    "by": "paradox460",
-    "timeISO": "2025-09-22T23:58:05.000Z",
-    "textPlain": "Feels a little like how erlang calls things across different nodes",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45339260,
     "by": "yayitswei",
     "timeISO": "2025-09-22T20:46:16.000Z",
     "textPlain": "One of the authors is the Kenton who built this awesome lan party house: https://lanparty.house/",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341170,
+    "by": "paradox460",
+    "timeISO": "2025-09-22T23:58:05.000Z",
+    "textPlain": "Feels a little like how erlang calls things across different nodes",
     "parent": 45332883,
     "depth": 1
   },
@@ -380,22 +396,6 @@
     "by": "mdasen",
     "timeISO": "2025-09-22T19:22:09.000Z",
     "textPlain": "In C#, there's expression trees which handle things like this and it's how Entity Framework is able to convert the lambdas it's given into SQL. This means that you can pass around code that can be inspected or transformed instead of being executed. Take this EntityFramework snippet:    db.People.Where(p => p.Name == \"Joe\")\n\n`Where` takes an `Expression<Func<T, bool>> predicate`. It isn't taking the `Func` itself, but an `Expression` of it so that it can look at the code rather than execute it. It can see that it's trying to match the `Name` field to the value \"Joe\" and translate that into a SQL WHERE clause.Since JS doesn't have this, they have to pass in a special placeholder value and try to record what the code is doing to that value.",
-    "parent": 45337000,
-    "depth": 2
-  },
-  {
-    "id": 45339503,
-    "by": "samwillis",
-    "timeISO": "2025-09-22T21:12:42.000Z",
-    "textPlain": "This record and replay trick is very similar to what I recently used to implement the query DSL for Tanstack DB (https://tanstack.com/db/latest/docs/guides/live-queries). We pass a RefProxy object into the where/select/join callbacks and use it to trace all the props and expressions that are performed. As others have noted you can't use js operators to perform actions, so we built a set of small functions that we could trace (eq, gt, not etc.). These callbacks are run once to trace the calls and build a IR of the query.One thing we were surprisingly able to do is trace the js spread operation as that is a rare case of something you can intercept in JS.Kenton, if you are reading this, could you add a series of fake operators (eq, gt, in etc) to provide the capability to trace and perform them remotely?",
-    "parent": 45337000,
-    "depth": 2
-  },
-  {
-    "id": 45337146,
-    "by": "spankalee",
-    "timeISO": "2025-09-22T17:59:48.000Z",
-    "textPlain": "I presume conditionals are banned - sort of like the rules of hooks - but how?",
     "parent": 45337000,
     "depth": 2
   }
