@@ -1,5 +1,13 @@
 [
   {
+    "id": 45343247,
+    "by": "jensneuse",
+    "timeISO": "2025-09-23T05:58:40.000Z",
+    "textPlain": "I'm with WunderGraph, a vendor providing enterprise tooling for GraphQL.First, I absolutely love Capn Proto and the ideas of chaining calls on objects. It's amazing to see what's possible with CapNweb.However, one of the examples compares it to GraphQL, which I think falls a bit short of how enterprises use the Query language in real life.First, like others mentioned, you'll have N+1 problems for nested lists. That is, if we call comments() on each post and author() on each comment, we absolutely don't want to have one individual call per nested object. In GraphQL, with the data loader pattern, this is just 3 calls.Second, there's also an element of security. Advanced GraphQL gateways like WunderGraph's are capable of implementing fine grained rate limiting that prevent a client to ask for too much data. With this RPC object calling style, we don't have a notion of \"Query Plans\", so we cannot statically analyze a combination of API calls and estimate the cost before executing them.Lastly, GraphQL these days is mostly used with Federation. That means a single client talks to a Gateway (e.g. WunderGraph's Cosmo Router) and the Router distributed the calls efficiently across many sub services (Subgraphs) with a query planner that finds the optimal way to load information from multiple services. While capNweb looks amazing, the reality is that a client would have to talk to many services.Which brings me to my last point. Instead of Going the capNweb vs GraphQL route, I'd think more about how the two can work together. What if a client could use CapNweb to talk to a Federation Router that allows it to interact with entities, the object definitions in a GraphQL Federation system.I think this is really worth exploring. Not going against other API styles but trying to combine the strengths.- https://wundergraph.com/",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45337000,
     "by": "mtrovo",
     "timeISO": "2025-09-22T17:51:05.000Z",
@@ -24,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45341364,
+    "by": "thethimble",
+    "timeISO": "2025-09-23T00:20:32.000Z",
+    "textPlain": "I'm curious about two things:1. What's the best way to do app deploys that update the RPC semantics? In other words how do you ensure that the client and server are speaking the same version of the RPC? This is a challenge that protos/grpc/avro explicitly sought to solve.2. Relatedly, what's the best way to handle flaky connections? It seems that the export/import table is attached directly to a stateful WS connection such that if the connection breaks you'd lose the state. In principle there should be nothing preventing a client/server caching this state and reinstantiating it on reconnect. That said, given these tables can contain closures, they're not exactly serializable so you could run into memory issues. Curious if the team has thought about this.Absolutely mind blowing work!",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45338964,
     "by": "losvedir",
     "timeISO": "2025-09-22T20:23:00.000Z",
@@ -32,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45341364,
-    "by": "thethimble",
-    "timeISO": "2025-09-23T00:20:32.000Z",
-    "textPlain": "I'm curious about two things:1. What's the best way to do app deploys that update the RPC semantics? In other words how do you ensure that the client and server are speaking the same version of the RPC? This is a challenge that protos/grpc/avro explicitly sought to solve.2. Relatedly, what's the best way to handle flaky connections? It seems that the export/import table is attached directly to a stateful WS connection such that if the connection breaks you'd lose the state. In principle there should be nothing preventing a client/server caching this state and reinstantiating it on reconnect. That said, given these tables can contain closures, they're not exactly serializable so you could run into memory issues. Curious if the team has thought about this.Absolutely mind blowing work!",
+    "id": 45343080,
+    "by": "mpweiher",
+    "timeISO": "2025-09-23T05:23:01.000Z",
+    "textPlain": "Big fan of Cap'n'Proto and this looks really interesting, if RPC is the thing that works for your use-case.However, stumbled over this:The fact is, RPC fits the programming model we're used to. Every programmer is trained to think in terms of APIs composed of function calls, not in terms of byte stream protocols nor even REST. Using RPC frees you from the need to constantly translate between mental models, allowing you to move faster.The fact that this is, in fact, true is what I refer to as \"The gentle tyranny of Call/Return\"We're used to it, doing something more appropriate to the problem space is too unfamiliar and so more or less arbitrary additional complexity is...Just Fine™.https://www.hpi.uni-potsdam.de/hirschfeld/publications/media...Maybe it shouldn't actually be true.  Maybe we should start to expand our vocabulary and toolchest beyond just \"composed function calls\"?  So composed function calls are one tool in our toolchest, to be used when they are the best tool, not used because we have no reasonable alternative.https://blog.metaobject.com/2019/02/why-architecture-oriente...",
     "parent": 45332883,
     "depth": 1
   },
@@ -56,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45342760,
-    "by": "osigurdson",
-    "timeISO": "2025-09-23T04:10:16.000Z",
-    "textPlain": ">> If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.This is like .NET Remoting. Suggest resisting the temptation to use this kind of stuff. It gets very hard to reason about what is going on.",
+    "id": 45335170,
+    "by": "benpacker",
+    "timeISO": "2025-09-22T15:51:25.000Z",
+    "textPlain": "This seems great and I'm really excited to try it in place of trpc/orpc.Although it seems to solve one of the problems that GraphQL solved that trpc doesn't (the ability to request nested information from items in a list or properties of an object without changes to server side code), there is no included solution for the server side problem that creates that the data loader pattern was intended to solve, where a naive GraphQL server implementation makes a database query per item in a list.Until the server side tooling for this matures and has equivalents for the dataloader pattern, persisted/allowlist queries, etc., I'll probably only use this for server <-> server (worker <-> worker) or client <-> iframe communication and keep my client <-> server communication alongside more pre-defined boundaries.",
     "parent": 45332883,
     "depth": 1
   },
@@ -72,18 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45342738,
-    "by": "osigurdson",
-    "timeISO": "2025-09-23T04:06:05.000Z",
-    "textPlain": ">> let namePromise = batch.getMyName();\nlet result = await batch.hello(namePromise);This is quite interesting. However the abysmal pattern I have seen a number of times is:list = getList(...)\nfor item in list\n  getItemDetails(item)Sometimes this is quite hard to undo.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45335170,
-    "by": "benpacker",
-    "timeISO": "2025-09-22T15:51:25.000Z",
-    "textPlain": "This seems great and I'm really excited to try it in place of trpc/orpc.Although it seems to solve one of the problems that GraphQL solved that trpc doesn't (the ability to request nested information from items in a list or properties of an object without changes to server side code), there is no included solution for the server side problem that creates that the data loader pattern was intended to solve, where a naive GraphQL server implementation makes a database query per item in a list.Until the server side tooling for this matures and has equivalents for the dataloader pattern, persisted/allowlist queries, etc., I'll probably only use this for server <-> server (worker <-> worker) or client <-> iframe communication and keep my client <-> server communication alongside more pre-defined boundaries.",
+    "id": 45334592,
+    "by": "beckford",
+    "timeISO": "2025-09-22T15:14:00.000Z",
+    "textPlain": "Since Cap'n Web is a simplification of Cap'n Proto RPC, it would be amazing if eventually the simplification traveled back to all the languages that Cap'n Proto RPC supports (C++, etc.). Or at least could be made to be binary compatible. Regardless, this is great.",
     "parent": 45332883,
     "depth": 1
   },
@@ -104,14 +112,6 @@
     "depth": 1
   },
   {
-    "id": 45334592,
-    "by": "beckford",
-    "timeISO": "2025-09-22T15:14:00.000Z",
-    "textPlain": "Since Cap'n Web is a simplification of Cap'n Proto RPC, it would be amazing if eventually the simplification traveled back to all the languages that Cap'n Proto RPC supports (C++, etc.). Or at least could be made to be binary compatible. Regardless, this is great.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45335841,
     "by": "dimal",
     "timeISO": "2025-09-22T16:34:23.000Z",
@@ -120,10 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45341959,
-    "by": "sgarland",
-    "timeISO": "2025-09-23T01:55:40.000Z",
-    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
+    "id": 45342760,
+    "by": "osigurdson",
+    "timeISO": "2025-09-23T04:10:16.000Z",
+    "textPlain": ">> If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.This is like .NET Remoting. Suggest resisting the temptation to use this kind of stuff. It gets very hard to reason about what is going on.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45342738,
+    "by": "osigurdson",
+    "timeISO": "2025-09-23T04:06:05.000Z",
+    "textPlain": ">> let namePromise = batch.getMyName();\nlet result = await batch.hello(namePromise);This is quite interesting. However the abysmal pattern I have seen a number of times is:list = getList(...)\nfor item in list\n  getItemDetails(item)Sometimes this is quite hard to undo.",
     "parent": 45332883,
     "depth": 1
   },
@@ -136,10 +144,26 @@
     "depth": 1
   },
   {
+    "id": 45341959,
+    "by": "sgarland",
+    "timeISO": "2025-09-23T01:55:40.000Z",
+    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45341345,
     "by": "srameshc",
     "timeISO": "2025-09-23T00:17:17.000Z",
     "textPlain": "If you have ever had to use gRPC & web, then you will know how painful Protobuf is to make it work on the web. I love the simplicity of Cap'n Web https://capnproto.org/language.html , hopefully this will lead us to better and easier RPC.Update: Unlike Cap'n Proto, Cap'n Web has no schemas. In fact, it has almost no boilerplate whatsoever. This means it works more like the JavaScript-native RPC system in Cloudflare Workers. https://github.com/cloudflare/capnweb",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45337681,
+    "by": "matlin",
+    "timeISO": "2025-09-22T18:40:40.000Z",
+    "textPlain": "More niche use case but this would be awesome for communicating between contexts in web app (e.g. web worker, iframe, etc)",
     "parent": 45332883,
     "depth": 1
   },
@@ -164,6 +188,14 @@
     "by": "unshavedyak",
     "timeISO": "2025-09-22T16:00:52.000Z",
     "textPlain": "What would this look like for other language backends to support? Eg would be neat if Rust (my webservers) could support this on the backendedit: Downvoted, is this a bad question? The title is generically \"web servers\", obviously the content of the post focuses primarily on TypeScript, but i'm trying to determine if there's something unique about this that means it cannot be implemented in other languages. The serverside DSL execution could be difficult to impl, but as it's not strictly JavaScript i imagine it's not impossible?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45334698,
+    "by": "electric_muse",
+    "timeISO": "2025-09-22T15:21:25.000Z",
+    "textPlain": "This is such a useful pattern.I’ve ended up building similar things over and over again. For example, simplifying the worker-page connection in a browser or between chrome extension “background” scripts and content scripts.There’s a reason many prefer “npm install” on some simple sdk that just wraps an API.This also reminds me a lot of MCP, especially the bi-directional nature and capability focus.",
     "parent": 45332883,
     "depth": 1
   },
@@ -208,14 +240,6 @@
     "depth": 1
   },
   {
-    "id": 45337681,
-    "by": "matlin",
-    "timeISO": "2025-09-22T18:40:40.000Z",
-    "textPlain": "More niche use case but this would be awesome for communicating between contexts in web app (e.g. web worker, iframe, etc)",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45338338,
     "by": "garaetjjte",
     "timeISO": "2025-09-22T19:30:50.000Z",
@@ -228,14 +252,6 @@
     "by": "cbarrick",
     "timeISO": "2025-09-22T16:33:13.000Z",
     "textPlain": "What's going on under the hood with that authentication example?Is the server holding onto some state in memory that this specific client has already authenticated? Or is the API key somehow stored in the new AuthenticatedSession stub on the client side and included in subsequent requests? Or is it something else entirely?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45334698,
-    "by": "electric_muse",
-    "timeISO": "2025-09-22T15:21:25.000Z",
-    "textPlain": "This is such a useful pattern.I’ve ended up building similar things over and over again. For example, simplifying the worker-page connection in a browser or between chrome extension “background” scripts and content scripts.There’s a reason many prefer “npm install” on some simple sdk that just wraps an API.This also reminds me a lot of MCP, especially the bi-directional nature and capability focus.",
     "parent": 45332883,
     "depth": 1
   },
@@ -264,18 +280,18 @@
     "depth": 1
   },
   {
-    "id": 45341017,
-    "by": "isaiahballah",
-    "timeISO": "2025-09-22T23:41:22.000Z",
-    "textPlain": "This looks awesome! Does anyone know if this also works in React Native?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45337335,
     "by": "tanepiper",
     "timeISO": "2025-09-22T18:14:30.000Z",
     "textPlain": "Reminds me of dnode (2015) - https://www.npmjs.com/package/dnode",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341017,
+    "by": "isaiahballah",
+    "timeISO": "2025-09-22T23:41:22.000Z",
+    "textPlain": "This looks awesome! Does anyone know if this also works in React Native?",
     "parent": 45332883,
     "depth": 1
   },
@@ -296,14 +312,6 @@
     "depth": 1
   },
   {
-    "id": 45342514,
-    "by": "porridgeraisin",
-    "timeISO": "2025-09-23T03:26:51.000Z",
-    "textPlain": "I really like the idea. Especially the idea where you return different RpcTargets based on the \"context\", that's really quite nice. Not just for authentication and such, but for representing various things like \"completely structurally different output for GET /thingies for admin and users\".The promise-passing lazily evaluated approach is also nice -- any debugging woes are solved by just awaiting and logging before the await -- and it solves composability at the server - client layer. The hackiness of `map()` is unfortunate, but that's just how JS is.However, I don't see this being too useful without there also being composability at the server - database layer. This is notoriously difficult in most databases. I wonder what the authors / others here think about this.For an example of what I mean  const user = rpc.getUser(id)\n  const friends = await rpc.getFriends(user)\n\nSure beats  GET /user/id\n  GET /graph?outbound=id\n\nBut, at the end, both cases are running two different SQL queries. Most of the time when we fuse operations in APIs we do it all the way down to the SQL layer (with a join).  GET /user/id?include=friends\n\nWhich does a join and gets the data in a single query.So while its a nice programming model for sure, I think in practice we'll end up having a `rpc.getUserAndFriends()` anyways.I'm not that experienced, so I don't know in how many projects composability at just one layer would actually be enough to solve most composability issues. If it's a majority, then great, but if not, then I don't think this is doing much.One situation where this actually works that comes to mind is SQLite apps, where multiple queries are more or less OK due to lack of network round trip. Or if your DB is colocated with your app in one of the new fancy datacenters where you get DB RAM to app RAM transfer through some crazy fast network interconnect fabric (RDMA) that's quicker than even local disk sometimes.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45338350,
     "by": "mdasen",
     "timeISO": "2025-09-22T19:31:45.000Z",
@@ -316,6 +324,14 @@
     "by": "benmmurphy",
     "timeISO": "2025-09-22T17:08:19.000Z",
     "textPlain": "are there security issues with no schemas + callback stubs + language on the server with little typing. for example with this `hello(name)` example the server expects a string but can the client pass an callback object that is string-like and then use this to try and trick the server into doing something bad?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45342514,
+    "by": "porridgeraisin",
+    "timeISO": "2025-09-23T03:26:51.000Z",
+    "textPlain": "I really like the idea. Especially the idea where you return different RpcTargets based on the \"context\", that's really quite nice. Not just for authentication and such, but for representing various things like \"completely structurally different output for GET /thingies for admin and users\".The promise-passing lazily evaluated approach is also nice -- any debugging woes are solved by just awaiting and logging before the await -- and it solves composability at the server - client layer. The hackiness of `map()` is unfortunate, but that's just how JS is.However, I don't see this being too useful without there also being composability at the server - database layer. This is notoriously difficult in most databases. I wonder what the authors / others here think about this.For an example of what I mean  const user = rpc.getUser(id)\n  const friends = await rpc.getFriends(user)\n\nSure beats  GET /user/id\n  GET /graph?outbound=id\n\nBut, at the end, both cases are running two different SQL queries. Most of the time when we fuse operations in APIs we do it all the way down to the SQL layer (with a join).  GET /user/id?include=friends\n\nWhich does a join and gets the data in a single query.So while its a nice programming model for sure, I think in practice we'll end up having a `rpc.getUserAndFriends()` anyways.I'm not that experienced, so I don't know in how many projects composability at just one layer would actually be enough to solve most composability issues. If it's a majority, then great, but if not, then I don't think this is doing much.One situation where this actually works that comes to mind is SQLite apps, where multiple queries are more or less OK due to lack of network round trip. Or if your DB is colocated with your app in one of the new fancy datacenters where you get DB RAM to app RAM transfer through some crazy fast network interconnect fabric (RDMA) that's quicker than even local disk sometimes.",
     "parent": 45332883,
     "depth": 1
   },
@@ -380,22 +396,6 @@
     "by": "truth_seeker",
     "timeISO": "2025-09-22T21:57:02.000Z",
     "textPlain": "JSON Serialization, seriously ???Why not \"application/octet-stream\" header and sending ArrayBuffer over the network  ?",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45336569,
-    "by": "jauntywundrkind",
-    "timeISO": "2025-09-22T17:19:05.000Z",
-    "textPlain": "I really dig the flexibility of transport. Having something that works over postMessage is totally clutch!!> Similarly, supports passing objects by reference: If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.Can this be relaxed? Having to design the object model ahead of time for RpcTarget is constraining. If we could just attach a ThingClass.prototype[Symbol.for('RpcTarget')] = true then there would be a lot more flexibility, less need to design explciitly for RpcTarget, to use RpcTarget with the objects/classes of 3rd party libraries.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45337451,
-    "by": "cyberax",
-    "timeISO": "2025-09-22T18:23:04.000Z",
-    "textPlain": "ETOOMAGIC for me.",
     "parent": 45332883,
     "depth": 1
   }
