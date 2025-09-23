@@ -1,9 +1,25 @@
 [
   {
-    "id": 45346403,
-    "by": "electroglyph",
-    "timeISO": "2025-09-23T12:57:15.000Z",
-    "textPlain": "If the current position in the structure only has one possibility (like a comma, bracket, etc.) do you just force that as the next token and continue?",
+    "id": 45347100,
+    "by": "minimaxir",
+    "timeISO": "2025-09-23T13:55:39.000Z",
+    "textPlain": "Google's Gemini API is a bit odd with structured outputs. If you specify an Application/JSON response mimetype, it will reliably respond with a consistent JSON output without any prompt engineering shenanigans. For my workflows, this setting plus providing a JSON Schema in the system prompt works even with complex schema.The Gemini API has a canonical implementation of structured outputs where you can instead pass the JSON schema as a separate parameter to control the grammar more closely. However, this setting will reorder the JSON schema fields to be alphabetical beforehand, which is especially not desired behavior as the order of JSON fields in a schema is often very deliberate to control generation.",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
+    "id": 45346896,
+    "by": "FlyingLawnmower",
+    "timeISO": "2025-09-23T13:40:25.000Z",
+    "textPlain": "I spent a couple years building a high performance, expressive library for structured outputs in LLMs. Our library is used by OpenAI for structured outputs on the hosted API. Happy to answer questions on how this works:User friendly library that connects to lots of OSS model serving backends: https://github.com/guidance-ai/guidance/Core Rust library written for high performance mask computation (written mostly by my collaborator @mmoskal): http://github.com/guidance-ai/llguidance",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
+    "id": 45346821,
+    "by": "iandanforth",
+    "timeISO": "2025-09-23T13:33:34.000Z",
+    "textPlain": "This is a great writeup! There was a period where reliable structured output was a significant differentiator and was the 'secret sauce' behind some companies success. A NL->SQL company I am familiar with comes to mind. Nice to see this both public and supported by a growing ecosystem of libraries.One statement surprised me was that the author thinks \"models over time will just be able to output JSON perfectly without the need for constraining over time.\"I'm not sure how this conclusion was reached. \"Perfectly\" is a bar that probabilistic sampling cannot meet.",
     "parent": 45345207,
     "depth": 1
   },
@@ -12,6 +28,14 @@
     "by": "frotaur",
     "timeISO": "2025-09-23T12:38:40.000Z",
     "textPlain": "When doing structured sampling, why is the token sampled, checked against the grammar, and resampled if it's wrong by applying the mask ?Why wouldn't we apply the mask immediately for the first sampling? Is this an optimization somehow, is masking expensive?",
+    "parent": 45345207,
+    "depth": 1
+  },
+  {
+    "id": 45346403,
+    "by": "electroglyph",
+    "timeISO": "2025-09-23T12:57:15.000Z",
+    "textPlain": "If the current position in the structure only has one possibility (like a comma, bracket, etc.) do you just force that as the next token and continue?",
     "parent": 45345207,
     "depth": 1
   },
@@ -64,11 +88,59 @@
     "depth": 1
   },
   {
-    "id": 45346656,
-    "by": "maccam912",
-    "timeISO": "2025-09-23T13:22:25.000Z",
-    "textPlain": "I don't think so, because multiple tokens might match. If it needs a comma as the next character, but you have tokens for `, \"blah` and `, \"foo` you still want to leave those on the table.",
-    "parent": 45346403,
+    "id": 45347419,
+    "by": "Inviz",
+    "timeISO": "2025-09-23T14:20:30.000Z",
+    "textPlain": "gemini api has propertyOrdering field for that",
+    "parent": 45347100,
+    "depth": 2
+  },
+  {
+    "id": 45347320,
+    "by": "ijk",
+    "timeISO": "2025-09-23T14:13:22.000Z",
+    "textPlain": "I've been curious about grammar support for non-JSON applications. (i.e., I have some use cases where XML is more natural and easier to parse but Pydantic seems to assume you should only work with JSON.) Would guidance be able to handle this use case?In general I find that matching the most natural format for a document outperforms waiting for the big model trainers to convince the model that the format you want is a valid structure, so anything that lets me interweave structured and unstructured generation is very interesting to me right now.",
+    "parent": 45346896,
+    "depth": 2
+  },
+  {
+    "id": 45347048,
+    "by": "ninadpathak",
+    "timeISO": "2025-09-23T13:52:24.000Z",
+    "textPlain": "Guidance is genuinely impressive for anyone wrangling LLM output. The ability to map grammar constraints so efficiently at inference solves so many subtle issues—tokenization headaches being just one. Curious if you've benchmarked adoption for JSON vs. custom grammars among production teams? Anecdotally, JSON's become the baseline, but custom grammars unlock way more nuanced applications.",
+    "parent": 45346896,
+    "depth": 2
+  },
+  {
+    "id": 45347192,
+    "by": "btown",
+    "timeISO": "2025-09-23T14:02:17.000Z",
+    "textPlain": "The LLGuidance paper is highly recommended reading for everyone interested in this! https://guidance-ai.github.io/llguidance/llg-go-brrrTL;DR instead of just getting a token and seeing if it would be accepted by the parser, you can actually zero-out probabilities for all invalid tokens, and do the computation for this in parallel at effectively zero cost:> Here, compute_mask() can run on the CPU during the time it would be normally just waiting for the GPU to finish. The line prob[~mask] = 0.0 would normally be fused into the softmax kernel in the last stage of the LLM, with negligible overhead. Therefore, as long as the compute_mask() function completes faster than the LLM forward pass and parser.consume() is negligible (typically follows from compute_mask() speed), the constrained generation will be as fast as the unconstrained one.I'm curious - have there been any research/conversations about pushing masking even earlier in the pipeline? In theory, there's a fair amount of compute that goes into computing the probability of tokens that will end up being masked away anyways.",
+    "parent": 45346896,
+    "depth": 2
+  },
+  {
+    "id": 45347065,
+    "by": "ninadpathak",
+    "timeISO": "2025-09-23T13:53:38.000Z",
+    "textPlain": "You're spot on about the \"perfect\" JSON bar being unreachable for now. The only consistently reliable method I've seen in the wild is some form of constrained decoding or grammar enforcement—bit brittle, but practical. Sampling will always be fuzzy unless the architecture fundamentally shifts. Anyone claiming zero-validity issues is probably glossing over a ton of downstream QA work.",
+    "parent": 45346821,
+    "depth": 2
+  },
+  {
+    "id": 45347044,
+    "by": "FlyingLawnmower",
+    "timeISO": "2025-09-23T13:52:00.000Z",
+    "textPlain": "If you can screen tokens against your grammar fast enough, you can build a bitmask over the entire token vocabulary and apply it right before sampling. As vocabulary sizes grow, this gets more complex to do in real time, but we (and other libraries) have found several optimizations to do this extremely quickly (eg for guidance, we detail some optimizations here https://github.com/guidance-ai/llguidance/blob/main/docs/opt...).Other libraries work by essentially pre-computing all the masks for all possible generations, but of course you're restricted to working with simple grammars in this case (like a subset of regular expressions)",
+    "parent": 45346185,
+    "depth": 2
+  },
+  {
+    "id": 45347082,
+    "by": "ninadpathak",
+    "timeISO": "2025-09-23T13:54:37.000Z",
+    "textPlain": "Good question—some frameworks do apply the mask immediately, others defer for performance or implementation simplicity. Mask precomputation can get tricky with large vocabularies, especially if grammar elements span multiple tokens. Immediate masking is usually preferred, but optimizations kick in when you're juggling complicated grammars or working against throughput bottlenecks.",
+    "parent": 45346185,
     "depth": 2
   },
   {
@@ -77,6 +149,38 @@
     "timeISO": "2025-09-23T13:30:12.000Z",
     "textPlain": "Implementation preference.> is masking expensive?It's not expensive per-se; A single element-wise multiplication of the output vector.The real \"expense\" is that you need to prepare masks for every element of your grammar as they are expensive to recompute as needed; LLM tokens do not cleanly map onto elements of your grammar. (Consider JSON: LLM tokens often combine various special characters such as curly braces, colons, and quotes.)This isn't that hard to compute, it's just more work to implement.",
     "parent": 45346185,
+    "depth": 2
+  },
+  {
+    "id": 45347092,
+    "by": "ninadpathak",
+    "timeISO": "2025-09-23T13:55:12.000Z",
+    "textPlain": "In most cases, yes—forcing is common when the grammar dictates a single valid option. It's a fast path. Trickier cases arise if multiple tokens could satisfy the same grammar position, especially with weird tokenizations or BPE merges. Edge cases can trip token selection, but for things like brackets/commas, forced emission usually works flawlessly.",
+    "parent": 45346403,
+    "depth": 2
+  },
+  {
+    "id": 45346926,
+    "by": "FlyingLawnmower",
+    "timeISO": "2025-09-23T13:42:21.000Z",
+    "textPlain": "We do enable forcing these sequences of tokens in guidance, and find that it significantly speeds up structured generation. There are tricky alignment issues to make sure you pick the right sequence of tokens, but you can often proxy this well by using the model's native tokenizer. Some details here in an old blog: https://guidance.readthedocs.io/en/latest/example_notebooks/...",
+    "parent": 45346403,
+    "depth": 2
+  },
+  {
+    "id": 45346656,
+    "by": "maccam912",
+    "timeISO": "2025-09-23T13:22:25.000Z",
+    "textPlain": "I don't think so, because multiple tokens might match. If it needs a comma as the next character, but you have tokens for `, \"blah` and `, \"foo` you still want to leave those on the table.",
+    "parent": 45346403,
+    "depth": 2
+  },
+  {
+    "id": 45347102,
+    "by": "ninadpathak",
+    "timeISO": "2025-09-23T13:55:42.000Z",
+    "textPlain": "Depends on your use case. Post-processing can save headaches when soft constraints are fine or you want max flexibility, but you risk subtle errors slipping by. For API responses or anything that gets parsed downstream, I still trust grammar-constrained generation more—it just surfaces problems earlier.",
+    "parent": 45346030,
     "depth": 2
   },
   {
@@ -96,10 +200,34 @@
     "depth": 2
   },
   {
+    "id": 45347021,
+    "by": "2THFairy",
+    "timeISO": "2025-09-23T13:49:53.000Z",
+    "textPlain": "There are some implementation concerns, but the real answer is that it is an ideological choice.The AI companies believe that these kinds of grammar mistakes will be solved by improving the models. To build out tools for grammar constrained inference like this is to suggest, on some level, that GPT-N+1 won't magically solve the problem.The deeper level is that it's not just simple grammar constraints. Constraining to JSON is a nice party trick, but it opens the door to further ideas. How about constraining to a programming language's grammar? Those are well defined, you just swap the JSON grammar file for the Java grammar file, job done.We can go further: Why not use a language server to constrain not only the grammar but also the content? What variables and functions are in-scope is known, constraining a variable reference or function call to one of their names can be done with the same techique as grammar constraints. (\"monitor-guided decoding\", figured out back in 2023)Entire classes of hallucination problems can be eliminated this way. The marketing writes itself; \"Our AI is literally incapable of making the errors humans make!\"What many AI developers, firms, and especially their leaders find grating about this is the implication. That AI is fallible and has to be constrained.Another such inconvenience is that while these techniques improve grammar they highlight semantic problems. The code is correct & compiles, it just does the wrong thing.",
+    "parent": 45346094,
+    "depth": 2
+  },
+  {
+    "id": 45347182,
+    "by": "weberer",
+    "timeISO": "2025-09-23T14:01:05.000Z",
+    "textPlain": "Fireworks does. It is frustrating that AWS/Google/Azure do not.https://fireworks.ai/docs/structured-responses/structured-ou...",
+    "parent": 45346094,
+    "depth": 2
+  },
+  {
     "id": 45346771,
     "by": "barrkel",
     "timeISO": "2025-09-23T13:30:06.000Z",
-    "textPlain": "Using grammar constrained output in llama.cpp - which has been available for ages and I think is a different implementation to the one described here - does slow down generation quite a bit. I expect it has a naive implementation.As to why providers don't give you a nice API, maybe it's hard to implement efficiently.It's not too bad if inference is happening token by token and reverting to the CPU every time, but I understand high performance LLM inference uses speculative decoding, with a smaller model guessing multiple tokens in advance and the main model doing verification. Doing grammar constraints across multiple tokens is tougher, there's an exponential number of states that need caching.So you'd need to think about putting the parser automaton onto the GPU/TPU and use it during inference without needing to stall a pipeline by going back CPU.And then you start thinking about how big that automaton is going to be. How many states, pushdown stack. You're basically taking code from the API call and running it on your hardware. There's dragons here, around fair use, denial of service etc.",
+    "textPlain": "Using grammar constrained output in llama.cpp - which has been available for ages and I think is a different implementation to the one described here - does slow down generation quite a bit. I expect it has a naive implementation.As to why providers don't give you a nice API, maybe it's hard to implement efficiently.It's not too bad if inference is happening token by token and reverting to the CPU every time, but I understand high performance LLM inference uses speculative decoding, with a smaller model guessing multiple tokens in advance and the main model doing verification. Doing grammar constraints across multiple tokens is tougher, there's an exponential number of states that need precomputing.So you'd need to think about putting the parser automaton onto the GPU/TPU and use it during inference without needing to stall a pipeline by going back CPU.And then you start thinking about how big that automaton is going to be. How many states, pushdown stack. You're basically taking code from the API call and running it on your hardware. There's dragons here, around fair use, denial of service etc.",
+    "parent": 45346094,
+    "depth": 2
+  },
+  {
+    "id": 45346946,
+    "by": "FlyingLawnmower",
+    "timeISO": "2025-09-23T13:43:35.000Z",
+    "textPlain": "OpenAI has started to (at least for tool calls): https://platform.openai.com/docs/guides/function-calling#con...",
     "parent": 45346094,
     "depth": 2
   },
