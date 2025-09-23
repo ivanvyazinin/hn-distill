@@ -1,17 +1,17 @@
 [
   {
-    "id": 45343247,
-    "by": "jensneuse",
-    "timeISO": "2025-09-23T05:58:40.000Z",
-    "textPlain": "I'm with WunderGraph, a vendor providing enterprise tooling for GraphQL.First, I absolutely love Capn Proto and the ideas of chaining calls on objects. It's amazing to see what's possible with CapNweb.However, one of the examples compares it to GraphQL, which I think falls a bit short of how enterprises use the Query language in real life.First, like others mentioned, you'll have N+1 problems for nested lists. That is, if we call comments() on each post and author() on each comment, we absolutely don't want to have one individual call per nested object. In GraphQL, with the data loader pattern, this is just 3 calls.Second, there's also an element of security. Advanced GraphQL gateways like WunderGraph's are capable of implementing fine grained rate limiting that prevent a client to ask for too much data. With this RPC object calling style, we don't have a notion of \"Query Plans\", so we cannot statically analyze a combination of API calls and estimate the cost before executing them.Lastly, GraphQL these days is mostly used with Federation. That means a single client talks to a Gateway (e.g. WunderGraph's Cosmo Router) and the Router distributed the calls efficiently across many sub services (Subgraphs) with a query planner that finds the optimal way to load information from multiple services. While capNweb looks amazing, the reality is that a client would have to talk to many services.Which brings me to my last point. Instead of Going the capNweb vs GraphQL route, I'd think more about how the two can work together. What if a client could use CapNweb to talk to a Federation Router that allows it to interact with entities, the object definitions in a GraphQL Federation system.I think this is really worth exploring. Not going against other API styles but trying to combine the strengths.- https://wundergraph.com/",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45337000,
     "by": "mtrovo",
     "timeISO": "2025-09-22T17:51:05.000Z",
     "textPlain": "The section on how they solved arrays is fascinating and terrifying at the same time https://blog.cloudflare.com/capnweb-javascript-rpc-library/#....> .map() is special. It does not send JavaScript code to the server, but it does send something like \"code\", restricted to a domain-specific, non-Turing-complete language. The \"code\" is a list of instructions that the server should carry out for each member of the array.> But the application code just specified a JavaScript method. How on Earth could we convert this into the narrow DSL? The answer is record-replay: On the client side, we execute the callback once, passing in a special placeholder value. The parameter behaves like an RPC promise. However, the callback is required to be synchronous, so it cannot actually await this promise. The only thing it can do is use promise pipelining to make pipelined calls. These calls are intercepted by the implementation and recorded as instructions, which can then be sent to the server, where they can be replayed as needed.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45343247,
+    "by": "jensneuse",
+    "timeISO": "2025-09-23T05:58:40.000Z",
+    "textPlain": "I'm with WunderGraph, a vendor providing enterprise tooling for GraphQL.First, I absolutely love Capn Proto and the ideas of chaining calls on objects. It's amazing to see what's possible with CapNweb.However, one of the examples compares it to GraphQL, which I think falls a bit short of how enterprises use the Query language in real life.First, like others mentioned, you'll have N+1 problems for nested lists. That is, if we call comments() on each post and author() on each comment, we absolutely don't want to have one individual call per nested object. In GraphQL, with the data loader pattern, this is just 3 calls.Second, there's also an element of security. Advanced GraphQL gateways like WunderGraph's are capable of implementing fine grained rate limiting that prevent a client to ask for too much data. With this RPC object calling style, we don't have a notion of \"Query Plans\", so we cannot statically analyze a combination of API calls and estimate the cost before executing them.Lastly, GraphQL these days is mostly used with Federation. That means a single client talks to a Gateway (e.g. WunderGraph's Cosmo Router) and the Router distributed the calls efficiently across many sub services (Subgraphs) with a query planner that finds the optimal way to load information from multiple services. While capNweb looks amazing, the reality is that a client would have to talk to many services.Which brings me to my last point. Instead of Going the capNweb vs GraphQL route, I'd think more about how the two can work together. What if a client could use CapNweb to talk to a Federation Router that allows it to interact with entities, the object definitions in a GraphQL Federation system.I think this is really worth exploring. Not going against other API styles but trying to combine the strengths.- https://wundergraph.com/",
     "parent": 45332883,
     "depth": 1
   },
@@ -72,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45343706,
+    "by": "pjmlp",
+    "timeISO": "2025-09-23T07:04:08.000Z",
+    "textPlain": "I am going to be that guy, the way REST is used in 99% of project deployments, it is yet another form of RPC, mostly JSON-RPC with a little help of HTTP verbs to save having yet another field for the actuall message purpose, all nicely wrapped in language specific SDKs, looking like method/function calls.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
     "id": 45335170,
     "by": "benpacker",
     "timeISO": "2025-09-22T15:51:25.000Z",
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45335433,
-    "by": "divan",
-    "timeISO": "2025-09-22T16:07:45.000Z",
-    "textPlain": ">  RPC is often accused of committing many of the fallacies of distributed computing.\n> But this reputation is outdated. When RPC was first invented some 40 years ago, async programming barely existed. We did not have Promises, much less async and await.I'm confused. How is this a \"protocol\" if its core premises rely on very specific implementation of concurrency in a very specific language?",
+    "id": 45341345,
+    "by": "srameshc",
+    "timeISO": "2025-09-23T00:17:17.000Z",
+    "textPlain": "If you have ever had to use gRPC & web, then you will know how painful Protobuf is to make it work on the web. I love the simplicity of Cap'n Web https://capnproto.org/language.html , hopefully this will lead us to better and easier RPC.Update: Unlike Cap'n Proto, Cap'n Web has no schemas. In fact, it has almost no boilerplate whatsoever. This means it works more like the JavaScript-native RPC system in Cloudflare Workers. https://github.com/cloudflare/capnweb",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45340890,
-    "by": "deepsun",
-    "timeISO": "2025-09-22T23:25:56.000Z",
-    "textPlain": "The main problem was always the same -- all the RPC libraries are designed to hide where the round-trip happens, but in real world you always want to know where and how the round-trip happens.Just read about Cap'n Web array .map() [1] -- it's hard to understand where the round-trip is. And that is not a feature, that's a bug -- in reality you want to easily tell what the code does, not hide it.[1] https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...",
+    "id": 45335433,
+    "by": "divan",
+    "timeISO": "2025-09-22T16:07:45.000Z",
+    "textPlain": ">  RPC is often accused of committing many of the fallacies of distributed computing.\n> But this reputation is outdated. When RPC was first invented some 40 years ago, async programming barely existed. We did not have Promises, much less async and await.I'm confused. How is this a \"protocol\" if its core premises rely on very specific implementation of concurrency in a very specific language?",
     "parent": 45332883,
     "depth": 1
   },
@@ -120,18 +128,18 @@
     "depth": 1
   },
   {
-    "id": 45342760,
-    "by": "osigurdson",
-    "timeISO": "2025-09-23T04:10:16.000Z",
-    "textPlain": ">> If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.This is like .NET Remoting. Suggest resisting the temptation to use this kind of stuff. It gets very hard to reason about what is going on.",
+    "id": 45340890,
+    "by": "deepsun",
+    "timeISO": "2025-09-22T23:25:56.000Z",
+    "textPlain": "The main problem was always the same -- all the RPC libraries are designed to hide where the round-trip happens, but in real world you always want to know where and how the round-trip happens.Just read about Cap'n Web array .map() [1] -- it's hard to understand where the round-trip is. And that is not a feature, that's a bug -- in reality you want to easily tell what the code does, not hide it.[1] https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45342738,
+    "id": 45342760,
     "by": "osigurdson",
-    "timeISO": "2025-09-23T04:06:05.000Z",
-    "textPlain": ">> let namePromise = batch.getMyName();\nlet result = await batch.hello(namePromise);This is quite interesting. However the abysmal pattern I have seen a number of times is:list = getList(...)\nfor item in list\n  getItemDetails(item)Sometimes this is quite hard to undo.",
+    "timeISO": "2025-09-23T04:10:16.000Z",
+    "textPlain": ">> If a class extends the special marker type RpcTarget, then instances of that class are passed by reference, with method calls calling back to the location where the object was created.This is like .NET Remoting. Suggest resisting the temptation to use this kind of stuff. It gets very hard to reason about what is going on.",
     "parent": 45332883,
     "depth": 1
   },
@@ -144,18 +152,18 @@
     "depth": 1
   },
   {
-    "id": 45341959,
-    "by": "sgarland",
-    "timeISO": "2025-09-23T01:55:40.000Z",
-    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
+    "id": 45335805,
+    "by": "jimmyl02",
+    "timeISO": "2025-09-22T16:31:44.000Z",
+    "textPlain": "This seems like a similar and more feature complete / polished version of JSON RPC?The part that's most exciting to me is actually the bidirectional calling. Having set this up before via JSON RPC / custom protocol the experience was super \"messy\" and I'm looking forward to a framework making it all better.Can't wait to try it out!",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45341345,
-    "by": "srameshc",
-    "timeISO": "2025-09-23T00:17:17.000Z",
-    "textPlain": "If you have ever had to use gRPC & web, then you will know how painful Protobuf is to make it work on the web. I love the simplicity of Cap'n Web https://capnproto.org/language.html , hopefully this will lead us to better and easier RPC.Update: Unlike Cap'n Proto, Cap'n Web has no schemas. In fact, it has almost no boilerplate whatsoever. This means it works more like the JavaScript-native RPC system in Cloudflare Workers. https://github.com/cloudflare/capnweb",
+    "id": 45341959,
+    "by": "sgarland",
+    "timeISO": "2025-09-23T01:55:40.000Z",
+    "textPlain": "Tangential from a discussion in TFA about GraphQL:> One benefit of GraphQL was to solve the “waterfall” problem of traditional REST APIs by allowing clients to ask for multiple pieces of data in one query. For example, instead of making three sequential HTTP calls:    GET /user\n    GET /user/friends\n    GET /user/friends/photos\n\n…you can write one GraphQL query to fetch it all at once.Or you could have designed a schema to allow easy tree traversal. Or you could use a recursive CTE.",
     "parent": 45332883,
     "depth": 1
   },
@@ -168,18 +176,18 @@
     "depth": 1
   },
   {
-    "id": 45335096,
-    "by": "fitzn",
-    "timeISO": "2025-09-22T15:46:38.000Z",
-    "textPlain": "Just making sure I understand the \"one round trip\" point. If the client has chained 3 calls together, that still requires 3 messages sent from the client to the server. Correct?That is, the client is not packaging up all its logic and sending a single blob that describes the fully-chained logic to the server on its initial request. Right?When I first read it, I was thinking it meant 1 client message and 1 server response. But I think \"one round trip\" more or less message \"1 server message in response to potentially many client messages\". That's a fair use of \"1 RTT\", but took me a moment to understand.Just to make that distinction clear from a different angle, suppose the client were _really_ _really_ slow and it did not send the second promise message to the server until AFTER the server had computed the result for promise1. Would the server have already responded to the client with the result? That would be a way to incur multiple RTTs, albeit the application wouldn't care since it's bottlenecked by the client CPU, not the network in this case.I realize this is unlikely. I'm just using it to elucidate the system-level guarantee for my understanding.As always, thanks for sharing this, Kenton!",
+    "id": 45342738,
+    "by": "osigurdson",
+    "timeISO": "2025-09-23T04:06:05.000Z",
+    "textPlain": ">> let namePromise = batch.getMyName();\nlet result = await batch.hello(namePromise);This is quite interesting. However the abysmal pattern I have seen a number of times is:list = getList(...)\nfor item in list\n  getItemDetails(item)Sometimes this is quite hard to undo.",
     "parent": 45332883,
     "depth": 1
   },
   {
-    "id": 45335805,
-    "by": "jimmyl02",
-    "timeISO": "2025-09-22T16:31:44.000Z",
-    "textPlain": "This seems like a similar and more feature complete / polished version of JSON RPC?The part that's most exciting to me is actually the bidirectional calling. Having set this up before via JSON RPC / custom protocol the experience was super \"messy\" and I'm looking forward to a framework making it all better.Can't wait to try it out!",
+    "id": 45337242,
+    "by": "ianbicking",
+    "timeISO": "2025-09-22T18:06:09.000Z",
+    "textPlain": "Couple random thoughts:I'm trying to see if there's something specifically for streaming/generators. I don't think so? Of course you can use callbacks, but you have to implement your own sentinel to mark the end, and other little corner cases. It seems like you can create a callback to an anonymous function, but then the garbage collector probably can't collect that function?---I don't see anything about exceptions (though Error objects can be passed through).---Looking at array mapping: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...I get how it works: remotePromise.map(callback) will invoke the callback to see how it behaves, then make it behave similarly on the server. But it seems awfully fragile... I am assuming something like this would fail (in this case probably silently losing the conditional):    friendsPromise.map(friend => {friend, lastStatus: friend.isBestFriend ? api.getStatus(friend.id) : null})\n\n---The array escape is clever and compact: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...---I think the biggest question I have is: how would I apply this to my boring stateless-HTTP server? I can imagine something where there's a worker that's fairly simple and neutral that the browser connects to, and proxies to my server. But then my server can also get callbacks that it can use to connect back to the browser, and put those callbacks (capability?) into a database or something. Then it can connect to a worker (maybe?) and do server-initiated communication. But that's only good for a session. It has to be rebuilt when the browser network connection is interrupted, or if the browser page is reloaded.I can imagine building that on top of Cap'n Web, but it feels very complicated and I can equally imagine lots of headaches.",
     "parent": 45332883,
     "depth": 1
   },
@@ -188,6 +196,22 @@
     "by": "unshavedyak",
     "timeISO": "2025-09-22T16:00:52.000Z",
     "textPlain": "What would this look like for other language backends to support? Eg would be neat if Rust (my webservers) could support this on the backendedit: Downvoted, is this a bad question? The title is generically \"web servers\", obviously the content of the post focuses primarily on TypeScript, but i'm trying to determine if there's something unique about this that means it cannot be implemented in other languages. The serverside DSL execution could be difficult to impl, but as it's not strictly JavaScript i imagine it's not impossible?",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45335096,
+    "by": "fitzn",
+    "timeISO": "2025-09-22T15:46:38.000Z",
+    "textPlain": "Just making sure I understand the \"one round trip\" point. If the client has chained 3 calls together, that still requires 3 messages sent from the client to the server. Correct?That is, the client is not packaging up all its logic and sending a single blob that describes the fully-chained logic to the server on its initial request. Right?When I first read it, I was thinking it meant 1 client message and 1 server response. But I think \"one round trip\" more or less message \"1 server message in response to potentially many client messages\". That's a fair use of \"1 RTT\", but took me a moment to understand.Just to make that distinction clear from a different angle, suppose the client were _really_ _really_ slow and it did not send the second promise message to the server until AFTER the server had computed the result for promise1. Would the server have already responded to the client with the result? That would be a way to incur multiple RTTs, albeit the application wouldn't care since it's bottlenecked by the client CPU, not the network in this case.I realize this is unlikely. I'm just using it to elucidate the system-level guarantee for my understanding.As always, thanks for sharing this, Kenton!",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45335400,
+    "by": "random3",
+    "timeISO": "2025-09-22T16:05:51.000Z",
+    "textPlain": "It's inspired by and created by a coauthor of [Cap'n Proto](https://capnproto.org), which is also what OCapN (referenced in a separate comment) name refers to.Cap'n Proto is inspired by ProtoBuf, protobuf has gRPC and gRPC web.We've been using ProtoBuf/gRPC/gRPC-web both in the backends and for public endpoints powering React / TS UI's, at my last startup. It worked great, particularly with the GCP Kubernetes infrastructure. Basically both API and operational aspects were non-problems. However, navigating the dumpster fire around protobuf, gRPC, gRPC web with the lack of community leadership from Google was a clusterfuck.This said, I'm a bit at loss with the meaning of schemaless. You can have different approaches wrt schema (see Avro vs ProtoBuf) but otherwise, can't fundamentally eschew schema/types. It's purely information tied to a communication channel that needs to be somewhere, whether that's explicit, implicit, handled by the RCP layer, passed to the type system, or worse all the way to the user/dev. Moreover, schemas tend to evolve and any protocol needs to take that into account.Historically, ProtoBuf has done a good job managing various tradeoffs, here but had no experience using Capt'n Proto, yet seen mostly good stuff about it, so perhaps I'm just missing something here.",
     "parent": 45332883,
     "depth": 1
   },
@@ -204,22 +228,6 @@
     "by": "evansd",
     "timeISO": "2025-09-22T15:43:32.000Z",
     "textPlain": "I need time to try this out for real, but the simplicity/power ratio here looks like it could be pretty extraordinary. Very exciting!Tiny remark for @kentonv if you're reading: it looks like you've got the wrong code sample immediately following the text \"Putting it together, a code sequence like this\".",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45337242,
-    "by": "ianbicking",
-    "timeISO": "2025-09-22T18:06:09.000Z",
-    "textPlain": "Couple random thoughts:I'm trying to see if there's something specifically for streaming/generators. I don't think so? Of course you can use callbacks, but you have to implement your own sentinel to mark the end, and other little corner cases. It seems like you can create a callback to an anonymous function, but then the garbage collector probably can't collect that function?---I don't see anything about exceptions (though Error objects can be passed through).---Looking at array mapping: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...I get how it works: remotePromise.map(callback) will invoke the callback to see how it behaves, then make it behave similarly on the server. But it seems awfully fragile... I am assuming something like this would fail (in this case probably silently losing the conditional):    friendsPromise.map(friend => {friend, lastStatus: friend.isBestFriend ? api.getStatus(friend.id) : null})\n\n---The array escape is clever and compact: https://blog.cloudflare.com/capnweb-javascript-rpc-library/#...---I think the biggest question I have is: how would I apply this to my boring stateless-HTTP server? I can imagine something where there's a worker that's fairly simple and neutral that the browser connects to, and proxies to my server. But then my server can also get callbacks that it can use to connect back to the browser, and put those callbacks (capability?) into a database or something. Then it can connect to a worker (maybe?) and do server-initiated communication. But that's only good for a session. It has to be rebuilt when the browser network connection is interrupted, or if the browser page is reloaded.I can imagine building that on top of Cap'n Web, but it feels very complicated and I can equally imagine lots of headaches.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45335400,
-    "by": "random3",
-    "timeISO": "2025-09-22T16:05:51.000Z",
-    "textPlain": "It's inspired by and created by a coauthor of [Cap'n Proto](https://capnproto.org), which is also what OCapN (referenced in a separate comment) name refers to.Cap'n Proto is inspired by ProtoBuf, protobuf has gRPC and gRPC web.We've been using ProtoBuf/gRPC/gRPC-web both in the backends and for public endpoints powering React / TS UI's, at my last startup. It worked great, particularly with the GCP Kubernetes infrastructure. Basically both API and operational aspects were non-problems. However, navigating the dumpster fire around protobuf, gRPC, gRPC web with the lack of community leadership from Google was a clusterfuck.This said, I'm a bit at loss with the meaning of schemaless. You can have different approaches wrt schema (see Avro vs ProtoBuf) but otherwise, can't fundamentally eschew schema/types. It's purely information tied to a communication channel that needs to be somewhere, whether that's explicit, implicit, handled by the RCP layer, passed to the type system, or worse all the way to the user/dev. Moreover, schemas tend to evolve and any protocol needs to take that into account.Historically, ProtoBuf has done a good job managing various tradeoffs, here but had no experience using Capt'n Proto, yet seen mostly good stuff about it, so perhaps I'm just missing something here.",
     "parent": 45332883,
     "depth": 1
   },
@@ -328,18 +336,18 @@
     "depth": 1
   },
   {
-    "id": 45342514,
-    "by": "porridgeraisin",
-    "timeISO": "2025-09-23T03:26:51.000Z",
-    "textPlain": "I really like the idea. Especially the idea where you return different RpcTargets based on the \"context\", that's really quite nice. Not just for authentication and such, but for representing various things like \"completely structurally different output for GET /thingies for admin and users\".The promise-passing lazily evaluated approach is also nice -- any debugging woes are solved by just awaiting and logging before the await -- and it solves composability at the server - client layer. The hackiness of `map()` is unfortunate, but that's just how JS is.However, I don't see this being too useful without there also being composability at the server - database layer. This is notoriously difficult in most databases. I wonder what the authors / others here think about this.For an example of what I mean  const user = rpc.getUser(id)\n  const friends = await rpc.getFriends(user)\n\nSure beats  GET /user/id\n  GET /graph?outbound=id\n\nBut, at the end, both cases are running two different SQL queries. Most of the time when we fuse operations in APIs we do it all the way down to the SQL layer (with a join).  GET /user/id?include=friends\n\nWhich does a join and gets the data in a single query.So while its a nice programming model for sure, I think in practice we'll end up having a `rpc.getUserAndFriends()` anyways.I'm not that experienced, so I don't know in how many projects composability at just one layer would actually be enough to solve most composability issues. If it's a majority, then great, but if not, then I don't think this is doing much.One situation where this actually works that comes to mind is SQLite apps, where multiple queries are more or less OK due to lack of network round trip. Or if your DB is colocated with your app in one of the new fancy datacenters where you get DB RAM to app RAM transfer through some crazy fast network interconnect fabric (RDMA) that's quicker than even local disk sometimes.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45339260,
     "by": "yayitswei",
     "timeISO": "2025-09-22T20:46:16.000Z",
     "textPlain": "One of the authors is the Kenton who built this awesome lan party house: https://lanparty.house/",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45342514,
+    "by": "porridgeraisin",
+    "timeISO": "2025-09-23T03:26:51.000Z",
+    "textPlain": "I really like the idea. Especially the idea where you return different RpcTargets based on the \"context\", that's really quite nice. Not just for authentication and such, but for representing various things like \"completely structurally different output for GET /thingies for admin and users\".The promise-passing lazily evaluated approach is also nice -- any debugging woes are solved by just awaiting and logging before the await -- and it solves composability at the server - client layer. The hackiness of `map()` is unfortunate, but that's just how JS is.However, I don't see this being too useful without there also being composability at the server - database layer. This is notoriously difficult in most databases. I wonder what the authors / others here think about this.For an example of what I mean  const user = rpc.getUser(id)\n  const friends = await rpc.getFriends(user)\n\nSure beats  GET /user/id\n  GET /graph?outbound=id\n\nBut, at the end, both cases are running two different SQL queries. Most of the time when we fuse operations in APIs we do it all the way down to the SQL layer (with a join).  GET /user/id?include=friends\n\nWhich does a join and gets the data in a single query.So while its a nice programming model for sure, I think in practice we'll end up having a `rpc.getUserAndFriends()` anyways.I'm not that experienced, so I don't know in how many projects composability at just one layer would actually be enough to solve most composability issues. If it's a majority, then great, but if not, then I don't think this is doing much.One situation where this actually works that comes to mind is SQLite apps, where multiple queries are more or less OK due to lack of network round trip. Or if your DB is colocated with your app in one of the new fancy datacenters where you get DB RAM to app RAM transfer through some crazy fast network interconnect fabric (RDMA) that's quicker than even local disk sometimes.",
     "parent": 45332883,
     "depth": 1
   },
@@ -360,18 +368,18 @@
     "depth": 1
   },
   {
-    "id": 45341170,
-    "by": "paradox460",
-    "timeISO": "2025-09-22T23:58:05.000Z",
-    "textPlain": "Feels a little like how erlang calls things across different nodes",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
     "id": 45338770,
     "by": "quatonion",
     "timeISO": "2025-09-22T20:05:45.000Z",
     "textPlain": "Really not a big fan of batteries included opinionated protocols.Even Cap'n Proto and Protobuf is too much for me.My particular favorite is this.  But then I'm biased coz I wrote it haha.https://github.com/Foundation42/libtupleNo, but seriously, it has some really nice properties.  You can embed JSON like maps, arrays and S-Expressions recursively.  It doesn't care.You can stream it incrementally or use it a message framed form.And the nicest thing is that the encoding is lexicographically sortable.",
+    "parent": 45332883,
+    "depth": 1
+  },
+  {
+    "id": 45341170,
+    "by": "paradox460",
+    "timeISO": "2025-09-22T23:58:05.000Z",
+    "textPlain": "Feels a little like how erlang calls things across different nodes",
     "parent": 45332883,
     "depth": 1
   },
@@ -388,14 +396,6 @@
     "by": "indolering",
     "timeISO": "2025-09-22T21:35:31.000Z",
     "textPlain": "I find the choice of TypeScript to be disappointing.  One of the reasons that capproto has struggled for market share is the lack of implementations.Is the overhead for calling into WASM too high for a Rust implementation to be feasible?A Haxe or Dafny implementation have let us generate libraries in multiple languages from the same source.",
-    "parent": 45332883,
-    "depth": 1
-  },
-  {
-    "id": 45340087,
-    "by": "truth_seeker",
-    "timeISO": "2025-09-22T21:57:02.000Z",
-    "textPlain": "JSON Serialization, seriously ???Why not \"application/octet-stream\" header and sending ArrayBuffer over the network  ?",
     "parent": 45332883,
     "depth": 1
   }
