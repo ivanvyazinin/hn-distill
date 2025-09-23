@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45351364,
-    "by": "chmod775",
-    "timeISO": "2025-09-23T19:05:43.000Z",
-    "textPlain": "This is just how you should implement any (clientside) cache in a concurrent situation. It's the obvious and correct way. I expect you'll find this pattern implemented with promises in thousands of javascript/typescript codebases.This query will probably find loads already: https://github.com/search?q=language%3Atypescript+%22new+Map...",
-    "parent": 45341038,
-    "depth": 1
-  },
-  {
     "id": 45351278,
     "by": "sriram_malhar",
     "timeISO": "2025-09-23T18:57:17.000Z",
     "textPlain": "This particular example of thundering herd isn't convincing. First, the database has a cache too, and the first query would end up benefiting the other queries for the same key. The only extra overhead is of the network, which is something a distributed lock would also have.I would think that in the rare instance of multiple concurrent requests for the same key where none of the caches have it cached, it might just be worth it to take the slightly increased hit (if any) of going to the db instead of complicated it further and slowing down everyone else with the same mechanism.",
+    "parent": 45341038,
+    "depth": 1
+  },
+  {
+    "id": 45351364,
+    "by": "chmod775",
+    "timeISO": "2025-09-23T19:05:43.000Z",
+    "textPlain": "This is just how you should implement any (clientside) cache in a concurrent situation. It's the obvious and correct way. I expect you'll find this pattern implemented with promises in thousands of javascript/typescript codebases.This query will probably find loads already: https://github.com/search?q=language%3Atypescript+%22new+Map...",
     "parent": 45341038,
     "depth": 1
   },
@@ -46,6 +46,30 @@
     "textPlain": "I've stumbled on this twice now, usually you can use just CDN caching, but I once solved it with redis locks, and once with simply filling the cache periodically in the background.If you can, it's easier to have every client fetch from cache, and then a cron job e.g., every second, refresh the cache.In CDN feature to prevent this is \"Collapse Forwarding\"",
     "parent": 45341038,
     "depth": 1
+  },
+  {
+    "id": 45352680,
+    "by": "raffraffraff",
+    "timeISO": "2025-09-23T21:00:16.000Z",
+    "textPlain": "Cool. That's reminds of an approach I took back in 2011 when implementing a Linux build / update system in a (small) bank. 8000 machines across hundreds of branches, no servers in the branches, no internet access, limited bandwidth. The goal was to wake one machine (WOL) which detects an update (via LDAP attribute) and then rsyncs repo update + torrent file. Once complete, that machine would load the torrent, verify the synced files, update it's version in LDAP and wake all of its peers. Each peer host would also query LDAP, detect the need to update, but also notice a peer with the latest version, so skip repo rsync and grab the torrent file and load it. So a branch with hundreds of hosts would torrent the repo update pretty quickly to each other. Pretty cool tbh, you could PXE boot and rebuild a bunch of hosts remotely, and once built, any one of them could act as an installation point. I even used this to do a distribution change, switching from SLES to Ubuntu.",
+    "parent": 45351835,
+    "depth": 2
+  },
+  {
+    "id": 45352491,
+    "by": "achalshah",
+    "timeISO": "2025-09-23T20:42:51.000Z",
+    "textPlain": "Uber built Kraken to solve the same problem with distributing images: https://github.com/uber/kraken",
+    "parent": 45351835,
+    "depth": 2
+  },
+  {
+    "id": 45352579,
+    "by": "fidotron",
+    "timeISO": "2025-09-23T20:50:22.000Z",
+    "textPlain": "That's not completely unheard of. Cavium used to sell chips intended to go in switches and routers which had a sort of programmable hash function that could be applied to incoming packets, and then use the result of that hash to route the packets.These days you'd have to assume someone somewhere has a neural net based router.",
+    "parent": 45351189,
+    "depth": 2
   },
   {
     "id": 45352140,
@@ -61,6 +85,14 @@
     "timeISO": "2025-09-23T19:32:59.000Z",
     "textPlain": "I don't associate missing articles with LLMs and I've known people, always for whom English was a second language, who dropped them often.",
     "parent": 45351209,
+    "depth": 2
+  },
+  {
+    "id": 45352609,
+    "by": "to11mtm",
+    "timeISO": "2025-09-23T20:52:46.000Z",
+    "textPlain": "> The only extra overhead is of the network, which is something a distributed lock would also have.Well, There's also the 'overhead' of connection pooling. I put it that way because I've definitely run into the case of a 'hot' key (i.e. imagine hundreds of users that all need to download the same set of data because they are in the same group). Next thing you know your connection pool is getting saturated with these requests.To your point however, I've also had cases where frankly querying the database is always fast enough (i.e. simple lookup on a table small enough that the DB engine practically always has it in memory anyway) so a cache would just be wasted dev time.",
+    "parent": 45351278,
     "depth": 2
   }
 ]
