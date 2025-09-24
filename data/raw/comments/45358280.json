@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45361497,
+    "by": "ttfvjktesd",
+    "timeISO": "2025-09-24T15:11:21.000Z",
+    "textPlain": "> tens of millions of disksIf we assume enterprise HDDs in the double digit TB range then one can estimate that the total S3 storage volume of AWS is in the triple digit Exabyte range. That's propably the biggest storage system on planet earth.",
+    "parent": 45358280,
+    "depth": 1
+  },
+  {
     "id": 45360229,
     "by": "dgllghr",
     "timeISO": "2025-09-24T13:41:06.000Z",
@@ -16,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45359372,
-    "by": "crabique",
-    "timeISO": "2025-09-24T12:29:57.000Z",
-    "textPlain": "Is there an open source service designed with HDDs in mind that achieves similar performance? I know none of the big ones work that well with HDDs: MinIO, Swift, Ceph+RadosGW, SeaweedFS; they all suggest flash-only deployments.Recently I've been looking into Garage and liking the idea of it, but it seems to have a very different design (no EC).",
-    "parent": 45358280,
-    "depth": 1
-  },
-  {
     "id": 45359594,
     "by": "nerdjon",
     "timeISO": "2025-09-24T12:52:29.000Z",
     "textPlain": "So is any of S3 powered by SSD's?I honestly figured that it must be powered by SSD for the standard tier and the slower tiers were the ones using HDD or slower systems.",
+    "parent": 45358280,
+    "depth": 1
+  },
+  {
+    "id": 45359372,
+    "by": "crabique",
+    "timeISO": "2025-09-24T12:29:57.000Z",
+    "textPlain": "Is there an open source service designed with HDDs in mind that achieves similar performance? I know none of the big ones work that well with HDDs: MinIO, Swift, Ceph+RadosGW, SeaweedFS; they all suggest flash-only deployments.Recently I've been looking into Garage and liking the idea of it, but it seems to have a very different design (no EC).",
     "parent": 45358280,
     "depth": 1
   },
@@ -48,14 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45360799,
-    "by": "littlesnugblood",
-    "timeISO": "2025-09-24T14:18:55.000Z",
-    "textPlain": "Andy Warfield is a narcissistic asshole. I speak from experience.",
-    "parent": 45359092,
-    "depth": 2
-  },
-  {
     "id": 45359435,
     "by": "giancarlostoro",
     "timeISO": "2025-09-24T12:36:17.000Z",
@@ -64,11 +64,35 @@
     "depth": 2
   },
   {
-    "id": 45360310,
-    "by": "olavgg",
-    "timeISO": "2025-09-24T13:46:22.000Z",
-    "textPlain": "SeaweedFS has evolved a lot the last few years, with RDMA support and EC.",
-    "parent": 45359372,
+    "id": 45360799,
+    "by": "littlesnugblood",
+    "timeISO": "2025-09-24T14:18:55.000Z",
+    "textPlain": "Andy Warfield is a narcissistic asshole. I speak from experience.",
+    "parent": 45359092,
+    "depth": 2
+  },
+  {
+    "id": 45361330,
+    "by": "electroly",
+    "timeISO": "2025-09-24T14:58:40.000Z",
+    "textPlain": "It's assumed that the new S3 Express One Zone is backed by SSDs but I believe Amazon doesn't say so explicitly.",
+    "parent": 45359594,
+    "depth": 2
+  },
+  {
+    "id": 45361106,
+    "by": "rubiquity",
+    "timeISO": "2025-09-24T14:40:25.000Z",
+    "textPlain": "> So is any of S3 powered by SSD's?S3’s KeyMap Index uses SSDs. I also wouldn’t be surprised if at this point SSDs are somewhere along the read path for caching hot objects or in the new one zone product.",
+    "parent": 45359594,
+    "depth": 2
+  },
+  {
+    "id": 45359693,
+    "by": "MDGeist",
+    "timeISO": "2025-09-24T13:00:53.000Z",
+    "textPlain": "I always assumed the really slow tiers were tape.",
+    "parent": 45359594,
     "depth": 2
   },
   {
@@ -76,6 +100,14 @@
     "by": "bayindirh",
     "timeISO": "2025-09-24T12:51:19.000Z",
     "textPlain": "Lustre and ZFS can do similar speeds.However, if you need high IOPS, you need flash on MDS for Lustre and some Log SSDs (esp. dedicated write and read ones) for ZFS.",
+    "parent": 45359372,
+    "depth": 2
+  },
+  {
+    "id": 45360310,
+    "by": "olavgg",
+    "timeISO": "2025-09-24T13:46:22.000Z",
+    "textPlain": "SeaweedFS has evolved a lot the last few years, with RDMA support and EC.",
     "parent": 45359372,
     "depth": 2
   },
@@ -96,11 +128,11 @@
     "depth": 2
   },
   {
-    "id": 45359693,
-    "by": "MDGeist",
-    "timeISO": "2025-09-24T13:00:53.000Z",
-    "textPlain": "I always assumed the really slow tiers were tape.",
-    "parent": 45359594,
+    "id": 45360483,
+    "by": "hnexamazon",
+    "timeISO": "2025-09-24T13:57:02.000Z",
+    "textPlain": "I was an SDE on the S3 Index team 10 years ago, but I doubt much of the core stack has changed.S3 is comprised primarily of layers of Java-based web services. The hot path (object get / put / list) are all served by synchronous API servers - no queues or workers. It is the best example of how many transactions per second a pretty standard Java web service stack can handle that I’ve seen in my career.For a get call, you first hit a fleet of front-end HTTP API servers behind a set of load balancers. Partitioning is based on the key name prefixes, although I hear they’ve done work to decouple that recently. Your request is then sent to the Indexing fleet to find the mapping of your key name to an internal storage id. This is returned to the front end layer, which then calls the storage layer with the id to get the actual bits. It is a very straightforward multi-layer distributed system design for serving synchronous API responses at massive scale.The only novel bit is all the backend communication uses a home-grown stripped-down HTTP variant, called STUMPY if I recall. It was a dumb idea to not just use HTTP but the service is ancient and originally built back when principal engineers were allowed to YOLO their own frameworks and protocols so now they are stuck with it. They might have done the massive lift to replace STUMPY with HTTP since my time.",
+    "parent": 45359718,
     "depth": 2
   },
   {
@@ -108,14 +140,6 @@
     "by": "Twirrim",
     "timeISO": "2025-09-24T13:24:20.000Z",
     "textPlain": "Amazon biases towards Systems Oriented Architecture approach that is in the middle ground between monolith and microservices.Biasing away from lots of small services in favour of larger ones that handle more of the work so that as much as possible you avoid the costs and latency of preparing, transmitting, receiving and processing requests.I know S3 has changed since I was there nearly a decade ago, so this is outdated. Off the top of my head it used to be about a dozen main services at that time. A request to put an object would only touch a couple of services en route to disk, and similar on retrieval. There were a few services that handled fixity and data durability operations, the software on the storage servers themselves, and then stuff that maintained the mapping between object and storage.",
-    "parent": 45359718,
-    "depth": 2
-  },
-  {
-    "id": 45360483,
-    "by": "hnexamazon",
-    "timeISO": "2025-09-24T13:57:02.000Z",
-    "textPlain": "I was an SDE on the S3 Index team 10 years ago, but I doubt much of the core stack has changed.S3 is comprised primarily of layers of Java-based web services. The hot path (object get / put / list) are all served by synchronous API servers - no queues or workers. It is the best example of how many transactions per second a pretty standard Java web service stack can handle that I’ve seen in my career.For a get call, you first hit a fleet of front-end HTTP API servers behind a set of load balancers. Partitioning is based on the key name prefixes, although I hear they’ve done work to decouple that recently. Your request is then sent to the Indexing fleet to find the mapping of your key name to an internal storage id. This is returned to the front end layer, which then calls the storage layer with the id to get the actual bits. It is a very straightforward multi-layer distributed system design for serving synchronous API responses at massive scale.The only novel bit is all the backend communication uses a home-grown stripped-down HTTP variant, called STUMPY if I recall. It was a dumb idea to not just use HTTP but the service is ancient and originally built back when principal engineers were allowed to YOLO their own frameworks and protocols so now they are stuck with it. They might have done the massive lift to replace STUMPY with HTTP since my time.",
     "parent": 45359718,
     "depth": 2
   },
