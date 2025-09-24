@@ -16,14 +16,6 @@
     "depth": 1
   },
   {
-    "id": 45361497,
-    "by": "ttfvjktesd",
-    "timeISO": "2025-09-24T15:11:21.000Z",
-    "textPlain": "> tens of millions of disksIf we assume enterprise HDDs in the double digit TB range then one can estimate that the total S3 storage volume of AWS is in the triple digit Exabyte range. That's propably the biggest storage system on planet earth.",
-    "parent": 45358280,
-    "depth": 1
-  },
-  {
     "id": 45359372,
     "by": "crabique",
     "timeISO": "2025-09-24T12:29:57.000Z",
@@ -40,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45362204,
-    "by": "sciencesama",
-    "timeISO": "2025-09-24T16:00:44.000Z",
-    "textPlain": "can we replicate something similar to this for homelab ?",
+    "id": 45361497,
+    "by": "ttfvjktesd",
+    "timeISO": "2025-09-24T15:11:21.000Z",
+    "textPlain": "> tens of millions of disksIf we assume enterprise HDDs in the double digit TB range then one can estimate that the total S3 storage volume of AWS is in the triple digit Exabyte range. That's propably the biggest storage system on planet earth.",
     "parent": 45358280,
     "depth": 1
   },
@@ -52,6 +44,14 @@
     "by": "wg0",
     "timeISO": "2025-09-24T13:02:23.000Z",
     "textPlain": "Does anyone know what is the technology stack of S3? Monolith or multiple services?I assume would have lots of queues, caches and long running workers.",
+    "parent": 45358280,
+    "depth": 1
+  },
+  {
+    "id": 45362204,
+    "by": "sciencesama",
+    "timeISO": "2025-09-24T16:00:44.000Z",
+    "textPlain": "can we replicate something similar to this for homelab ?",
     "parent": 45358280,
     "depth": 1
   },
@@ -75,24 +75,16 @@
     "id": 45360799,
     "by": "littlesnugblood",
     "timeISO": "2025-09-24T14:18:55.000Z",
-    "textPlain": "Andy Warfield is a narcissistic asshole. I speak from experience.",
+    "textPlain": "[flagged]",
     "parent": 45359092,
     "depth": 2
   },
   {
-    "id": 45362582,
-    "by": "threeducks",
-    "timeISO": "2025-09-24T16:24:40.000Z",
-    "textPlain": "A certain data center in Utah might top that, assuming that they have upgraded their hardware since 2013, which is of course very likely.https://www.forbes.com/sites/kashmirhill/2013/07/24/blueprin...",
-    "parent": 45361497,
-    "depth": 2
-  },
-  {
-    "id": 45362509,
-    "by": "yanslookup",
-    "timeISO": "2025-09-24T16:18:58.000Z",
-    "textPlain": "Production scale enterprise HDDs are in the 30TB range, 50TB on the horizon...",
-    "parent": 45361497,
+    "id": 45363266,
+    "by": "ffsm8",
+    "timeISO": "2025-09-24T17:15:25.000Z",
+    "textPlain": "That's like saying \"how to get to the moon is obvious: traveling\"",
+    "parent": 45360229,
     "depth": 2
   },
   {
@@ -160,11 +152,19 @@
     "depth": 2
   },
   {
-    "id": 45362528,
-    "by": "ai-christianson",
-    "timeISO": "2025-09-24T16:20:30.000Z",
-    "textPlain": "garage",
-    "parent": 45362204,
+    "id": 45362582,
+    "by": "threeducks",
+    "timeISO": "2025-09-24T16:24:40.000Z",
+    "textPlain": "A certain data center in Utah might top that, assuming that they have upgraded their hardware since 2013.https://www.forbes.com/sites/kashmirhill/2013/07/24/blueprin...",
+    "parent": 45361497,
+    "depth": 2
+  },
+  {
+    "id": 45362509,
+    "by": "yanslookup",
+    "timeISO": "2025-09-24T16:18:58.000Z",
+    "textPlain": "Production scale enterprise HDDs are in the 30TB range, 50TB on the horizon...",
+    "parent": 45361497,
     "depth": 2
   },
   {
@@ -172,6 +172,14 @@
     "by": "hnexamazon",
     "timeISO": "2025-09-24T13:57:02.000Z",
     "textPlain": "I was an SDE on the S3 Index team 10 years ago, but I doubt much of the core stack has changed.S3 is comprised primarily of layers of Java-based web services. The hot path (object get / put / list) are all served by synchronous API servers - no queues or workers. It is the best example of how many transactions per second a pretty standard Java web service stack can handle that I’ve seen in my career.For a get call, you first hit a fleet of front-end HTTP API servers behind a set of load balancers. Partitioning is based on the key name prefixes, although I hear they’ve done work to decouple that recently. Your request is then sent to the Indexing fleet to find the mapping of your key name to an internal storage id. This is returned to the front end layer, which then calls the storage layer with the id to get the actual bits. It is a very straightforward multi-layer distributed system design for serving synchronous API responses at massive scale.The only novel bit is all the backend communication uses a home-grown stripped-down HTTP variant, called STUMPY if I recall. It was a dumb idea to not just use HTTP but the service is ancient and originally built back when principal engineers were allowed to YOLO their own frameworks and protocols so now they are stuck with it. They might have done the massive lift to replace STUMPY with HTTP since my time.",
+    "parent": 45359718,
+    "depth": 2
+  },
+  {
+    "id": 45362993,
+    "by": "riknos314",
+    "timeISO": "2025-09-24T16:53:59.000Z",
+    "textPlain": "Microservices for days.I worked on lifecycle ~5 years ago and just the Standard -> Glacier transition path involved no fewer than 7 microservices.Just determining which of the 400 trillion keys are eligible for a lifecycle action (comparing each object's metadata against the lifecycle policy on the bucket) is a massive big data job.Always was a fun oncall when some bucket added a lifecycle rule that queued 1PB+ of data for transition or deletion on the same day.  At the time our queuing had become good enough to handle these queues gracefully but our alarming hadn't figured out how to differentiate between the backlog for a single customer with a huge job and the whole system failing to process quickly enough.  IIRC this was being fixed as I left.",
     "parent": 45359718,
     "depth": 2
   },
@@ -189,6 +197,14 @@
     "timeISO": "2025-09-24T13:03:17.000Z",
     "textPlain": "> conway’s law and how it shapes S3’s architecture (consisting of 300+ microservices)",
     "parent": 45359718,
+    "depth": 2
+  },
+  {
+    "id": 45362528,
+    "by": "ai-christianson",
+    "timeISO": "2025-09-24T16:20:30.000Z",
+    "textPlain": "garage",
+    "parent": 45362204,
     "depth": 2
   }
 ]
