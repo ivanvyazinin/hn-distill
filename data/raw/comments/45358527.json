@@ -24,11 +24,59 @@
     "depth": 1
   },
   {
+    "id": 45360340,
+    "by": "jcmontx",
+    "timeISO": "2025-09-24T13:48:32.000Z",
+    "textPlain": "But don't you take a hit in performance by running the GC more often?",
+    "parent": 45358527,
+    "depth": 1
+  },
+  {
+    "id": 45360212,
+    "by": "gwbas1c",
+    "timeISO": "2025-09-24T13:40:06.000Z",
+    "textPlain": "One anecdote from working with .Net for over 20 years: I've had a few situations where someone (who isn't a programmer and/or doesn't work with .Net) insists that the application has a memory leak.First, I explain that garbage collected applications don't release memory immediately. Then I get sucked into a wild goose chase looking for a memory leak that doesn't exist. Finally, I point out that the behavior they see is normal, usually to some grumbling.From what I can tell, DATAS basically makes a .Net application have a normal memory footprint. Otherwise, .Net is quite a pig when it comes to memory. https://github.com/GWBasic/soft_matrix, implemented in Rust, generally has very low memory consumption. An earlier version that I wrote in C# would consume gigabytes of memory (and often run out of memory when run on Mono with the Bohem garbage collector.)---> If startup perf is critical, DATAS is not for youThis is one of my big frustrations with .net, (although I tend to look at how dependency injection is implemented as a bigger culprit.)It does make me wonder: How practical is it to just use traditional reference counting and then periodically do a mark-and-sweep? I know it's a very different approach than .net was designed for. (Because they deliberately decided that dereferencing an object should have no computational cost.) It's more of a rhetorical question.",
+    "parent": 45358527,
+    "depth": 1
+  },
+  {
+    "id": 45360761,
+    "by": "pjmlp",
+    "timeISO": "2025-09-24T14:16:50.000Z",
+    "textPlain": "The author is one of the main GC architects on .NET, so we in the known are aware of who she is.Here is an interview with her,https://www.youtube.com/watch?v=ujkSnko0JNQHaving said this, I agree with you, the Aspire/MAUI architects do the same, I really don't get why we have to search for this kind of blog posts on other platforms instead of DevBlogs.",
+    "parent": 45359972,
+    "depth": 2
+  },
+  {
+    "id": 45360173,
+    "by": "nu11ptr",
+    "timeISO": "2025-09-24T13:37:43.000Z",
+    "textPlain": "I don't generally find them low quality, but I do wish people wouldn't use it since I don't subscribe to it.",
+    "parent": 45359972,
+    "depth": 2
+  },
+  {
     "id": 45360020,
     "by": "justin66",
     "timeISO": "2025-09-24T13:27:11.000Z",
-    "textPlain": "[delayed]",
+    "textPlain": "Or if the author used their real name.",
     "parent": 45359972,
+    "depth": 2
+  },
+  {
+    "id": 45360423,
+    "by": "giancarlostoro",
+    "timeISO": "2025-09-24T13:53:35.000Z",
+    "textPlain": "Moreso if the authors profile picture wasn't what looks like a memecat. I can't exactly share this around without feeling like they'll judge it based on that alone.",
+    "parent": 45359972,
+    "depth": 2
+  },
+  {
+    "id": 45359976,
+    "by": "bob1029",
+    "timeISO": "2025-09-24T13:23:55.000Z",
+    "textPlain": "> Maximum throughput (measured in RPS) shows a 2-3% reduction, but with a working set improvement of over 80%.I have a hard time finding this approach compelling. The amount of additional GC required in their example seems extreme to me.",
+    "parent": 45359780,
     "depth": 2
   },
   {
@@ -40,11 +88,43 @@
     "depth": 2
   },
   {
-    "id": 45359976,
-    "by": "bob1029",
-    "timeISO": "2025-09-24T13:23:55.000Z",
-    "textPlain": "> Maximum throughput (measured in RPS) shows a 2-3% reduction, but with a working set improvement of over 80%.I have a hard time finding this approach compelling. The amount of additional GC required in their example seems extreme to me.",
-    "parent": 45359780,
+    "id": 45360113,
+    "by": "nu11ptr",
+    "timeISO": "2025-09-24T13:33:54.000Z",
+    "textPlain": "Even worse: they don't explain what the DATAS acronym means. Seems like the author makes too many assumptions about the knowledge base of their reader IMO.",
+    "parent": 45359889,
+    "depth": 2
+  },
+  {
+    "id": 45360802,
+    "by": "stonemetal12",
+    "timeISO": "2025-09-24T14:19:03.000Z",
+    "textPlain": "Maybe, maybe not.  If GC is a O(n^2) then running it twice at n=5 is a much shorter run time than once at n=10.",
+    "parent": 45360340,
+    "depth": 2
+  },
+  {
+    "id": 45360618,
+    "by": "NetMageSCW",
+    "timeISO": "2025-09-24T14:06:56.000Z",
+    "textPlain": "Not necessarily if you have more (so smaller) heaps so each GC takes less time.",
+    "parent": 45360340,
+    "depth": 2
+  },
+  {
+    "id": 45360318,
+    "by": "nu11ptr",
+    "timeISO": "2025-09-24T13:46:58.000Z",
+    "textPlain": "> It does make me wonder: How practical is it to just use traditional reference counting and then periodically do a mark-and-sweep? I know it's a very different approach than .net was designed for. (Because they deliberately decided that dereferencing an object should have no computational cost.) It's more of a rhetorical question.This is what CPython does. The trade off is solidly worse allocator performance, however. You also have the reference counting overhead, which is not trivial unless it is deferred.There is always a connection between the allocator and collector. If you use a compacting collector (which I assumed .NET does), you get bump pointer allocation, which is very fast. However, if you use a non-compacting collector (mark-and-sweep is non-compacting), you would then fallback to a normal free list allocator (aka as \"malloc\") which has solidly higher overhead. You can see the impact of this (and reference counting) in any benchmark that builds a tree (and therefore is highly contended on allocation). This is also why languages that use free list allocation often have some sort of \"arena\" library, so they can have high speed bump pointer allocation in hot spots (and then free all that memory at once later on).BTW, reference counting, malloc/free performance also impact Rust, but given Rust's heavy reliance on the stack it often doesn't impact performance much (aka just doing less allocations). For allocation heavy code, many of us use MiMalloc one of the better malloc/free implementations.",
+    "parent": 45360212,
+    "depth": 2
+  },
+  {
+    "id": 45360621,
+    "by": "neonsunset",
+    "timeISO": "2025-09-24T14:07:08.000Z",
+    "textPlain": "[dead]",
+    "parent": 45360212,
     "depth": 2
   }
 ]
