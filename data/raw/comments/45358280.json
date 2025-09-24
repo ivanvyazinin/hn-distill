@@ -88,6 +88,14 @@
     "depth": 2
   },
   {
+    "id": 45363827,
+    "by": "epistasis",
+    "timeISO": "2025-09-24T18:00:34.000Z",
+    "textPlain": "I would say that Ceph+RadosGW works well with HDDs, as long as 1) you use SDDs for the index pool, and 2) you are realistic about the number of IOPs you can get out of your pool of HDDs.And remember that there's a multiplication of iops for any individual client iop, whether you're using triplicate storare or erasure coding. S3 also has iop multiplication, which they solve with tons of HDDs.For big object storage that's mostly streaming 4MB chunks, this is no big deal. If you have tons of small random reads and writes across many keys or a single big key, that's when you need to make sure your backing store can keep up.",
+    "parent": 45359372,
+    "depth": 2
+  },
+  {
     "id": 45362367,
     "by": "pickle-wizard",
     "timeISO": "2025-09-24T16:10:01.000Z",
@@ -172,6 +180,14 @@
     "by": "hnexamazon",
     "timeISO": "2025-09-24T13:57:02.000Z",
     "textPlain": "I was an SDE on the S3 Index team 10 years ago, but I doubt much of the core stack has changed.S3 is comprised primarily of layers of Java-based web services. The hot path (object get / put / list) are all served by synchronous API servers - no queues or workers. It is the best example of how many transactions per second a pretty standard Java web service stack can handle that I’ve seen in my career.For a get call, you first hit a fleet of front-end HTTP API servers behind a set of load balancers. Partitioning is based on the key name prefixes, although I hear they’ve done work to decouple that recently. Your request is then sent to the Indexing fleet to find the mapping of your key name to an internal storage id. This is returned to the front end layer, which then calls the storage layer with the id to get the actual bits. It is a very straightforward multi-layer distributed system design for serving synchronous API responses at massive scale.The only novel bit is all the backend communication uses a home-grown stripped-down HTTP variant, called STUMPY if I recall. It was a dumb idea to not just use HTTP but the service is ancient and originally built back when principal engineers were allowed to YOLO their own frameworks and protocols so now they are stuck with it. They might have done the massive lift to replace STUMPY with HTTP since my time.",
+    "parent": 45359718,
+    "depth": 2
+  },
+  {
+    "id": 45364014,
+    "by": "charltones",
+    "timeISO": "2025-09-24T18:15:01.000Z",
+    "textPlain": "There's a pretty good talk on S3 under the hood from last year's re:Invent: https://www.youtube.com/watch?v=NXehLy7IiPM",
     "parent": 45359718,
     "depth": 2
   },
