@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45360937,
-    "by": "daxfohl",
-    "timeISO": "2025-09-24T14:28:16.000Z",
-    "textPlain": "Maybe I missed it, but is there a shadow mode to estimate the memory and perf impact without actually enabling the feature? Or better yet, a way to analyze existing dotnet 8 GC logs to understand the approx impact?",
-    "parent": 45358527,
-    "depth": 1
-  },
-  {
     "id": 45359889,
     "by": "bilekas",
     "timeISO": "2025-09-24T13:16:34.000Z",
     "textPlain": "It's incredibly frustrating the author doesn't actually say \"Garbage Collector (GC)\" I'm aware but something niggling in the back of my head had me second guessing.",
+    "parent": 45358527,
+    "depth": 1
+  },
+  {
+    "id": 45360937,
+    "by": "daxfohl",
+    "timeISO": "2025-09-24T14:28:16.000Z",
+    "textPlain": "Maybe I missed it, but is there a shadow mode to estimate the memory and perf impact without actually enabling the feature? Or better yet, a way to analyze existing dotnet 8 GC logs to understand the approx impact?",
     "parent": 45358527,
     "depth": 1
   },
@@ -104,10 +104,26 @@
     "depth": 2
   },
   {
+    "id": 45362533,
+    "by": "kg",
+    "timeISO": "2025-09-24T16:20:55.000Z",
+    "textPlain": "One of the main problems with refcounting is that unless your compiler/JIT are able to safely, aggressively optimize out reference increment/decrements, you can spend a ton of CPU time pointlessly bumping a counter up and down every time you enter a new function/method. This has been a problem for ObjC and Swift applications in the past AFAIK, though both of those compilers do a great job of optimizing that stuff out where possible.There are some other things that would probably be improvements coming along with refcounting though - you might be able to get rid of GC write barriers.",
+    "parent": 45360212,
+    "depth": 2
+  },
+  {
     "id": 45360318,
     "by": "nu11ptr",
     "timeISO": "2025-09-24T13:46:58.000Z",
     "textPlain": "> It does make me wonder: How practical is it to just use traditional reference counting and then periodically do a mark-and-sweep? I know it's a very different approach than .net was designed for. (Because they deliberately decided that dereferencing an object should have no computational cost.) It's more of a rhetorical question.This is what CPython does. The trade off is solidly worse allocator performance, however. You also have the reference counting overhead, which is not trivial unless it is deferred.There is always a connection between the allocator and collector. If you use a compacting collector (which I assumed .NET does), you get bump pointer allocation, which is very fast. However, if you use a non-compacting collector (mark-and-sweep is non-compacting), you would then fallback to a normal free list allocator (aka as \"malloc\") which has solidly higher overhead. You can see the impact of this (and reference counting) in any benchmark that builds a tree (and therefore is highly contended on allocation). This is also why languages that use free list allocation often have some sort of \"arena\" library, so they can have high speed bump pointer allocation in hot spots (and then free all that memory at once later on).BTW, reference counting, malloc/free performance also impact Rust, but given Rust's heavy reliance on the stack it often doesn't impact performance much (aka just doing less allocations). For allocation heavy code, many of us use MiMalloc one of the better malloc/free implementations.",
+    "parent": 45360212,
+    "depth": 2
+  },
+  {
+    "id": 45362338,
+    "by": "SideburnsOfDoom",
+    "timeISO": "2025-09-24T16:08:32.000Z",
+    "textPlain": "> First, I explain that garbage collected applications don't release memory immediately. ... I point out that the behavior they see is normalyes, this is an easily overlooked point: Using memory when it going free is by design. It is often better to use use up cheap, unused memory instead of expensive CPU doing a GC. When memory is plentiful as it often is, then it is faster to just not run a GC yet.You're not in trouble unless you run short of memory, and a necessary GC does not free up enough. Then only can you call it an issue.",
     "parent": 45360212,
     "depth": 2
   },
