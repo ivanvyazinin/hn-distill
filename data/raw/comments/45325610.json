@@ -1,9 +1,9 @@
 [
   {
-    "id": 45374227,
-    "by": "sltkr",
-    "timeISO": "2025-09-25T15:44:50.000Z",
-    "textPlain": "How does this compare to using ArrayBuffer/DataView, which seems like the more obvious choice for this sort of thing?This wouldn't require any bitwise operations to store/retrieve fields, assuming they are all byte-aligned.",
+    "id": 45375415,
+    "by": "Timwi",
+    "timeISO": "2025-09-25T16:57:14.000Z",
+    "textPlain": "I do something like this in Kyudosudoku[0] to store the undo history in localStorage, but I took it a few steps further than this author as I was pursuing different goals:* I don't use bit or byte boundaries. If I need to store a field with 11 possible values, I go (n*11) + value. You'd think that would be a performance bottleneck, but it turns out major browsers are hella fast at this, at least when handling the amount of data in one Kyudosudoku undo item, which isn't a lot. The obvious downside is that you can't index into the data, you can only decode the whole thing, but I always want to decode a whole undo item at a time anyway.* The main goal was for the representation to be as compact as possible so as to fill up as little of the user's localStorage as possible. Using hexadecimal for this is a massive waste. So I try to use the entire range of Unicode characters that are 16 bits in UTF-16 (that's the BMP minus surrogates, but to be safe I avoid the C0 control characters too). (I reserve the space character so that I can concatenate the entire undo history into a single string and still split it apart later without having to decode all of it.) This means I essentially encode the BigInt in base-63453. Again, dividing and moduloing huge numbers by 63453 seems like a performance nightmare, but it looks like modern browsers handle it fine, as the undo/redo feature is perfectly usable.[0] https://kyudosudoku.timwi.de/",
     "parent": 45325610,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "dleeftink",
     "timeISO": "2025-09-25T15:23:04.000Z",
     "textPlain": "For anyone interested in this space, Structurae[0] provides a well tested 'binary' protocol for efficiently storing and transmitting well-structured data, among many other useful and compact data structures (BigBitField, BitArray, etc).[0]: https://github.com/zandaqo/structurae",
+    "parent": 45325610,
+    "depth": 1
+  },
+  {
+    "id": 45374227,
+    "by": "sltkr",
+    "timeISO": "2025-09-25T15:44:50.000Z",
+    "textPlain": "How does this compare to using ArrayBuffer/DataView, which seems like the more obvious choice for this sort of thing?This wouldn't require any bitwise operations to store/retrieve fields, assuming they are all byte-aligned.",
     "parent": 45325610,
     "depth": 1
   },
