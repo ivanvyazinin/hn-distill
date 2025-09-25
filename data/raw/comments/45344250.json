@@ -1,5 +1,21 @@
 [
   {
+    "id": 45379886,
+    "by": "0x1ceb00da",
+    "timeISO": "2025-09-25T22:14:43.000Z",
+    "textPlain": "> It’d be reasonable to think that this will have a runtime cost, however it doesn’t. The reason is that the Rust standard library has a nice optimisation in it that when we consume a Vec and collect the result into a new Vec, in many circumstances, the heap allocation of the original Vec can be reused. This applies in this case. But what even with the heap allocation being reused, we’re still looping over all the elements to transform them right? Because the in-memory representation of an AtomicSymbolId is identical to that of a SymbolId, our loop becomes a no-op and is optimised away.Those optimisations that this code relies on are literally undefined behaviour. The compiler doesn't guarantee it's gonna apply those optimisations. So your code might suddenly become super slow and you'll have to go digging in to see why. Is this undefined behaviour better than just having an unsafe block? I'm not so sure. The unsafe code will be easier to read and you won't need any comments or a blog to explain why we're doing voodoo stuff because the logic of the code will explain its intentions.",
+    "parent": 45344250,
+    "depth": 1
+  },
+  {
+    "id": 45379756,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-25T22:02:07.000Z",
+    "textPlain": "I don't like relying on (release-only) llvm optimizations for a number of reasons, but primarily a) they break between releases, more often than you'd think, b) they're part of the reason why debug builds of rust software are so much slower (at runtime) than release builds, c) they're much harder to verify (and very opaque).For non-performance-sensitive code, sure, go ahead and rely on the rust compiler to compile away the allocation of a whole new vector of a different type to convert from T to AtomicT, but where the performance matters, for my money I would go with the transmute 100% of the time (assuming the underlying type was decorated with #[transparent], though it would be nice if we could statically assert that). It'll perform better in debug mode, it's obvious what you are doing, it's guaranteed not to break in a minor rustc update, and it'll work with &mut [T] instead of an owned Vec<T> (which is a big one).",
+    "parent": 45344250,
+    "depth": 1
+  },
+  {
     "id": 45376841,
     "by": "Strilanc",
     "timeISO": "2025-09-25T18:26:08.000Z",
@@ -56,6 +72,14 @@
     "depth": 2
   },
   {
+    "id": 45378177,
+    "by": "jstimpfle",
+    "timeISO": "2025-09-25T20:00:16.000Z",
+    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
     "id": 45378268,
     "by": "the-smug-one",
     "timeISO": "2025-09-25T20:07:27.000Z",
@@ -64,11 +88,11 @@
     "depth": 2
   },
   {
-    "id": 45378177,
-    "by": "jstimpfle",
-    "timeISO": "2025-09-25T20:00:16.000Z",
-    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
-    "parent": 45376841,
+    "id": 45379639,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-25T21:53:38.000Z",
+    "textPlain": "You misunderstood the purpose of that trick. The vector is not going to be accessed again, the idea is to move it to another thread so it can be dropped in parallel (never accessed).",
+    "parent": 45378277,
     "depth": 2
   },
   {
