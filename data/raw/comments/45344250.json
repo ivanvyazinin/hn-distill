@@ -32,18 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45378177,
-    "by": "jstimpfle",
-    "timeISO": "2025-09-25T20:00:16.000Z",
-    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
-    "parent": 45376841,
-    "depth": 2
-  },
-  {
-    "id": 45378268,
-    "by": "the-smug-one",
-    "timeISO": "2025-09-25T20:07:27.000Z",
-    "textPlain": "The rayon thing is neat.",
+    "id": 45378967,
+    "by": "kibwen",
+    "timeISO": "2025-09-25T20:57:32.000Z",
+    "textPlain": "...Except that Rust is thread-safe, so expressing your algorithm in terms that the borrow checker accepts makes safe parallelism possible, as shown in the example using Rayon to trivially parallelize an operation. This is the whole point of Rust, and to say that C and C++ fail at thread-safety would be the understatement of the century.",
     "parent": 45376841,
     "depth": 2
   },
@@ -61,6 +53,30 @@
     "timeISO": "2025-09-25T19:43:54.000Z",
     "textPlain": "This is an issue that you would face in any language with strong typing. \nIt only rears its head in Rust because Rust tries to give you both low-level control and strong types.For example, in something like Go (which has a weaker type system than Rust), you wouldn't think twice about, paying for the re-allocation in buffer-reuse example.Of course, in something like C or C++ you could do these things via simple pointer casts, but then you run the risk of violating some undefined behaviour.",
     "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378268,
+    "by": "the-smug-one",
+    "timeISO": "2025-09-25T20:07:27.000Z",
+    "textPlain": "The rayon thing is neat.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378177,
+    "by": "jstimpfle",
+    "timeISO": "2025-09-25T20:00:16.000Z",
+    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378889,
+    "by": "aw1621107",
+    "timeISO": "2025-09-25T20:52:15.000Z",
+    "textPlain": "> I'd expect it to work with _any_ type, primitive or not, newtype or not, with a sufficiently simple memory layout, the rough equivalent of what C++ calls a \"standard-layout type\" or (formerly) a \"POD\".This might be related in part to the fact that Rust chose to create specific AtomicU8/AtomicU16/etc. types instead of going for Atomic<T> like in C++. The reasoning for forgoing the latter is [0]:> However the consensus was that having unsupported atomic types either fail at monomorphization time or fall back to lock-based implementations was undesirable.That doesn't mean that one couldn't hypothetically try to write from_mut_slice<T> where T is a transparent newtype over one of the supported atomics, but I'm not sure whether that function signature is expressible at the moment. Maybe if/when safe transmutes land, since from_mut_slice is basically just doing a transmute?> Shouldn't it work when T and U are the same size and T has stricter alignment requirements than U but not exactly the same alignment? In this situation, any U would be properly aligned because T is even more aligned.I think this optimization does what you say? A quick skim of the source code [1] seems to show that the alignments don't have to exactly match:    //! # Layout constraints\n    //! <snip>\n    //! Alignments of `T` must be the same or larger than `U`. Since alignments are always a power\n    //! of two _larger_ implies _is a multiple of_.\n\nAnd later:    const fn in_place_collectible<DEST, SRC>(\n        step_merge: Option<NonZeroUsize>,\n        step_expand: Option<NonZeroUsize>,\n    ) -> bool {\n        if const { SRC::IS_ZST || DEST::IS_ZST || mem::align_of::<SRC>() < mem::align_of::<DEST>() } {\n            return false;\n        }\n        // Other code that deals with non-alignment conditions\n    }\n\n[0]: https://github.com/Amanieu/rfcs/blob/more_atomic_types/text/...[1]: https://github.com/rust-lang/rust/blob/c58a5da7d48ff3887afe4...",
+    "parent": 45378343,
     "depth": 2
   }
 ]
