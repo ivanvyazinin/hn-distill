@@ -1,5 +1,13 @@
 [
   {
+    "id": 45376841,
+    "by": "Strilanc",
+    "timeISO": "2025-09-25T18:26:08.000Z",
+    "textPlain": "Every one of these \"performance tricks\" is describing how to convince rust's borrow checker that you're allowed to do a thing. It's more like \"performance permission slips\".",
+    "parent": 45344250,
+    "depth": 1
+  },
+  {
     "id": 45379886,
     "by": "0x1ceb00da",
     "timeISO": "2025-09-25T22:14:43.000Z",
@@ -8,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45379756,
-    "by": "ComputerGuru",
-    "timeISO": "2025-09-25T22:02:07.000Z",
-    "textPlain": "I don't like relying on (release-only) llvm optimizations for a number of reasons, but primarily a) they break between releases, more often than you'd think, b) they're part of the reason why debug builds of rust software are so much slower (at runtime) than release builds, c) they're much harder to verify (and very opaque).For non-performance-sensitive code, sure, go ahead and rely on the rust compiler to compile away the allocation of a whole new vector of a different type to convert from T to AtomicT, but where the performance matters, for my money I would go with the transmute 100% of the time (assuming the underlying type was decorated with #[transparent], though it would be nice if we could statically assert that). It'll perform better in debug mode, it's obvious what you are doing, it's guaranteed not to break in a minor rustc update, and it'll work with &mut [T] instead of an owned Vec<T> (which is a big one).",
+    "id": 45380028,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-25T22:26:59.000Z",
+    "textPlain": "I’d strongly caution against many of those “performance tricks.” Spawning an asynchronous task on a separate thread, often with a heap-allocated handle, solely to deallocate a local object is a dubious pattern — especially given how typical allocators behave under the hood.I frequently encounter use-cases akin to the “Sharded Vec Writer” idea, and I agree it can be valuable. But if performance is a genuine requirement, the implementation needs to be very different. I once attempted to build a general-purpose trait for performing parallel in-place updates of a Vec<T>, and found it extremely difficult to express cleanly in Rust without degenerating into unsafe or brittle abstractions.",
     "parent": 45344250,
     "depth": 1
   },
   {
-    "id": 45376841,
-    "by": "Strilanc",
-    "timeISO": "2025-09-25T18:26:08.000Z",
-    "textPlain": "Every one of these \"performance tricks\" is describing how to convince rust's borrow checker that you're allowed to do a thing. It's more like \"performance permission slips\".",
+    "id": 45379756,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-25T22:02:07.000Z",
+    "textPlain": "I don't like relying on (release-only) llvm optimizations for a number of reasons, but primarily a) they break between releases, more often than you'd think, b) they're part of the reason why debug builds of rust software are so much slower (at runtime) than release builds, c) they're much harder to verify (and very opaque).For non-performance-sensitive code, sure, go ahead and rely on the rust compiler to compile away the allocation of a whole new vector of a different type to convert from T to AtomicT, but where the performance matters, for my money I would go with the transmute 100% of the time (assuming the underlying type was decorated with #[transparent], though it would be nice if we could statically assert that). It'll perform better in debug mode, it's obvious what you are doing, it's guaranteed not to break in a minor rustc update, and it'll work with &mut [T] instead of an owned Vec<T> (which is a big one).",
     "parent": 45344250,
     "depth": 1
   },
@@ -88,11 +96,43 @@
     "depth": 2
   },
   {
+    "id": 45380000,
+    "by": "steveklabnik",
+    "timeISO": "2025-09-25T22:24:40.000Z",
+    "textPlain": "> Those optimisations that this code relies on are literally undefined behaviour.You cannot get undefined behavior in Rust without an unsafe block.> The compiler doesn't guarantee it's gonna apply those optimisations.This is a different concept than UB.However, for the \"heap allocation can be re-used\", Rust does talk about this: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#imp...It cannot guarantee it for arbitrary iterators, but the map().collect() re-use is well known, and the machinery is there to do this, so while other implementations may not, rustc always will.Basically, it is implementation-defined behavior. (If it were C/C++ it would be 'unspecified behavior' because rustc does not document exactly when it does this, but this is a very fine nitpick and not language Rust currently uses, though I'd argue it should.)> So your code might suddenly become super slow and you'll have to go digging in to see why.That's why wild has performance tests, to ensure that if a change breaks rustc's ability to optimize, it'll be noticed, and therefore fixed.",
+    "parent": 45379886,
+    "depth": 2
+  },
+  {
+    "id": 45379953,
+    "by": "stouset",
+    "timeISO": "2025-09-25T22:20:21.000Z",
+    "textPlain": "You're misusing the term \"undefined behavior\". You can certainly say that these kinds of performance optimizations aren't guaranteed.",
+    "parent": 45379886,
+    "depth": 2
+  },
+  {
+    "id": 45380201,
+    "by": "mjmas",
+    "timeISO": "2025-09-25T22:43:56.000Z",
+    "textPlain": "The particular optimisation for non-copying Vec -> IntoIter -> Vec transform is actually hard coded in the standard library as a special case of collecting an Iterator into a Vec. It doesn't rely on the backend for this.Though this optimisation is treated as an implementation detail [1].[1]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#imp...",
+    "parent": 45379756,
+    "depth": 2
+  },
+  {
     "id": 45379639,
     "by": "ComputerGuru",
     "timeISO": "2025-09-25T21:53:38.000Z",
     "textPlain": "You misunderstood the purpose of that trick. The vector is not going to be accessed again, the idea is to move it to another thread so it can be dropped in parallel (never accessed).",
     "parent": 45378277,
+    "depth": 2
+  },
+  {
+    "id": 45379966,
+    "by": "0x1ceb00da",
+    "timeISO": "2025-09-25T22:21:13.000Z",
+    "textPlain": "> Great example of Rust being built such that you have to deal with error returns and think about C++-style exception safety.Not really. Panics are supposed to be used in super exceptional situations, where the only course of action is to abort the whole unit of work you're doing and throw away all the resources. However you do have to be careful in critical code because things like integer overflow can also raise a panic.",
+    "parent": 45378343,
     "depth": 2
   },
   {
