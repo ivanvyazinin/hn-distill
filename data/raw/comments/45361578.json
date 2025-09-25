@@ -1,9 +1,25 @@
 [
   {
+    "id": 45369004,
+    "by": "capyba",
+    "timeISO": "2025-09-25T03:31:51.000Z",
+    "textPlain": "Forgive me - much of the article went over my head so I’m trying to understand: this article is excellently written, but I’m struggling to understand why a `Vec<u8>` wouldn’t have sufficed? And disregarding the first question, is there a way to extend this to floats, for instance if I have a collection of values that I know will never exceed the bounds of +/- 10.0 with 1e-6 precision, can I use this technique for more efficient storage of them?",
+    "parent": 45361578,
+    "depth": 1
+  },
+  {
     "id": 45366110,
     "by": "Const-me",
     "timeISO": "2025-09-24T21:21:02.000Z",
     "textPlain": "The support for BMI1 instruction set extension is almost universal by now. The extension was introduced in AMD Jaguar and Intel Haswell, both launched in 2013 i.e. 12 years ago.Instead of doing stuff like (word >> bit_offset) & self.mask, in C or C++ I usually write _bextr_u64, or when using modern C# Bmi1.X64.BitFieldExtract. Note however these intrinsics compile into 2 instructions not one, because the CPU instruction takes start/length arguments from lower/higher bytes of a single 16-bit number.",
+    "parent": 45361578,
+    "depth": 1
+  },
+  {
+    "id": 45366027,
+    "by": "pjsg",
+    "timeISO": "2025-09-24T21:13:20.000Z",
+    "textPlain": "I suspect that this unaligned read apporach doesn't work for a bit length of 59, 61, 62 and 63.In the case of 63, reading out value at offset 1, requires two reads as it need 1 bit from the first byte, then 56 bits from the next 7 bytes and finally 6 bits from the 9th byte. Nine bytes cannot be loaded in a single u64 load.",
     "parent": 45361578,
     "depth": 1
   },
@@ -16,12 +32,12 @@
     "depth": 1
   },
   {
-    "id": 45366027,
-    "by": "pjsg",
-    "timeISO": "2025-09-24T21:13:20.000Z",
-    "textPlain": "I suspect that this unaligned read apporach doesn't work for a bit length of 59, 61, 62 and 63.In the case of 63, reading out value at offset 1, requires two reads as it need 1 bit from the first byte, then 56 bits from the next 7 bytes and finally 6 bits from the 9th byte. Nine bytes cannot be loaded in a single u64 load.",
-    "parent": 45361578,
-    "depth": 1
+    "id": 45369198,
+    "by": "dathinab",
+    "timeISO": "2025-09-25T04:09:58.000Z",
+    "textPlain": "> wouldn’t have sufficed?most times it will suffice and be the recommended solution (less complexity; no ups I though I only need 3bit but at runtime needed 4bits situations; one less dependencies to review for soundness issues / bugs with every update)while using Vec<u64> with a 3bit number is a pretty strange/misleading example (as you can use a Vec<u8>) my guess is that they used it because many packed vectors operate on u64s internally and allows up-to 64bit values.anyway while often it doesn't matter sometimes storing a u8 where you only need 3bit numbers or similar makes a huge difference (e.g. if with packaging you application state fits in memory and without it doesn't and start swapping)you can do similar stuff for non integer values, but things get more complicated as you can't just truncate/mask floats in the same way you can do so for integers. Further complications come from decimal based precision bounds and the question of if you need perfect precision in the whole number range (floats aren't evenly spaced).A common solution is to use fixed point floats or in general convert your floats to integers. For example, assuming a perfect precision requirement for you range, you could store a number in range [-1e7; 1e7] and by context/in code remember there is a implicit missing div 1e6. Then you can store it in a 25 bit integer and bit package it (log2(1e7).ceil()+1 sign bit).",
+    "parent": 45369004,
+    "depth": 2
   },
   {
     "id": 45366707,
