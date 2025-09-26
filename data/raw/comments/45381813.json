@@ -1,9 +1,25 @@
 [
   {
+    "id": 45384960,
+    "by": "shikon7",
+    "timeISO": "2025-09-26T10:41:50.000Z",
+    "textPlain": "> Although being written in Java does improve memory safety, we just saw that rewriting V8 in a safe language wouldn’t help with the types of bugs V8 is trying to solve and so we would intuitively expect that GraalJS must suffer from the same classes of bugs. Yet, it doesn’t.Essentially it exchanges the bugs of a V8 engine for the bugs of the GraalVM, right?",
+    "parent": 45381813,
+    "depth": 1
+  },
+  {
     "id": 45383956,
     "by": "darkamaul",
     "timeISO": "2025-09-26T07:59:05.000Z",
     "textPlain": "I think the _copy-and-patch_ approach [0] is probably the best compromise here.You get many of the guarantees of compiled code (strong correctness, reduced mismatch between interpreter vs JIT semantics, etc.), while still being very close to native performance.In fact, Python is already moving in that direction: the new bytecode-based copy-and-patch JIT in Python 3.13 shows correct results even before heavy performance tuning.So to me this seems like a very promising road: I wonder how practical this is if the base language is not C/C++ but Rust (or any kind of memory safe language).[0] https://arxiv.org/abs/2011.13127",
+    "parent": 45381813,
+    "depth": 1
+  },
+  {
+    "id": 45382256,
+    "by": "dataflow",
+    "timeISO": "2025-09-26T03:21:46.000Z",
+    "textPlain": "From https://v8.dev/blog/sandbox> Using a memory-safe language for these components and removing JIT compilers could work, but would significantly reduce the engine's performance (ranging, depending on the type of workload, from 1.5–10× or more for computationally intensive tasks)I don't get it, why the dichotomy between \"no JIT\" and \"sandboxed JIT\"? Isn't the not also the option of producing JITted code with safety guarantees, similarly to how the Rust compiler generates code with safety guarantees?",
     "parent": 45381813,
     "depth": 1
   },
@@ -16,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45382256,
-    "by": "dataflow",
-    "timeISO": "2025-09-26T03:21:46.000Z",
-    "textPlain": "From https://v8.dev/blog/sandbox> Using a memory-safe language for these components and removing JIT compilers could work, but would significantly reduce the engine's performance (ranging, depending on the type of workload, from 1.5–10× or more for computationally intensive tasks)I don't get it, why the dichotomy between \"no JIT\" and \"sandboxed JIT\"? Isn't the not also the option of producing JITted code with safety guarantees, similarly to how the Rust compiler generates code with safety guarantees?",
+    "id": 45385393,
+    "by": "pjmlp",
+    "timeISO": "2025-09-26T11:48:17.000Z",
+    "textPlain": "I love the work being done by GraalVM team, and the ones that predated it like MaximeVM and JikesRVM, proving that it is possible to use safer languages for all layers of compiler development, instead of the usual cargo cult of what is supposed to work.",
     "parent": 45381813,
     "depth": 1
   },
@@ -48,11 +64,11 @@
     "depth": 1
   },
   {
-    "id": 45384082,
-    "by": "mike_hearn",
-    "timeISO": "2025-09-26T08:17:50.000Z",
-    "textPlain": "(I wrote the article).The optimizations do have to be correct. However, there are some significant factors that make it a lot easier in the Truffle architecture:1. The optimizations are themselves implemented in a language with memory safety and lots of static analysis tools, so they're just less likely to be buggy for the usual reasons.2. Most of the complex optimizations that matter for a language like Javascript or Python are implemented in the interpreter, which is then partially evaluated. In a classical language VM complex optimizations like PICs, specialization, speculation etc are all hand coded in C++ by manipulating compiler IR. It's a very unnatural way to work with a program. In the Truffle architecture they're implemented in normal Java in relatively straight-line logic, so there's just far fewer ways to mess up.3. The intrinsics are also all written in a memory safe language. Buggy intrinsics are a common cause of compiler errors.It is nonetheless true that at some points the program is transformed, and those transforms can have bugs. Just like how languages with memory safety and strong standard libraries don't eliminate all bugs, just a lot of them. It's still a big upgrade in correctness, I think.",
-    "parent": 45383297,
+    "id": 45385201,
+    "by": "drysart",
+    "timeISO": "2025-09-26T11:20:14.000Z",
+    "textPlain": "That's what I got from reading the article; the takeaway is that all its doing to solve the types of problems V8 has is by shifting the complications beneath another layer.  All the problems and challenges and potential for mistakes still exist, they're just within GraalVM now.Which is not without real benefit, of course; it's a lot easier to build and secure one genericized VM runtime toolkit than it is to rebuild everything from scratch for every single language runtime like V8 that might need to exist.   It's far better to competently solve the difficult problem once than to try to competently solve it over and over and over.",
+    "parent": 45384960,
     "depth": 2
   },
   {
@@ -69,6 +85,14 @@
     "timeISO": "2025-09-26T03:52:43.000Z",
     "textPlain": "My impression is that JIT bugs would be similar to a bug in the rust compiler. No system is perfect and the rust compiler is just as susceptible to bugs as a jit engine is.The difference being that your rust programs aren't usually written by malicious people. The goal is to prevent accidental memory safety issues not intentional ones. In contrast the JIT compiler is compiling code made by the adversary.",
     "parent": 45382256,
+    "depth": 2
+  },
+  {
+    "id": 45384082,
+    "by": "mike_hearn",
+    "timeISO": "2025-09-26T08:17:50.000Z",
+    "textPlain": "(I wrote the article).The optimizations do have to be correct. However, there are some significant factors that make it a lot easier in the Truffle architecture:1. The optimizations are themselves implemented in a language with memory safety and lots of static analysis tools, so they're just less likely to be buggy for the usual reasons.2. Most of the complex optimizations that matter for a language like Javascript or Python are implemented in the interpreter, which is then partially evaluated. In a classical language VM complex optimizations like PICs, specialization, speculation etc are all hand coded in C++ by manipulating compiler IR. It's a very unnatural way to work with a program. In the Truffle architecture they're implemented in normal Java in relatively straight-line logic, so there's just far fewer ways to mess up.3. The intrinsics are also all written in a memory safe language. Buggy intrinsics are a common cause of compiler errors.It is nonetheless true that at some points the program is transformed, and those transforms can have bugs. Just like how languages with memory safety and strong standard libraries don't eliminate all bugs, just a lot of them. It's still a big upgrade in correctness, I think.",
+    "parent": 45383297,
     "depth": 2
   },
   {
