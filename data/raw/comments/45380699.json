@@ -8,18 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45383709,
-    "by": "nessex",
-    "timeISO": "2025-09-26T07:17:03.000Z",
-    "textPlain": "I've got a similar setup with a k3s homelab and a bunch of small projects that need basic data storage and caching. One thing worth considering is that if someone wants to run both redis and postgres, they need to allocate enough memory for both including enough overhead that they don't suddenly OOM.In that sense, seeing if the latency impact of postgres is tolerable is pretty reasonable. You may be able to get away with postgres putting things on disk (yes, redis can too), and only paying the overhead cost of allocating sufficient excess RAM to one pod rather than two.But if making tradeoffs like that, for a low-traffic service in a small homelab, I do wonder if you even need a remote cache. It's always worth considering if you can just have the web server keep it's own cache in-memory or even on-disk. If using go like in the article, you'd likely only need a map and a mutex. That'd be an order of magnitude faster, and be even less to manage... Of course it's not persistent, but then neither was Redis.",
-    "parent": 45380699,
-    "depth": 1
-  },
-  {
-    "id": 45383675,
-    "by": "gethly",
-    "timeISO": "2025-09-26T07:13:29.000Z",
-    "textPlain": "What is all the fuss about? In the ancient times, you put your entry into the database(ANY database), either with TTL or cache tags, and have a cron job that periodically flushes the table. Then in your application you check if you have the entry cached in memory, if not, you check the db entry, if it is not there you build it from scratch and cache it.Why do people complicate things? We've solved caching ages ago.",
+    "id": 45384165,
+    "by": "finalhacker",
+    "timeISO": "2025-09-26T08:29:57.000Z",
+    "textPlain": "postgres message protocol is much complex than redis. i think it's the bottleneck for such difference.",
     "parent": 45380699,
     "depth": 1
   },
@@ -28,6 +20,22 @@
     "by": "jamesblonde",
     "timeISO": "2025-09-26T04:04:26.000Z",
     "textPlain": "Why do we promote articles like this that have nice graphs and are well written, when they should get a grade 'F' as an actual benchmark study. The way it is presented, a casual reader would think Postgres is 2/3rds the performance of Redis. Good god. He even admits Postgres maxxed out its 2 cores, but Redis was bottlenecked by the HTTP server. We need more of an academic, not a hacker, culture for benchmarks.",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45383863,
+    "by": "k9294",
+    "timeISO": "2025-09-26T07:41:51.000Z",
+    "textPlain": "> For postgres, the bottleneck was the CPU on the postgres side. It consistently maxed out the 2 cores dedicated to it, while also using ~5000MiB of RAM.Comparing throttled pg vs non-throttled redis is not a benchmark.Of course when pg is throttled you will see bad results and high latencies.A correct performance benchmark would be to give all components unlimited resources and measure performance and how much they use without saturation. In this case, PG might use 3-4 CPUs and 8GB of RAM but have comparable latencies and throughput, which is the main idea behind the notion “pg for everything”.In a real-world situation, when I see a problem with saturated CPU, I add one more CPU. For a service with 10k req/sec, it’s most likely a negligible price.",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45383675,
+    "by": "gethly",
+    "timeISO": "2025-09-26T07:13:29.000Z",
+    "textPlain": "What is all the fuss about? In the ancient times, you put your entry into the database(ANY database), either with TTL or cache tags, and have a cron job that periodically flushes the table. Then in your application you check if you have the entry cached in memory, if not, you check the db entry, if it is not there you build it from scratch and cache it.Why do people complicate things? We've solved caching ages ago.",
     "parent": 45380699,
     "depth": 1
   },
@@ -48,6 +56,22 @@
     "depth": 1
   },
   {
+    "id": 45383709,
+    "by": "nessex",
+    "timeISO": "2025-09-26T07:17:03.000Z",
+    "textPlain": "I've got a similar setup with a k3s homelab and a bunch of small projects that need basic data storage and caching. One thing worth considering is that if someone wants to run both redis and postgres, they need to allocate enough memory for both including enough overhead that they don't suddenly OOM.In that sense, seeing if the latency impact of postgres is tolerable is pretty reasonable. You may be able to get away with postgres putting things on disk (yes, redis can too), and only paying the overhead cost of allocating sufficient excess RAM to one pod rather than two.But if making tradeoffs like that, for a low-traffic service in a small homelab, I do wonder if you even need a remote cache. It's always worth considering if you can just have the web server keep it's own cache in-memory or even on-disk. If using go like in the article, you'd likely only need a map and a mutex. That'd be an order of magnitude faster, and be even less to manage... Of course it's not persistent, but then neither was Redis (excl. across web server restarts).",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45382172,
+    "by": "cortesoft",
+    "timeISO": "2025-09-26T03:07:48.000Z",
+    "textPlain": "Having the ability to set a TTL on the cache key is a critical feature of a cache, not something that can be tacked on later.I always find these \"don't use redis\" posts kind of strange. Redis is so simple to operate at any scale, I don't quite get why it is important to remove it.",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
     "id": 45383391,
     "by": "Neikius",
     "timeISO": "2025-09-26T06:30:57.000Z",
@@ -60,14 +84,6 @@
     "by": "staplung",
     "timeISO": "2025-09-26T05:08:44.000Z",
     "textPlain": "I guess my question is: why bother with a benchmark if the pick is pre-ordained? Is it the case that at some point the results would be so lopsided that you would pick the faster solution? If so, what is that threshold? I.e. when does performance trump system simplicity? To me those are the interesting questions.",
-    "parent": 45380699,
-    "depth": 1
-  },
-  {
-    "id": 45382172,
-    "by": "cortesoft",
-    "timeISO": "2025-09-26T03:07:48.000Z",
-    "textPlain": "Having the ability to set a TTL on the cache key is a critical feature of a cache, not something that can be tacked on later.I always find these \"don't use redis\" posts kind of strange. Redis is so simple to operate at any scale, I don't quite get why it is important to remove it.",
     "parent": 45380699,
     "depth": 1
   },
@@ -96,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 45381895,
+    "by": "mehphp",
+    "timeISO": "2025-09-26T02:21:19.000Z",
+    "textPlain": "I think you just convinced me to drop redis for my new project.Definitely a premature optimization on my part.",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
     "id": 45383150,
     "by": "necovek",
     "timeISO": "2025-09-26T05:54:59.000Z",
@@ -104,10 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45381895,
-    "by": "mehphp",
-    "timeISO": "2025-09-26T02:21:19.000Z",
-    "textPlain": "I think you just convinced me to drop redis for my new project.Definitely a premature optimization on my part.",
+    "id": 45384044,
+    "by": "truth_seeker",
+    "timeISO": "2025-09-26T08:13:05.000Z",
+    "textPlain": "PostgreSQL Tuning further for this use case- Reduce Page Size from 8KB to 4KB, great for write heavy operations and indexed reads. Needs to compile source with those flags, cant configure once installation is done.- Increase Buffer cache- Table partitioning for UNLOGGED Table which the author is using- At connection session level, lower the transaction level from SERIALIZABLE- The new UUID7 in PG 18 as a key might also help as primary indexed KEY type as it also supports range queries on timestamp",
     "parent": 45380699,
     "depth": 1
   },
@@ -124,6 +148,22 @@
     "by": "carterschonwald",
     "timeISO": "2025-09-26T02:52:15.000Z",
     "textPlain": "This seems to be testing how the software is optimized for low core deployments… how does Postgres perform vary as you add more cores and ram? It’s the sort of software where I’d presume more cores and ram yields better performance.  Assuming as always that mature systems software sees more many core perf engineering.",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45383916,
+    "by": "est",
+    "timeISO": "2025-09-26T07:50:34.000Z",
+    "textPlain": "reminds me of Handlersocket in MySQL",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45383792,
+    "by": "phendrenad2",
+    "timeISO": "2025-09-26T07:28:04.000Z",
+    "textPlain": "I'm glad someone did this analysis. I've also been tempted to remove complexity by removing Redis from my stack. But there's a decent speedup from using Redis, so I'll keep it.(And to the people complaining about this benchmark not being extremely scientifically rigorous: Nobody cares.)",
     "parent": 45380699,
     "depth": 1
   },
@@ -152,14 +192,6 @@
     "depth": 1
   },
   {
-    "id": 45382704,
-    "by": "wewewedxfgdf",
-    "timeISO": "2025-09-26T04:39:04.000Z",
-    "textPlain": "Given there is nothing at all said about the many config options that would contribute to Postgres for this use case, we must assume no configuration has been done.Also, no discussion of indexes or what the data looks like, so we must assume no attention has been paid to their critical factors either.So, another case of lies, damned lies and benchmarks.It seem strange to me people are so willing to post such definitive and poorly researched/argued things - if you're going to take a public position don't you want to be obviously right instead of so easily to discount?",
-    "parent": 45380699,
-    "depth": 1
-  },
-  {
     "id": 45381776,
     "by": "arp242",
     "timeISO": "2025-09-26T02:04:59.000Z",
@@ -168,18 +200,18 @@
     "depth": 1
   },
   {
-    "id": 45381996,
-    "by": "sixo",
-    "timeISO": "2025-09-26T02:37:39.000Z",
-    "textPlain": "If you use an UNLOGGED table in Postgres as a cache, and your DB restarts, you no longer have a cache. Then your main table gets a huge spike in traffic and likely grinds to a halt.",
+    "id": 45382704,
+    "by": "wewewedxfgdf",
+    "timeISO": "2025-09-26T04:39:04.000Z",
+    "textPlain": "Given there is nothing at all said about the many config options that would contribute to Postgres for this use case, we must assume no configuration has been done.Also, no discussion of indexes or what the data looks like, so we must assume no attention has been paid to their critical factors either.So, another case of lies, damned lies and benchmarks.It seem strange to me people are so willing to post such definitive and poorly researched/argued things - if you're going to take a public position don't you want to be obviously right instead of so easily to discount?",
     "parent": 45380699,
     "depth": 1
   },
   {
-    "id": 45383052,
-    "by": "chiefmix",
-    "timeISO": "2025-09-26T05:38:53.000Z",
-    "textPlain": "love that the author finished with:\"i do not care. i am not adding another dependency\"",
+    "id": 45381996,
+    "by": "sixo",
+    "timeISO": "2025-09-26T02:37:39.000Z",
+    "textPlain": "If you use an UNLOGGED table in Postgres as a cache, and your DB restarts, you no longer have a cache. Then your main table gets a huge spike in traffic and likely grinds to a halt.",
     "parent": 45380699,
     "depth": 1
   },
@@ -200,10 +232,66 @@
     "depth": 1
   },
   {
+    "id": 45383052,
+    "by": "chiefmix",
+    "timeISO": "2025-09-26T05:38:53.000Z",
+    "textPlain": "love that the author finished with:\"i do not care. i am not adding another dependency\"",
+    "parent": 45380699,
+    "depth": 1
+  },
+  {
+    "id": 45384162,
+    "by": "rafaelmn",
+    "timeISO": "2025-09-26T08:29:48.000Z",
+    "textPlain": "Tuning your database based on LLM queries ? You can configure things catastrophically wrong, especially if you tell LLM you care about performance and don't understand the implications of your choices - googling and LLMing for five minutes is not the way.",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
+    "id": 45383948,
+    "by": "IanCal",
+    "timeISO": "2025-09-26T07:57:43.000Z",
+    "textPlain": "I disagree. They found that Postgres, without tuning, was easily fast enough on low level hardware and would come with the benefit of not deploying another service. Additionally tuning it isn’t really relevant.If the defaults are fine for a use case then unless I want to tune it for personal interest it’s either a poor use of my fun time or a poor use of my clients funds.",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
+    "id": 45383910,
+    "by": "vidarh",
+    "timeISO": "2025-09-26T07:49:33.000Z",
+    "textPlain": "On one hand I agree with you, but on the other hand defaults matter because I regularly see systems with the default config and no attempt to tune.Benchmarking the defaults and benchmarking a tuned setup will measure very different things, but both of them matter.",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
+    "id": 45383997,
+    "by": "Timshel",
+    "timeISO": "2025-09-26T08:05:26.000Z",
+    "textPlain": "> for only about five minutes of LLM query or web searchI think I have more trust in the PG defaults that in the output of a LLM or copy pasting some configuration I might not really understand ...",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
     "id": 45382732,
     "by": "wewewedxfgdf",
     "timeISO": "2025-09-26T04:43:50.000Z",
     "textPlain": "Fully agree.Postgres is a power tool usable for many many use cases - if you want performance it must be tuned.If you judge Postgres without tuning it - that's not Postgres being slow, that's the developer being naive.",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
+    "id": 45383926,
+    "by": "high_na_euv",
+    "timeISO": "2025-09-26T07:53:19.000Z",
+    "textPlain": "Disagree, majority of software is running on defaults, it makes sense to compare them this way",
+    "parent": 45382595,
+    "depth": 2
+  },
+  {
+    "id": 45384032,
+    "by": "oulipo2",
+    "timeISO": "2025-09-26T08:10:52.000Z",
+    "textPlain": "Perhaps, but in this case this shows at least that even non-tuned Postgres can be used as a fast cache for many real-world use-cases",
     "parent": 45382595,
     "depth": 2
   },
@@ -232,10 +320,10 @@
     "depth": 2
   },
   {
-    "id": 45382701,
-    "by": "motorest",
-    "timeISO": "2025-09-26T04:38:40.000Z",
-    "textPlain": "> He even admits Postgres maxxed out its 2 cores, but Redis was bottlenecked by the HTTP server.What exactly is your point? That you can further optimize either option? Well yes, that comes at no suprise. I mean, the latencies alone are in the range of some transcontinental requests. Were you surprised that Redis outperformed Postgres? I hardly think so.So what's the problem?The main point that's proven is that there is indeed diminishing returns in terms of performance. For applications where you can afford an extra 20ms when hitting a cache, caching using a persistent database is an option. For some people, it seems this fact was very surprising. That's food for thought, isn't it?",
+    "id": 45384050,
+    "by": "oulipo2",
+    "timeISO": "2025-09-26T08:13:23.000Z",
+    "textPlain": "The main point was not to fully benchmark and compare both, but just to get a rough sense of whether a Postgres cache was fast enough to be useful in practice. The comparison with Redis was more a crutch to get a sense of that, than really something that pretends to be \"rock-solid benchmarking\"",
     "parent": 45382510,
     "depth": 2
   },
@@ -248,10 +336,10 @@
     "depth": 2
   },
   {
-    "id": 45382629,
-    "by": "whateveracct",
-    "timeISO": "2025-09-26T04:26:47.000Z",
-    "textPlain": "most people with blogs don't know what they're doing. or don't care to know? sadly they get hired at companies and everyone does what they say cuz they have a blog. i've seen some shit in that department it's wild how much some people really are imposters.",
+    "id": 45382701,
+    "by": "motorest",
+    "timeISO": "2025-09-26T04:38:40.000Z",
+    "textPlain": "> He even admits Postgres maxxed out its 2 cores, but Redis was bottlenecked by the HTTP server.What exactly is your point? That you can further optimize either option? Well yes, that comes at no suprise. I mean, the latencies alone are in the range of some transcontinental requests. Were you surprised that Redis outperformed Postgres? I hardly think so.So what's the problem?The main point that's proven is that there is indeed diminishing returns in terms of performance. For applications where you can afford an extra 20ms when hitting a cache, caching using a persistent database is an option. For some people, it seems this fact was very surprising. That's food for thought, isn't it?",
     "parent": 45382510,
     "depth": 2
   },
@@ -261,6 +349,22 @@
     "timeISO": "2025-09-26T05:55:42.000Z",
     "textPlain": "You might not have been here 25 years ago when the dot com bubble burst.A lot of us ate shit to stay in the Bay Area, to stay in computing. I have stories of great engineers doing really crappy jobs and \"contracting\" on the side.I couldn't really have a 'startup' out of my house and a slice of rented hosting. Hardware was expensive and nothing was easy.  Today I can set up a business and thrive on 1000 users at 10 bucks a month. Thats a viable and easy to build business. It's an achievable metric.But Im not going to let amazon and its infinite bill you for everything at 2012 prices so it can be profitable hosting be my first choice. Im not going to do that when I can get fixed cost hosting.For me, all the interesting things going on in tech aren't coming out of FB, Google and hyperscalers. They aren't AI or ML. We dont need another Kubernetes or Kafka or react (no more Conways law projects). There is more interesting work going on down at the bottom. In small 2 and 3 man shops solving their problems on limited time and budget with creative \"next step\" solutions. Their work is likely more applicable to most people reading HN than another well written engineering blog from cloud flare about their latest massive rust project.",
     "parent": 45382510,
+    "depth": 2
+  },
+  {
+    "id": 45382629,
+    "by": "whateveracct",
+    "timeISO": "2025-09-26T04:26:47.000Z",
+    "textPlain": "most people with blogs don't know what they're doing. or don't care to know? sadly they get hired at companies and everyone does what they say cuz they have a blog. i've seen some shit in that department it's wild how much some people really are imposters.",
+    "parent": 45382510,
+    "depth": 2
+  },
+  {
+    "id": 45383917,
+    "by": "Timshel",
+    "timeISO": "2025-09-26T07:50:37.000Z",
+    "textPlain": "Since it's in the context of a homelab you usually don't change your hardware for one application, using the same resources in both test seems logical (could argue that the test should be pg vs redis + pg).And their point is that it's good enough as is.",
+    "parent": 45383863,
     "depth": 2
   },
   {
@@ -280,22 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45383428,
-    "by": "solatic",
-    "timeISO": "2025-09-26T06:35:53.000Z",
-    "textPlain": "In the naive/default case, durability is more important than latency. Servers crash, applications are restarted. If it takes a long time to rebuild your cache, or if rebuilding it would be unreliable (e.g. dependency on external APIs) then you court disaster by not using a durable-first cache.If you actually need lower latency then great, design for it. But it should be a conscious decision, not a default one.",
-    "parent": 45383391,
-    "depth": 2
-  },
-  {
-    "id": 45383020,
-    "by": "000ooo000",
-    "timeISO": "2025-09-26T05:32:49.000Z",
-    "textPlain": ">why bother with a benchmark if the pick is pre-ordainedValidating assumptionsCuriosity/learningEnraging a bunch of HN readers who were apparently born with deep knowledge of PG and Redis tuning",
-    "parent": 45382869,
-    "depth": 2
-  },
-  {
     "id": 45382388,
     "by": "coder543",
     "timeISO": "2025-09-26T03:43:52.000Z",
@@ -309,94 +397,6 @@
     "timeISO": "2025-09-26T03:23:08.000Z",
     "textPlain": "It's not like it's bad, it's more like cutting down on the amount of systems you need to operate.",
     "parent": 45382172,
-    "depth": 2
-  },
-  {
-    "id": 45382556,
-    "by": "motorest",
-    "timeISO": "2025-09-26T04:12:41.000Z",
-    "textPlain": "> Having the ability to set a TTL on the cache key is a critical feature of a cache, not something that can be tacked on later.What exactly is the challenge you're seeing? In the very least, you can save an expiry timestamp as part of the db entry. Your typical caching strategy already involves revalidating cache before it expires, and it's not as if returning stale while revalidating is something completely unheard of.",
-    "parent": 45382172,
-    "depth": 2
-  },
-  {
-    "id": 45382263,
-    "by": "frollogaston",
-    "timeISO": "2025-09-26T03:22:46.000Z",
-    "textPlain": "Yeah, the article was like \"I always need a DB anyway\" but then sets up an extra cronjob to expire keys, plus more code. I get YAGNI and avoiding deps, but this is really extra stuff to deal with.Maybe Postgres could use a caching feature. Until then, I'm gonna drop in Redis or memcached instead of reinventing the wheel.",
-    "parent": 45382172,
-    "depth": 2
-  },
-  {
-    "id": 45382399,
-    "by": "monkeyelite",
-    "timeISO": "2025-09-26T03:46:00.000Z",
-    "textPlain": "This is more than a few leaps of logic. a bad config of any infrastructure can cause problems",
-    "parent": 45382361,
-    "depth": 2
-  },
-  {
-    "id": 45383323,
-    "by": "Koffiepoeder",
-    "timeISO": "2025-09-26T06:21:54.000Z",
-    "textPlain": "If you look at their lab [0], it seems his NAS is separate from his kubernetes nodes. If he hasn't tuned his networking and NAS to the maximum, network storage may in fact add a LOT of delay on IOPS. Could be the difference between fractions of a millisecond vs actual milliseconds. If your DB load is mostly random reads this can really harm performance. Just hypothesizing here though, since it is not clear whether his DB storage is actually done on the NAS.[0]: https://dizzy.zone/2025/03/10/State-of-my-Homelab-2025/",
-    "parent": 45383058,
-    "depth": 2
-  },
-  {
-    "id": 45383295,
-    "by": "nasretdinov",
-    "timeISO": "2025-09-26T06:18:06.000Z",
-    "textPlain": "That's what I'm struggling with too. Redis can also serve roughly 500k-1m QPS using just ~4-8 cores, so on two cores it should be about 100k-200k at least",
-    "parent": 45383058,
-    "depth": 2
-  },
-  {
-    "id": 45382284,
-    "by": "dizzyVik",
-    "timeISO": "2025-09-26T03:25:50.000Z",
-    "textPlain": "Author here. Redis is definitely faster. I was specifically not going for absolute peak performance for either redis or postgres - that would require going down to the wire protocols. The idea was emphasize that there' a \"good enough\" level of performance. Once you need that sort of speed - sure, there are ways to achieve it.",
-    "parent": 45381675,
-    "depth": 2
-  },
-  {
-    "id": 45382203,
-    "by": "aaronblohowiak",
-    "timeISO": "2025-09-26T03:13:18.000Z",
-    "textPlain": "Even so 35ms+ latency for Redis reads is very very high I’d want to understand what is happening there",
-    "parent": 45381675,
-    "depth": 2
-  },
-  {
-    "id": 45381973,
-    "by": "oa335",
-    "timeISO": "2025-09-26T02:35:07.000Z",
-    "textPlain": "Postgres also supports query pipelining - at it seems like the popular go Postgres client library pgx supports it:\nhttps://github.com/jackc/pgx/issues/1113#event-6964024724",
-    "parent": 45381675,
-    "depth": 2
-  },
-  {
-    "id": 45383594,
-    "by": "flanked-evergl",
-    "timeISO": "2025-09-26T06:59:55.000Z",
-    "textPlain": "We dropped Redis from a 4 year old app that had a rapidly growing userbase. Best choice ever. We never looked back once other than to think how annoying it was to have to deal with Redis in addition to Postgres.",
-    "parent": 45381895,
-    "depth": 2
-  },
-  {
-    "id": 45381934,
-    "by": "throwup238",
-    "timeISO": "2025-09-26T02:28:56.000Z",
-    "textPlain": "“Dropping” something from a “new” project is premature optimization?Wherever you go, there you are.",
-    "parent": 45381895,
-    "depth": 2
-  },
-  {
-    "id": 45382017,
-    "by": "MobiusHorizons",
-    "timeISO": "2025-09-26T02:42:04.000Z",
-    "textPlain": "“Premature optimization” typically refers to optimizing before profiling. Ie optimizing in places that won’t help.Is redis not improving your latency? Is it adding complexity that isn’t worth it? Why bother removing it?",
-    "parent": 45381895,
     "depth": 2
   }
 ]
