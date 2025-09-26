@@ -1,17 +1,25 @@
 [
   {
-    "id": 45386291,
-    "by": "smjburton",
-    "timeISO": "2025-09-26T13:28:52.000Z",
-    "textPlain": "> Since our landing page is isolated from core product code, the risk was minimal. That said, I was constantly sanity-checking what Claude was changing. If I ever “vibed” too hard and lost focus, Claude would sometimes change the wrong files.> Still, I wouldn’t trust Claude, or any AI agent, to touch production code without close human oversight.My experience has been similar, and it's why I prefer to keep LLMs separate from my code base. It may take longer than providing direct access, but I find it leads to less hidden/obscure bugs that can take hours (and result in a lot of frustration) to fix.",
-    "parent": 45336775,
-    "depth": 1
-  },
-  {
     "id": 45385935,
     "by": "friggeri",
     "timeISO": "2025-09-26T12:51:44.000Z",
     "textPlain": "Looking at the prompts op has shared, I'd recommend more aggressively managing/trimming the context. In general you don't give the agent a new task without /clearing the context before. This will enable the agent to be more focused on the new task, and decrease its bias (if eg. reviewing changes it has made previously).The overall approach I now have for medium sized task is roughly:- Ask the agent to research a particular area of the codebase that is relevant to the task at hand, listing all relevant/important files, functions, and putting all of this in a \"research.md\" markdown file.- Clear the context window- Ask the agent to put together a project plan, informed by the previously generated markdown file. Store that project plan in a new \"project.md\" markdown file. Depending on complexity I'll generally do multiple revs of this.- Clear the context window- Ask the agent to create a step by step implementation plan, leveraging the previously generated research & project files, put that in a plan.md file.- Clear the context window- While there are unfinished steps in plan.md:-- While the current step needs more work--- Ask the agent to work on the current step--- Clear the context window--- Ask the agent to review the changes--- Clear the context window-- Ask the agent to update the plan with their changes and make a commit-- Clear the context windowI also recommend to have specialized sub agents for each of those phases (research, architecture, planning, implementation, review). Less so in terms of telling the agent what to do, but as a way to add guardrails and structure to the way they synthesize/serialize back to markdown.",
+    "parent": 45336775,
+    "depth": 1
+  },
+  {
+    "id": 45386465,
+    "by": "ojosilva",
+    "timeISO": "2025-09-26T13:47:13.000Z",
+    "textPlain": "Claude Code has been an awesome experience for me too... without ever subscribing to an Anthropic account!I've never liked the free-tier Claude (Sonnet/Opus) chat sessions I've attempted with code snippets. Claude non-coding chat sessions were good, but I didn't detect anything magical about the model and the code it churned out for me to decide for a Claude Max Plan. Neither Cursor (I'm also a customer), with its partial use of Claude seemed that great. Maybe the magic is mostly in CC the agent...So, I've been using a modified CC [1] with a modified claude-code-router [2] (on my own server), which exposes an Anthropic endpoint, and a Cerebras Coder account with qwen-3-coder-480b. No doubt Claude models+CC are well greased-out, but I think the folks in the Qwen team trained (distilled?) a coding model that is Sonnet-inspired so maybe that's the reason. I don't know. But the sheer 5x-10x inference speed of Cerebras makes up for any loss in quality from Sonnet or the FP8 quantization of qwen on the Cerebras side. If starting from zero every few agentic steps is the strategy to use, that with Cerebras is just incredible because it's ~ instantaneous.I've tried my Cerebras Coder account with way too many coding agents, and for now CC, Cline (VS Code) and Qwen Code (a Gemini Code fork) are the ones that work best. CC beats the pack as it compresses the context just right and recovers well from Cerebras 429 errors (tpm limit), due to the speed (hitting ~1500 tps typically) clashing with Cerebras unreasonably tight request limits. When a 429 comes trough, CC just holds its breath a few seconds then goes at it again. Great experience overall![1] I've decompiled CC and modified some constants for Cerebras to fix some hickups[2] had to remove some invalid request json keys sent by CC using CCR, and added others that were missing",
+    "parent": 45336775,
+    "depth": 1
+  },
+  {
+    "id": 45386291,
+    "by": "smjburton",
+    "timeISO": "2025-09-26T13:28:52.000Z",
+    "textPlain": "> Since our landing page is isolated from core product code, the risk was minimal. That said, I was constantly sanity-checking what Claude was changing. If I ever “vibed” too hard and lost focus, Claude would sometimes change the wrong files.> Still, I wouldn’t trust Claude, or any AI agent, to touch production code without close human oversight.My experience has been similar, and it's why I prefer to keep LLMs separate from my code base. It may take longer than providing direct access, but I find it leads to less hidden/obscure bugs that can take hours (and result in a lot of frustration) to fix.",
     "parent": 45336775,
     "depth": 1
   },
@@ -22,6 +30,22 @@
     "textPlain": "\"Proceed with caution\" seems to be the overwhelming consensus, at least with models having this level of capability. I commend the author for having the humility to recognize the limit of their capability, something we developers too often lack.",
     "parent": 45336775,
     "depth": 1
+  },
+  {
+    "id": 45386301,
+    "by": "yojo",
+    "timeISO": "2025-09-26T13:29:41.000Z",
+    "textPlain": "Tell Claude to fix the scroll-blocker on the codeyam.com landing page.This seems to be a bad practice LLMs have internalized; there should be some indication that there’s more content below the fold. Either a little bit of the next section peeking up, or a little down arrow control.I vibe coded a marketing website and hit the same issue.",
+    "parent": 45336775,
+    "depth": 1
+  },
+  {
+    "id": 45386736,
+    "by": "nadis",
+    "timeISO": "2025-09-26T14:12:34.000Z",
+    "textPlain": "OP here, this is great advice. Thanks for sharing. Clearing context more often between tasks is something I've started to do more recently, although definitely still a WIP to remember to do so. I haven't had a lot of success with the .md files leading to better results yet, but have only experimented with them occasionally. Could be a prompting issue though, and I like the structure you suggested. Looking forward to trying!I didn't mention it in the blog post but actually experimented a bit with using Claude Code to create specialized agents such as an expert-in-Figma-and-frontend \"Design Engineer\", but in general found the results worse than just using Claude Code as-is. This also could be a prompting issue though and it was my first attempt at creating my own agents, so likely a lot of room to learn and improve.",
+    "parent": 45385935,
+    "depth": 2
   },
   {
     "id": 45386064,
@@ -37,6 +61,46 @@
     "timeISO": "2025-09-26T13:08:36.000Z",
     "textPlain": "You just convinced me that Llms are a pay-to-play management sim.",
     "parent": 45385935,
+    "depth": 2
+  },
+  {
+    "id": 45386703,
+    "by": "shafyy",
+    "timeISO": "2025-09-26T14:09:31.000Z",
+    "textPlain": "Dude, why not just do it yourself if you have to micromanage the LLM this hardcore?",
+    "parent": 45385935,
+    "depth": 2
+  },
+  {
+    "id": 45386721,
+    "by": "Snuggly73",
+    "timeISO": "2025-09-26T14:11:43.000Z",
+    "textPlain": "If you like CC - I'll just leave this here - https://github.com/sst/opencode",
+    "parent": 45386465,
+    "depth": 2
+  },
+  {
+    "id": 45386779,
+    "by": "nadis",
+    "timeISO": "2025-09-26T14:17:45.000Z",
+    "textPlain": "> My experience has been similar, and it's why I prefer to keep LLMs separate from my code base.I'm curious how you're managing this - is it primarily by inputting code snippets or abstract context into something like a Claude or ChatGPT?I found for myself that I usually was bad at providing sufficient context when trying to work with the LLM separately from the codebase, but also might lack the technical background or appropriate workflow.",
+    "parent": 45386291,
+    "depth": 2
+  },
+  {
+    "id": 45386750,
+    "by": "nadis",
+    "timeISO": "2025-09-26T14:14:35.000Z",
+    "textPlain": "OP here, thanks for sharing the feedback. I'll investigate and good to know! I think this actually might be human error (my interpretation of the designs) rather than Claude's fault FWIW.",
+    "parent": 45386301,
+    "depth": 2
+  },
+  {
+    "id": 45386414,
+    "by": "ziml77",
+    "timeISO": "2025-09-26T13:43:30.000Z",
+    "textPlain": "Oh yeah that's really bad to not have any hints that there's more info. I suspect many people are going to hit that page and think there's nothing useful to see. (It's also partly the fault of browsers for not showing scroll bars, but that's the default so you need to design for it)",
+    "parent": 45386301,
     "depth": 2
   }
 ]
