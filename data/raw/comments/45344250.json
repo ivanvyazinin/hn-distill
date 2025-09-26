@@ -1,17 +1,9 @@
 [
   {
-    "id": 45376841,
-    "by": "Strilanc",
-    "timeISO": "2025-09-25T18:26:08.000Z",
-    "textPlain": "Every one of these \"performance tricks\" is describing how to convince rust's borrow checker that you're allowed to do a thing. It's more like \"performance permission slips\".",
-    "parent": 45344250,
-    "depth": 1
-  },
-  {
-    "id": 45379886,
-    "by": "0x1ceb00da",
-    "timeISO": "2025-09-25T22:14:43.000Z",
-    "textPlain": "> It’d be reasonable to think that this will have a runtime cost, however it doesn’t. The reason is that the Rust standard library has a nice optimisation in it that when we consume a Vec and collect the result into a new Vec, in many circumstances, the heap allocation of the original Vec can be reused. This applies in this case. But what even with the heap allocation being reused, we’re still looping over all the elements to transform them right? Because the in-memory representation of an AtomicSymbolId is identical to that of a SymbolId, our loop becomes a no-op and is optimised away.Those optimisations that this code relies on are literally undefined behaviour. The compiler doesn't guarantee it's gonna apply those optimisations. So your code might suddenly become super slow and you'll have to go digging in to see why. Is this undefined behaviour better than just having an unsafe block? I'm not so sure. The unsafe code will be easier to read and you won't need any comments or a blog to explain why we're doing voodoo stuff because the logic of the code will explain its intentions.",
+    "id": 45382601,
+    "by": "emtel",
+    "timeISO": "2025-09-26T04:18:46.000Z",
+    "textPlain": "I read this a few weeks ago, and was inspired to do some experiments of my own on compiler explorer, and found the following interesting things:  // This compiles down to a memmove() call\n  let my_vec: Vec<_> = my_vec.into_iter().skip(n).collect();\n\n  // this results in significantly smaller machine code than `v.retain(f)`\n  v.into_iter().filter(f).collect();\n\nThis was all with -C opt-level=2. I only looked at generated code size, didn't have time to benchmark any of these.",
     "parent": 45344250,
     "depth": 1
   },
@@ -40,6 +32,22 @@
     "depth": 1
   },
   {
+    "id": 45379886,
+    "by": "0x1ceb00da",
+    "timeISO": "2025-09-25T22:14:43.000Z",
+    "textPlain": "> It’d be reasonable to think that this will have a runtime cost, however it doesn’t. The reason is that the Rust standard library has a nice optimisation in it that when we consume a Vec and collect the result into a new Vec, in many circumstances, the heap allocation of the original Vec can be reused. This applies in this case. But what even with the heap allocation being reused, we’re still looping over all the elements to transform them right? Because the in-memory representation of an AtomicSymbolId is identical to that of a SymbolId, our loop becomes a no-op and is optimised away.Those optimisations that this code relies on are literally undefined behaviour. The compiler doesn't guarantee it's gonna apply those optimisations. So your code might suddenly become super slow and you'll have to go digging in to see why. Is this undefined behaviour better than just having an unsafe block? I'm not so sure. The unsafe code will be easier to read and you won't need any comments or a blog to explain why we're doing voodoo stuff because the logic of the code will explain its intentions.",
+    "parent": 45344250,
+    "depth": 1
+  },
+  {
+    "id": 45376841,
+    "by": "Strilanc",
+    "timeISO": "2025-09-25T18:26:08.000Z",
+    "textPlain": "Every one of these \"performance tricks\" is describing how to convince rust's borrow checker that you're allowed to do a thing. It's more like \"performance permission slips\".",
+    "parent": 45344250,
+    "depth": 1
+  },
+  {
     "id": 45378343,
     "by": "quotemstr",
     "timeISO": "2025-09-25T20:12:30.000Z",
@@ -56,43 +64,35 @@
     "depth": 1
   },
   {
-    "id": 45378967,
-    "by": "kibwen",
-    "timeISO": "2025-09-25T20:57:32.000Z",
-    "textPlain": "...Except that Rust is thread-safe, so expressing your algorithm in terms that the borrow checker accepts makes safe parallelism possible, as shown in the example using Rayon to trivially parallelize an operation. This is the whole point of Rust, and to say that C and C++ fail at thread-safety would be the understatement of the century.",
-    "parent": 45376841,
+    "id": 45382426,
+    "by": "malkia",
+    "timeISO": "2025-09-26T03:49:57.000Z",
+    "textPlain": "Some allocators may even \"hold\" on to the freed (from another thread) memory, until the original thread deletes it (which is not the case here), or that thread dies, and then they go on \"gc\"-ing it.",
+    "parent": 45380028,
     "depth": 2
   },
   {
-    "id": 45377247,
-    "by": "oleganza",
-    "timeISO": "2025-09-25T18:56:30.000Z",
-    "textPlain": "You don't have to play this game - you can always write within unsafe { ... } like in plain old C or C++. But people do choose to play this game because it helps them to write code that is also correct, where \"correct\" has an old-school meaning of \"actually doing what it is supposed to do and not doing what it's not supposed to\".",
-    "parent": 45376841,
+    "id": 45380809,
+    "by": "sweetjuly",
+    "timeISO": "2025-09-25T23:49:05.000Z",
+    "textPlain": "> especially given how typical allocators behave under the hood.To say more about it: nearly any modern high performance allocator will maintain a local (private) cache of freed chunks.This is useful, for example, if you're allocating and deallocating about the same amount of memory/chunk size over and over again since it means you can avoid entering the global part of the allocator (which generally requires locking, etc.).If you make an allocation while the cache is empty, you have to go to the global  allocator to refill your cache (usually with several chunks). Similarly, if you free and find your local cache is full, you will need to return some memory to the global allocator (usually you drain several chunks from your cache at once so that you don't hit this condition constantly).If you are almost always allocating on one thread and deallocating on another, you end up increasing contention in the allocator as you will (likely) end up filling/draining from the global allocator far more often than if you kept in on just one CPU. Depending on your specific application, maybe this performance loss is inconsequential compared to the value of not having to actually call free on some critical path, but it's a choice you should think carefully about and profile for.",
+    "parent": 45380028,
     "depth": 2
   },
   {
-    "id": 45377965,
-    "by": "Ar-Curunir",
-    "timeISO": "2025-09-25T19:43:54.000Z",
-    "textPlain": "This is an issue that you would face in any language with strong typing. \nIt only rears its head in Rust because Rust tries to give you both low-level control and strong types.For example, in something like Go (which has a weaker type system than Rust), you wouldn't think twice about, paying for the re-allocation in buffer-reuse example.Of course, in something like C or C++ you could do these things via simple pointer casts, but then you run the risk of violating some undefined behaviour.",
-    "parent": 45376841,
+    "id": 45380201,
+    "by": "mjmas",
+    "timeISO": "2025-09-25T22:43:56.000Z",
+    "textPlain": "The particular optimisation for non-copying Vec -> IntoIter -> Vec transform is actually hard coded in the standard library as a special case of collecting an Iterator into a Vec. It doesn't rely on the backend for this.Though this optimisation is treated as an implementation detail [1].[1]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#imp...",
+    "parent": 45379756,
     "depth": 2
   },
   {
-    "id": 45378177,
-    "by": "jstimpfle",
-    "timeISO": "2025-09-25T20:00:16.000Z",
-    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
-    "parent": 45376841,
-    "depth": 2
-  },
-  {
-    "id": 45378268,
-    "by": "the-smug-one",
-    "timeISO": "2025-09-25T20:07:27.000Z",
-    "textPlain": "The rayon thing is neat.",
-    "parent": 45376841,
+    "id": 45379639,
+    "by": "ComputerGuru",
+    "timeISO": "2025-09-25T21:53:38.000Z",
+    "textPlain": "You misunderstood the purpose of that trick. The vector is not going to be accessed again, the idea is to move it to another thread so it can be dropped in parallel (never accessed).",
+    "parent": 45378277,
     "depth": 2
   },
   {
@@ -112,19 +112,43 @@
     "depth": 2
   },
   {
-    "id": 45380201,
-    "by": "mjmas",
-    "timeISO": "2025-09-25T22:43:56.000Z",
-    "textPlain": "The particular optimisation for non-copying Vec -> IntoIter -> Vec transform is actually hard coded in the standard library as a special case of collecting an Iterator into a Vec. It doesn't rely on the backend for this.Though this optimisation is treated as an implementation detail [1].[1]: https://doc.rust-lang.org/stable/std/vec/struct.Vec.html#imp...",
-    "parent": 45379756,
+    "id": 45377247,
+    "by": "oleganza",
+    "timeISO": "2025-09-25T18:56:30.000Z",
+    "textPlain": "You don't have to play this game - you can always write within unsafe { ... } like in plain old C or C++. But people do choose to play this game because it helps them to write code that is also correct, where \"correct\" has an old-school meaning of \"actually doing what it is supposed to do and not doing what it's not supposed to\".",
+    "parent": 45376841,
     "depth": 2
   },
   {
-    "id": 45379639,
-    "by": "ComputerGuru",
-    "timeISO": "2025-09-25T21:53:38.000Z",
-    "textPlain": "You misunderstood the purpose of that trick. The vector is not going to be accessed again, the idea is to move it to another thread so it can be dropped in parallel (never accessed).",
-    "parent": 45378277,
+    "id": 45377965,
+    "by": "Ar-Curunir",
+    "timeISO": "2025-09-25T19:43:54.000Z",
+    "textPlain": "This is an issue that you would face in any language with strong typing. \nIt only rears its head in Rust because Rust tries to give you both low-level control and strong types.For example, in something like Go (which has a weaker type system than Rust), you wouldn't think twice about, paying for the re-allocation in buffer-reuse example.Of course, in something like C or C++ you could do these things via simple pointer casts, but then you run the risk of violating some undefined behaviour.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378268,
+    "by": "the-smug-one",
+    "timeISO": "2025-09-25T20:07:27.000Z",
+    "textPlain": "The rayon thing is neat.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378177,
+    "by": "jstimpfle",
+    "timeISO": "2025-09-25T20:00:16.000Z",
+    "textPlain": "Yup -- yet another article only solving language level problems instead of teaching something about real constraints (i.e. hardware performance characteristics). Booooring. This kind of article is why I still haven't mustered the energy to get up to date with Rust. I'm still writing C (or C-in-C++) and having fun, most of the time feeling like I'm solving actual technical problems.",
+    "parent": 45376841,
+    "depth": 2
+  },
+  {
+    "id": 45378967,
+    "by": "kibwen",
+    "timeISO": "2025-09-25T20:57:32.000Z",
+    "textPlain": "...Except that Rust is thread-safe, so expressing your algorithm in terms that the borrow checker accepts makes safe parallelism possible, as shown in the example using Rayon to trivially parallelize an operation. This is the whole point of Rust, and to say that C and C++ fail at thread-safety would be the understatement of the century.",
+    "parent": 45376841,
     "depth": 2
   },
   {
