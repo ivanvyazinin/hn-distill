@@ -8,18 +8,26 @@
     "depth": 1
   },
   {
-    "id": 45390665,
-    "by": "philipallstar",
-    "timeISO": "2025-09-26T20:23:47.000Z",
-    "textPlain": "I really liked this. All Mozilla content should be like this. Technical content written by literate engineers.",
-    "parent": 45387462,
-    "depth": 1
-  },
-  {
     "id": 45389442,
     "by": "Veserv",
     "timeISO": "2025-09-26T18:18:53.000Z",
     "textPlain": "While their improvements are real and necessary for actual high speed (100 Gb/s and up), 4 Gb/s is not fast. That is only 500 MB/s. Something somewhere, likely not in their code, is terribly slow. I will explain.As the author cited, kernel context switch is only on the order of 1 us (which seems too high for a system call anyways). You can reach 500 MB/s even if you still call sendmsg() on literally every packet as long as you average ~500 bytes/packet which is ~1/3 of the standard 1500 bytes MTU. So if you average MTU sized packets, you get 2 us of processing in addition to a full system call to reach 4 Gb/s.The old number of 1 Gb/s could be reached with a average of ~125 bytes/packet, ~1/12 of the MTU or ~11 us of processing.“But there are also memory copies in the network stack.” A trivial 3 instruction memory copy will go ~10-20 GB/s, 80–160 Gb/s. In 2 us you can drive 20-40 KB of copies. You are arguing the network stack does 40-80(!) copies to put a UDP packet, a thin veneer over a literal packet, into a packet. I have written commercial network drivers. Even without zero-copy, with direct access you can shovel UDP packets into the NIC buffers at basically memory copy speeds.“But encryption is slow.” Not that slow. Here is some AES-128 GCM performance done what looks like over 5 years ago. [1] The Intel i5-6500, a midline processor from 8 years ago, averages 1729 MB/s. It can do the encryption for a 500 byte packet in 300 ns, 1/6 of the remaining 2 us budget. Modern processors seem to be closer to 3-5 GB/s per core, or about 25-40 Gb/s, 6-10x the stated UDP throughput.[1] https://calomel.org/aesni_ssl_performance.html",
+    "parent": 45387462,
+    "depth": 1
+  },
+  {
+    "id": 45390665,
+    "by": "philipallstar",
+    "timeISO": "2025-09-26T20:23:47.000Z",
+    "textPlain": "I really liked this. All Mozilla content should be like this. Technical content written by literate engineers. No alegria.",
+    "parent": 45387462,
+    "depth": 1
+  },
+  {
+    "id": 45390945,
+    "by": "brycewray",
+    "timeISO": "2025-09-26T20:56:50.000Z",
+    "textPlain": "https://bugzilla.mozilla.org/show_bug.cgi?id=1979683Still seeing this in Firefox with Cloudflare-hosted sites on both macOS and Fedora.",
     "parent": 45387462,
     "depth": 1
   },
@@ -64,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45390735,
+    "by": "ajsnigrutin",
+    "timeISO": "2025-09-26T20:33:03.000Z",
+    "textPlain": "[flagged]",
+    "parent": 45387462,
+    "depth": 1
+  },
+  {
     "id": 45389381,
     "by": "bergheim",
     "timeISO": "2025-09-26T18:13:57.000Z",
@@ -88,6 +104,14 @@
     "depth": 2
   },
   {
+    "id": 45390949,
+    "by": "raggi",
+    "timeISO": "2025-09-26T20:57:35.000Z",
+    "textPlain": "> which seems too high for a system call anywaysspectre & meltdown.>  you get 2 us of processing in addition to a full system call to reach 4 Gb/sTCP has route binding, UDP does not (connect(2) helps one side, but not both sides).> “But encryption is slow.” Not that slow.Encryption _is slow_ for small PDUs, at least the common constructions we're currently using. Everyone's essentially been optimizing for and benchmarking TCP with large frames.If you hot loop the state as the micro-benchmarks do you can do better, but you still see a very visible cost of state setup that only starts to amortize decently well above 1024 byte payloads. Eradicate a bunch of cache efficiency by removing the tightness of the loop and this amortization boundary shifts quite far to the right, up into tens of kilobytes.---All of the above, plus the additional framing overheads come into play. Hell even the OOB data blocks are quite expensive to actually validate, it's not a good API to fix this problem, it's just the API we have shoved over bsd sockets.And we haven't even gotten to buffer constraints and contention yet, but the default UDP buffer memory available on most systems is woefully inadequate for these use cases today. TCP buffers were scaled over time, but UDP buffers basically never were, they're still conservative values from the late 90s/00s really.The API we really need for this kind of UDP setup is one where you can do something like fork the fd, connect(2) it with a full route bind, and then fix the RSS/XSS challenges that come from this splitting. After that we need a submission queue API rather than another bsd sockets ioctl style mess (uring, rio, etc). Sadly none of this is portable.On the crypto side there are KDF approaches which can remove a lot of the state cost involved, it's not popular but some vendors are very taken with PSP for this reason - but PSP becoming more well known or used was largely suppressed by its various rejections in the ietf and in linux. Vendor",
+    "parent": 45389442,
+    "depth": 2
+  },
+  {
     "id": 45390466,
     "by": "vlovich123",
     "timeISO": "2025-09-26T20:01:41.000Z",
@@ -96,10 +120,26 @@
     "depth": 2
   },
   {
+    "id": 45391043,
+    "by": "dochtman",
+    "timeISO": "2025-09-26T21:08:45.000Z",
+    "textPlain": "When I asked about financial support, the Senior Principal Software Engineer from Mozilla I talked to said \"Mozilla has no money\".To be fair, we've gotten a great amount of code contributions from the Mozilla folks, so it's not like they haven't contributed anything.(I am one of the Quinn maintainers.)",
+    "parent": 45389694,
+    "depth": 2
+  },
+  {
     "id": 45390499,
     "by": "kouteiheika",
     "timeISO": "2025-09-26T20:05:04.000Z",
     "textPlain": "> Awesome, so you sponsored them right?Why bother sponsoring any open source projects when they can throw a few extra million into their CEO's salary, while that CEO is running their flagship product (Firefox) into the ground?",
+    "parent": 45389694,
+    "depth": 2
+  },
+  {
+    "id": 45390853,
+    "by": "Avamander",
+    "timeISO": "2025-09-26T20:46:13.000Z",
+    "textPlain": "They contributed in other ways?",
     "parent": 45389694,
     "depth": 2
   },
@@ -120,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 45390877,
+    "by": "Avamander",
+    "timeISO": "2025-09-26T20:48:46.000Z",
+    "textPlain": "I wonder why Microsoft and Apple do not care about the proper functioning of their network stacks.Pretty sure GSO/GRO aren't the only buggy parts either.",
+    "parent": 45388879,
+    "depth": 2
+  },
+  {
     "id": 45388971,
     "by": "Cloudef",
     "timeISO": "2025-09-26T17:32:37.000Z",
@@ -136,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45390245,
-    "by": "timeon",
-    "timeISO": "2025-09-26T19:39:58.000Z",
-    "textPlain": "How do you know someone is bothered by headline? They will write comment!",
-    "parent": 45388325,
-    "depth": 2
-  },
-  {
     "id": 45388523,
     "by": "kibwen",
     "timeISO": "2025-09-26T16:47:27.000Z",
     "textPlain": "Except for, you know, the majority of Rust projects which reach the HN front page and don't, like the stories on PopOS, Redox, and the Wild linker from the past day.",
+    "parent": 45388325,
+    "depth": 2
+  },
+  {
+    "id": 45390245,
+    "by": "timeon",
+    "timeISO": "2025-09-26T19:39:58.000Z",
+    "textPlain": "How do you know someone is bothered by headline? They will write comment!",
     "parent": 45388325,
     "depth": 2
   },
@@ -168,11 +216,27 @@
     "depth": 2
   },
   {
+    "id": 45390879,
+    "by": "metaltyphoon",
+    "timeISO": "2025-09-26T20:48:55.000Z",
+    "textPlain": "[flagged]",
+    "parent": 45390735,
+    "depth": 2
+  },
+  {
     "id": 45390280,
     "by": "timeon",
     "timeISO": "2025-09-26T19:42:31.000Z",
     "textPlain": "Yeah about that... https://chromium.googlesource.com/chromium/src/+/refs/heads/...",
     "parent": 45389381,
+    "depth": 2
+  },
+  {
+    "id": 45391050,
+    "by": "wolrah",
+    "timeISO": "2025-09-26T21:09:29.000Z",
+    "textPlain": "You can still have self-signed certs, you just have to actually set up your own CA and import it as trusted in the relevant trust store so it can be verified.You can't just have some random router, printer, NAS, etc. generate its own cert out of thin air and tell the browser to ignore the fact that it can't be verified.IMO this is a good thing.  The way browsers handle HTTPS on older protocols is a result of the number of legacy badly configured systems there are out there which browser vendors don't want to break.  Anywhere someone's supporting HTTP/3 they're doing something new, so enforcing a \"do it right or don't do it at all\" policy is possible.",
+    "parent": 45389314,
     "depth": 2
   },
   {
