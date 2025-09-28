@@ -1,5 +1,13 @@
 [
   {
+    "id": 45407788,
+    "by": "Joker_vD",
+    "timeISO": "2025-09-28T20:40:33.000Z",
+    "textPlain": "Just so you know, the \"return x < 0 ? -x : x;\" compiles into    abs_branch:\n        mov eax, edi\n        neg eax\n        cmovs eax, edi\n        ret\n\non x64, and into    abs_branch:\n        srai a5,a0,31\n        xor a0,a5,a0\n        sub a0,a0,a5\n        ret\n\non RISC-V if you use a C compiler with a half-decent codegen. And \"branchy\" clamp() translates into    clamp:\n        cmp edi, edx\n        mov eax, esi\n        cmovle edx, edi\n        cmp edi, esi\n        cmovge eax, edx\n        ret\n\nSeriously, the automatic transformation between ?: and if-then-else (in both directions) is quite well studied by now. And if you try to benchmark difference between branching and branchless implementations, please make sure that the branches you expect are actually there in the compiler's output.",
+    "parent": 45405750,
+    "depth": 1
+  },
+  {
     "id": 45406379,
     "by": "sfilmeyer",
     "timeISO": "2025-09-28T17:54:52.000Z",
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45406574,
-    "by": "styfle",
-    "timeISO": "2025-09-28T18:19:02.000Z",
-    "textPlain": "This same blog posted yesterday and got flagged with “How I accidently created the fastest CSV parser ever made”https://news.ycombinator.com/item?id=45400009",
+    "id": 45407721,
+    "by": "zackmorris",
+    "timeISO": "2025-09-28T20:32:44.000Z",
+    "textPlain": "I need something like this for a switch() command (technically a list of arbitrary functions). Sort of like up to N branches in one step.The idea is to take some number of inputs A, B, C, ... and conceptually perform all of the possible functions simultaneously, then keep the one that's desired and throw the rest away. For any arbitrary logic. Ideally using fewer operations than all of that, but that's optional. Driven by one variable, it would look like:  // branch version\n  switch(var1)\n  {\n    case 1:\n      var4 = var2 + var3;\n      break;\n    case 2:\n      var4 = var2 - var3;\n      break;\n    case 3:\n      var4 = var2 * var3;\n      break;\n    case 4:\n      var4 = var2 / var3;\n      break;\n    // ...\n    default:\n      var4 = 0; // optional and arbitrary\n      break;\n  }\n  \n  // branchless version\n  var4 = magic(var1, var2, var3);\n\nI don't know how to do this outside of programmable hardware like an FPGA. The problem is that it's extremely challenging to write/solve the formulas that map ordinary arithmetic and bitwise functions to the larger set of functions.So for now, I may just use a switch() command in a shader and let it figure out any reusable logic internally. I don't know if shaders have come far enough to allow that performantly, or if they end up just calculating everything and throwing away the paths not taken. Which would suggest that the max speed would be O(1/N) for the number of cases.Does anyone know? Maybe truth tables? Or a SAT solver? I'm also not sure how this would work for floating point, but that's optional too.Edit: I updated the cases to show how var1 controls the math performed on var2, var3 and var4.",
     "parent": 45405750,
     "depth": 1
   },
@@ -32,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45406426,
-    "by": "rmnclmnt",
-    "timeISO": "2025-09-28T18:00:32.000Z",
-    "textPlain": "Great article, triggers some memories.When you get to think about branchless programming, especially for SIMD optimizations in the real world, you always learn a lot and it’s as if you get a +1 level on your algorithmic skills. The hardest part then is make sure the tricks are clearly laidout so that someone else can take it from here next time",
+    "id": 45406574,
+    "by": "styfle",
+    "timeISO": "2025-09-28T18:19:02.000Z",
+    "textPlain": "This same blog posted yesterday and got flagged with “How I accidently created the fastest CSV parser ever made”https://news.ycombinator.com/item?id=45400009",
     "parent": 45405750,
     "depth": 1
   },
   {
-    "id": 45407403,
-    "by": "HarHarVeryFunny",
-    "timeISO": "2025-09-28T19:56:26.000Z",
-    "textPlain": "The ARM instruction set used to make all instructions conditional to avoid the need for branching, but has now moved away from that since the branch prediction is so good nowadays.",
+    "id": 45407980,
+    "by": "Animats",
+    "timeISO": "2025-09-28T21:03:18.000Z",
+    "textPlain": "This is just cutesy on CPUs, but is a big part of GPU programming.",
     "parent": 45405750,
     "depth": 1
   },
@@ -56,10 +64,34 @@
     "depth": 1
   },
   {
+    "id": 45406426,
+    "by": "rmnclmnt",
+    "timeISO": "2025-09-28T18:00:32.000Z",
+    "textPlain": "Great article, triggers some memories.When you get to think about branchless programming, especially for SIMD optimizations in the real world, you always learn a lot and it’s as if you get a +1 level on your algorithmic skills. The hardest part then is make sure the tricks are clearly laidout so that someone else can take it from here next time",
+    "parent": 45405750,
+    "depth": 1
+  },
+  {
+    "id": 45408052,
+    "by": "Scene_Cast2",
+    "timeISO": "2025-09-28T21:11:21.000Z",
+    "textPlain": "Another interesting take is how GPUshandle branching  (latest NVidia GPUs in particular - see the register interconnect and how they swap threads without saving registers).",
+    "parent": 45405750,
+    "depth": 1
+  },
+  {
     "id": 45407194,
     "by": "gtirloni",
     "timeISO": "2025-09-28T19:33:05.000Z",
     "textPlain": "I think I'm getting too sensitive to AI-assisted articles. So many whimsical terms to make something \"fun\".",
+    "parent": 45405750,
+    "depth": 1
+  },
+  {
+    "id": 45407403,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-09-28T19:56:26.000Z",
+    "textPlain": "The ARM instruction set used to make all instructions conditional to avoid the need for branching, but has now moved away from that since the branch prediction is so good nowadays.",
     "parent": 45405750,
     "depth": 1
   },
@@ -72,10 +104,18 @@
     "depth": 1
   },
   {
+    "id": 45406511,
+    "by": "mshockwave",
+    "timeISO": "2025-09-28T18:10:15.000Z",
+    "textPlain": "The article is easy to follow but I think the author missed the e point: branchless programming (a subset of the more known constant time programming) is almost exclusively used in cryptography only nowadays. As shown by the benchmarks in the article, modern branch predictors can easily achieve over 95% if not 99% precision since like a decade ago",
+    "parent": 45405750,
+    "depth": 1
+  },
+  {
     "id": 45407200,
     "by": "FooBarBizBazz",
     "timeISO": "2025-09-28T19:33:26.000Z",
-    "textPlain": "I used to do stuff like this, but stopped around 2013 or so, as the distinction between \"implementation defined\" behavior (ok) and \"undefined\" behavior (not ok) started to matter and bite.After thinking through this carefully, though, I do not see UB:Step 1, bit shift.I understand that, until C++20, left shift of a signed int was UB. But this right shift appears to be implementation defined, which is ok if documented in the code.Step 2: Add.Then, (x + mask) is defined behavior (a) for positive x, since then mask=0, and (b) for most negative x, since then mask=-1. However, if x is numeric_limits::lowest, then you get signed integer overflow, which is UB.Step 3, XOR.Then the final XOR doesn't have UB AFAICT. It wouldn't be UB as of C++20, when signed integers became two's complement officially. It might have been implementation defined before then, which would be almost as good for something that ubiquitous, but I'm not sure.Ok, so I think this does not involve UB except for an input of numeric_limits_lowest.Sound about right?To fix this, perhaps you would need to make that + an unsigned one?It bothers me how hard you need to think to do this language lawyering. C++ is a system of rules. Computers interpret rules. The language lawyer should be a piece of software. I get it, not everything can be done statically, so, fine, do it dynamically? UBSan comes closest in practice, but doesn't detect everything. I understand formally modeled versions of C and C++ have been developed commercially, but these are not open source so they effectively do not exist. It's a strange situation.Just the other day I considered writing something branchless and said, \"nah\", because of uncertainty around UB. How much performance is being left on the table around the world because of similar thinking, driven by the existence of UB?Maybe I was supposed to write OCaml or Pascal or Rust.",
+    "textPlain": "I used to do stuff like this (ok, not half as smart), but stopped around 2013 or so, as the distinction between \"implementation defined\" behavior (ok) and \"undefined\" behavior (not ok) started to matter and bite.After thinking through this carefully, though, I do not see UB (except for signed overflow in a corner case):Step 1, bit shift.I understand that, until C++20, left shift of a signed int was UB. But this right shift appears to be implementation defined, which is ok if documented in the code.Step 2: Add.Then, (x + mask) is defined behavior (a) for positive x, since then mask=0, and (b) for most negative x, since then mask=-1. However, if x is numeric_limits::lowest, then you get signed integer overflow, which is UB.Step 3, XOR.Then the final XOR doesn't have UB AFAICT. It wouldn't be UB as of C++20, when signed integers became two's complement officially. It might have been implementation defined before then, which would be almost as good for something that ubiquitous, but I'm not sure.Ok, so I think this does not involve UB except for an input of numeric_limits_lowest.Sound about right?To fix this, perhaps you would need to make that + an unsigned one?It bothers me how hard you need to think to do this language lawyering. C++ is a system of rules. Computers interpret rules. The language lawyer should be a piece of software. I get it, not everything can be done statically, so, fine, do it dynamically? UBSan comes closest in practice, but doesn't detect everything. I understand formally modeled versions of C and C++ have been developed commercially, but these are not open source so they effectively do not exist. It's a strange situation.Just the other day I considered writing something branchless and said, \"nah\", because of uncertainty around UB. How much performance is being left on the table around the world because of similar thinking, driven by the existence of UB?Maybe I was supposed to write OCaml or Pascal or Rust.",
     "parent": 45405750,
     "depth": 1
   },
@@ -88,12 +128,12 @@
     "depth": 1
   },
   {
-    "id": 45406511,
-    "by": "mshockwave",
-    "timeISO": "2025-09-28T18:10:15.000Z",
-    "textPlain": "The article is easy to follow but I think the author missed the e point: branchless programming (a subset of the more known constant time programming) is almost exclusively used in cryptography only nowadays. As shown by the benchmarks in the article, modern branch predictors can easily achieve over 95% if not 99% precision since like a decade ago",
-    "parent": 45405750,
-    "depth": 1
+    "id": 45407659,
+    "by": "gizmo686",
+    "timeISO": "2025-09-28T20:25:16.000Z",
+    "textPlain": "Yeah. When your timing results are a single digit multiple of your timing precision, that is a good indication you either need a longer test, or a more precise clock.At a 5ms baseline with millisecond precision, the smallest improvement you can measure is 20%. And you cannot distinguish a 20% speedup with a 20% slowdown that happened to get luck with clock ticks.For what it is worth, I ran the provided test code on my machine with a 100x increase in iterations and got the following:  == Benchmarking ABS ==\n  ABS (branch):     0.260 sec\n  ABS (branchless): 0.264 sec\n\n  == Benchmarking CLAMP ==\n  CLAMP (branch):     0.332 sec \n  CLAMP (branchless): 0.538 sec\n\n  == Benchmarking PARTITION ==\n  PARTITION (branch):     0.043 sec\n  PARTITION (branchless): 0.091 sec\n\nWhich is not exactly encouraging (gcc 13.3.0, -ffast-math -march=native. I did not use the -fomit-this-entire-function flag, which my compiler does not understand).I had to drop down to O0 to see branchless be faster in any case:  == Benchmarking ABS ==\n  ABS (branch):     0.743 sec\n  ABS (branchless): 0.948 sec\n\n  == Benchmarking CLAMP ==\n  CLAMP (branch):     4.275 sec\n  CLAMP (branchless): 1.429 sec\n\n  == Benchmarking PARTITION ==\n  PARTITION (branch):     0.156 sec\n  PARTITION (branchless): 0.164 sec",
+    "parent": 45406379,
+    "depth": 2
   },
   {
     "id": 45406733,
@@ -101,6 +141,14 @@
     "timeISO": "2025-09-28T18:38:09.000Z",
     "textPlain": "In general, modern compilers will often unroll or inline functions without people even noticing. This often helps with cache level state localization and parallelism.Most code should focus on readability, then profile for busy areas under use, and finally refactor the busy areas though hand optimization or register hints as required.If one creates something that looks suspect (inline Assembly macro), a peer or llvm build will come along and ruin it later for sure. Have a great day  =3",
     "parent": 45406379,
+    "depth": 2
+  },
+  {
+    "id": 45407758,
+    "by": "hinkley",
+    "timeISO": "2025-09-28T20:37:25.000Z",
+    "textPlain": "Branchless is also useful for cryptographic transforms as it frustrates timing attacks. And that’s a situation where it only needs to be relatively fast compared to the branching alternative because we are trying to improve security while limiting the overhead of doing so.",
+    "parent": 45406403,
     "depth": 2
   },
   {
@@ -112,10 +160,26 @@
     "depth": 2
   },
   {
+    "id": 45407994,
+    "by": "AnotherGoodName",
+    "timeISO": "2025-09-28T21:05:32.000Z",
+    "textPlain": "Think of a way you can make the number of each case 0 or 1 then you have a single sum of all possibilities where that 0 or 1 multiplies the portion of the switch statement it represents (the 0 will mean not active the 1 includes it).Eg. If we had just 1 or 2 as options for the case statements note that test1 = xor(var1 & 0x1, var1>>1 & 0x1) & var1 will, with integer rounding, equal ‘1’ if var1 is one or ‘0’ if var1 is 2,3 or 4. (If it goes to 5 you need another xor at the next highest bit).Likewise test2 = xor(var1 & 0x1, var1>>1 & 0x1) & var1<<1 equals ‘0’ if var1 is 1, 3 or 4 but it equals ‘1’ if it’s two.So (test1 * (value on var1 being 1) + (test2 * (value on var1 being 2)) will get you a branchless version for the simple either 1 or 2 case. This will pretty much always be much slower than the branching version but some types of systems out there don’t really do branching and are linear. This type of zeroing trick is really common on matrix multipliers.Essentially your creating binary logic gates that give 0 or 1 for the exact value you want and blindly multiplying that by the value it would have produced if 1.",
+    "parent": 45407721,
+    "depth": 2
+  },
+  {
+    "id": 45407851,
+    "by": "judicious",
+    "timeISO": "2025-09-28T20:47:55.000Z",
+    "textPlain": "I’m by no means an expert on this topic, but what about using predefined hash map of value to function call/closure unless that also yields branched programming underneath? Additionally, maybe you want to use macros of some kind to generate the “magic” function you’re looking for, where it constructs a single branchless statement up to N terms, whether it’s procedural macros in Rust or C macros.",
+    "parent": 45407721,
+    "depth": 2
+  },
+  {
     "id": 45407535,
     "by": "jasonwatkinspdx",
     "timeISO": "2025-09-28T20:09:52.000Z",
-    "textPlain": "Yes, it's been looked at. If you wanna skim the research use \"Eager Execution\" and \"Disjoint Eager Execution\" as jumping off points.It doesn't require duplicating everything. You just need to add some additional booking of dependencies and what to retire vs kill at the end of the pipeline.In practice branch predictors are so good that speculating off the \"spine\" of most likely path just isn't worth it.In fact there were a lot of interesting microarchitectural ideas in the late 90s to early 00s that just ended up being moot because the combination of OoO speculation, branch predictors, and big caches proved so effective.",
+    "textPlain": "Yes, it's been looked at. If you wanna skim the research use \"Eager Execution\" and \"Disjoint Eager Execution\" as jumping off points.It doesn't require duplicating everything. You just need to add some additional bookkeeping of dependencies and what to retire vs kill at the end of the pipeline.In practice branch predictors are so good that speculating off the \"spine\" of most likely path just isn't worth it.In fact there were a lot of interesting microarchitectural ideas from the late 90s to early 00s that just ended up being moot because the combination of OoO speculation, branch predictors, and big caches proved so effective.",
     "parent": 45406878,
     "depth": 2
   },
@@ -128,18 +192,18 @@
     "depth": 2
   },
   {
-    "id": 45406924,
-    "by": "terryf",
-    "timeISO": "2025-09-28T19:02:29.000Z",
-    "textPlain": "Yes, this has been done for a while now, speculative execution + register renaming is how this happens. \nhttps://en.wikipedia.org/wiki/Register_renaming",
-    "parent": 45406878,
-    "depth": 2
-  },
-  {
     "id": 45406919,
     "by": "hawk_",
     "timeISO": "2025-09-28T19:01:45.000Z",
     "textPlain": "What has worked out very well in practice is hyper-threading. So you take instructions from two threads and if one of them is waiting on a branch the units of the CPU don't go unused.",
+    "parent": 45406878,
+    "depth": 2
+  },
+  {
+    "id": 45406924,
+    "by": "terryf",
+    "timeISO": "2025-09-28T19:02:29.000Z",
+    "textPlain": "Yes, this has been done for a while now, speculative execution + register renaming is how this happens. \nhttps://en.wikipedia.org/wiki/Register_renaming",
     "parent": 45406878,
     "depth": 2
   },
