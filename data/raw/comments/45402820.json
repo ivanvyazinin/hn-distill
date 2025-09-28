@@ -1,9 +1,9 @@
 [
   {
-    "id": 45403301,
-    "by": "SkiFire13",
-    "timeISO": "2025-09-28T10:38:47.000Z",
-    "textPlain": "It's cool to see the end result, but I would prefer if the article focused a bit more on how it achieves such solution. For example, how does it dispatch work to the various threads? Fo they sleep when there's no work to do? If so how do you wake them up? How does it handle cases where work is not uniformly distributes between your work items (i.e. some of them are a lot slower to process)? Is that even part of the end goal?",
+    "id": 45403683,
+    "by": "jcelerier",
+    "timeISO": "2025-09-28T11:55:30.000Z",
+    "textPlain": "We've used fork_union in spatgris (https://github.com/GRIS-UdeM/SpatGRIS) recently and got a nice speedup! That said there were some trouble with the busy wait eating 100% of CPU",
     "parent": 45402820,
     "depth": 1
   },
@@ -12,6 +12,38 @@
     "by": "ashvardanian",
     "timeISO": "2025-09-28T09:18:27.000Z",
     "textPlain": "I likely posted this a few months ago, and it looks like it just got bumped by the platform. Since then the library has seen some improvements (especially if you run on a Linux NUMA box), and the GitHub README is probably the best place to start now: https://github.com/ashvardanian/fork_unionThere are still a few blind spots I’m working on hardening, and if you have suggestions, I’d be glad to see them in issues or PRs :)",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403301,
+    "by": "SkiFire13",
+    "timeISO": "2025-09-28T10:38:47.000Z",
+    "textPlain": "It's cool to see the end result, but I would prefer if the article focused a bit more on how it achieves such solution. For example, how does it dispatch work to the various threads? Fo they sleep when there's no work to do? If so how do you wake them up? How does it handle cases where work is not uniformly distributes between your work items (i.e. some of them are a lot slower to process)? Is that even part of the end goal?",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403587,
+    "by": "felixguendling",
+    "timeISO": "2025-09-28T11:38:14.000Z",
+    "textPlain": "Would you recommend this as a \"thread pool\" / coroutine scheduler replacement for an application web server?",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403559,
+    "by": "quackzar",
+    "timeISO": "2025-09-28T11:32:46.000Z",
+    "textPlain": "Any comparison with heartbeat scheduling i.e., https://github.com/judofyr/spice or the rust port https://github.com/dragostis/chili ?",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403503,
+    "by": "mgaunard",
+    "timeISO": "2025-09-28T11:18:10.000Z",
+    "textPlain": "I have built many asynchronous and parallel with task queues.None of them involve allocation or system calls after initialization. Queues are pre-allocated, as they should.",
     "parent": 45402820,
     "depth": 1
   },
@@ -37,6 +69,38 @@
     "timeISO": "2025-09-28T10:49:30.000Z",
     "textPlain": "Yes, non-uniform workloads are supported! See `for_n_dynamic`.The threads “busy-wait” by running an infinite loop in a lower energy state on modern CPUs.And yes, there are more details in the actual implementation in the repository itself. This section, for example, describes the atomic variables needed to control all of the logic: https://github.com/ashvardanian/fork_union?tab=readme-ov-fil...",
     "parent": 45403301,
+    "depth": 2
+  },
+  {
+    "id": 45403646,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-28T11:48:16.000Z",
+    "textPlain": "Yes, I was planning a similar experiment with UCall (https://github.com/unum-cloud/ucall), leveraging the NUMA functionality introduced in v2 of Fork Union. I don’t currently have the right hardware to test it properly, but it would be very interesting to measure how pinning behaves on machines with multiple NUMA nodes, NICs, and a balanced PCIe topology.",
+    "parent": 45403587,
+    "depth": 2
+  },
+  {
+    "id": 45403671,
+    "by": "nextaccountic",
+    "timeISO": "2025-09-28T11:53:39.000Z",
+    "textPlain": "Tokio actually has some similarities with Rayon. Tokio is used in most Rust web servers, like Axum and Actix-web",
+    "parent": 45403587,
+    "depth": 2
+  },
+  {
+    "id": 45403613,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-28T11:43:07.000Z",
+    "textPlain": "As a rule of thumb, I find Zig projects often come across as higher quality than many C, C++, or Rust counterparts — it’s a surprisingly strong community. That said, I don’t write much in Zig myself, haven’t explored the projects you linked in detail, and wasn’t even considering Zig alternatives as I needed something for my C++ and Rust projects.From a first glance, they seem to be tackling a slightly different problem: focusing on efficient handling of nested parallelism. Fork Union doesn’t support nested parallelism at all.",
+    "parent": 45403559,
+    "depth": 2
+  },
+  {
+    "id": 45403699,
+    "by": "eska",
+    "timeISO": "2025-09-28T12:00:00.000Z",
+    "textPlain": "I think thread pools are one of those solved problems that the silent majority of C programmers has solved ages ago and doesn’t release open source projects for. I’ve also written my 300 line for pool and allocator together and always laughed at taskflow, rayon, etc.. Even NUMA is easy with arena allocation. When casey muratori of the handmade network said the same thing I remember agreeing and he got made fun of for it.BTW the for-case can simply be supported by setting a pool/global boolean and using that to decide how to wait for a new task (during the paralle for the boolean will be true, otherwise do sleeps with mutexes in the worst case for energy saving)",
+    "parent": 45403503,
     "depth": 2
   },
   {
