@@ -1,9 +1,9 @@
 [
   {
-    "id": 45403683,
-    "by": "jcelerier",
-    "timeISO": "2025-09-28T11:55:30.000Z",
-    "textPlain": "We've used fork_union in spatgris (https://github.com/GRIS-UdeM/SpatGRIS) recently and got a nice speedup! That said there were some trouble with the busy wait eating 100% of CPU",
+    "id": 45403959,
+    "by": "_flux",
+    "timeISO": "2025-09-28T12:49:45.000Z",
+    "textPlain": "Where does the improved performance come from? The project does actually outline different factors, but I wonder which of them are the biggest ones, or are they all equally important?And how big a player is the busyloop-locking. Yes, the code is telling CPU do it energy-efficiently, but it's not going to beat the OS if the loop is waiting for more job that's not coming for a while.. Is it doing this with every core?One factor could be that when a subprocess dies, then it doesn't need to release any memory, as the OS deals with it in one* go, versus a thread teardown where you need to be neat. Though I suppose this would not be a lot of work.",
     "parent": 45402820,
     "depth": 1
   },
@@ -12,6 +12,22 @@
     "by": "ashvardanian",
     "timeISO": "2025-09-28T09:18:27.000Z",
     "textPlain": "I likely posted this a few months ago, and it looks like it just got bumped by the platform. Since then the library has seen some improvements (especially if you run on a Linux NUMA box), and the GitHub README is probably the best place to start now: https://github.com/ashvardanian/fork_unionThere are still a few blind spots I’m working on hardening, and if you have suggestions, I’d be glad to see them in issues or PRs :)",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403683,
+    "by": "jcelerier",
+    "timeISO": "2025-09-28T11:55:30.000Z",
+    "textPlain": "We've used fork_union in spatgris (https://github.com/GRIS-UdeM/SpatGRIS) recently and got a nice speedup! That said there were some trouble with the busy wait eating 100% of CPU",
+    "parent": 45402820,
+    "depth": 1
+  },
+  {
+    "id": 45403559,
+    "by": "quackzar",
+    "timeISO": "2025-09-28T11:32:46.000Z",
+    "textPlain": "Any comparison with heartbeat scheduling i.e., https://github.com/judofyr/spice or the rust port https://github.com/dragostis/chili ?",
     "parent": 45402820,
     "depth": 1
   },
@@ -28,14 +44,6 @@
     "by": "felixguendling",
     "timeISO": "2025-09-28T11:38:14.000Z",
     "textPlain": "Would you recommend this as a \"thread pool\" / coroutine scheduler replacement for an application web server?",
-    "parent": 45402820,
-    "depth": 1
-  },
-  {
-    "id": 45403559,
-    "by": "quackzar",
-    "timeISO": "2025-09-28T11:32:46.000Z",
-    "textPlain": "Any comparison with heartbeat scheduling i.e., https://github.com/judofyr/spice or the rust port https://github.com/dragostis/chili ?",
     "parent": 45402820,
     "depth": 1
   },
@@ -64,6 +72,30 @@
     "depth": 1
   },
   {
+    "id": 45404051,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-28T13:05:09.000Z",
+    "textPlain": "Compared to Rayon or Taskflow, the biggest initial win is cutting out heap allocations for all the promise/result objects — those act like mutexes once the allocator gets hammered by many threads.Hard to rank the rest without a proper breakdown. If I ever tried, I’d probably end up writing a paper — and I’d rather write code :)",
+    "parent": 45403959,
+    "depth": 2
+  },
+  {
+    "id": 45404082,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-28T13:10:03.000Z",
+    "textPlain": "Wow, I didn’t realize someone had integrated it into their project before I even tried it in mine — thanks for the trust and for sharing!I completely agree that tuning is needed for better CPU sleep scheduling. I’m hoping to look into it this October, ideally on some Alder Lake CPUs with mixed Performance/Efficiency cores and NUMA enabled.",
+    "parent": 45403683,
+    "depth": 2
+  },
+  {
+    "id": 45403613,
+    "by": "ashvardanian",
+    "timeISO": "2025-09-28T11:43:07.000Z",
+    "textPlain": "As a rule of thumb, I find Zig projects often come across as higher quality than many C, C++, or Rust counterparts — it’s a surprisingly strong community. That said, I don’t write much in Zig myself, haven’t explored the projects you linked in detail, and wasn’t even considering Zig alternatives as I needed something for my C++ and Rust projects.From a first glance, they seem to be tackling a slightly different problem: focusing on efficient handling of nested parallelism. Fork Union doesn’t support nested parallelism at all.",
+    "parent": 45403559,
+    "depth": 2
+  },
+  {
     "id": 45403355,
     "by": "ashvardanian",
     "timeISO": "2025-09-28T10:49:30.000Z",
@@ -85,14 +117,6 @@
     "timeISO": "2025-09-28T11:53:39.000Z",
     "textPlain": "Tokio actually has some similarities with Rayon. Tokio is used in most Rust web servers, like Axum and Actix-web",
     "parent": 45403587,
-    "depth": 2
-  },
-  {
-    "id": 45403613,
-    "by": "ashvardanian",
-    "timeISO": "2025-09-28T11:43:07.000Z",
-    "textPlain": "As a rule of thumb, I find Zig projects often come across as higher quality than many C, C++, or Rust counterparts — it’s a surprisingly strong community. That said, I don’t write much in Zig myself, haven’t explored the projects you linked in detail, and wasn’t even considering Zig alternatives as I needed something for my C++ and Rust projects.From a first glance, they seem to be tackling a slightly different problem: focusing on efficient handling of nested parallelism. Fork Union doesn’t support nested parallelism at all.",
-    "parent": 45403559,
     "depth": 2
   },
   {
