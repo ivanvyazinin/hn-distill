@@ -1,5 +1,13 @@
 [
   {
+    "id": 45415581,
+    "by": "gpderetta",
+    "timeISO": "2025-09-29T16:18:33.000Z",
+    "textPlain": "The author has a point, but the global ordering of an MPMC queue is not entirely pointless. Assuming the queue marks the messages with the order, the ordering might be used at a later stage in the pipeline to reorder the processed messages and recover the total order.Also there are implications for fairness. A queue implemented as a stack might means that messages pushed during a spike might never be processed or experience very high latency.Finally it is actually possible to implement a decent lock free MPSC queue in top of a node-based stack:  the consumer would pop all elements on one operation, then reverse the list. This N cost is amortized over N pops so it is actually not bad.",
+    "parent": 45409258,
+    "depth": 1
+  },
+  {
     "id": 45412364,
     "by": "DannyBee",
     "timeISO": "2025-09-29T11:17:48.000Z",
@@ -72,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45412457,
-    "by": "habibur",
-    "timeISO": "2025-09-29T11:35:37.000Z",
-    "textPlain": "I read \"slow\" and \"fast\" in the article as comparative term. \"slower than\" what the writer has seen in other cases.Absolute ms doesn't prove much unless you put it in comparison with other best.",
-    "parent": 45412364,
-    "depth": 2
-  },
-  {
     "id": 45412540,
     "by": "pclmulqdq",
     "timeISO": "2025-09-29T11:49:09.000Z",
     "textPlain": "I have always found MPMC ring buffers to have worse tails than pointer-based MPMC queues. These are very unfashionable (especially in rust) but can be made wait-free with a single atomic for readers and writers. The SPSC ring buffer is perfect, but adding either more producers or more consumers makes the whole thing have terrible pathologies.Reading the article again, this lockless bag idea also needs two atomic writes on every operation.",
+    "parent": 45412364,
+    "depth": 2
+  },
+  {
+    "id": 45412457,
+    "by": "habibur",
+    "timeISO": "2025-09-29T11:35:37.000Z",
+    "textPlain": "I read \"slow\" and \"fast\" in the article as comparative term. \"slower than\" what the writer has seen in other cases.Absolute ms doesn't prove much unless you put it in comparison with other best.",
     "parent": 45412364,
     "depth": 2
   },
@@ -93,6 +101,14 @@
     "timeISO": "2025-09-29T12:00:11.000Z",
     "textPlain": "I took the article to be saying that mpmc queues are not queues so we can use bags instead because bags are faster. The second claim seems dubious to me though. I checked out the repo which led me to https://alexsaveau.dev/blog/opinions/performance/lockness/at... which proposes new CPU instructions to create atomic bitmasks. As the author notes, the bag structure breaks down a bit because you have to operate on the bit mask with atomic operations which will contend heavily with each other.",
     "parent": 45412249,
+    "depth": 2
+  },
+  {
+    "id": 45415426,
+    "by": "theamk",
+    "timeISO": "2025-09-29T16:03:41.000Z",
+    "textPlain": "No, order does not loose meaning. You can have \"ordered\" or \"unordered\" or \"almost ordered\", and pretending otherwise looses meaning.Even slightly-misordered queue has very useful fairness guarantees - for a queue of size N, an item will spend O(N) steps in the queue.\"Bags of data\" have no guarantees of that sort at all. By their definition, an item can spent an arbitrary time in the \"bag\", which makes those \"bags\" pretty useless for many real-time use cases.As an example, imagine the bag where readers and writers always prefer smaller indices. So if an item gets stuck at the last slot, it will never gets picked up as long as new items are coming. This is a pretty useless behavior which is yet totally compatible with \"bag of data\" definition.",
+    "parent": 45412492,
     "depth": 2
   },
   {
@@ -112,18 +128,18 @@
     "depth": 2
   },
   {
-    "id": 45413207,
-    "by": "SUPERCILEX",
-    "timeISO": "2025-09-29T13:05:31.000Z",
-    "textPlain": "This is actually a great analogy because it exemplifies the misconceptions people have about lockless queues.In the example with multiple counters, in real life each counter could shout out a number and have people approach their respective counters in parallel. But this is not how lockless queues work. Instead, the person at the head of the queue holds a baton and when multiple numbers are called, everybody waiting in the queue goes up to the counter of the person holding the baton. Once that head-of-the-queue has made it to the counter, they give the baton to the person behind them who then drags everybody along to their counter. And so on.The article was arguing for a lockless channel implementation akin to your interpretation of a queue with parallel access to the counters.",
-    "parent": 45412043,
-    "depth": 2
-  },
-  {
     "id": 45412150,
     "by": "epgui",
     "timeISO": "2025-09-29T10:37:30.000Z",
     "textPlain": "> the primary purpose of a queue is to temporarily buffer dataI think if that’s all you care about you’re in the clear.The article is useful in that it considers a more general set of use cases (people do all kinds of weird things) and highlights that a somewhat intuitive assumption one might have may not hold.",
+    "parent": 45412043,
+    "depth": 2
+  },
+  {
+    "id": 45413207,
+    "by": "SUPERCILEX",
+    "timeISO": "2025-09-29T13:05:31.000Z",
+    "textPlain": "This is actually a great analogy because it exemplifies the misconceptions people have about lockless queues.In the example with multiple counters, in real life each counter could shout out a number and have people approach their respective counters in parallel. But this is not how lockless queues work. Instead, the person at the head of the queue holds a baton and when multiple numbers are called, everybody waiting in the queue goes up to the counter of the person holding the baton. Once that head-of-the-queue has made it to the counter, they give the baton to the person behind them who then drags everybody along to their counter. And so on.The article was arguing for a lockless channel implementation akin to your interpretation of a queue with parallel access to the counters.",
     "parent": 45412043,
     "depth": 2
   },
