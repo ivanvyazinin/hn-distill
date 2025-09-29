@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45417506,
-    "by": "kccqzy",
-    "timeISO": "2025-09-29T19:04:48.000Z",
-    "textPlain": "> It's worth being careful to only add indexes that will be used by real queries.This reminds me of a technique used by Google App Engine SDK a long time ago before it was called cloud. Basically in development mode, the SDK captures the kind of queries you make, and then automatically add any index that would speed up this query into a configuration file. You then later deploy with this configuration file, which tells the production data store to create such indexes. I thought this was a genius idea. Not sure if something similar exists for SQLite.",
-    "parent": 45415332,
-    "depth": 1
-  },
-  {
     "id": 45418223,
     "by": "themafia",
     "timeISO": "2025-09-29T20:15:28.000Z",
     "textPlain": "You may not need a course.  SQLite publishes a very useful guide on the query planner which goes over most of what you need to know with respect to indexes:https://www.sqlite.org/optoverview.html",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
+    "id": 45417506,
+    "by": "kccqzy",
+    "timeISO": "2025-09-29T19:04:48.000Z",
+    "textPlain": "> It's worth being careful to only add indexes that will be used by real queries.This reminds me of a technique used by Google App Engine SDK a long time ago before it was called cloud. Basically in development mode, the SDK captures the kind of queries you make, and then automatically add any index that would speed up this query into a configuration file. You then later deploy with this configuration file, which tells the production data store to create such indexes. I thought this was a genius idea. Not sure if something similar exists for SQLite.",
     "parent": 45415332,
     "depth": 1
   },
@@ -70,6 +70,14 @@
     "textPlain": "> multiple indicesYes, sqlite uses only one index per table in FROM clause... Except for when it can use the OR optimization [1]> Left to right, no skipping, stops at the first rangeI don't know if we need a soundbite for this, nor is it sqlite specific. This is a direct consequence of the fact that indexes are basically just sorted lists you can binary search over. They are sorted left to right (you have to choose some order anyhow) meaning all the other orderings cannot avail of the speedup, and thus sqlite chooses to not use it.....Except if left column of index is measured to be low cardinality by ANALYZE [2]'s output in the sqlite_stats table, in which case it is ok to scan over it and then binary search right column. More at skip-scan optimization [3].[1] https://www.sqlite.org/optoverview.html#evaluating_or_constr...[2] https://www.sqlite.org/lang_analyze.html[3] https://www.sqlite.org/optoverview.html#the_skip_scan_optimi...",
     "parent": 45415332,
     "depth": 1
+  },
+  {
+    "id": 45419677,
+    "by": "simscitizen",
+    "timeISO": "2025-09-29T22:33:34.000Z",
+    "textPlain": "I agree, all of these rules aren't the right way to teach about how to reason about this. All of the perf properties described should fall out of the understanding that both tables and indices in SQLite are B-trees. B-trees have the following properties:- can look up a key or key prefix in O(log N) time (\"seek a cursor\" in DB parlance, or maybe \"find/find prefix and return an iterator\" for regular programmers)- can iterate to next row in amortized O(1) time (\"advance a cursor\" in DB parlance, or maybe \"advance an iterator\" for regular programmers). Note that unordered data structures like hash maps don't have this property. So the mental model has to start with thinking that tables/indices are ordered data structures or you're already lost.A table is a b+tree where the key is the rowid and the value is the row (well, except for WITHOUT ROWID tables).An index is a b-tree where the key is the indexed column(s) and the value is a rowid.And SQLite generally only does simple nested loop joins. No hash joins etc. Just the most obvious joining that you could do if you yourself wrote database-like logic using ordered data structures with the same perf properties e.g. std::map.From this it ought to be pretty obvious why column order in an index matters, etc.",
+    "parent": 45416618,
+    "depth": 2
   },
   {
     "id": 45417037,
@@ -116,6 +124,14 @@
     "by": "emschwartz",
     "timeISO": "2025-09-29T22:01:09.000Z",
     "textPlain": "The SQLite CLI has a `.expert` command that will give index recommendations when you run queries: https://sqlite.org/cli.html#index_recommendations_sqlite_exp...It's not quite the same as capturing all of the queries used in development (or production), but it seems somewhat useful.I'll also note that I had an LLM generate quite a useful script to identify unused indexes (it scanned the code base for SQL queries, ran `EXPLAIN QUERY PLAN` on each one to identify which indexes were being used, and cross-referenced that against the indexes in the database to find unused ones). It would probably be possible to do something similar (but definitely imperfect) where you find all of the queries, get the query plans, and use an LLM to make suggestions about what indexes would speed up those queries.",
+    "parent": 45417506,
+    "depth": 2
+  },
+  {
+    "id": 45419853,
+    "by": "crazygringo",
+    "timeISO": "2025-09-29T22:53:55.000Z",
+    "textPlain": "Every index you add uses a whole lot more disk space (a big deal) and slows down writes (usually not a big deal).The idea of a tool automatically adding indexes scares me a little.Sometimes you specifically want a query to take 0.003s instead of 0.001 because you don't want to use another 10GB of disk space.",
     "parent": 45417506,
     "depth": 2
   },
