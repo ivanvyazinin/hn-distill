@@ -3,8 +3,16 @@
     "id": 45413025,
     "by": "fabian2k",
     "timeISO": "2025-09-29T12:44:20.000Z",
-    "textPlain": "Interesting that the recommended default is \"worker\" instead of \"io_uring\". The early posts about async IO in Postgres 18 read a bit different here, this post here appears more authorative to me though. We'll see how this turns out in future releases.At least it is only two settings to look at for tuning, though it does seem this is the kind of setting you have to try out with your own DB and workload.",
+    "textPlain": "Interesting that the recommended default for performance is \"worker\" instead of \"io_uring\". The early posts about async IO in Postgres 18 read a bit different here, this post here appears more authorative to me though. We'll see how this turns out in future releases.At least it is only two settings to look at for tuning, though it does seem this is the kind of setting you have to try out with your own DB and workload.Right now async IO is used for sequential scans and bitmap scans, not for index scans. My initial guess would be that it mostly helps for complex queries (that use multiple indexes, so bitmap scans) and unoptimized queries (sequential scans), not so much for straightforward and/or optimized queries that use a single index. But this is really just a guess, I'm way out of my depth at this point. I'm curious how much it'll help once it is implemented for index scans as well.",
     "parent": 45412494,
     "depth": 1
+  },
+  {
+    "id": 45413313,
+    "by": "nromiun",
+    "timeISO": "2025-09-29T13:12:53.000Z",
+    "textPlain": "The article explains this:> The default is io_method = worker. We did consider defaulting both to sync or io_uring, but I think worker is the right choice. It’s actually “asynchronous”, and it’s available everywhere (because it’s our implementation).I think a pool of workers is a sensible default. Many environments disable io_uring for security reasons anyway.",
+    "parent": 45413025,
+    "depth": 2
   }
 ]
