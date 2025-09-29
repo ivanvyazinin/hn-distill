@@ -1,9 +1,9 @@
 [
   {
-    "id": 45413544,
-    "by": "weinzierl",
-    "timeISO": "2025-09-29T13:31:03.000Z",
-    "textPlain": "\"They come in four variants: {single,multi}-producer {single,multi}-consumer.\"The article makes it sound a bit as if they were all created equal, while I think only MPSC is really used widely. The others are all kind if niche, because usually we have better solutions for the problems they are suitable for.",
+    "id": 45414177,
+    "by": "j_seigh",
+    "timeISO": "2025-09-29T14:19:25.000Z",
+    "textPlain": "I did do an actual lock-free MPMC ring buffer implementation as an exercise. I used that to make blocking bounded queues using various synchronization mechanisms, mutex/condvars and eventcounts among others. The eventcount version runs about 8x faster than the mutex version.",
     "parent": 45409258,
     "depth": 1
   },
@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45412246,
+    "by": "yxhuvud",
+    "timeISO": "2025-09-29T10:54:23.000Z",
+    "textPlain": "As other comments note there are plenty of problems restricting queues to ordered execution. For most use cases that simply does not matter. What matters are related features like avoidance of starvation or execution bias. And those are perfectly possible to do with multiple consumers/producers.> Lockless queues are slowThat particular implementation of a lockless queue may be slow, but that is not globally true for lockless queues. There are variants, for example BBQ, https://www.usenix.org/conference/atc22/presentation/wang-ji..., that have great performance.",
+    "parent": 45409258,
+    "depth": 1
+  },
+  {
     "id": 45412492,
     "by": "habibur",
     "timeISO": "2025-09-29T11:41:37.000Z",
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45412246,
-    "by": "yxhuvud",
-    "timeISO": "2025-09-29T10:54:23.000Z",
-    "textPlain": "As other comments note there are plenty of problems restricting queues to ordered execution. For most use cases that simply does not matter. What matters are related features like avoidance of starvation or execution bias. And those are perfectly possible to do with multiple consumers/producers.> Lockless queues are slowThat particular implementation of a lockless queue may be slow, but that is not globally true for lockless queues. There are variants, for example BBQ, https://www.usenix.org/conference/atc22/presentation/wang-ji..., that have great performance.",
+    "id": 45413544,
+    "by": "weinzierl",
+    "timeISO": "2025-09-29T13:31:03.000Z",
+    "textPlain": "\"They come in four variants: {single,multi}-producer {single,multi}-consumer.\"The article makes it sound a bit as if they were all created equal, while I think only MPSC is really used widely. The others are all kind if niche, because usually we have better solutions for the problems they are suitable for.",
     "parent": 45409258,
     "depth": 1
   },
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45412540,
-    "by": "pclmulqdq",
-    "timeISO": "2025-09-29T11:49:09.000Z",
-    "textPlain": "I have always found MPMC ring buffers to have worse tails than pointer-based MPMC queues. These are very unfashionable (especially in rust) but can be made wait-free with a single atomic for readers and writers. The SPSC ring buffer is perfect, but adding either more producers or more consumers makes the whole thing have terrible pathologies.Reading the article again, this lockless bag idea also needs two atomic writes on every operation.",
+    "id": 45413653,
+    "by": "SUPERCILEX",
+    "timeISO": "2025-09-29T13:39:41.000Z",
+    "textPlain": "As noted by other commenters, the point I was trying to get across is that the way we implement lockless channels is suboptimal and could be made faster from a theoretical standpoint.In my benchmarks[1], the average processing time for an element is 250ns with 4 producers and 4 consumers contending heavily. That's terrible! Even if your numbers are correct, 100ns is a bit faster than two round trips to RAM while 33ns is about three round trips to L3 and ~100x slower than spamming a core with add operations. That's slow.[1]: https://github.com/SUPERCILEX/lockness/blob/master/bags/benc...\n$ cargo bench -- 8_threads/std_mpmc",
     "parent": 45412364,
     "depth": 2
   },
@@ -64,6 +72,14 @@
     "depth": 2
   },
   {
+    "id": 45412540,
+    "by": "pclmulqdq",
+    "timeISO": "2025-09-29T11:49:09.000Z",
+    "textPlain": "I have always found MPMC ring buffers to have worse tails than pointer-based MPMC queues. These are very unfashionable (especially in rust) but can be made wait-free with a single atomic for readers and writers. The SPSC ring buffer is perfect, but adding either more producers or more consumers makes the whole thing have terrible pathologies.Reading the article again, this lockless bag idea also needs two atomic writes on every operation.",
+    "parent": 45412364,
+    "depth": 2
+  },
+  {
     "id": 45412626,
     "by": "thinkharderdev",
     "timeISO": "2025-09-29T12:00:11.000Z",
@@ -72,11 +88,19 @@
     "depth": 2
   },
   {
-    "id": 45413207,
+    "id": 45414074,
+    "by": "RHSeeger",
+    "timeISO": "2025-09-29T14:11:54.000Z",
+    "textPlain": "> The article basically says that when you have multiple suppliers or consumers, the \"order\" of the queue loses meaning.The disconnect to me is that the title says \"it's not a queue\". It is a queue, its just (as you note) not being used in a way where it being a queue provides any benefit.",
+    "parent": 45412492,
+    "depth": 2
+  },
+  {
+    "id": 45413782,
     "by": "SUPERCILEX",
-    "timeISO": "2025-09-29T13:05:31.000Z",
-    "textPlain": "This is actually a great analogy because it exemplifies the misconceptions people have about lockless queues.In the example with multiple counters, in real life each counter could shout out a number and have people approach their respective counters in parallel. But this is not how lockless queues work. Instead, the person at the head of the queue holds a baton and when multiple numbers are called, everybody waiting in the queue goes up to the counter of the person holding the baton. Once that head-of-the-queue has made it to the counter, they give the baton to the person behind them who then drags everybody along to their counter. And so on.The article was arguing for a lockless channel implementation akin to your interpretation of a queue with parallel access to the counters.",
-    "parent": 45412043,
+    "timeISO": "2025-09-29T13:48:20.000Z",
+    "textPlain": "Fair point, though I'm not sure I agree. MPMC channels underpin pretty much every general task scheduler (take a peek inside tokio or rayon for example). And SPSCs are quite useful for designing custom pipelines. Though I agree that MPMC channels are silly.",
+    "parent": 45413544,
     "depth": 2
   },
   {
@@ -84,6 +108,14 @@
     "by": "BlackFly",
     "timeISO": "2025-09-29T12:21:25.000Z",
     "textPlain": "Yes, the author hasn't heard the term \"service discipline\" before. Sure, queuing theory is easier if you don't consider all the various service disciplines that real life queues use in practice (both physical queues and digital queues).",
+    "parent": 45412043,
+    "depth": 2
+  },
+  {
+    "id": 45413207,
+    "by": "SUPERCILEX",
+    "timeISO": "2025-09-29T13:05:31.000Z",
+    "textPlain": "This is actually a great analogy because it exemplifies the misconceptions people have about lockless queues.In the example with multiple counters, in real life each counter could shout out a number and have people approach their respective counters in parallel. But this is not how lockless queues work. Instead, the person at the head of the queue holds a baton and when multiple numbers are called, everybody waiting in the queue goes up to the counter of the person holding the baton. Once that head-of-the-queue has made it to the counter, they give the baton to the person behind them who then drags everybody along to their counter. And so on.The article was arguing for a lockless channel implementation akin to your interpretation of a queue with parallel access to the counters.",
     "parent": 45412043,
     "depth": 2
   },
