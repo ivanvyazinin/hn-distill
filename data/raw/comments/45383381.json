@@ -8,6 +8,38 @@
     "depth": 1
   },
   {
+    "id": 45417169,
+    "by": "arjvik",
+    "timeISO": "2025-09-29T18:33:32.000Z",
+    "textPlain": "* Some standards such as ISO 6709 (Standard representation of geographic point location by coordinates) describe points as (latitude, longitude).\n  * Others such as RFC 7946 (GeoJSON) describes points as (longitude, latitude).\n\nUsing (hypothetical) std::flip to reify these APIs seems like a loaded footgun - someone is bound to accidentally use it {zero, two} times to convert between orders when it needs to be used once and wreak havoc.",
+    "parent": 45383381,
+    "depth": 1
+  },
+  {
+    "id": 45417235,
+    "by": "zahlman",
+    "timeISO": "2025-09-29T18:39:32.000Z",
+    "textPlain": "> Interestingly enough, most of these implementations only flip the first two parameters of whichever function they are passed, though it seems to be because most of them are based on the Haskell prelude, and handling arbitrary arity can be tricky in that language.Probably because the use case for it with higher arity is hard to imagine. (Indeed, TFA gives only examples with binary operations.)> Fortunately it is not just useless knowledge either: flip can be reified at will by copying the following C++17 implementation.> [snip 114 lines of code]Meanwhile, in Python:  def flip(f):\n      return lambda *args, **kwargs: f(*args[::-1], **kwargs)\n\n(I leave keyword arguments alone because there's no clearer semantic for \"flipping\" them.)The `toolz.functoolz.flip` implementation (being restricted to binary functions) is an even simpler one-liner (https://toolz.readthedocs.io/en/latest/_modules/toolz/functo...), though accompanied by a massive docstring and admittedly simplified through a heavyweight currying decorator (which accomplishes much more than simply getting a function that does the right thing).",
+    "parent": 45383381,
+    "depth": 1
+  },
+  {
+    "id": 45417207,
+    "by": "cocoto",
+    "timeISO": "2025-09-29T18:37:10.000Z",
+    "textPlain": "I love Haskell but when writing C++ I always avoid functional style gibberish. I feel like this style of programming only works in languages properly designed for that.",
+    "parent": 45383381,
+    "depth": 1
+  },
+  {
+    "id": 45417240,
+    "by": "loeg",
+    "timeISO": "2025-09-29T18:39:50.000Z",
+    "textPlain": "> Fortunately it is not just useless knowledge either: flip can be reified at will by copying the following C++17 implementation.I hope not.",
+    "parent": 45383381,
+    "depth": 1
+  },
+  {
     "id": 45416960,
     "by": "abalaji",
     "timeISO": "2025-09-29T18:14:42.000Z",
@@ -16,11 +48,83 @@
     "depth": 1
   },
   {
+    "id": 45417553,
+    "by": "abrudz",
+    "timeISO": "2025-09-29T19:08:24.000Z",
+    "textPlain": "⍨",
+    "parent": 45383381,
+    "depth": 1
+  },
+  {
+    "id": 45417623,
+    "by": "jcranmer",
+    "timeISO": "2025-09-29T19:16:00.000Z",
+    "textPlain": "> * uniform function call syntax that is : a.foo(b) vs foo(a, b) being interchangeable.Herb Sutter has proposed this: https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p30... (twice, even, there was an older version of the paper several years ago that didn't pass).I'm resolutely opposed to such a thing because, having had to actually wade through C++'s name lookup and overload resolution rules in the past, they're a dense, confusing morass of logic that you can only stand to stare at for a half-hour or so before your brain turns to mush and you need to do something else, and anything that adds to that complexity--especially in \"this makes things two things nearly equivalent\"--is just a bad idea.(For an example of C++ overload resolution insanity, consider this:)    // Given these overloads...\n    void f(std::float32_t);\n    void f(double);\n    // Which one does this line call? Assume float/double are standard IEEE-754 types.\n    void f((float)1);",
+    "parent": 45416906,
+    "depth": 2
+  },
+  {
+    "id": 45417640,
+    "by": "codeflo",
+    "timeISO": "2025-09-29T19:16:59.000Z",
+    "textPlain": "Achieving uniform call syntax is easy, compilers just need to implement a new form of symbol resolution called \"Kaiser lookup\". It follows 14 easy to understand rules. It first looks up methods, then searches for template definitions in /tmp, then for a matching phase of any Saturn moon at time of compilation, then looks of definitions std::compat, and then in the namespaces of the types of any variables in scope anywhere on the call stack. If none of those work, it tries to interpret the call syntax as a custom float literal, and if even that fails, as a Perl 4 compatible regex. It's really intuitive if you think about it.",
+    "parent": 45416906,
+    "depth": 2
+  },
+  {
+    "id": 45417179,
+    "by": "xigoi",
+    "timeISO": "2025-09-29T18:34:25.000Z",
+    "textPlain": "> With the kitchen sink approach of design I’d not be surprised if these get into the language eventually.Based on the history of C++, they will, but with extremely bizarre syntax. Instead of a.foo(b), it will be something like a@<foo>::&{b}.",
+    "parent": 45416906,
+    "depth": 2
+  },
+  {
     "id": 45417013,
     "by": "ashvardanian",
     "timeISO": "2025-09-29T18:18:46.000Z",
     "textPlain": "The second piece (uniform call syntax) looks convenient, though I don’t see a realistic way to integrate it into modern C++. The first (structural pattern matching) is, for me, more of a dividing line between low- and high-level languages. I tend to avoid it in my C++, just as I avoid inheritance, virtual functions, and exceptions… or `<functional>` header contents.Still, it’s always fun to stumble on corners of the STL I’d never paid attention to, even if I won’t end up using them. Thought it was worth sharing :)",
     "parent": 45416906,
+    "depth": 2
+  },
+  {
+    "id": 45417208,
+    "by": "delta_p_delta_x",
+    "timeISO": "2025-09-29T18:37:15.000Z",
+    "textPlain": "> * structural pattern matchinghttps://www.open-std.org/jtc1/sc22/wg21/docs/papers/2025/p26...",
+    "parent": 45416906,
+    "depth": 2
+  },
+  {
+    "id": 45417273,
+    "by": "zahlman",
+    "timeISO": "2025-09-29T18:43:30.000Z",
+    "textPlain": "I don't find it surprising. My impression is that people like Herb Sutter and Alexander Stepanov actively pushed in that direction in the early days. `<functional>` was, AFAIK, part of the STL before it got incorporated into the C++ standard library.",
+    "parent": 45416906,
+    "depth": 2
+  },
+  {
+    "id": 45417515,
+    "by": "jandrewrogers",
+    "timeISO": "2025-09-29T19:05:27.000Z",
+    "textPlain": "Probably no better or worse than the alternative. That aside, the example doesn't understand the standards in question.The governing standard for geospatial data representation is ISO 19125, which defines (longitude, latitude) order. GeoJSON naturally conforms to ISO 19125 since it is a format for processing data on computers.ISO 6709 is essentially a print formatting standard and orthogonal to storing geospatial data on computers. That some data file formats happen to be human readable does not make ISO 6709 apply.If you are processing geospatial data on computers the correct order is always (longitude, latitude).",
+    "parent": 45417169,
+    "depth": 2
+  },
+  {
+    "id": 45417328,
+    "by": "wk_end",
+    "timeISO": "2025-09-29T18:48:57.000Z",
+    "textPlain": "No more of a loaded footgun than trying to do it manually, I don't think.Geographic points should probably be represented as a labeled structure to prevent confusion and passed into functions as such. Using two separate libraries with mutually incompatible error-prone APIs as described is the real loaded footgun IMO. If you can't find better libraries, write wrappers; if you don't have time to write/maintain wrappers, pray. Anything else is just a bandaid.",
+    "parent": 45417169,
+    "depth": 2
+  },
+  {
+    "id": 45417239,
+    "by": "forrestthewoods",
+    "timeISO": "2025-09-29T18:39:49.000Z",
+    "textPlain": "I skimmed the post. I have absolutely no idea what std::flip is supposed to do. All the sample code looks awful and undesirable. And that’s coming from someone who writes C++ every day. Yes I read the plot twist at the end, made me lol.",
+    "parent": 45416960,
     "depth": 2
   },
   {

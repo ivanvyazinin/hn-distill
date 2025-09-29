@@ -1,9 +1,25 @@
 [
   {
+    "id": 45417612,
+    "by": "crazygringo",
+    "timeISO": "2025-09-29T19:14:30.000Z",
+    "textPlain": "I agree with other commenters that there's nothing new or surprising here [1] if you actually understand how indexes work. Which, if you're working in SQL, you should.But the main takeaway, I disagree with. The author explains:> When I first set up Scour's database, I put a bunch of indexes on the items table without really thinking about whether they would help. For example, I had separate indexes on the published date, the language, and the quality rating. Useless. It's more important to have one or a small handful of good composite indexes on multiple columns than to have separate indexes on each column.Yes, the biggest error is throwing indexes at a table without having the slightest idea if they're helpful. But the idea that a smaller number of composite indexes is not the answer either.The answer is to go through every single query and make sure you have an index that matches the query, adding/changing indexes (including composite indexes) or rewriting queries as required.Indexes don't exist in a vacuum. They are optimizations for specific queries. Proper database design requires knowing exactly what information you will need to look up using which parameters, and designing the tables and indexes to produce that performantly. When you need to look up data in new ways, you often need to add new indexes or rearchitect tables entirely.[1] Except that the partial index match condition treats 0.9 and .9 as different. That is unexpected to me, but it is kind of in the docs at \"The terms in W and X must match exactly\": https://www.sqlite.org/partialindex.html",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
     "id": 45416618,
     "by": "ComputerGuru",
     "timeISO": "2025-09-29T17:44:11.000Z",
-    "textPlain": "Not a great article; I clicked expecting something super technical about SQLite internals and found a mix of rdbms basics and some misconceptions. The limitations in the blog post aren't really specific to SQLite (for the most part), they're just how indexes (indices) and database engines work across the board. And some of the things phrased as \"SQLite [can't] do this\" is stuff that wouldn't make sense to do in the first place.If you understand what (multi-column) indexes are at the lowest level (i.e. what data structure they represent, how they are used by the database, what the code reading them would look like) then all of this makes immediate and natural sense. Indexes aren't magic. They're just a shortcut to help the the db engine find your data more effectively.This doesn't require super complex understanding of data structures, btw. The same limitations and advice would apply if you were trying to, for example, search a stack of resumes sorted by one or more attributes. If you have them sorted by position, years of experience, and applicant's last name; you wouldn't be able to quickly grab all resumes for the HR Manager position that have a last name starting with J - after all, you sorted them by years of experience first! It's physically not possible! You can only use the first part of that index, the position, to jump to HR Manager resumes; then you would need to manually go through them one-by-one (SCAN, in db lingo) to grab only the ones starting with J for each years-of-experience subgroup (if any).",
+    "textPlain": "Not a great article; I clicked expecting something super technical about SQLite internals and found a mix of rdbms basics and some misconceptions. The limitations in the blog post aren't really specific to SQLite (for the most part), they're just how indexes (indices) and database engines work across the board. And some of the things phrased as \"SQLite [can't] do this\" is stuff that wouldn't make sense to do in the first place.If you understand what (multi-column) indexes are at the lowest level (i.e. what data structure they represent, how they are used by the database, what the code reading them would look like) then all of this makes immediate and natural sense. Indexes aren't magic. They're just a shortcut to help the the db engine find your data more effectively.This doesn't require super complex understanding of data structures, btw. The same limitations and advice would apply if you were trying to, for example, search a stack of resumes sorted by one or more attributes. If you have them sorted by position, years of experience, and applicant's last name; you wouldn't be able to quickly grab all resumes for the HR Manager position that have a last name starting with J - after all, you sorted them by years of experience first! It's physically not possible! You can only use the first part of that index, the position, to jump to HR Manager resumes; then you would need to manually go through them one-by-one to grab only the ones starting with J for each years-of-experience subgroup (if any).",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
+    "id": 45417506,
+    "by": "kccqzy",
+    "timeISO": "2025-09-29T19:04:48.000Z",
+    "textPlain": "> It's worth being careful to only add indexes that will be used by real queries.This reminds me of a technique used by Google App Engine SDK a long time ago before it was called cloud. Basically in development mode, the SDK captures the kind of queries you make, and then automatically add any index that would speed up this query into a configuration file. You then later deploy with this configuration file, which tells the production data store to create such indexes. I thought this was a genius idea. Not sure if something similar exists for SQLite.",
     "parent": 45415332,
     "depth": 1
   },
@@ -40,11 +56,11 @@
     "depth": 2
   },
   {
-    "id": 45417139,
+    "id": 45417613,
     "by": "emschwartz",
-    "timeISO": "2025-09-29T18:30:43.000Z",
-    "textPlain": "That is a helpful way of thinking about it. Thanks for sharing!",
-    "parent": 45416606,
+    "timeISO": "2025-09-29T19:14:30.000Z",
+    "textPlain": "I also thought something like that would be useful. Couldn’t find an existing tool to do it so I had an AI model write a script that found all the SQL queries in my codebase, run EXPLAIN QUERY PLAN on them to see what indexes are used, cross-reference that against the indexes in the database, and told me which ones were unused.",
+    "parent": 45417506,
     "depth": 2
   },
   {
@@ -53,6 +69,30 @@
     "timeISO": "2025-09-29T17:56:10.000Z",
     "textPlain": "I use this same approach to explain indexes to database novices; it usually helps a lot, especially with how the leaf nodes / included indexes work as well (using that info instead of or in addition to rowid/primary key as the last value there)",
     "parent": 45416606,
+    "depth": 2
+  },
+  {
+    "id": 45417139,
+    "by": "emschwartz",
+    "timeISO": "2025-09-29T18:30:43.000Z",
+    "textPlain": "That is a helpful way of thinking about it. Thanks for sharing!",
+    "parent": 45416606,
+    "depth": 2
+  },
+  {
+    "id": 45417536,
+    "by": "crazygringo",
+    "timeISO": "2025-09-29T19:07:12.000Z",
+    "textPlain": "> The main takeaway from this for me is that SQLite’s query planner seems to be pretty limited.This doesn't appear to be true at all.The order of WHERE conditions does not matter; the order of columns in an index does.Everything you're describing is pretty much just how indexes fundamentally work in all databases. Which is why you're saying it hasn't been \"solved\" by anyone.Indexes aren't magic -- if you understand how they work as a tree, it becomes very clear what can be optimized and what can't.It is true that occasionally query planners get it wrong, but it's also often the case that your query was written in a non-obvious way that is equivalent in terms of its formal results, but is not idiomatic -- and making it more idiomatic means the query planner can more easily understand which indexes to use where.",
+    "parent": 45416835,
+    "depth": 2
+  },
+  {
+    "id": 45417228,
+    "by": "SkiFire13",
+    "timeISO": "2025-09-29T18:38:42.000Z",
+    "textPlain": "> A lot of modern DB engines like Clickhouse tend to just work around this problem by being so fast at full table scans that they don’t even need any sophisticated indexing set up at all.There's only so much you can do with this approach due how to the algorithmic complexity scales as more joins are added. At some points you'll need some additional data structures to speed things up, though they not be indexes in name (e.g. materialized views)",
+    "parent": 45416835,
     "depth": 2
   },
   {
