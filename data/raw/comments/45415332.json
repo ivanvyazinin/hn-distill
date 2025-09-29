@@ -1,17 +1,33 @@
 [
   {
-    "id": 45417612,
-    "by": "crazygringo",
-    "timeISO": "2025-09-29T19:14:30.000Z",
-    "textPlain": "I agree with other commenters that there's nothing new or surprising here [1] if you actually understand how indexes work. Which, if you're working in SQL, you should.But the main takeaway, I disagree with. The author explains:> When I first set up Scour's database, I put a bunch of indexes on the items table without really thinking about whether they would help. For example, I had separate indexes on the published date, the language, and the quality rating. Useless. It's more important to have one or a small handful of good composite indexes on multiple columns than to have separate indexes on each column.Yes, the biggest error is throwing indexes at a table without having the slightest idea if they're helpful. But the idea that a smaller number of composite indexes is not the answer either.The answer is to go through every single query and make sure you have an index that matches the query, adding/changing indexes (including composite indexes) or rewriting queries as required.Indexes don't exist in a vacuum. They are optimizations for specific queries. Proper database design requires knowing exactly what information you will need to look up using which parameters, and designing the tables and indexes to produce that performantly. When you need to look up data in new ways, you often need to add new indexes or rearchitect tables entirely.[1] Except that the partial index match condition treats 0.9 and .9 as different. That is unexpected to me, but it is kind of in the docs at \"The terms in W and X must match exactly\": https://www.sqlite.org/partialindex.html",
-    "parent": 45415332,
-    "depth": 1
-  },
-  {
     "id": 45416618,
     "by": "ComputerGuru",
     "timeISO": "2025-09-29T17:44:11.000Z",
     "textPlain": "Not a great article; I clicked expecting something super technical about SQLite internals and found a mix of rdbms basics and some misconceptions. The limitations in the blog post aren't really specific to SQLite (for the most part), they're just how indexes (indices) and database engines work across the board. And some of the things phrased as \"SQLite [can't] do this\" is stuff that wouldn't make sense to do in the first place.If you understand what (multi-column) indexes are at the lowest level (i.e. what data structure they represent, how they are used by the database, what the code reading them would look like) then all of this makes immediate and natural sense. Indexes aren't magic. They're just a shortcut to help the the db engine find your data more effectively.This doesn't require super complex understanding of data structures, btw. The same limitations and advice would apply if you were trying to, for example, search a stack of resumes sorted by one or more attributes. If you have them sorted by position, years of experience, and applicant's last name; you wouldn't be able to quickly grab all resumes for the HR Manager position that have a last name starting with J - after all, you sorted them by years of experience first! It's physically not possible! You can only use the first part of that index, the position, to jump to HR Manager resumes; then you would need to manually go through them one-by-one to grab only the ones starting with J for each years-of-experience subgroup (if any).",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
+    "id": 45418206,
+    "by": "wodenokoto",
+    "timeISO": "2025-09-29T20:13:43.000Z",
+    "textPlain": "The article is a developers journey into indexes and not a bad journey or travelogue imho.Sure, if you are a database expert, it might be disappointing but I enjoyed reading it.",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
+    "id": 45418223,
+    "by": "themafia",
+    "timeISO": "2025-09-29T20:15:28.000Z",
+    "textPlain": "You may not need a course.  SQLite publishes a very useful guide on the query planner which goes over most of what you need to know with respect to indexes:https://www.sqlite.org/optoverview.html",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
+    "id": 45416606,
+    "by": "nikeee",
+    "timeISO": "2025-09-29T17:43:00.000Z",
+    "textPlain": "I use the mental model of nested maps for \"column order matters\".\nFor example, an index \"published, low_quality_probability, lang\" is just a Map<date, Map<number, Map<lang, rowId>>> in my mental model.\nThese maps are ordered by the order the index possesses. That explains why column order matters and why one cannot skip columns and why it stops at range queries.Just imagine getting a final rowId from these nested maps and you'll see why the index works for some queries and doesn't for others.",
     "parent": 45415332,
     "depth": 1
   },
@@ -24,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45416606,
-    "by": "nikeee",
-    "timeISO": "2025-09-29T17:43:00.000Z",
-    "textPlain": "I use the mental model of nested maps for \"column order matters\".\nFor example, an index \"published, low_quality_probability, lang\" is just a Map<date, Map<number, Map<lang, rowId>>> in my mental model.\nThese maps are ordered by the order the index possesses. That explains why column order matters and why one cannot skip columns and why it stops at range queries.Just imagine getting a final rowId from these nested maps and you'll see why the index works for some queries and doesn't for others.",
+    "id": 45417612,
+    "by": "crazygringo",
+    "timeISO": "2025-09-29T19:14:30.000Z",
+    "textPlain": "I agree with other commenters that there's nothing new or surprising here [1] if you actually understand how indexes work. Which, if you're working in SQL, you should.But the main takeaway, I disagree with. The author explains:> When I first set up Scour's database, I put a bunch of indexes on the items table without really thinking about whether they would help. For example, I had separate indexes on the published date, the language, and the quality rating. Useless. It's more important to have one or a small handful of good composite indexes on multiple columns than to have separate indexes on each column.Yes, the biggest error is throwing indexes at a table without having the slightest idea if they're helpful. But the idea that a smaller number of composite indexes is not the answer either.The answer is to go through every single query and make sure you have an index that matches the query, adding/changing indexes (including composite indexes) or rewriting queries as required.Indexes don't exist in a vacuum. They are optimizations for specific queries. Proper database design requires knowing exactly what information you will need to look up using which parameters, and designing the tables and indexes to produce that performantly. When you need to look up data in new ways, you often need to add new indexes or rearchitect tables entirely.[1] Except that the partial index match condition treats 0.9 and .9 as different. That is unexpected to me, but it is kind of in the docs at \"The terms in W and X must match exactly\": https://www.sqlite.org/partialindex.html",
     "parent": 45415332,
     "depth": 1
   },
@@ -56,11 +72,19 @@
     "depth": 2
   },
   {
-    "id": 45417613,
+    "id": 45418235,
     "by": "emschwartz",
-    "timeISO": "2025-09-29T19:14:30.000Z",
-    "textPlain": "I also thought something like that would be useful. Couldn’t find an existing tool to do it so I had an AI model write a script that found all the SQL queries in my codebase, run EXPLAIN QUERY PLAN on them to see what indexes are used, cross-reference that against the indexes in the database, and told me which ones were unused.",
-    "parent": 45417506,
+    "timeISO": "2025-09-29T20:16:36.000Z",
+    "textPlain": "Thanks for saying that! That’s exactly how it was intended and I’m glad to hear you enjoyed it",
+    "parent": 45418206,
+    "depth": 2
+  },
+  {
+    "id": 45418202,
+    "by": "masklinn",
+    "timeISO": "2025-09-29T20:12:41.000Z",
+    "textPlain": "It’s way easier if you think of the indexes as tuple keys in a binary tree.Because they’re tuple keys in a b-tree. That also explains how ranges work efficiently.",
+    "parent": 45416606,
     "depth": 2
   },
   {
@@ -72,11 +96,27 @@
     "depth": 2
   },
   {
+    "id": 45417942,
+    "by": "immibis",
+    "timeISO": "2025-09-29T19:48:51.000Z",
+    "textPlain": "It's actually a List<Tuple<date, number, rowid>>> in sorted order, and queries are more akin to binary search (they are not actually binary but use a wider fanout depending on many factors)",
+    "parent": 45416606,
+    "depth": 2
+  },
+  {
     "id": 45417139,
     "by": "emschwartz",
     "timeISO": "2025-09-29T18:30:43.000Z",
     "textPlain": "That is a helpful way of thinking about it. Thanks for sharing!",
     "parent": 45416606,
+    "depth": 2
+  },
+  {
+    "id": 45417726,
+    "by": "DaiPlusPlus",
+    "timeISO": "2025-09-29T19:27:01.000Z",
+    "textPlain": "> Yes, the biggest error is throwing indexes at a table without having the slightest idea if they're helpfulUnless you have a small number of static queries, this task isn’t really possible without an observability-solution (reporting the raw query text, the actual execution plan, and runtime and IO stats, et cetera) - otherwise it’s guesswork.…and worse-still if your application has runtime-defined queries, such as having a custom filter builder in your UI. Actually I’ll admit I have no idea how platforms like Jira are able to do that with decent performance (can anyone let me know?)I heap praise on MSSQL’s Query Store feature - which is still a relatively recent addition. I have no idea how anyone could manage query performance without needing 10x the time and effort needed to attach a profiler to a prod DB. …and if these are “edge” databases running on a 100k IoT devices then have fun, I guess.",
+    "parent": 45417612,
     "depth": 2
   },
   {
