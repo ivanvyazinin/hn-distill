@@ -16,14 +16,6 @@
     "depth": 1
   },
   {
-    "id": 45421422,
-    "by": "progmetaldev",
-    "timeISO": "2025-09-30T02:49:07.000Z",
-    "textPlain": "I truly appreciate articles like this. I am using the Umbraco CMS, and have written code to use lower than the recommended requirements to keep the entire system running. While I don't see a use for using a Span<T> yet, I could definitely see it being useful for a website with an enormous amount of content.I am currently looking into making use of \"public readonly record struct\" for the models that I create for my views. Of course, I need to performance profile the code versus using standard classes with readonly properties where appropriate, but since most of my code is short-lived for pulling from the CMS to hydrate classes for the views, I'm not sure how much of a benefit I will get. Luckily I'm in a position to work on squeezing as much performance as possible between major projects.I'm curious if anyone has found any serious performance benefit from using a Span<T> or a \"public readonly record struct\" in a .NET CMS, where the pages are usually fire and forget? I have spent years (since 2013) trying to squeeze every ounce of performance from the code, as I work with quite a few smaller businesses, and even the rest of my team are starting to look into Wix or Squarespace, since it doesn't require a \"me\" to be involved to get a site up and running.To my credit and/or surprise, I haven't dealt with a breach to my knowledge, and I read logs and am constantly reviewing code as it is my passion (at least working within the confines of the Umbraco CMS, although it isn't my only place of knowledge). I used to work with PHP and CodeIgniter pre-2013 (then Kohana a bit while making the jump from PHP to .NET). I enjoy C#, and feel like I am able to gain quite a bit of performance from it, but if anyone has any ideas for me on how to create even more value from this, I would be extremely interested.",
-    "parent": 45420001,
-    "depth": 1
-  },
-  {
     "id": 45426021,
     "by": "mwsherman",
     "timeISO": "2025-09-30T14:36:57.000Z",
@@ -36,6 +28,14 @@
     "by": "rkagerer",
     "timeISO": "2025-09-30T13:32:10.000Z",
     "textPlain": "Array element accesses are bounds-checked in C# for safety. But, that means that there's performance impact...Why don't we have hardware support for this yet?  (i.e. CPU instructions that are bounds-aware?)Edit: Do we?https://stackoverflow.com/questions/40752436/do-any-cpus-hav...",
+    "parent": 45420001,
+    "depth": 1
+  },
+  {
+    "id": 45421422,
+    "by": "progmetaldev",
+    "timeISO": "2025-09-30T02:49:07.000Z",
+    "textPlain": "I truly appreciate articles like this. I am using the Umbraco CMS, and have written code to use lower than the recommended requirements to keep the entire system running. While I don't see a use for using a Span<T> yet, I could definitely see it being useful for a website with an enormous amount of content.I am currently looking into making use of \"public readonly record struct\" for the models that I create for my views. Of course, I need to performance profile the code versus using standard classes with readonly properties where appropriate, but since most of my code is short-lived for pulling from the CMS to hydrate classes for the views, I'm not sure how much of a benefit I will get. Luckily I'm in a position to work on squeezing as much performance as possible between major projects.I'm curious if anyone has found any serious performance benefit from using a Span<T> or a \"public readonly record struct\" in a .NET CMS, where the pages are usually fire and forget? I have spent years (since 2013) trying to squeeze every ounce of performance from the code, as I work with quite a few smaller businesses, and even the rest of my team are starting to look into Wix or Squarespace, since it doesn't require a \"me\" to be involved to get a site up and running.To my credit and/or surprise, I haven't dealt with a breach to my knowledge, and I read logs and am constantly reviewing code as it is my passion (at least working within the confines of the Umbraco CMS, although it isn't my only place of knowledge). I used to work with PHP and CodeIgniter pre-2013 (then Kohana a bit while making the jump from PHP to .NET). I enjoy C#, and feel like I am able to gain quite a bit of performance from it, but if anyone has any ideas for me on how to create even more value from this, I would be extremely interested.",
     "parent": 45420001,
     "depth": 1
   },
@@ -104,11 +104,35 @@
     "depth": 2
   },
   {
+    "id": 45428264,
+    "by": "EgorBo",
+    "timeISO": "2025-09-30T17:17:07.000Z",
+    "textPlain": "\"moder safer unsafe\". It's actually quite the opposite most of the time, void* is safer as it's often doesn't involve GC. I recommend reading https://learn.microsoft.com/en-us/dotnet/standard/unsafe-cod...",
+    "parent": 45421947,
+    "depth": 2
+  },
+  {
     "id": 45426725,
     "by": "bengarney",
     "timeISO": "2025-09-30T15:24:55.000Z",
     "textPlain": "I increasingly wonder if writing and binding performance critical things in C/C++ would be less overall effort. Performant zero-alloc C# vs C/C++ is backdoor magic vs first class language support. Boxing gloves vs. surgical gloves.C# _can_ do this! But I face many abstractions: special perf APIs, C#, IL, asm. Outcomes will vary with language version, runtime version, platform, IL2CPP/Burst/Mono/dotnet. But C/C++ has one layer of abstraction (the compiler), and it's locked in once I compile it.I want to do the thing as exactly and consistently as possible in the simplest way possible!A build environment that compiles .cpp alongside .cs (no automatic bindings, just compilation) would be so nice for this.----Example of what I mean regarding abstractions:  void addBatch(int *a, int *b, int count)\n  {\n    for(int i=0; i<count; i++) \n      a[i] += b[i]; \n  }\n\nversus:    [MethodImpl(MethodImplOptions.AggressiveOptimization)]\n    public static void AddBatch(int[] a, int[] b, int count)\n    {\n        ref int ra = ref MemoryMarshal.GetArrayDataReference(a);\n        ref int rb = ref MemoryMarshal.GetArrayDataReference(b);\n        for (nint i = 0, n = (nint)count; i < n; i++)\n            Unsafe.Add(ref ra, i) += Unsafe.Add(ref rb, i);\n    }\n\n(This is obviously a contrived example, my point is to show the kinds of idioms at play.)",
     "parent": 45421947,
+    "depth": 2
+  },
+  {
+    "id": 45426360,
+    "by": "yeasku",
+    "timeISO": "2025-09-30T15:01:33.000Z",
+    "textPlain": "Strings in C# are inmutable.To work with strings you should use StringBuilder.",
+    "parent": 45426021,
+    "depth": 2
+  },
+  {
+    "id": 45426139,
+    "by": "neonsunset",
+    "timeISO": "2025-09-30T14:45:57.000Z",
+    "textPlain": "No, slices in Go are more akin to ArraySegment but with resizing/copy-on-append. It does not have the same `byref` mechanism .NET supports, which can reference arbitrary memory (GC-owned or otherwise) in a unified way as a single (special) pointer type.",
+    "parent": 45426021,
     "depth": 2
   },
   {
@@ -144,14 +168,6 @@
     "depth": 2
   },
   {
-    "id": 45426863,
-    "by": "WorldMaker",
-    "timeISO": "2025-09-30T15:35:46.000Z",
-    "textPlain": "> I'm curious if anyone has found any serious performance benefit from using a Span<T> or a \"public readonly record struct\" in a .NET CMS, where the pages are usually fire and forget?Most of the benefits of Span<T> you gain by keeping up with .NET upgrades. Span<T> is a low level optimization that benefits things like ASP.NET internals far more than most user code. Each version of .NET since Span<T> was added has improved the use of it. Additionally in C#, the compiler prefers Span<T> overloads when they make sense so just rebuilding for the most recent .NET opts you in to the benefits. Whether or not those are \"serious\" benefits is a matter of taste and also a reminder that your code probably doesn't spend all of its time doing low level things. (Your database query time, for instance is generally going to have a bigger impact.)I'd add a big word of caution for \"public readonly record struct\". I've seen a few codebases start using that wordy version \"by default\" and then build themselves into a far bigger terrible performance pit than they expected. There's a lot of good reasons that \"record\" defaults to class and has you opt in to struct behavior. It's a lot easier to reason about classes. It's a lot easier to understand the performance trade-offs on the side of classes. The GC is your friend, not your enemy, even and sometimes especially for short-lived data. (Gen0 collections are often very fast. The \"nursery\" was designed for fire-and-forget data churn. It's the bread-and-butter job of a generational garbage collector to separate the churn from the stable, handle the churn quickly and keep the stable stabler.)Structs are pass-by-value, which means as soon as they exit the \"lucky path\" of staying in the same stack they are copied from place to place. If your models include a lot of other structs, you start copying memory a lot more regularly. If your structs grow too large for certain stackframe quotas they get boxed onto the GC heap anyway not saving you heap a",
-    "parent": 45421422,
-    "depth": 2
-  },
-  {
     "id": 45421725,
     "by": "jiggawatts",
     "timeISO": "2025-09-30T03:52:08.000Z",
@@ -160,19 +176,11 @@
     "depth": 2
   },
   {
-    "id": 45426360,
-    "by": "yeasku",
-    "timeISO": "2025-09-30T15:01:33.000Z",
-    "textPlain": "Strings in C# are inmutable.To work with strings you should use StringBuilder.",
-    "parent": 45426021,
-    "depth": 2
-  },
-  {
-    "id": 45426139,
-    "by": "neonsunset",
-    "timeISO": "2025-09-30T14:45:57.000Z",
-    "textPlain": "No, slices in Go are more akin to ArraySegment but with resizing/copy-on-append. It does not have the same `byref` mechanism .NET supports, which can reference arbitrary memory (GC-owned or otherwise) in a unified way as a single (special) pointer type.",
-    "parent": 45426021,
+    "id": 45426863,
+    "by": "WorldMaker",
+    "timeISO": "2025-09-30T15:35:46.000Z",
+    "textPlain": "> I'm curious if anyone has found any serious performance benefit from using a Span<T> or a \"public readonly record struct\" in a .NET CMS, where the pages are usually fire and forget?Most of the benefits of Span<T> you gain by keeping up with .NET upgrades. Span<T> is a low level optimization that benefits things like ASP.NET internals far more than most user code. Each version of .NET since Span<T> was added has improved the use of it. Additionally in C#, the compiler prefers Span<T> overloads when they make sense so just rebuilding for the most recent .NET opts you in to the benefits. Whether or not those are \"serious\" benefits is a matter of taste and also a reminder that your code probably doesn't spend all of its time doing low level things. (Your database query time, for instance is generally going to have a bigger impact.)I'd add a big word of caution for \"public readonly record struct\". I've seen a few codebases start using that wordy version \"by default\" and then build themselves into a far bigger terrible performance pit than they expected. There's a lot of good reasons that \"record\" defaults to class and has you opt in to struct behavior. It's a lot easier to reason about classes. It's a lot easier to understand the performance trade-offs on the side of classes. The GC is your friend, not your enemy, even and sometimes especially for short-lived data. (Gen0 collections are often very fast. The \"nursery\" was designed for fire-and-forget data churn. It's the bread-and-butter job of a generational garbage collector to separate the churn from the stable, handle the churn quickly and keep the stable stabler.)Structs are pass-by-value, which means as soon as they exit the \"lucky path\" of staying in the same stack they are copied from place to place. If your models include a lot of other structs, you start copying memory a lot more regularly. If your structs grow too large for certain stackframe quotas they get boxed onto the GC heap anyway not saving you heap a",
+    "parent": 45421422,
     "depth": 2
   },
   {
