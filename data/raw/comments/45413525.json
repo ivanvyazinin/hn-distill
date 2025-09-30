@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45423708,
-    "by": "boramalper",
-    "timeISO": "2025-09-30T09:55:26.000Z",
-    "textPlain": "I find MongoDB's ESR (Equality, Sort, Range) Guideline[0] quite helpful in that regard, which applies to SQL databases as well (since nearly all of them too use B-trees).> Index keys correspond to document fields. In most cases, applying the ESR (Equality, Sort, Range) Guideline to arrange the index keys helps to create a more efficient compound index.> Ensure that equality fields always come first. Applying equality to the leading field(s) of the compound index allows you to take advantage of the rest of the field values being in sorted order. Choose whether to use a sort or range field next based on your index's specific needs:> * If avoiding in-memory sorts is critical, place sort fields before range fields (ESR)> * If your range predicate in the query is very selective, then put it before sort fields (ERS)[0] https://www.mongodb.com/docs/manual/tutorial/equality-sort-r...",
-    "parent": 45413525,
-    "depth": 1
-  },
-  {
     "id": 45420606,
     "by": "magicalhippo",
     "timeISO": "2025-09-30T00:30:51.000Z",
     "textPlain": "We had a case where a single OR was a massive performance problem on MSSQL, but not at all on Sybase SQLAnywhere we're migrating away from. Which one might consider slightly ironic given the origins of MSSQL...Anyway, the solution was to manually rewrite the query as a UNION ALL of the two cases which was fast on both. I'm still annoyed though by the fact that MSSQL couldn't just have done that for me.",
+    "parent": 45413525,
+    "depth": 1
+  },
+  {
+    "id": 45423708,
+    "by": "boramalper",
+    "timeISO": "2025-09-30T09:55:26.000Z",
+    "textPlain": "I find MongoDB's ESR (Equality, Sort, Range) Guideline[0] quite helpful in that regard, which applies to SQL databases as well (since nearly all of them too use B-trees).> Index keys correspond to document fields. In most cases, applying the ESR (Equality, Sort, Range) Guideline to arrange the index keys helps to create a more efficient compound index.> Ensure that equality fields always come first. Applying equality to the leading field(s) of the compound index allows you to take advantage of the rest of the field values being in sorted order. Choose whether to use a sort or range field next based on your index's specific needs:> * If avoiding in-memory sorts is critical, place sort fields before range fields (ESR)> * If your range predicate in the query is very selective, then put it before sort fields (ERS)[0] https://www.mongodb.com/docs/manual/tutorial/equality-sort-r...",
     "parent": 45413525,
     "depth": 1
   },
@@ -104,6 +104,22 @@
     "depth": 1
   },
   {
+    "id": 45424230,
+    "by": "atombender",
+    "timeISO": "2025-09-30T11:32:13.000Z",
+    "textPlain": "I've had the same thought. I would be interested in a query language which allows me to write a query plan, including explicitly scanning indexes using specific methods.I like the \"plumbing on the outside\" approach of databases like ClickHouse where you have to know the performance characteristics of the query execution engine to design performant schemas and queries.The challenge here is that query planners are quite good at determining the best access path based on statistical information about the data. For example, \"id = 1\" should probably use a fast index scan because it's a point query with a single row, but \"category = 42\" might be have a million rows with the value 42 and would be faster with a sequential scan. But the problem doesn't surface until you have that much data. Query planners adapt to scale, while a hard-coded query plan wouldn't. That's not even getting started on things like joins (where join side order matters a lot) and index scans on multiple columns.I'm not aware of any systems that are like this. Some of the early database systems (ISAM/VSAM, hierarchical databases like CODASYL) were a bit like this, before the relational model allowed a single unified data paradigm to be expressed as a general-purpose query language.",
+    "parent": 45423568,
+    "depth": 2
+  },
+  {
+    "id": 45424227,
+    "by": "dspillett",
+    "timeISO": "2025-09-30T11:31:47.000Z",
+    "textPlain": "One thing to be careful of with the UNION ALL method, is that if you have some rows that match more than one of the clauses in your set of ORs then you will have duplicate results to screen out. This won't happen if you are checking for multiple values in one field, obviously, but is something to be wary of when using this method to optimise kitchen sink queries more generally.Slapping a DISTINCT in isn't the answer, if it was then you'd just use UNION instead of UNION ALL, because that often makes the query planner call for a lot of excess work to be done. I once found that wrapping and main kitchen sink in a CTE and applying DISTINCT in the SELECT that calls it has the desired effect, but that is risky as it relies on undefined behaviour that may change at a later date and tank your performance. If the number of rows being returned is never going to be large, and your situation allows multiple statements, a safer option is to pull the data into a temporary table and SELECT from that with DISTINCT. Or you could de-dupe in the next layer instead of the DB, or just accept dupes if exact cardinality isn't important and your users aren't going to care about the occasional double-row (i.e. a simple quick-search feature).And, of course, sometimes you want the duplicates, again maybe in the case of a quick search feature (where you split the results into categories and each duplicate of a row is likely in a different category, especially if the categories align with the search clauses that are being ORed).",
+    "parent": 45420606,
+    "depth": 2
+  },
+  {
     "id": 45420998,
     "by": "getnormality",
     "timeISO": "2025-09-30T01:33:08.000Z",
@@ -152,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45421721,
+    "by": "cryptonector",
+    "timeISO": "2025-09-30T03:51:24.000Z",
+    "textPlain": "SQLite3 turns ORs into UNIONs.",
+    "parent": 45419218,
+    "depth": 2
+  },
+  {
     "id": 45420072,
     "by": "contravariant",
     "timeISO": "2025-09-29T23:19:39.000Z",
@@ -160,11 +184,11 @@
     "depth": 2
   },
   {
-    "id": 45421721,
-    "by": "cryptonector",
-    "timeISO": "2025-09-30T03:51:24.000Z",
-    "textPlain": "SQLite3 turns ORs into UNIONs.",
-    "parent": 45419218,
+    "id": 45424371,
+    "by": "grandfugue",
+    "timeISO": "2025-09-30T11:54:25.000Z",
+    "textPlain": "ORM often produces horrible queries that are impossible for humans to digest. I think there are two factors. First, queries are constructed incrementally and mechanically. There is no an overview for the generator to understand what developers want to compute, or no channel for developers to specify the intention. I anticipant this will change w/ AI in the near future. Second, ORM models data following the dogmatic data normalization, on which queries are destined to be horrible. I believe that people should take a moment to view their data, think what computations they want to do on top, estimate how expensive they may be, and finally settle on a reasonable model overall. Ask ORM (or maybe AI) to help with constructing and sending queries and assembling results. But do not delegate data modeling out. With right data modeling that fits computations, queries cann't be that bad.",
+    "parent": 45418712,
     "depth": 2
   },
   {
