@@ -1,5 +1,13 @@
 [
   {
+    "id": 45421011,
+    "by": "rtpg",
+    "timeISO": "2025-09-30T01:34:54.000Z",
+    "textPlain": "Postgres is pretty good about using index data from multiple single column indices... if you don't order results! Otherwise the planner will get in the way and do nonsense.A bunch of people spend years studying computer science and trees etc, and then when we actually need to care about that stuff the databases absolutely do not want us to declare the plan. Very annoying.Think about how people would be guided to do the right thing on indices if they had to say \"go along this index to get my data\" in a \"planned mode\" when dealing with bad performance? So many data layout and index issues would become immediately obvious. You wouldn't magically get as many benefits from DB updates, granted.",
+    "parent": 45415332,
+    "depth": 1
+  },
+  {
     "id": 45416618,
     "by": "ComputerGuru",
     "timeISO": "2025-09-29T17:44:11.000Z",
@@ -72,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45419677,
-    "by": "simscitizen",
-    "timeISO": "2025-09-29T22:33:34.000Z",
-    "textPlain": "I agree, all of these rules aren't the right way to teach about how to reason about this. All of the perf properties described should fall out of the understanding that both tables and indices in SQLite are B-trees. B-trees have the following properties:- can look up a key or key prefix in O(log N) time (\"seek a cursor\" in DB parlance, or maybe \"find/find prefix and return an iterator\" for regular programmers)- can iterate to next row in amortized O(1) time (\"advance a cursor\" in DB parlance, or maybe \"advance an iterator\" for regular programmers). Note that unordered data structures like hash maps don't have this property. So the mental model has to start with thinking that tables/indices are ordered data structures or you're already lost.A table is a b+tree where the key is the rowid and the value is the row (well, except for WITHOUT ROWID tables).An index is a b-tree where the key is the indexed column(s) and the value is a rowid.And SQLite generally only does simple nested loop joins. No hash joins etc. Just the most obvious joining that you could do if you yourself wrote database-like logic using ordered data structures with the same perf properties e.g. std::map.From this it ought to be pretty obvious why column order in an index matters, etc.",
+    "id": 45420475,
+    "by": "derefr",
+    "timeISO": "2025-09-30T00:15:49.000Z",
+    "textPlain": "> You can only use the first part of that index, the position, to jump to HR Manager resumes; then you would need to manually go through them one-by-one to grab only the ones starting with J for each years-of-experience subgroup (if any).You're phrasing that like this situation — relying on an index formed by (key 1 that you know, key 2 that you don't know, key 3 that you want to depend on) — necessarily implies a sequential walk of everything within the HR manager subgroup.But it doesn't; within each key-1 partition of the index, you can binary-search to find the boundaries of the key-2 partitions; and within those, you can binary-search to find the all (or, more commonly, the first) last_name[0] = \"J\" entry/entries. It's actually not overly slow (i.e. is often still a win over a naive index-partial seq scan) if the cardinality ratio of of key-2 : key-3 isn't too extreme (i.e. if you're saving useful amounts of time by eliminating enough key-3 entries from consideration per key-2 partition.)(We use this approach quite a bit at $WORK — MySQL and Postgres people like to call this a https://wiki.postgresql.org/wiki/Loose_indexscan. [See the \"Making use of a non-leading column of an index\" section.])",
     "parent": 45416618,
     "depth": 2
   },
@@ -84,6 +92,22 @@
     "by": "some_old_guy",
     "timeISO": "2025-09-29T18:21:23.000Z",
     "textPlain": "The fact that it stops at the first range isn't intuitive to me at all, and I've been using sqlite for 20 years now.Given a covering index on (thing_date, thing_color)I would think a scan would not be needed for the query:select thing_date, thing_color where thing_date < date and thing_color = 'blue'I also can't think of a reason this is the case given the underlying data structures.",
+    "parent": 45416618,
+    "depth": 2
+  },
+  {
+    "id": 45419677,
+    "by": "simscitizen",
+    "timeISO": "2025-09-29T22:33:34.000Z",
+    "textPlain": "I agree, all of these rules aren't the right way to teach about how to reason about this. All of the perf properties described should fall out of the understanding that both tables and indices in SQLite are B-trees. B-trees have the following properties:- can look up a key or key prefix in O(log N) time (\"seek a cursor\" in DB parlance, or maybe \"find/find prefix and return an iterator\" for regular programmers)- can iterate to next row in amortized O(1) time (\"advance a cursor\" in DB parlance, or maybe \"advance an iterator\" for regular programmers). Note that unordered data structures like hash maps don't have this property. So the mental model has to start with thinking that tables/indices are ordered data structures or you're already lost.A table is a b+tree where the key is the rowid and the value is the row (well, except for WITHOUT ROWID tables).An index is a b-tree where the key is the indexed column(s) and the value is a rowid.And SQLite generally only does simple nested loop joins. No hash joins etc. Just the most obvious joining that you could do if you yourself wrote database-like logic using ordered data structures with the same perf properties e.g. std::map.From this it ought to be pretty obvious why column order in an index matters, etc.",
+    "parent": 45416618,
+    "depth": 2
+  },
+  {
+    "id": 45420401,
+    "by": "emmelaich",
+    "timeISO": "2025-09-30T00:05:54.000Z",
+    "textPlain": "The non-equivalence of .9 and 0.9 was certainly a surprise to me.",
     "parent": 45416618,
     "depth": 2
   },
@@ -168,18 +192,18 @@
     "depth": 2
   },
   {
-    "id": 45417228,
-    "by": "SkiFire13",
-    "timeISO": "2025-09-29T18:38:42.000Z",
-    "textPlain": "> A lot of modern DB engines like Clickhouse tend to just work around this problem by being so fast at full table scans that they don’t even need any sophisticated indexing set up at all.There's only so much you can do with this approach due how to the algorithmic complexity scales as more joins are added. At some points you'll need some additional data structures to speed things up, though they not be indexes in name (e.g. materialized views)",
-    "parent": 45416835,
-    "depth": 2
-  },
-  {
     "id": 45416875,
     "by": "emschwartz",
     "timeISO": "2025-09-29T18:08:02.000Z",
     "textPlain": "Just to clarify one thing: the order of WHERE conditions in a query does not matter. The order of columns in an index does.",
+    "parent": 45416835,
+    "depth": 2
+  },
+  {
+    "id": 45417228,
+    "by": "SkiFire13",
+    "timeISO": "2025-09-29T18:38:42.000Z",
+    "textPlain": "> A lot of modern DB engines like Clickhouse tend to just work around this problem by being so fast at full table scans that they don’t even need any sophisticated indexing set up at all.There's only so much you can do with this approach due how to the algorithmic complexity scales as more joins are added. At some points you'll need some additional data structures to speed things up, though they not be indexes in name (e.g. materialized views)",
     "parent": 45416835,
     "depth": 2
   }

@@ -1,5 +1,29 @@
 [
   {
+    "id": 45420606,
+    "by": "magicalhippo",
+    "timeISO": "2025-09-30T00:30:51.000Z",
+    "textPlain": "We had a case where a single OR was a massive performance problem on MSSQL, but not at all on Sybase SQLAnywhere we're migrating away from. Which one might consider slightly ironic given the origins of MSSQL...Anyway, the solution was to manually rewrite the query as a UNION ALL of the two cases which was fast on both. I'm still annoyed though by the fact that MSSQL couldn't just have done that for me.",
+    "parent": 45413525,
+    "depth": 1
+  },
+  {
+    "id": 45419218,
+    "by": "Glyptodon",
+    "timeISO": "2025-09-29T21:52:26.000Z",
+    "textPlain": "If optimization is really as simple as applying De Morgan's laws, surely it could be done within the query planner if that really is the main optimization switch? Or am I misreading this somehow?Edit: I guess the main difference is that it's just calculating separate sets and then merging them, which isn't really DeMorgan's, but a calculation approach.",
+    "parent": 45413525,
+    "depth": 1
+  },
+  {
+    "id": 45419200,
+    "by": "Animats",
+    "timeISO": "2025-09-29T21:50:00.000Z",
+    "textPlain": "The query optimizer knows how many items are in each index, but has no advance idea how many items will be in the result of a JOIN. An \"a OR b\" query on a table with millions of rows might have three hits on A, or millions of hits.\nThe optimal query strategy for the two cases is very different.Has anyone put machine learning in an SQL query optimizer yet?",
+    "parent": 45413525,
+    "depth": 1
+  },
+  {
     "id": 45418526,
     "by": "ntonozzi",
     "timeISO": "2025-09-29T20:42:05.000Z",
@@ -16,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45419218,
-    "by": "Glyptodon",
-    "timeISO": "2025-09-29T21:52:26.000Z",
-    "textPlain": "If optimization is really as simple as applying De Morgan's laws, surely it could be done within the query planner if that really is the main optimization switch? Or am I misreading this somehow?Edit: I guess the main difference is that it's just calculating separate sets and then merging them, which isn't really DeMorgan's, but a calculation approach.",
+    "id": 45418712,
+    "by": "prein",
+    "timeISO": "2025-09-29T21:03:14.000Z",
+    "textPlain": "This sort of thing is why looking at generated SQL while developing instead of just trusting the ORM to write good queries is so important.I find query planning (and databases in general) to be very difficult to reason about, basically magic. Does anyone have some recommended reading or advice?",
     "parent": 45413525,
     "depth": 1
   },
@@ -32,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45419200,
-    "by": "Animats",
-    "timeISO": "2025-09-29T21:50:00.000Z",
-    "textPlain": "The query optimizer knows how many items are in each index, but has no advance idea how many items will be in the result of a JOIN. An \"a OR b\" query on a table with millions of rows might have three hits on A, or millions of hits.\nThe optimal query strategy for the two cases is very different.Has anyone put machine learning in an SQL query optimizer yet?",
+    "id": 45418768,
+    "by": "jalk",
+    "timeISO": "2025-09-29T21:07:21.000Z",
+    "textPlain": "Can we agree that this is only applies to queries where all the filter conditions use cols with indexes? If no indexes can be used, a single full table scan with OR surely is faster than multiple full table scans.",
     "parent": 45413525,
     "depth": 1
   },
@@ -44,22 +68,6 @@
     "by": "ape4",
     "timeISO": "2025-09-29T22:05:17.000Z",
     "textPlain": "The OR query certainly states user intent better then the rewrite.   So its better at communicating with a future programmer.",
-    "parent": 45413525,
-    "depth": 1
-  },
-  {
-    "id": 45418712,
-    "by": "prein",
-    "timeISO": "2025-09-29T21:03:14.000Z",
-    "textPlain": "This sort of thing is why looking at generated SQL while developing instead of just trusting the ORM to write good queries is so important.I find query planning (and databases in general) to be very difficult to reason about, basically magic. Does anyone have some recommended reading or advice?",
-    "parent": 45413525,
-    "depth": 1
-  },
-  {
-    "id": 45418768,
-    "by": "jalk",
-    "timeISO": "2025-09-29T21:07:21.000Z",
-    "textPlain": "Can we agree that this is only applies to queries where all the filter conditions use cols with indexes? If no indexes can be used, a single full table scan with OR surely is faster than multiple full table scans.",
     "parent": 45413525,
     "depth": 1
   },
@@ -80,19 +88,11 @@
     "depth": 1
   },
   {
-    "id": 45419313,
-    "by": "ethanseal",
-    "timeISO": "2025-09-29T22:01:15.000Z",
-    "textPlain": "For sure, there's definitely a lot of cool techniques (and I'm not aware of all of them)! And the first example is very much contrived to show a small example.I'm not super familiar with the term index merge - this seems to be the term for a BitmapOr/BitmapAnd?Is there another optimization I'm missing?The article links to my code for my timings here: https://github.com/ethan-seal/ors_expensiveThere is an optimization that went in the new release of PostgreSQL I'm excited about that may affect this - I'm not sure. See https://git.postgresql.org/gitweb/?p=postgresql.git;a=commit...",
-    "parent": 45419034,
-    "depth": 2
-  },
-  {
-    "id": 45419958,
-    "by": "renhanxue",
-    "timeISO": "2025-09-29T23:05:03.000Z",
-    "textPlain": "The core issue the article is pointing to is that most database indexes are B-trees, so if you have a predicate on the form (col_a = 'foo' OR col_b = 'foo'), then it is impossible to use a single B-tree lookup to find all rows that match the predicate. You'd have to do two lookups and then merge the sets. Some query optimizers can do that, or at least things that are similar in spirit (e.g. Postgres bitmap index scan), but it's much more expensive than a regular index lookup.",
-    "parent": 45419218,
+    "id": 45420998,
+    "by": "getnormality",
+    "timeISO": "2025-09-30T01:33:08.000Z",
+    "textPlain": "I am very grateful for databases but I have so many stories of having to manhandle them into doing what seems like it should be obvious to a reasonable query optimizer.",
+    "parent": 45420606,
     "depth": 2
   },
   {
@@ -104,26 +104,26 @@
     "depth": 2
   },
   {
-    "id": 45419869,
+    "id": 45419958,
     "by": "renhanxue",
-    "timeISO": "2025-09-29T22:56:00.000Z",
-    "textPlain": "The article is specifically discussing cases where you have predicates on different columns OR'ed together, like col_a = 'foo' OR col_b = 'foo'.",
-    "parent": 45419781,
+    "timeISO": "2025-09-29T23:05:03.000Z",
+    "textPlain": "The core issue the article is pointing to is that most database indexes are B-trees, so if you have a predicate on the form (col_a = 'foo' OR col_b = 'foo'), then it is impossible to use a single B-tree lookup to find all rows that match the predicate. You'd have to do two lookups and then merge the sets. Some query optimizers can do that, or at least things that are similar in spirit (e.g. Postgres bitmap index scan), but it's much more expensive than a regular index lookup.",
+    "parent": 45419218,
     "depth": 2
   },
   {
-    "id": 45419622,
-    "by": "ethanseal",
-    "timeISO": "2025-09-29T22:29:14.000Z",
-    "textPlain": "I think having a way to build statistics on the join itself would be helpful for this. Similar to how extended statistics^1 can help when column distributions aren't independent of each other.But this may require some basic materialized views, which postgres doesn't really have.[1]: https://www.postgresql.org/docs/current/planner-stats.html#P...",
-    "parent": 45419200,
+    "id": 45420072,
+    "by": "contravariant",
+    "timeISO": "2025-09-29T23:19:39.000Z",
+    "textPlain": "I'm not seeing De Morgan. I am seeing inclusion exclusion, which is just a neat trick all round. Highly recommend remembering it.I imagine negative filters to be a bit inefficient as well, though maybe not for a simple count.",
+    "parent": 45419218,
     "depth": 2
   },
   {
-    "id": 45419798,
-    "by": "singron",
-    "timeISO": "2025-09-29T22:46:51.000Z",
-    "textPlain": "There are many papers on ML for query planners. You can search for \"Learned Query Optimization\". Some use ML just for the cardinality estimation.",
+    "id": 45420175,
+    "by": "cogman10",
+    "timeISO": "2025-09-29T23:32:49.000Z",
+    "textPlain": "> Has anyone put machine learning in an SQL query optimizer yet?Yes, I think everyone has?  At very least I know that MSSQL has because we semi regularly run into problems with it :).MSSQL keeps track of query statistics and uses those in future planning.  SOMETIMES it just so happens that the optimization for the general case makes the outlier 100x slower which kills general performance.",
     "parent": 45419200,
     "depth": 2
   },
@@ -144,11 +144,27 @@
     "depth": 2
   },
   {
-    "id": 45419753,
-    "by": "sgarland",
-    "timeISO": "2025-09-29T22:41:47.000Z",
-    "textPlain": "So add a comment. “X is easier to understand” shouldn’t mean taking a 100x performance hit.",
-    "parent": 45419361,
+    "id": 45419798,
+    "by": "singron",
+    "timeISO": "2025-09-29T22:46:51.000Z",
+    "textPlain": "There are many papers on ML for query planners. You can search for \"Learned Query Optimization\". Some use ML just for the cardinality estimation.",
+    "parent": 45419200,
+    "depth": 2
+  },
+  {
+    "id": 45419622,
+    "by": "ethanseal",
+    "timeISO": "2025-09-29T22:29:14.000Z",
+    "textPlain": "I think having a way to build statistics on the join itself would be helpful for this. Similar to how extended statistics^1 can help when column distributions aren't independent of each other.But this may require some basic materialized views, which postgres doesn't really have.[1]: https://www.postgresql.org/docs/current/planner-stats.html#P...",
+    "parent": 45419200,
+    "depth": 2
+  },
+  {
+    "id": 45419313,
+    "by": "ethanseal",
+    "timeISO": "2025-09-29T22:01:15.000Z",
+    "textPlain": "For sure, there's definitely a lot of cool techniques (and I'm not aware of all of them)! And the first example is very much contrived to show a small example.I'm not super familiar with the term index merge - this seems to be the term for a BitmapOr/BitmapAnd?Is there another optimization I'm missing?The article links to my code for my timings here: https://github.com/ethan-seal/ors_expensiveThere is an optimization that went in the new release of PostgreSQL I'm excited about that may affect this - I'm not sure. See https://git.postgresql.org/gitweb/?p=postgresql.git;a=commit...",
+    "parent": 45419034,
     "depth": 2
   },
   {
@@ -156,14 +172,6 @@
     "by": "parshimers",
     "timeISO": "2025-09-29T21:15:31.000Z",
     "textPlain": "https://pages.cs.wisc.edu/~dbbook/ is a great overview, specifically chapters 13 and 14 on query optimization. it is difficult to reason about though, and every compiler is different. it takes time and enough examples to look at a query and have an intuition for what the plan should look like, and if there's something the compiler is not handling well.",
-    "parent": 45418712,
-    "depth": 2
-  },
-  {
-    "id": 45419576,
-    "by": "ethanseal",
-    "timeISO": "2025-09-29T22:24:17.000Z",
-    "textPlain": "Highly recommend https://use-the-index-luke.com/It's very readable - I always ask new hires and interns to read it.",
     "parent": 45418712,
     "depth": 2
   },
@@ -176,11 +184,43 @@
     "depth": 2
   },
   {
+    "id": 45419576,
+    "by": "ethanseal",
+    "timeISO": "2025-09-29T22:24:17.000Z",
+    "textPlain": "Highly recommend https://use-the-index-luke.com/It's very readable - I always ask new hires and interns to read it.",
+    "parent": 45418712,
+    "depth": 2
+  },
+  {
+    "id": 45420752,
+    "by": "tehjoker",
+    "timeISO": "2025-09-30T00:55:44.000Z",
+    "textPlain": "Query Planners were considered \"AI\", at least among some folks, back in the day just FYI",
+    "parent": 45418712,
+    "depth": 2
+  },
+  {
+    "id": 45419869,
+    "by": "renhanxue",
+    "timeISO": "2025-09-29T22:56:00.000Z",
+    "textPlain": "The article is specifically discussing cases where you have predicates on different columns OR'ed together, like col_a = 'foo' OR col_b = 'foo'.",
+    "parent": 45419781,
+    "depth": 2
+  },
+  {
     "id": 45418858,
     "by": "ethanseal",
     "timeISO": "2025-09-29T21:15:57.000Z",
     "textPlain": "Absolutely. Though I don't recall seeing multiple sequential scans without a self-join or subquery. A basic filter within a sequential scan/loop is the most naive/simplest way of performing queries like these, so postgres falls back to that.\nAlso, fwiw, BitmapOr is only used with indexes: https://pganalyze.com/docs/explain/other-nodes/bitmap-or.",
     "parent": 45418768,
+    "depth": 2
+  },
+  {
+    "id": 45419753,
+    "by": "sgarland",
+    "timeISO": "2025-09-29T22:41:47.000Z",
+    "textPlain": "So add a comment. “X is easier to understand” shouldn’t mean taking a 100x performance hit.",
+    "parent": 45419361,
     "depth": 2
   }
 ]
