@@ -1,5 +1,29 @@
 [
   {
+    "id": 45429787,
+    "by": "akashakya",
+    "timeISO": "2025-09-30T19:08:08.000Z",
+    "textPlain": "For lightweight sandboxing on Linux you can use bubblewrap or firejail instead of Docker. They are faster and _simpler_. Here is a bwrap script I wrote to run Claude in a minimal sandbox an hour back:    exec bwrap \\\n      --ro-bind /usr /usr \\\n      --ro-bind /etc /etc \\\n      --ro-bind /run /run \\\n      --ro-bind \"$NODE_PATH\" /node \\\n      --proc /proc \\\n      --dev /dev \\\n      --symlink usr/lib64 /lib64 \\\n      --tmpfs /tmp \\\n      --unshare-all \\\n      --share-net \\\n      --die-with-parent \\\n      --new-session \\\n      --bind \"$HOME/claude\" /claude \\\n      --bind \"$HOME/.claude.json\" /claude/.claude.json \\\n      --bind \"$HOME/.claude\" /claude/.claude \\\n      --setenv HOME /claude \\\n      --setenv PATH \"/node:/claude/bin:/usr/bin\" \\\n      --bind \"$(pwd)\" /work \\\n      --chdir /work \\\n      /claude/bin/claude \"$@\"",
+    "parent": 45426680,
+    "depth": 1
+  },
+  {
+    "id": 45429639,
+    "by": "mike_hearn",
+    "timeISO": "2025-09-30T18:56:33.000Z",
+    "textPlain": "I recently built my own coding agent, due to dissatisfaction with the ones that are out there (though the Claude Code UI is very nice). It works as suggested in the article. It starts a custom Docker container and asks the model, GPT-5 in this case, to send shell scripts down the wire which are then run in the container. The container is augmented with some extra CLI tools to make the agent's life easier.My agent has a few other tricks up its sleeve and it's very new, so I'm still experimenting with lots of different ideas, but there are a few things I noticed.One is that GPT-5 is extremely willing to speculate. This is partly because of how I prompt it, but it's willing to write scripts that try five or six things at once in a single script, including things like reading files that might not exist. This level of speculative execution speeds things up dramatically especially as GPT-5 is otherwise a very slow model that likes to think about things a lot.Another is that you can give it very complex \"missions\" and it will drive things to completion using tactics that I've not seen from other agents. For example, if it needs to check something that's buried in a library dependency, it'll just clone the upstream repository into its home directory and explore that to find what it needs before going back to working on the user's project.None of this triggers any user interaction due to running in the container. In fact, no user interaction is possible. You set it going and do something else until it finishes. The model is very much to queue up \"missions\" that can then run in parallel and you merge them together at the end. The agent also has a mode where it takes the mission, writes a spec, reviews the spec, updates the spec given the review, codes, reviews the code, etc.Even though it's early days I've set this agent missions that it spent 20 minutes of continuous uninterrupted inferencing time on, and succeeded excellently. I think this UI paradigm is the way to go. You ",
+    "parent": 45426680,
+    "depth": 1
+  },
+  {
+    "id": 45429410,
+    "by": "mccoyb",
+    "timeISO": "2025-09-30T18:39:59.000Z",
+    "textPlain": "I think this is a strictly worse name than \"agentic harness\", which is already a term used by open-source agentic IDEs (https://github.com/search?q=repo%3Aopenai%2Fcodex%20harness&... or https://github.com/openai/codex/discussions/1174)Any reason why you want to rename it?Edit: to say more about my opinions, \"agentic loop\" could mean a few things -- it could mean the thing you say, or it could mean calling multiple individual agents in a loop ... whereas \"agentic harness\" evokes a sort of interface between the LLM and the digital outside world which mediates how the LLM embodies itself in that world. That latter thing is exactly what you're describing, as far as I can tell.",
+    "parent": 45426680,
+    "depth": 1
+  },
+  {
     "id": 45429049,
     "by": "simonw",
     "timeISO": "2025-09-30T18:12:22.000Z",
@@ -14,5 +38,37 @@
     "textPlain": "I wouldn't be surprised if agents start getting managed by a distributed agentic system - think about it. Right now you get codex/claude/etc... and it's system prompt and various other internally managed prompts are locked down to the version you downloaded. What if a distributed system ran experimental prompts and monitored the success rate (what code makes it into a commit) and provides feedback to the agent manager. That could help automatically fine tune it's own prompts.",
     "parent": 45426680,
     "depth": 1
+  },
+  {
+    "id": 45429860,
+    "by": "simonw",
+    "timeISO": "2025-09-30T19:13:00.000Z",
+    "textPlain": "Nice, thanks for sharing. The lack of an equivalent on macOS (sandbox-exec is similar but mostly undocumented and described as \"deprecated\" by Apple) is really frustrating.",
+    "parent": 45429787,
+    "depth": 2
+  },
+  {
+    "id": 45429699,
+    "by": "simonw",
+    "timeISO": "2025-09-30T19:01:25.000Z",
+    "textPlain": "That's really interesting. I've noticed something similar - I've tried frontend tasks against GPT-5-Codex and seen it guess the URL of the underlying library (on jsdelivr or GitHub) and attempt to fetch the original source code, often trying several different URLs, in order to dig through the source and figure out how to use an undocumented API feature.",
+    "parent": 45429639,
+    "depth": 2
+  },
+  {
+    "id": 45429712,
+    "by": "simonw",
+    "timeISO": "2025-09-30T19:02:36.000Z",
+    "textPlain": "I like \"agentic harness\" too, but that's not the name of a skill.\"Designing agentic loops\" describes a skill people need to develop. \"Designing agentic harnesses\" sounds more to me like you're designing a tool like Claude Code from scratch.Plus \"designing agentic loops\" includes a reference to my preferred definition of the term \"agent\" itself - a thing that runs tools in a loop to achieve a goal.",
+    "parent": 45429410,
+    "depth": 2
+  },
+  {
+    "id": 45429550,
+    "by": "datadrivenangel",
+    "timeISO": "2025-09-30T18:50:20.000Z",
+    "textPlain": "This is what Anthropic does for their \"High Compute\" SWE benchmarking:\"\nFor our \"high compute\" numbers we adopt additional complexity and parallel test-time compute as follows:    - We sample multiple parallel attempts.\n\n    - We discard patches that break the visible regression tests in the repository, similar to the rejection sampling approach adopted by Agentless (Xia et al. 2024); note no hidden test information is used.\n\n    - We then use an internal scoring model to select the best candidate from the remaining attempts.\n\n    - This results in a score of 82.0% for Sonnet 4.5.\n\"But running in parallel means you use more compute, meaning that the cost is higher. Good results are worth paying for, but if a super recursive approach costs more and takes longer than a human...",
+    "parent": 45429270,
+    "depth": 2
   }
 ]
