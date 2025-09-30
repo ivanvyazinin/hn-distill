@@ -1,5 +1,13 @@
 [
   {
+    "id": 45421154,
+    "by": "bob1029",
+    "timeISO": "2025-09-30T02:01:17.000Z",
+    "textPlain": "> Spans and slice-like structures in are the future of safe memory operations in modern programming languages. Embrace them.I've been using Span<T> very aggressively and it makes a massive difference in cases where you need logical views into the same physical memory. All of my code has been rewritten to operate in terms of spans instead of arrays where possible.It can be easy to overlook ToArray() or (more likely) code that implies its use in a large codebase. Even small, occasional allocations are all it takes to move your working set out of the happy place and get the GC cranking. The difference in performance can be unreasonable in some cases.You can even do things like:  var arena = stackalloc byte[1024];\n  var segment0 = arena.Slice(10);\n  var segment1 = arena.Slice(10, 200);\n  ...\n\nThe above will incur no GC pressure/activity at all. Everything happens on the stack.",
+    "parent": 45420001,
+    "depth": 1
+  },
+  {
     "id": 45421422,
     "by": "progmetaldev",
     "timeISO": "2025-09-30T02:49:07.000Z",
@@ -8,11 +16,27 @@
     "depth": 1
   },
   {
-    "id": 45421154,
-    "by": "bob1029",
-    "timeISO": "2025-09-30T02:01:17.000Z",
-    "textPlain": "> Spans and slice-like structures in are the future of safe memory operations in modern programming languages. Embrace them.I've been using Span<T> very aggressively and it makes a massive difference in cases where you need logical views into the same physical memory. All of my code has been rewritten to operate in terms of spans instead of arrays where possible.It can be easy to overlook ToArray() or (more likely) code that implies its use in a large codebase. Even small, occasional allocations are all it takes to move your working set out of the happy place and get the GC cranking. The difference in performance can be unreasonable in some cases.You can even do things like:  var arena = stackalloc byte[1024];\n  var segment0 = arena.Slice(10);\n  var segment1 = arena.Slice(10, 200);\n  ...\n\nThe above will incur no GC pressure/activity at all. Everything happens on the stack.",
+    "id": 45421588,
+    "by": "hahn-kev",
+    "timeISO": "2025-09-30T03:20:48.000Z",
+    "textPlain": "I'm a C# dev main and love spans.I understand it's not in the same realm as Rust, but how comparable is this to some of the power that Rust gives you?",
     "parent": 45420001,
     "depth": 1
+  },
+  {
+    "id": 45421536,
+    "by": "Freedom2",
+    "timeISO": "2025-09-30T03:13:15.000Z",
+    "textPlain": "I recall a specific project involving a network appliance that generated large log streams. Our bottleneck was the log parser, which was aggressively using string.Substring() to isolate fields. This approach continuously allocated new string objects on the heap, which led to excessive pressure on the GC.The transition to using ReadOnlySpan<char> immediately addressed the allocation issue. We were able to represent slices of the incoming buffer without any heap allocations and the parser logic was simplified significantly.",
+    "parent": 45420001,
+    "depth": 1
+  },
+  {
+    "id": 45421605,
+    "by": "MarkSweep",
+    "timeISO": "2025-09-30T03:26:08.000Z",
+    "textPlain": "> I'm curious if anyone has found any serious performance benefit from using a Span<T> or a \"public readonly record struct\" in a .NET CMSThis response is not directly answering that \"in a .NET CMS\" part of your question. I'm just trying to say how to think about when to worry about optimizations.These sorts of micro optimizations are best considered when your are trying to solve a particular performance problem, particularly when you are dealing with a site that is not getting a lot of hits. I've experienced using small business ecommerce websites where each page load takes 5 seconds and given up trying to buy something. In that case profiling the site and figuring out the problem is very worth while.When you have a site getting a lot of hits, these sorts of performance optimizations can help you save cost. If your service takes 100 servers to run and you can find some performance tweaks to get down to 75 server, that may be worth the engineering effort.My recommendation is to use a profiler of some type. Either on your application in aggregate to identify hot spots in in search of the source of a particular performance problem. Once you identify a hot spot, construct a micro benchmark of the problem in BenchmarkDotNet and try to use tools like Span<T> to fix the problem.",
+    "parent": 45421422,
+    "depth": 2
   }
 ]
