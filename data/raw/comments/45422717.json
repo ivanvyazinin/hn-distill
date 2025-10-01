@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45435770,
-    "by": "babel_",
-    "timeISO": "2025-10-01T09:10:53.000Z",
-    "textPlain": "Testing with Jen's macro this was based on, and found that the always_inline was redundant under even -O1 (https://godbolt.org/z/qoh861Gch via the examples from N3488 as became the baseline for the TS for C2y, which has recently a new revision under N3687), so there's an interesting trade-off between visibly seeing the `defer` by not not-inlining within the macro under an -O0 or similar unoptimised build, since with the inlining they are unmarked in the disassembly. But, there's an interesting twist here, as \"defer: the feature\" is likely not going to be implemented as \"defer: the macro\", since compilers will have the keyword (just `defer` in TS25755, or something else that uses a header for sugared `defer`) and may see the obvious optimised rewrite as the straightforward way of implementing it in the first place (as some already have), meaning we can have the benefit of the optimised inline with the opportunity to also keep it clearly identifiable, even in unoptimised and debug builds, which would certainly be nice to have!",
-    "parent": 45422717,
-    "depth": 1
-  },
-  {
     "id": 45435693,
     "by": "majke",
     "timeISO": "2025-10-01T08:59:16.000Z",
     "textPlain": "Nested functions are cool, although not supported by clang.However they rely on Trampolines:\nhttps://gcc.gnu.org/onlinedocs/gccint/Trampolines.htmlAnd trampolines need executable stack:> The use of trampolines requires an executable stack, which is a security risk. To avoid this problem, GCC also supports another strategy: using descriptors for nested functions. Under this model, taking the address of a nested function results in a pointer to a non-executable function descriptor object. Initializing the static chain from the descriptor is handled at indirect call sites.So, if I understand it right, instead trampoline on executable stack, the pointer to function and data is pushed into the \"descriptor\", and then there is an indirect call to this. I guess better than exec stack, but still...",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435770,
+    "by": "babel_",
+    "timeISO": "2025-10-01T09:10:53.000Z",
+    "textPlain": "Testing with Jen's macro this was based on, and found that the always_inline was redundant under even -O1 (https://godbolt.org/z/qoh861Gch via the examples from N3488 as became the baseline for the TS for C2y, which has recently a new revision under N3687), so there's an interesting trade-off between visibly seeing the `defer` by not not-inlining within the macro under an -O0 or similar unoptimised build, since with the inlining they are unmarked in the disassembly. But, there's an interesting twist here, as \"defer: the feature\" is likely not going to be implemented as \"defer: the macro\", since compilers will have the keyword (just `defer` in TS25755, or something else that uses a header for sugared `defer`) and may see the obvious optimised rewrite as the straightforward way of implementing it in the first place (as some already have), meaning we can have the benefit of the optimised inline with the opportunity to also keep it clearly identifiable, even in unoptimised and debug builds, which would certainly be nice to have!",
     "parent": 45422717,
     "depth": 1
   },
@@ -32,18 +32,26 @@
     "depth": 1
   },
   {
-    "id": 45435266,
-    "by": "pwdisswordfishz",
-    "timeISO": "2025-10-01T07:30:42.000Z",
-    "textPlain": "I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.> If malloc fails and returns NULL, the cleanup function will still be called, and there’s no simple way to add a guard inside free_ptr.free(NULL) is a no-op, this is a non-issue.  I don't know what's so hard about a single if statement anyway even if this were an issue.",
-    "parent": 45422717,
-    "depth": 1
-  },
-  {
     "id": 45422718,
     "by": "joexbayer",
     "timeISO": "2025-09-30T07:03:11.000Z",
     "textPlain": "Small blog post exploring a defer implementation using GCC’s cleanup + nested functions, looking at the generated assembly and potential use cases.",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435827,
+    "by": "mgaunard",
+    "timeISO": "2025-10-01T09:22:27.000Z",
+    "textPlain": "Just use C++, it's its main feature on top of C.",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45437436,
+    "by": "KingLancelot",
+    "timeISO": "2025-10-01T13:25:01.000Z",
+    "textPlain": "[dead]",
     "parent": 45422717,
     "depth": 1
   },
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45435827,
-    "by": "mgaunard",
-    "timeISO": "2025-10-01T09:22:27.000Z",
-    "textPlain": "Just use C++, it's its main feature on top of C.",
+    "id": 45435266,
+    "by": "pwdisswordfishz",
+    "timeISO": "2025-10-01T07:30:42.000Z",
+    "textPlain": "I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.> If malloc fails and returns NULL, the cleanup function will still be called, and there’s no simple way to add a guard inside free_ptr.free(NULL) is a no-op, this is a non-issue.  I don't know what's so hard about a single if statement anyway even if this were an issue.",
     "parent": 45422717,
     "depth": 1
   },
@@ -96,10 +104,50 @@
     "depth": 2
   },
   {
+    "id": 45436128,
+    "by": "lelanthran",
+    "timeISO": "2025-10-01T10:20:22.000Z",
+    "textPlain": "> Just use C++, it's its main feature on top of C.If you want to and/or can, then go ahead. This is for those people who either don't want to, or can't, use C++.Are you suggesting only use C++ over C in all situations?",
+    "parent": 45435827,
+    "depth": 2
+  },
+  {
+    "id": 45436030,
+    "by": "babel_",
+    "timeISO": "2025-10-01T10:01:14.000Z",
+    "textPlain": "> on top of C.If we're referring to the \"C is a subset of C++\" / \"C++ is a superset of C\" idea, then this just hasn't been the case for some time now, and the two continue to diverge. It came up recently, so I'll link to a previous comment on it (https://news.ycombinator.com/item?id=45268696). I did reply to that with a few of the other current/future ways C is proposing/going to diverge even further from C++, since it's increasingly relevant to the discussion about what C2y (and beyond) will do, and how C code and C++ code will become ever more incompatible - at least at the syntactic level, presuming the C ABI contains to preserve its stability and the working groups remain cordial, as they have done, then the future is more \"C & C++\" rather than \"C / C++\", with the two still walking side-by-side... but clearly taking different steps.If we're just talking about features C++ has that C doesn't, well, sure. RAII is the big one underpinning a lot of other C++ stuff. But C++ still can't be used in many places that C is, and part of why is baggage that features like RAII require (particularly function overloading and name mangling, even just for destructors alone)... which was carefully considered by the `defer` proposals, such as in N3488 (recently revised to N3687[0]) under section 4, or in other write-ups (including those by that proposal's author) like \"Why Not Just Do Simple C++ RAII in C?\"[1] and under the \"But… What About C++?\" section in [2]). In [0] they even directly point to \"The Ideal World\" (section 4.3) where both `defer` and RAII are available, since as they explain in 4.2, there are benefits to `defer` that RAII misses, and generally both have their uses that the other does not cleanly (if at all) represent! Of course, C++ does still have plenty of nice features that are sorely missing in C (personally longing for the day C gets proper namespaces), so I'm happy we always have it as an option and alternative... but, in turn, I feel the same about C. Sadl",
+    "parent": 45435827,
+    "depth": 2
+  },
+  {
+    "id": 45435372,
+    "by": "accelbred",
+    "timeISO": "2025-10-01T07:50:57.000Z",
+    "textPlain": "This is still useful for cleaning up file descriptors, unlocking mutexes, etc.",
+    "parent": 45435175,
+    "depth": 2
+  },
+  {
+    "id": 45435379,
+    "by": "jcupitt",
+    "timeISO": "2025-10-01T07:52:09.000Z",
+    "textPlain": "Cleanup can be very useful if you depend on a library that does not support arenas.",
+    "parent": 45435175,
+    "depth": 2
+  },
+  {
     "id": 45435499,
     "by": "ncruces",
     "timeISO": "2025-10-01T08:11:55.000Z",
     "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.RAII doesn't make sense without initialization.Are you proposing C should add constructors, or that C should make do without defer because it can't add constructors?",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45436285,
+    "by": "1718627440",
+    "timeISO": "2025-10-01T10:51:14.000Z",
+    "textPlain": "Not having RAII is precisely the reason I prefer C over C++ or Rust.  I WANT to be able to separate allocation from initialization.I'm currently working with Arduino code and the API is a mess.  Everything has a second set of manual constructor/destructor, which bypasses type-safety entirely.  All only to shoehorn having existing, but uninitialized objects into C++.",
     "parent": 45435266,
     "depth": 2
   },
@@ -125,38 +173,6 @@
     "timeISO": "2025-10-01T07:50:34.000Z",
     "textPlain": "`free(NULL);` will crash on some platforms that gcc supports, I believe.",
     "parent": 45435266,
-    "depth": 2
-  },
-  {
-    "id": 45435372,
-    "by": "accelbred",
-    "timeISO": "2025-10-01T07:50:57.000Z",
-    "textPlain": "This is still useful for cleaning up file descriptors, unlocking mutexes, etc.",
-    "parent": 45435175,
-    "depth": 2
-  },
-  {
-    "id": 45435379,
-    "by": "jcupitt",
-    "timeISO": "2025-10-01T07:52:09.000Z",
-    "textPlain": "Cleanup can be very useful if you depend on a library that does not support arenas.",
-    "parent": 45435175,
-    "depth": 2
-  },
-  {
-    "id": 45436128,
-    "by": "lelanthran",
-    "timeISO": "2025-10-01T10:20:22.000Z",
-    "textPlain": "> Just use C++, it's its main feature on top of C.If you want to and/or can, then go ahead. This is for those people who either don't want to, or can't, use C++.Are you suggesting only use C++ over C in all situations?",
-    "parent": 45435827,
-    "depth": 2
-  },
-  {
-    "id": 45436030,
-    "by": "babel_",
-    "timeISO": "2025-10-01T10:01:14.000Z",
-    "textPlain": "> on top of C.If we're referring to the \"C is a subset of C++\" / \"C++ is a superset of C\" idea, then this just hasn't been the case for some time now, and the two continue to diverge. It came up recently, so I'll link to a previous comment on it (https://news.ycombinator.com/item?id=45268696). I did reply to that with a few of the other current/future ways C is proposing/going to diverge even further from C++, since it's increasingly relevant to the discussion about what C2y (and beyond) will do, and how C code and C++ code will become ever more incompatible - at least at the syntactic level, presuming the C ABI contains to preserve its stability and the working groups remain cordial, as they have done, then the future is more \"C & C++\" rather than \"C / C++\", with the two still walking side-by-side... but clearly taking different steps.If we're just talking about features C++ has that C doesn't, well, sure. RAII is the big one underpinning a lot of other C++ stuff. But C++ still can't be used in many places that C is, and part of why is baggage that features like RAII require (particularly function overloading and name mangling, even just for destructors alone)... which was carefully considered by the `defer` proposals, such as in N3488 (recently revised to N3687[0]) under section 4, or in other write-ups (including those by that proposal's author) like \"Why Not Just Do Simple C++ RAII in C?\"[1] and under the \"But… What About C++?\" section in [2]). In [0] they even directly point to \"The Ideal World\" (section 4.3) where both `defer` and RAII are available, since as they explain in 4.2, there are benefits to `defer` that RAII misses, and generally both have their uses that the other does not cleanly (if at all) represent! Of course, C++ does still have plenty of nice features that are sorely missing in C (personally longing for the day C gets proper namespaces), so I'm happy we always have it as an option and alternative... but, in turn, I feel the same about C. Sadl",
-    "parent": 45435827,
     "depth": 2
   }
 ]
