@@ -1,25 +1,17 @@
 [
   {
+    "id": 45435213,
+    "by": "jedberg",
+    "timeISO": "2025-10-01T07:19:56.000Z",
+    "textPlain": "I wonder why they didn't use rendezvous hashing (aka HRW)[0]?It feels like it would solve all the requirement that they laid out, is fully client side, and doesn't require real time updates for the host list via discovery.[0] https://en.wikipedia.org/wiki/Rendezvous_hashing",
+    "parent": 45434417,
+    "depth": 1
+  },
+  {
     "id": 45434932,
     "by": "thewisenerd",
     "timeISO": "2025-10-01T06:31:18.000Z",
     "textPlain": "> kube-proxy supports only basic algorithms like round-robin or random selectionthis is \"partially\" true.if you're using ipvs, you can configure the scheduler to just about anything ipvs supports (including wrr). they removed the validation for the scheduler name quite a while back.kubernetes itself though doesn't \"understand\" (i.e., can NOT represent) the nuances (e.g., weights per endpoint with wrr), which is the problem.",
-    "parent": 45434417,
-    "depth": 1
-  },
-  {
-    "id": 45434903,
-    "by": "thewisenerd",
-    "timeISO": "2025-10-01T06:27:11.000Z",
-    "textPlain": "we have the same issue with HTTP as well, due to HTTP keepalive, which many clients have out-of-the box.the \"impact\" can be reduced by configuring an overall connection-ttl, so it takes some time when new pods come up but it works out over time.--that said, i'm not surprised that even a company as large as databricks feels that adding a service mesh is going to add operational complexity.looks like they've taken the best parts (endpoint watch, sync to clients with xDS) and moved it client-side. compared to the failure mode of a service mesh, this seems better.",
-    "parent": 45434417,
-    "depth": 1
-  },
-  {
-    "id": 45434803,
-    "by": "shizcakes",
-    "timeISO": "2025-10-01T06:12:16.000Z",
-    "textPlain": "Less featureful than this, but we’ve been doing GRPC client side load balancing with kuberesolver[1] since 2018. It allows GRPC to handle the balancer implementations. It’s been rock solid for more than half a decade now.1: https://github.com/sercand/kuberesolver",
     "parent": 45434417,
     "depth": 1
   },
@@ -32,11 +24,51 @@
     "depth": 1
   },
   {
+    "id": 45434803,
+    "by": "shizcakes",
+    "timeISO": "2025-10-01T06:12:16.000Z",
+    "textPlain": "Less featureful than this, but we’ve been doing GRPC client side load balancing with kuberesolver[1] since 2018. It allows GRPC to handle the balancer implementations. It’s been rock solid for more than half a decade now.1: https://github.com/sercand/kuberesolver",
+    "parent": 45434417,
+    "depth": 1
+  },
+  {
+    "id": 45434903,
+    "by": "thewisenerd",
+    "timeISO": "2025-10-01T06:27:11.000Z",
+    "textPlain": "we have the same issue with HTTP as well, due to HTTP keepalive, which many clients have out-of-the box.the \"impact\" can be reduced by configuring an overall connection-ttl, so it takes some time when new pods come up but it works out over time.--that said, i'm not surprised that even a company as large as databricks feels that adding a service mesh is going to add operational complexity.looks like they've taken the best parts (endpoint watch, sync to clients with xDS) and moved it client-side. compared to the failure mode of a service mesh, this seems better.",
+    "parent": 45434417,
+    "depth": 1
+  },
+  {
+    "id": 45435049,
+    "by": "gaurav324",
+    "timeISO": "2025-10-01T06:51:43.000Z",
+    "textPlain": "kuberesolver is an interesting take as well. Directly watching the K8s API from each client could raise scaling concerns at very large scale, but it does open the door to using richer Kubernetes metadata for smarter load-balancing decisions. thanks for sharing!",
+    "parent": 45434803,
+    "depth": 2
+  },
+  {
     "id": 45434896,
     "by": "azaras",
     "timeISO": "2025-10-01T06:25:46.000Z",
     "textPlain": "What is the difference between Kuberesolver and using a Headless Service?In the README.md file, they compare it with a ClusterIP service, but not with a Headless on \"ClusterIP: None\".The advantages of using Kuberesolver are that you do not need to change DNS refresh and cache settings. However, I think this is preferable to the application calling the Kubernetes API.",
     "parent": 45434803,
+    "depth": 2
+  },
+  {
+    "id": 45435135,
+    "by": "agrawroh",
+    "timeISO": "2025-10-01T07:07:53.000Z",
+    "textPlain": "When we started we had a lot of pieces like Certificate Management in-house and adding a full blown Service Mesh was a big operational overhead. We started with building only the parts we needed and started integrating things like xDS natively in rest of our clients.",
+    "parent": 45434903,
+    "depth": 2
+  },
+  {
+    "id": 45435054,
+    "by": "gaurav324",
+    "timeISO": "2025-10-01T06:52:30.000Z",
+    "textPlain": "Yes, we’ve leaned toward minimizing operational overhead. Taking the useful parts of a mesh (xDS endpoint and routing updates) into the client has worked extremely well in practice and has been very reliable, without the extra moving parts of a full mesh.",
+    "parent": 45434903,
     "depth": 2
   }
 ]
