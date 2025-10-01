@@ -1,9 +1,25 @@
 [
   {
-    "id": 45435175,
-    "by": "grodes",
-    "timeISO": "2025-10-01T07:13:42.000Z",
-    "textPlain": "Seems good, but I do not care about cleanup memory since I started to use arenas.",
+    "id": 45435231,
+    "by": "scoopr",
+    "timeISO": "2025-10-01T07:22:35.000Z",
+    "textPlain": "Then there is the proposal to add standard `defer` to C2y[0][0] https://thephd.dev/c2y-the-defer-technical-specification-its...",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435443,
+    "by": "letmetweakit",
+    "timeISO": "2025-10-01T08:03:45.000Z",
+    "textPlain": "I'm always suspicious of exotic features that could fail in surprising ways.",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435266,
+    "by": "pwdisswordfishz",
+    "timeISO": "2025-10-01T07:30:42.000Z",
+    "textPlain": "I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.> If malloc fails and returns NULL, the cleanup function will still be called, and there’s no simple way to add a guard inside free_ptr.free(NULL) is a no-op, this is a non-issue.  I don't know what's so hard about a single if statement anyway even if this were an issue.",
     "parent": 45422717,
     "depth": 1
   },
@@ -14,5 +30,69 @@
     "textPlain": "Small blog post exploring a defer implementation using GCC’s cleanup + nested functions, looking at the generated assembly and potential use cases.",
     "parent": 45422717,
     "depth": 1
+  },
+  {
+    "id": 45435175,
+    "by": "grodes",
+    "timeISO": "2025-10-01T07:13:42.000Z",
+    "textPlain": "Seems good, but I do not care about cleanup memory since I started to use arenas.",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435499,
+    "by": "ncruces",
+    "timeISO": "2025-10-01T08:11:55.000Z",
+    "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.RAII doesn't make sense without initialization.Are you proposing C should add constructors, or that C should make do without defer because it can't add constructors?",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435484,
+    "by": "masklinn",
+    "timeISO": "2025-10-01T08:09:27.000Z",
+    "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.Because it’s nowhere near “almost decent RAII” and RAII requires a lot more machinery which makes retrofitting RAII complicated, especially in a langage like C which is both pretty conservative and not strong on types:- RAII is attached to types, so it’s not useful until you start massively overhauling code bases e.g. to RAII FDs or pointers in C you need to wrap each of them in bespoke types attaching ownership- without rust-style destructive moves (which has massive langage implications) every RAII value has to handle being dropped multiple times, which likely means you need C++-style copy/move hooks- RAII potentially injects code in any scope exit, which I can’t see old C heads liking much, if you add copy/move then every function call also gets involved- Because RAII “spreads” through wrapper types, that requires surfacing somehow to external callersDefer is a lot less safe and “clean” than RAII, but it’s also significantly less impactful at a language level. And while I very much prefer RAII to defer for clean-slate design, I’ve absolutely come around to the idea that it’s not just undesirable but infeasible to retrofit into C (without creating an entirely new language à la C++, you might not need C++ itself but you would need a lot of changes to C’s semantics and culture both for RAII to be feasible).https://thephd.dev/just-put-raii-in-c-bro-please-bro-just-on... has even more, mostly from the POV of backporting C++ so some items have Rust counterpoints… with the issue that they tend to require semantics changes matching Rust which is also infeasible.",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435498,
+    "by": "oreally",
+    "timeISO": "2025-10-01T08:11:47.000Z",
+    "textPlain": "poor?If I use RAII I'd need to have a struct/class and a destructor.If I use defer I'd just need the keyword defer and the free() code. It's a lot more lean, efficient, understandable to write out.And with regards to code-execution timing, defer frees me from such a burden compared to if-free.",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435532,
+    "by": "Ygg2",
+    "timeISO": "2025-10-01T08:20:37.000Z",
+    "textPlain": ">I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.It's as if people looked at try-with-resources/try-finally and thought, \"We could make this worse!\"",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435368,
+    "by": "jcupitt",
+    "timeISO": "2025-10-01T07:50:34.000Z",
+    "textPlain": "`free(NULL);` will crash on some platforms that gcc supports, I believe.",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435372,
+    "by": "accelbred",
+    "timeISO": "2025-10-01T07:50:57.000Z",
+    "textPlain": "This is still useful for cleaning up file descriptors, unlocking mutexes, etc.",
+    "parent": 45435175,
+    "depth": 2
+  },
+  {
+    "id": 45435379,
+    "by": "jcupitt",
+    "timeISO": "2025-10-01T07:52:09.000Z",
+    "textPlain": "Cleanup can be very useful if you depend on a library that does not support arenas.",
+    "parent": 45435175,
+    "depth": 2
   }
 ]
