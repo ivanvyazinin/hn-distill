@@ -1,5 +1,29 @@
 [
   {
+    "id": 45435827,
+    "by": "mgaunard",
+    "timeISO": "2025-10-01T09:22:27.000Z",
+    "textPlain": "Just use C++, it's its main feature on top of C.",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435770,
+    "by": "babel_",
+    "timeISO": "2025-10-01T09:10:53.000Z",
+    "textPlain": "I tested Jen's macro this was based on, and found that the always_inline was redundant under even -O1 (https://godbolt.org/z/qoh861Gch via the examples from N3488 as became the baseline for the TS for C2y, which has recently a new revision under N3687), so there's an interesting trade-off between visibly seeing the `defer` by not not-inlining within the macro under an -O0 or similar unoptimised build, since with the inlining they are unmarked in the disassembly. But, there's an interesting twist here, as \"defer: the feature\" is likely not going to be implemented as \"defer: the macro\", since compilers will have the keyword (just `defer` in TS25755, or something else that uses a header for sugared `defer`) and may see the obvious optimised rewrite as the straightforward way of implementing it in the first place (as some already have), meaning we can have the benefit of the optimised inline with the opportunity to also keep it clearly identifiable, even in unoptimised and debug builds, which would certainly be nice to have!",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
+    "id": 45435693,
+    "by": "majke",
+    "timeISO": "2025-10-01T08:59:16.000Z",
+    "textPlain": "Nested functions are cool, although not supported by clang.However they rely on Trampolines:\nhttps://gcc.gnu.org/onlinedocs/gccint/Trampolines.htmlAnd trampolines need executable stack:> The use of trampolines requires an executable stack, which is a security risk. To avoid this problem, GCC also supports another strategy: using descriptors for nested functions. Under this model, taking the address of a nested function results in a pointer to a non-executable function descriptor object. Initializing the static chain from the descriptor is handled at indirect call sites.So, if I understand it right, instead trampoline on executable stack, the pointer to function and data is pushed into the \"descriptor\", and then there is an indirect call to this. I guess better than exec stack, but still...",
+    "parent": 45422717,
+    "depth": 1
+  },
+  {
     "id": 45435231,
     "by": "scoopr",
     "timeISO": "2025-10-01T07:22:35.000Z",
@@ -40,18 +64,26 @@
     "depth": 1
   },
   {
+    "id": 45435809,
+    "by": "fuhsnn",
+    "timeISO": "2025-10-01T09:18:37.000Z",
+    "textPlain": "It's been implemented in GCC(in review)[1], onramp[2] and my own slimcc[3]![1] https://patchwork.ozlabs.org/project/gcc/list/?series=470822[2] https://github.com/ludocode/onramp[3] https://github.com/fuhsnn/slimcc",
+    "parent": 45435231,
+    "depth": 2
+  },
+  {
+    "id": 45435797,
+    "by": "babel_",
+    "timeISO": "2025-10-01T09:17:28.000Z",
+    "textPlain": "Jen's macro that this was based on was an implementation of his own proposal (N3434) for `defer`, which was one of a few preceding what finally became TS25755! So, yes, C2y is lined up to have \"defer: the feature\", but until then, we can explore \"defer: the macro\" (at least on GCC builds, as formulated).",
+    "parent": 45435231,
+    "depth": 2
+  },
+  {
     "id": 45435499,
     "by": "ncruces",
     "timeISO": "2025-10-01T08:11:55.000Z",
     "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.RAII doesn't make sense without initialization.Are you proposing C should add constructors, or that C should make do without defer because it can't add constructors?",
-    "parent": 45435266,
-    "depth": 2
-  },
-  {
-    "id": 45435484,
-    "by": "masklinn",
-    "timeISO": "2025-10-01T08:09:27.000Z",
-    "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.Because it’s nowhere near “almost decent RAII” and RAII requires a lot more machinery which makes retrofitting RAII complicated, especially in a langage like C which is both pretty conservative and not strong on types:- RAII is attached to types, so it’s not useful until you start massively overhauling code bases e.g. to RAII FDs or pointers in C you need to wrap each of them in bespoke types attaching ownership- without rust-style destructive moves (which has massive langage implications) every RAII value has to handle being dropped multiple times, which likely means you need C++-style copy/move hooks- RAII potentially injects code in any scope exit, which I can’t see old C heads liking much, if you add copy/move then every function call also gets involved- Because RAII “spreads” through wrapper types, that requires surfacing somehow to external callersDefer is a lot less safe and “clean” than RAII, but it’s also significantly less impactful at a language level. And while I very much prefer RAII to defer for clean-slate design, I’ve absolutely come around to the idea that it’s not just undesirable but infeasible to retrofit into C (without creating an entirely new language à la C++, you might not need C++ itself but you would need a lot of changes to C’s semantics and culture both for RAII to be feasible).https://thephd.dev/just-put-raii-in-c-bro-please-bro-just-on... has even more, mostly from the POV of backporting C++ so some items have Rust counterpoints… with the issue that they tend to require semantics changes matching Rust which is also infeasible.",
     "parent": 45435266,
     "depth": 2
   },
@@ -64,10 +96,10 @@
     "depth": 2
   },
   {
-    "id": 45435532,
-    "by": "Ygg2",
-    "timeISO": "2025-10-01T08:20:37.000Z",
-    "textPlain": ">I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.It's as if people looked at try-with-resources/try-finally and thought, \"We could make this worse!\"",
+    "id": 45435484,
+    "by": "masklinn",
+    "timeISO": "2025-10-01T08:09:27.000Z",
+    "textPlain": "> I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.Because it’s nowhere near “almost decent RAII” and RAII requires a lot more machinery which makes retrofitting RAII complicated, especially in a langage like C which is both pretty conservative and not strong on types:- RAII is attached to types, so it’s not useful until you start massively overhauling code bases e.g. to RAII FDs or pointers in C you need to wrap each of them in bespoke types attaching ownership- without rust-style destructive moves (which has massive langage implications) every RAII value has to handle being dropped multiple times, which likely means you need C++-style copy/move hooks- RAII potentially injects code in any scope exit, which I can’t see old C heads liking much, if you add copy/move then every function call also gets involved- Because RAII “spreads” through wrapper types, that requires surfacing somehow to external callersDefer is a lot less safe and “clean” than RAII, but it’s also significantly less impactful at a language level. And while I very much prefer RAII to defer for clean-slate design, I’ve absolutely come around to the idea that it’s not just undesirable but infeasible to retrofit into C (without creating an entirely new language à la C++, you might not need C++ itself but you would need a lot of changes to C’s semantics and culture both for RAII to be feasible).https://thephd.dev/just-put-raii-in-c-bro-please-bro-just-on... has even more, mostly from the POV of backporting C++ so some items have Rust counterpoints… with the issue that they tend to require semantics changes matching Rust which is also infeasible.",
     "parent": 45435266,
     "depth": 2
   },
@@ -76,6 +108,14 @@
     "by": "jcupitt",
     "timeISO": "2025-10-01T07:50:34.000Z",
     "textPlain": "`free(NULL);` will crash on some platforms that gcc supports, I believe.",
+    "parent": 45435266,
+    "depth": 2
+  },
+  {
+    "id": 45435532,
+    "by": "Ygg2",
+    "timeISO": "2025-10-01T08:20:37.000Z",
+    "textPlain": ">I don't understand why people insist on simulating a poor substitute for RAII with a feature that is itself almost decent RAII.It's as if people looked at try-with-resources/try-finally and thought, \"We could make this worse!\"",
     "parent": 45435266,
     "depth": 2
   },
