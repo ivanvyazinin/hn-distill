@@ -1,5 +1,29 @@
 [
   {
+    "id": 45437529,
+    "by": "sgarland",
+    "timeISO": "2025-10-01T13:33:07.000Z",
+    "textPlain": "While I am a fan of TigerBeetle’s general stance on correctness, coding practices, and their desire to hyper-specialize, I have some critiques on the post.I think the paragraph about multi-node is a bit misleading. Contrary to what cloud native folk will tell you, a single beefy DB, well-tuned and with a connection pooler, can serve a dizzying amount of QPS just fine. At a former employer, during a maintenance period, I once accidentally had all traffic pointed to our single MySQL 8 RDS instance, instead of sharing it between its read replicas. That was somewhere around 80-90K QPS, and it didn’t care at all. It wasn’t even a giant instance - r6i.12xlarge - we just had a decent schema, mostly sane queries, and good tuning on both ProxySQL and MySQL. At peak, that writer and two .8xlarge read replicas handled 120K QPS without blinking.A DB hosted on a server with node-local NVMe (you know, what used to be normal) will likely hit CPU limits before you saturate its I/O capabilities.For redundancy, all RDBMS designed for networked activity have some form of failover / hot standby capability.My other mild criticism is in the discussion on TigerBeetle’s consensus: yes, it seems quite clever and has no other dependencies, but it’s also not trying to deal with large rows. When you can fit 8,190 transactions into a 1 MiB packet that takes a single trip to be delivered, you can probably manage what would be impossible for a traditional RDBMS.None of this should be taken as belittling their accomplishment; I remain extremely impressed by their product.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45438024,
+    "by": "blenderob",
+    "timeISO": "2025-10-01T14:17:07.000Z",
+    "textPlain": "As nice as TigerBeetle is, do keep in mind that this article is written by an investment company that has invested in TigerBeetle: https://www.amplifypartners.com/blog-posts/our-investment-in...",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437574,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-10-01T13:36:47.000Z",
+    "textPlain": "I really like the work Joran and his team have done around DST, distributed systems awareness, and performance practices. I especially love the craziness around no dependencies (well, could you consider an underlying OS a dependecy?).But I've always felt the way they treat normal OLTP (they call OLGP) seems unfair. For example, comparisons using clear sub-optimal interactive SQL transactions for financial workloads, like locking rows rather than using condition checks at commit time, because \"that's how OLTP was intended to be used when it was designed ~50(?) years ago\".In their cited https://tigerbeetle.com/#performance the lowest the slider can go is 1% contention. Do you think Stripe has 1% contention directly on an OLTP DB? Definitely not.You can build systems that _expect contention_, and elegantly handle it at REALLY high throughput. These systems protect the DB from contention, so you can continue to scale. From talking to folks working on these systems, I roughly know the kinds of transactional (financial) throughput of DBs like Stripe's and other systems - they have _many_ more zeros behind them than their performance comparison page proposes they could possibly have at even 0.01% contention.Their marketing largely ignores this fact, and treats everyone like they just slam the DB with junior engineer-designed interactive transactions. Most developers (I hope) are smarter than that if they're working at a payments company. There's even the title \"payments engineer\" for the kind of person that's thinks about scaling contention and correctness all day.TigerBeetle is great, but I find the pattern of being quite misleading about other OLTPs off putting.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
     "id": 45436837,
     "by": "justinclift",
     "timeISO": "2025-10-01T12:23:41.000Z",
@@ -8,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45437511,
-    "by": "xnzm1001",
-    "timeISO": "2025-10-01T13:31:33.000Z",
-    "textPlain": "I work at a bank with old old monstrous sql queries.\nI thought I can make a use of tigerbeetle to simplify the system. But sadly, I just couldn't figure out how to make it work. Transaction requires lot of business logics but I couldn't convert that to make it work with combination of RDBMS + tigerbeetle.\nI wish there were some realworld example that I can get insight.  of using tigerbeetle.",
+    "id": 45436926,
+    "by": "wiradikusuma",
+    "timeISO": "2025-10-01T12:33:08.000Z",
+    "textPlain": "We were considering TigerBeetle, but found blockers:* We use Cloudflare Workers. TigerBeetle client app is not supported. It might work using Cloudflare Containers, but then the reason we use Cloudflare is for the Workers. --> https://github.com/tigerbeetle/tigerbeetle/issues/3177* TigerBeetle doesn't support any auth. It means the containing server (e.g. a VPS) must restrict by IP. Problem is, serverless doesn't have fixed IP. --> https://github.com/tigerbeetle/tigerbeetle/issues/3073",
     "parent": 45436534,
     "depth": 1
   },
@@ -24,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45436926,
-    "by": "wiradikusuma",
-    "timeISO": "2025-10-01T12:33:08.000Z",
-    "textPlain": "We were considering TigerBeetle but we found blockers:* We use Cloudflare Workers. TigerBeetle client app is not supported. It might work using Cloudflare Containers, but then the reason we use Cloudflare is for the Workers.* TigerBeetle doesn't support any auth. It means the containing server (e.g. a VPS) must restrict by IP. Problem is, serverless doesn't have fixed IP.",
+    "id": 45437927,
+    "by": "kamranjon",
+    "timeISO": "2025-10-01T14:09:06.000Z",
+    "textPlain": "I’m somewhat confused by the distributed story for tiger beetle. In the docs here:\nhttps://docs.tigerbeetle.com/concepts/performance/#single-th...It says: “TigerBeetle uses a single core by design and uses a single leader node to process events. Adding more nodes can therefore increase reliability, but not throughput.”How does this work with multi-region? Does this mean that regardless of where in the world your users might live, they need to make a request to the leader node for a write to occur?Is distribution purely for redundancy?",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437953,
+    "by": "mtlynch",
+    "timeISO": "2025-10-01T14:11:29.000Z",
+    "textPlain": "It's worth noting that the breathless worship of everything about TigerBeetle in this post is likely related to the fact that the author is an investor in TigerBeetle.[0][0] https://www.amplifypartners.com/portfolio/company",
     "parent": 45436534,
     "depth": 1
   },
@@ -36,6 +68,14 @@
     "by": "flir",
     "timeISO": "2025-10-01T12:35:12.000Z",
     "textPlain": "> They keep assertions enabled in production.Never understood why we turn those off. An assert failing in prod is an assert that I desperately want to know about.(That \"never understood\" was rhetorical).",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437954,
+    "by": "gregorvand",
+    "timeISO": "2025-10-01T14:11:40.000Z",
+    "textPlain": "We did an episode with Joran on SEDaily which addresses some of the points raised in the discussionshttps://softwareengineeringdaily.com/2024/09/12/building-a-f...",
     "parent": 45436534,
     "depth": 1
   },
@@ -56,6 +96,38 @@
     "depth": 1
   },
   {
+    "id": 45437875,
+    "by": "danielbarla",
+    "timeISO": "2025-10-01T14:03:58.000Z",
+    "textPlain": "TigerBeetle is plenty interesting, though if half of SpacetimeDB's [1] [2] claims are true, it's even more interesting for me. (The title of this post has \"_a_ most interesting database\", while the article has \"_the_\", hence this comment)[1] - https://spacetimedb.com/\n[2] - https://www.youtube.com/watch?v=kzDnA_EVhTU&",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437540,
+    "by": "ksec",
+    "timeISO": "2025-10-01T13:34:14.000Z",
+    "textPlain": ">Most teams write code fast. TigerBeetle tries to write code slow. Most teams treat testing as a necessary evil. TigerBeetle is built entirely on Deterministic Simulation Testing (DST). Most teams build their software on top of loads of other software. TigerBeetle has zero dependencies.I believe that was more like the norm 25+ years ago. Before Google and Facebook brought in the move fast and break things mentality across software industry.I hope TigerBeetle gets more recognition. Worth reading its Jepsen report as well. https://news.ycombinator.com/item?id=44199592",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437794,
+    "by": "novoreorx",
+    "timeISO": "2025-10-01T13:56:00.000Z",
+    "textPlain": "Why hasn't anyone mentioned the game they made? It looks fantastic. The concept of letting players try to crash a system to demonstrate its robustness is brilliant.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437661,
+    "by": "fjfaase",
+    "timeISO": "2025-10-01T13:44:25.000Z",
+    "textPlain": "I wonder if the 'debits and credits' example is still realistic. Is it not that banks record all individual money transfers and keep them on record for years (often due to national laws that require this). Then the balance on a certain account is a simply a selection/view on the set of all transactions. For efficiency reasons you may want to store the result in some table. If there is a limit on withdrawals on a certain account, you do need to calculate the balance first and then a transaction mechanism is needed to assure that there are not several money transfer that individually do not surpass the limit but together do.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
     "id": 45437248,
     "by": "initramfs",
     "timeISO": "2025-10-01T13:08:11.000Z",
@@ -72,18 +144,10 @@
     "depth": 1
   },
   {
-    "id": 45437431,
-    "by": "IshKebab",
-    "timeISO": "2025-10-01T13:24:43.000Z",
-    "textPlain": "> Deterministic Simulation Testing (DST) feels like the most transformational technology that the fewest developers know about. It’s a novel testing technique made popular by the FoundationDB teamIt's not novel. That's how hardware (ASIC) testing has been done forever. The novelty is applying it to software.> TigerBeetle’s VOPR is the single largest DST cluster on the planet. It runs on 1,000 CPU coresOnly if you exclude hardware, otherwise basically every chip design company has a cluster bigger than this.",
-    "parent": 45436534,
-    "depth": 1
-  },
-  {
-    "id": 45437353,
-    "by": "self_awareness",
-    "timeISO": "2025-10-01T13:16:48.000Z",
-    "textPlain": "The most interesting database is the most boring one.",
+    "id": 45437511,
+    "by": "xnzm1001",
+    "timeISO": "2025-10-01T13:31:33.000Z",
+    "textPlain": "I work at a bank with old old monstrous sql queries.\nI thought I can make a use of tigerbeetle to simplify the system. But sadly, I just couldn't figure out how to make it work. Transaction requires lot of business logics but I couldn't convert that to make it work with combination of RDBMS + tigerbeetle.\nI wish there were some realworld example that I can get insight using tigerbeetle.",
     "parent": 45436534,
     "depth": 1
   },
@@ -104,10 +168,34 @@
     "depth": 1
   },
   {
+    "id": 45437531,
+    "by": "porridgeraisin",
+    "timeISO": "2025-10-01T13:33:24.000Z",
+    "textPlain": "TigerBeetle looks interesting. A whole networked database using statically allocated memory. I usually use that technique for small keyboard-shortcut triggered applications.One question in case folks who work there see this:This is the most technically impressive zig project I've seen so far. Do you have a blog post detailing your perspective on zig? i.e what design decisions of ziglang helped you in massive way, what were the warts, and in general any other thoughts too?",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437860,
+    "by": "oowoe",
+    "timeISO": "2025-10-01T14:02:12.000Z",
+    "textPlain": "hiiiiiiiiiii owo pwp qwq",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
     "id": 45436932,
     "by": "bell-cot",
     "timeISO": "2025-10-01T12:33:48.000Z",
     "textPlain": "Consider re-titling it \"A very cool & interesting article about a very boring & reliable database\"?Since \"interesting\" is the very last thing that anyone sane wants in their accounting/financial/critical-stuff database.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437431,
+    "by": "IshKebab",
+    "timeISO": "2025-10-01T13:24:43.000Z",
+    "textPlain": "> Deterministic Simulation Testing (DST) feels like the most transformational technology that the fewest developers know about. It’s a novel testing technique made popular by the FoundationDB teamIt's not novel. That's how hardware (ASIC) testing has been done forever. The novelty is applying it to software.> TigerBeetle’s VOPR is the single largest DST cluster on the planet. It runs on 1,000 CPU coresOnly if you exclude hardware, otherwise basically every chip design company has a cluster bigger than this.",
     "parent": 45436534,
     "depth": 1
   },
@@ -120,12 +208,52 @@
     "depth": 1
   },
   {
+    "id": 45437857,
+    "by": "oowoe",
+    "timeISO": "2025-10-01T14:02:03.000Z",
+    "textPlain": "hiiiiiiiiii owo qwq pwp",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
+    "id": 45437353,
+    "by": "self_awareness",
+    "timeISO": "2025-10-01T13:16:48.000Z",
+    "textPlain": "The most interesting database is the most boring one.",
+    "parent": 45436534,
+    "depth": 1
+  },
+  {
     "id": 45436875,
     "by": "gayjew",
     "timeISO": "2025-10-01T12:27:39.000Z",
     "textPlain": "[dead]",
     "parent": 45436534,
     "depth": 1
+  },
+  {
+    "id": 45437987,
+    "by": "justinhj",
+    "timeISO": "2025-10-01T14:14:05.000Z",
+    "textPlain": "That a traditional modern RDBMS is very fast is not really useful here because the use case of Tigerbeetle includes work loads with high contention. Under that kind of load, in their own tests you can see in a recent conference talk, you can see the throughput drops dramatically in clusters where many transactions affect a single account.edit: from the horses mouth is better https://news.ycombinator.com/item?id=45437046",
+    "parent": 45437529,
+    "depth": 2
+  },
+  {
+    "id": 45437625,
+    "by": "sgarland",
+    "timeISO": "2025-10-01T13:40:35.000Z",
+    "textPlain": "> Do you think Stripe has 1% contention directly on an OLTP DB? Definitely not.Stripe runs on top of MongoDB, which is horrifying in its own right, but in any case comparing them to a shop running an RDBMS is apples to oranges.",
+    "parent": 45437574,
+    "depth": 2
+  },
+  {
+    "id": 45437046,
+    "by": "jorangreef",
+    "timeISO": "2025-10-01T12:46:22.000Z",
+    "textPlain": "Joran from TigerBeetle!Without much sweat for general purpose workloads.But transaction processing tends to have power law contention that kills SQL row locks (cf. Amdahl’s Law).We put a contention calculator on our homepage to show the theoretical best case limits and they’re lower than one might think: https://tigerbeetle.com/#general-purpose-databases-have-an-o...",
+    "parent": 45436837,
+    "depth": 2
   },
   {
     "id": 45437193,
@@ -136,10 +264,10 @@
     "depth": 2
   },
   {
-    "id": 45437046,
-    "by": "jorangreef",
-    "timeISO": "2025-10-01T12:46:22.000Z",
-    "textPlain": "Joran from TigerBeetle!Without much sweat for general purpose workloads.But transaction processing tends to have power law contention that kills SQL row locks (cf. Amdahl’s Law).We put a contention calculator on our homepage to show the theoretical best case limits and they’re lower than one might think: https://tigerbeetle.com/#performance",
+    "id": 45437582,
+    "by": "yomismoaqui",
+    "timeISO": "2025-10-01T13:37:19.000Z",
+    "textPlain": "Are you telling me that new shiny things are not always better that established, time tested and boring tech?Sometimes I feel like we software engineers have the worst memory of any engineers.",
     "parent": 45436837,
     "depth": 2
   },
@@ -160,18 +288,42 @@
     "depth": 2
   },
   {
-    "id": 45437496,
-    "by": "oblio",
-    "timeISO": "2025-10-01T13:30:28.000Z",
-    "textPlain": "> AFAIK - the only reason FDB isn't massively popular is because no one has bothered to write good layers on top. I do know of a few folks writing a SQS, DynamoDB and SQLite layers.I started writing this comment:> It seems interesting, but considering what it's for, why aren't the hyperscalers using it?And while writing it I started searching for FoundationDB and found this:> https://github.com/<<apple>>/foundationdbAh, all right :-p",
-    "parent": 45436921,
+    "id": 45437758,
+    "by": "cmrdporcupine",
+    "timeISO": "2025-10-01T13:52:40.000Z",
+    "textPlain": "Yeah, SQL is not the issue. At least not mostly.The relational model has shown itself to be exactly the flexible and powerful model that Codd said it was, even in its relatively-debased from in SQL.In fact the potential of it as a universal and flexible data model that abstracts away storage still remains to be fully unlocked.Now as for existing SQL databases, yes, many of them were built on foundational assumptions about the nature of memory and secondary storage that no longer hold true.Many of us in this industry still have our heads stuck in the past world of spinny spinny magnetic disks on platters with heads and cylinders and grinding noises. Real world hardware has moved on. We have a couple orders of magnitude higher IOPS generally available than we did just 10-15 years ago.So I'm excited about products like CedarDB and others (Umbra before it, etc) that are being built on a foundation from day one of managing with hybrid in-memory/disk.Throwing out SQL is not really the recipe for \"performance\" and the lessons of separating the storage system from the data model is still key, since the 1960s.I am willing to grant that a specialized transaction/ledger system like TigerBeetle might have its place as an optimization strategy in a specific industry/domain, but we should not make the mistake of characterizing this as a general problem with the relational model and data storage broadly.",
+    "parent": 45436837,
     "depth": 2
   },
   {
-    "id": 45437358,
-    "by": "dangoodmanUT",
-    "timeISO": "2025-10-01T13:17:24.000Z",
-    "textPlain": "the one true database",
+    "id": 45437070,
+    "by": "vjerancrnjak",
+    "timeISO": "2025-10-01T12:48:41.000Z",
+    "textPlain": "But Cloudflare Workers or AWS Lambda setup would not work anyway with any db?* spawning 1000 workers all opening a connection to a db,* solved by service/proxy in front of db,* proxy knows how to reach db anyway, let's do private network and not care about auth",
+    "parent": 45436926,
+    "depth": 2
+  },
+  {
+    "id": 45437793,
+    "by": "jorangreef",
+    "timeISO": "2025-10-01T13:55:58.000Z",
+    "textPlain": "You should chat to our solutions team, who'd be able to help you solve auth etc. at the logical level with end-to-end encryption, something we typically do for our customers.",
+    "parent": 45436926,
+    "depth": 2
+  },
+  {
+    "id": 45437506,
+    "by": "caust1c",
+    "timeISO": "2025-10-01T13:31:15.000Z",
+    "textPlain": "Wait, what?  A database in 2025 doesn't support any kind of auth?  A financial database?  WTF?C'mon folks, the least you can do is put a guide for adding an auth proxy or auth layer on your site.Particularly since you don't use HTTP (cant easily tell from the docs, I'm assuming), then folks are going to be left wondering: \"well how the hell do I add an auth proxy without HTTP\" and just put it on the open internet...",
+    "parent": 45436926,
+    "depth": 2
+  },
+  {
+    "id": 45437576,
+    "by": "ksec",
+    "timeISO": "2025-10-01T13:36:54.000Z",
+    "textPlain": "I thought they got bought by Apple and what happened to it after?",
     "parent": 45436921,
     "depth": 2
   },
@@ -184,19 +336,43 @@
     "depth": 2
   },
   {
-    "id": 45437506,
-    "by": "caust1c",
-    "timeISO": "2025-10-01T13:31:15.000Z",
-    "textPlain": "Wait, what?  A database in 2025 doesn't support any kind of auth?  A financial database?  WTF?C'mon folks, the least you can do is put a guide for adding an auth proxy or auth layer on your site.Particularly since you don't use HTTP (cant easily tell from the docs, I'm assuming), then folks are going to be left wondering: \"well how the hell do I add an auth proxy without HTTP\" and just put it on the open internet...",
-    "parent": 45436926,
+    "id": 45437358,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-10-01T13:17:24.000Z",
+    "textPlain": "the one true database",
+    "parent": 45436921,
     "depth": 2
   },
   {
-    "id": 45437070,
-    "by": "vjerancrnjak",
-    "timeISO": "2025-10-01T12:48:41.000Z",
-    "textPlain": "But Cloudflare Workers or AWS Lambda setup would not work anyway with any db?* spawning 1000 workers all opening a connection to a db,* solved by service/proxy in front of db,* proxy knows how to reach db anyway, let's do private network and not care about auth",
-    "parent": 45436926,
+    "id": 45437496,
+    "by": "oblio",
+    "timeISO": "2025-10-01T13:30:28.000Z",
+    "textPlain": "> AFAIK - the only reason FDB isn't massively popular is because no one has bothered to write good layers on top. I do know of a few folks writing a SQS, DynamoDB and SQLite layers.I started writing this comment:> It seems interesting, but considering what it's for, why aren't the hyperscalers using it?And while writing it I started searching for FoundationDB and found this:> https://github.com/<<apple>>/foundationdbAh, all right :-p",
+    "parent": 45436921,
+    "depth": 2
+  },
+  {
+    "id": 45437530,
+    "by": "oblio",
+    "timeISO": "2025-10-01T13:33:23.000Z",
+    "textPlain": "And a more serious comment, to separate it from the silly one below:Interesting that they didn't release it with an SQL client, is there no way to make it compatible? Even with extensions to SQL, I imagine it would be great for a lot of use cases.Edit: ah, it's more of a key-value store.",
+    "parent": 45436921,
+    "depth": 2
+  },
+  {
+    "id": 45438054,
+    "by": "Voultapher",
+    "timeISO": "2025-10-01T14:19:59.000Z",
+    "textPlain": "The way I understand it yes. Latency will be dictated by going to the leader node and replication to enough followers. The CAP theorem dictates that if you want strong consistency the way they offer you have to talk to a quorum of nodes IIRC N/2 + 1. Paxos and Raft also work that way.Apparently there is a game about it https://tigerbeetle.com/blog/2023-07-11-we-put-a-distributed...",
+    "parent": 45437927,
+    "depth": 2
+  },
+  {
+    "id": 45437917,
+    "by": "kstenerud",
+    "timeISO": "2025-10-01T14:08:10.000Z",
+    "textPlain": "It's historical: turning off assertions made the code run faster.But nowadays an extra comparison is no biggie, especially if the compiler can hint at which way it's likely to go.",
+    "parent": 45436952,
     "depth": 2
   },
   {
@@ -204,14 +380,6 @@
     "by": "Cthulhu_",
     "timeISO": "2025-10-01T13:13:07.000Z",
     "textPlain": "On paper it's because assertions are only checks for developers to make sure they don't misuse an API. They still have values if it's user input, but at that stage, it would be better to change it to business logic like a proper error message returned to the end-user.",
-    "parent": 45436952,
-    "depth": 2
-  },
-  {
-    "id": 45437510,
-    "by": "TZubiri",
-    "timeISO": "2025-10-01T13:31:30.000Z",
-    "textPlain": "Because the very raison d'etre of asserts is to be a compile time/test time check. If you wanted them to run in production, you wouldn't use an assert, you would just run an if. Otherwise what's an assert to you? A mildly convenient sugar syntax alternative to if statements?",
     "parent": 45436952,
     "depth": 2
   },
@@ -224,75 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45437023,
-    "by": "CGMthrowaway",
-    "timeISO": "2025-10-01T12:43:21.000Z",
-    "textPlain": "It sounds awesome. I'm an a analytics guy using a lot of SQL - not a coder. Though I understand the OP writeup and the purported performance advantages. Can someone explain:a) what Tigerbeetle data looks like in practice? Assuming it doesn't look like a regular tableb) how you use it, if you can't write sql queries?c) separately, curious what double-entry would look like for stocks, tickets etc. E.g. I'm a venue and I have 1000 tickets in inventory & deferred revenue.. each time I sell a ticket I turn that inventory to cash and the deferred into a performance liability? Or no entries at all until a ticket is sold? Something else?",
-    "parent": 45436823,
-    "depth": 2
-  },
-  {
-    "id": 45436895,
-    "by": "deadbabe",
-    "timeISO": "2025-10-01T12:30:31.000Z",
-    "textPlain": "You could probably do something similar in Postgres.",
-    "parent": 45436823,
-    "depth": 2
-  },
-  {
-    "id": 45436820,
-    "by": "jorangreef",
-    "timeISO": "2025-10-01T12:21:42.000Z",
-    "textPlain": "Joran from TigerBeetle here!Yes, this is by design. SQL is a great general purpose query language for read-heavy variable-length string workloads, but TigerBeetle optimizes for write-heavy transaction processing workloads (essentially debit/credit with fixed-size integers) and specifically with power law contention, which kills SQL row locks.I spoke about this specific design decision in depth at Systems Distributed this year:1000x - https://m.youtube.com/watch?v=yKgfk8lTQuE",
-    "parent": 45436748,
-    "depth": 2
-  },
-  {
-    "id": 45436832,
-    "by": "criddell",
-    "timeISO": "2025-10-01T12:22:57.000Z",
-    "textPlain": "Just to be a little pedantic for a second, isn't TigerBeetle a database management system (DBMS) whereas a TigerBeetle database would be actual data and metadata managed by TigerBeetle?",
-    "parent": 45436562,
-    "depth": 2
-  },
-  {
-    "id": 45436754,
-    "by": "jorangreef",
-    "timeISO": "2025-10-01T12:12:58.000Z",
-    "textPlain": "Liked it almost as much as My Cousin Vinny! ;)",
-    "parent": 45436562,
-    "depth": 2
-  },
-  {
-    "id": 45436831,
-    "by": "pjmlp",
-    "timeISO": "2025-10-01T12:22:52.000Z",
-    "textPlain": "I am quite sure Oracle and MS SQL server do just fine in multi-node cluster based architectures, but maybe that isn't their target audience.",
-    "parent": 45436768,
-    "depth": 2
-  },
-  {
-    "id": 45436787,
-    "by": "redwood",
-    "timeISO": "2025-10-01T12:17:21.000Z",
-    "textPlain": "Postgres, MySQL",
-    "parent": 45436768,
-    "depth": 2
-  },
-  {
-    "id": 45437490,
-    "by": "itunpredictable",
-    "timeISO": "2025-10-01T13:29:30.000Z",
-    "textPlain": "looks like the poster agrees",
-    "parent": 45436932,
-    "depth": 2
-  },
-  {
-    "id": 45437220,
-    "by": "itunpredictable",
-    "timeISO": "2025-10-01T13:04:58.000Z",
-    "textPlain": "thank you!",
-    "parent": 45437007,
+    "id": 45437510,
+    "by": "TZubiri",
+    "timeISO": "2025-10-01T13:31:30.000Z",
+    "textPlain": "Because the very raison d'etre of asserts is to be a compile time/test time check. If you wanted them to run in production, you wouldn't use an assert, you would just run an if. Otherwise what's an assert to you? A mildly convenient sugar syntax alternative to if statements?",
+    "parent": 45436952,
     "depth": 2
   }
 ]
