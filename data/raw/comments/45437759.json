@@ -1,5 +1,13 @@
 [
   {
+    "id": 45446574,
+    "by": "sakras",
+    "timeISO": "2025-10-02T05:28:10.000Z",
+    "textPlain": "Giving it a quick look, seems like they've addressed a lot of the shortcomings of Parquet which is very exciting. In no particular order:- Parquet metadata is Thrift, but with comments saying \"if this field exists, this other field must exist\", and no code actually verifying the fact, so I'm pretty sure you could feed it bogus Thrift metadata and crash the reader.- Parquet metadata must be parsed out, meaning you have to: allocate a buffer, read the metadata bytes, and then dynamically keep allocating a whole bunch of stuff as you parse the metadata bytes, since you don't know the size of the materialized metadata! Too many heap allocations! This file format's Flatbuffers approach seems to solve this as you can interpret Flatbuffer bytes directly.- The encodings are much more powerful. I think a lot of people in the database community have been saying that we need composable/recursive lightweight encodings for a long time. BtrBlocks was the first such format that was open in my memory, and then FastLanes followed up. Both of these were much better than Parquet by itself, so I'm glad ideas from those two formats are being taken up.- Parquet did the Dremel record-shredding thing which just made my brain explode and I'm glad they got rid of it. It seemed to needlessly complicate the format with no real benefit.- Parquet datapages might contain different numbers of rows, so you have to scan the whole ColumnChunk to find the row you want. Here it seems like you can just jump to the DataPage (IOUnit) you want.- They got rid of the heavyweight compression and just stuck with the Delta/Dictionary/RLE stuff. Heavyweight compression never did anything anyway, and was super annoying to implement, and basically required you to pull in 20 dependencies.Overall great improvement, I'm looking forward to this taking over the data analytics space.",
+    "parent": 45437759,
+    "depth": 1
+  },
+  {
     "id": 45446083,
     "by": "anigbrowl",
     "timeISO": "2025-10-02T03:27:53.000Z",
@@ -32,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45445746,
-    "by": "fallat",
-    "timeISO": "2025-10-02T02:15:14.000Z",
-    "textPlain": "A format requiring a program to decode is nuts. Might as well bundle 7zip with every zip file.",
+    "id": 45446722,
+    "by": "gigatexal",
+    "timeISO": "2025-10-02T05:59:41.000Z",
+    "textPlain": "Inertia is a thing. Parquet and ORC and all the myriad of other formats all exist with ecosystems and things. For this to succeed they’d have to seed the community with connectors and libraries and hooks into things to make it easy to use.Plugins for DudckDB for example to read and write to it. Heck if you got Iceberg to use it instead of parquet that could be a win.Sometimes tech doesn’t win on the merits because of how entrenched existing stuff is and the high cost of switching.",
+    "parent": 45437759,
+    "depth": 1
+  },
+  {
+    "id": 45446590,
+    "by": "pyrolistical",
+    "timeISO": "2025-10-02T05:32:13.000Z",
+    "textPlain": "The neat thing about this the client could substitute with their down decoder when they detect a supported format.This would allow them to use a decoder optimized for the current hardware. Eg. multi-threaded",
     "parent": 45437759,
     "depth": 1
   },
@@ -44,6 +60,14 @@
     "by": "esafak",
     "timeISO": "2025-10-02T01:27:38.000Z",
     "textPlain": "How do they prevent people from embedding malicious payloads  in the WebAssembly?",
+    "parent": 45437759,
+    "depth": 1
+  },
+  {
+    "id": 45445746,
+    "by": "fallat",
+    "timeISO": "2025-10-02T02:15:14.000Z",
+    "textPlain": "A format requiring a program to decode is nuts. Might as well bundle 7zip with every zip file.",
     "parent": 45437759,
     "depth": 1
   },
@@ -96,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45445650,
-    "by": "trhway",
-    "timeISO": "2025-10-02T01:53:53.000Z",
-    "textPlain": "the embedded decoder may as well be closing on a full-blown SQL execution engine (as the data size tramps the executable size these days). Push that execution onto a memory chips and into SSD/HDD controllers. I think something similar happens in filesystem development too where instead of straight access to raw data you may access some execution API over the data. A modern take on IBM mainframe's filesystem database.",
-    "parent": 45437759,
-    "depth": 1
-  },
-  {
     "id": 45445549,
     "by": "1oooqooq",
     "timeISO": "2025-10-02T01:33:15.000Z",
     "textPlain": "data file format for the future [pdf]:)",
+    "parent": 45437759,
+    "depth": 1
+  },
+  {
+    "id": 45445650,
+    "by": "trhway",
+    "timeISO": "2025-10-02T01:53:53.000Z",
+    "textPlain": "the embedded decoder may as well be closing on a full-blown SQL execution engine (as the data size tramps the executable size these days). Push that execution onto a memory chips and into SSD/HDD controllers. I think something similar happens in filesystem development too where instead of straight access to raw data you may access some execution API over the data. A modern take on IBM mainframe's filesystem database.",
     "parent": 45437759,
     "depth": 1
   },
@@ -120,18 +144,18 @@
     "depth": 1
   },
   {
-    "id": 45446478,
-    "by": "snthpy",
-    "timeISO": "2025-10-02T05:07:41.000Z",
-    "textPlain": "Andy Pavlo also deserves a shout out; he's an authority on databases and lives a \"data oriented lifestyle\". See his two \"What goes around comes around ...\" papers for great overviews of the past and future 50 years in databases respectively (as well as all the amazing CMU Seminar Series). I'm excited to see him involved in this.My apologies to the Chinese coauthors who I'm not familiar with.Bookmarked for thorough reading!",
-    "parent": 45446083,
-    "depth": 2
-  },
-  {
     "id": 45446416,
     "by": "snthpy",
     "timeISO": "2025-10-02T04:53:33.000Z",
     "textPlain": "I'm a big fan of Wes' work and Pandas was incredibly influential. However technically it wasn't his best work. In terms of selling points, I think that the Arrow data format is technically much better and more influential on the data ecosystem as a whole, see DataFusion, etc...That said, now let me see what F3 is actually about (and yes, your comment is what actually made me want to click through to the link) ...",
+    "parent": 45446083,
+    "depth": 2
+  },
+  {
+    "id": 45446478,
+    "by": "snthpy",
+    "timeISO": "2025-10-02T05:07:41.000Z",
+    "textPlain": "Andy Pavlo also deserves a shout out; he's an authority on databases and lives a \"data oriented lifestyle\". See his two \"What goes around comes around ...\" papers for great overviews of the past and future 50 years in databases respectively (as well as all the amazing CMU Seminar Series). I'm excited to see him involved in this.My apologies to the Chinese coauthors who I'm not familiar with.Bookmarked for thorough reading!",
     "parent": 45446083,
     "depth": 2
   },
@@ -192,19 +216,19 @@
     "depth": 2
   },
   {
-    "id": 45446237,
-    "by": "coderatlarge",
-    "timeISO": "2025-10-02T04:05:22.000Z",
-    "textPlain": "not a bad idea if your average file size is a terabyte and there’s never a sure way to get a clean binary.",
-    "parent": 45445746,
-    "depth": 2
-  },
-  {
     "id": 45445560,
     "by": "aeonfox",
     "timeISO": "2025-10-02T01:34:56.000Z",
     "textPlain": "By sandboxing:> We first discuss the implementation considerations of the input to the Wasm-side Init() API call. The isolated linear memory space of Wasm instance is referred to as guest, while the program’s address space running the Wasm instance is referred to as host. The input to a Wasm instance consists of the contiguous bytes of an EncUnit copied from the host’s memory into the guest’s memory, plus any additional runtime options.> Although research has shown the importance of minimizing the number of memory copies in analytical workloads, we consider the memory copy while passing input to Wasm decoders hard to avoid for several reasons. First, the sandboxed linear memory restricts the guest to accessing only its own memory. Prior work has modified Wasm runtimes to allow access to host memory for reduced copying, but such changes compromise Wasm’s security guarantees",
     "parent": 45445522,
+    "depth": 2
+  },
+  {
+    "id": 45446237,
+    "by": "coderatlarge",
+    "timeISO": "2025-10-02T04:05:22.000Z",
+    "textPlain": "not a bad idea if your average file size is a terabyte and there’s never a sure way to get a clean binary.",
+    "parent": 45445746,
     "depth": 2
   },
   {
@@ -221,6 +245,14 @@
     "timeISO": "2025-10-02T03:57:09.000Z",
     "textPlain": "LLM = Lager, lager, mead",
     "parent": 45446124,
+    "depth": 2
+  },
+  {
+    "id": 45446622,
+    "by": "defanor",
+    "timeISO": "2025-10-02T05:37:10.000Z",
+    "textPlain": "Indeed, I guess in a while it is going to look pretty much like the older formats relying on obscure bytecode look now. Possibly the kind of data analytics it aims has some special requirements, but I would expect a simple format like CSV (or DSV, more generally) to be more future-proof generally.",
+    "parent": 45445663,
     "depth": 2
   },
   {
