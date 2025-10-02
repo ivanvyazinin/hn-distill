@@ -1,0 +1,34 @@
+[
+  {
+    "id": 45413252,
+    "by": "sylware",
+    "timeISO": "2025-09-29T13:08:55.000Z",
+    "textPlain": "This is implemented with instruction fusion. Just need to document properly and publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).Adding more instructions is kind of non productive for a R(educed)ISC ISA. It has to be weighted with extreme care. Compressed instructions went thru for the sake of code density (marketing vs arm thumb instructions).In the end, programs will want probably to stay conservative and will implement only the core ISA, at best giving some love to some instruction fusion patterns and that's it, unless being built knowingly for a specific risc-v hardware implementation.",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45418467,
+    "by": "brucehoult",
+    "timeISO": "2025-09-29T20:36:48.000Z",
+    "textPlain": "> some SiFive cores implement exactly this fusion.I was not able to open the given link, but it's not true, at least for the U74.Fusion means that one or more instructions are converted to one internal instruction (µop).SiFive's optimisation [1] of a short forward conditional branch over exactly one instruction has both instructions executing as normal, the branch in pipe A and the other instruction simultaneously in pipe B. At the final stage if the branch turns out to be taken then it is not in fact physically taken, but is instead implemented by suppressing the register write-back of the 2nd instruction.There are only a limited set of instructions that can be the 2nd instruction in this optimisation, and loads and stores do not qualify. Only simple register-register or register-immediate ALU operations are allowed, including `lui` and `auipc` as well as C aliases such as `c.mv` and `c.li`> The whole premise of fusion is predicated on the idea that it is valid for a core to transform code similar to the branchy code on the left into code similar to the branch-free code on the right. I wish to cast doubt on this validity: it is true that the two instruction sequences compute the same thing, but details of the RISC-V memory consistency model mean that the two sequences are very much not equivalent, and therefore a core cannot blindly turn one into the other.The presented code ...      mv rd, x0\n      beq rs2, x0, skip_next\n      mv rd, rs1\n    skip_next:\n\n... vs ...    czero.eqz rd, rs1, rs2\n\n... requires that not only rd != rs2 (as stated) but also that rd != rs1. A better implementation is ...      mv rd, rs1 // safe even if they are the same register\n      bne rs2, x0, skip\n      mv rd, x0\n    skip:\n\nThe RISC-V memory consistency model does not come into it, because there are no loads or stores.Then switching to code involving loads and stores is completely irrelevant:      lw x1, 0(x2)\n      bne x1, x0, next\n    next:\n      sw x3, 0(x4)\n\nFirst of all, this code ",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45454109,
+    "by": "Pet_Ant",
+    "timeISO": "2025-10-02T19:16:15.000Z",
+    "textPlain": "Compressed instructions are also for microcontroller use. RISC-V -rightly or wrongly- is trying to be an ISA that can handle the whole stack from embedded microcontrollers to a top-end server.As such, there are compromises for both aims.",
+    "parent": 45413252,
+    "depth": 2
+  },
+  {
+    "id": 45421652,
+    "by": "sxzygz",
+    "timeISO": "2025-09-30T03:36:13.000Z",
+    "textPlain": "Thanks for your input. I didn’t know what to make of the article.",
+    "parent": 45418467,
+    "depth": 2
+  }
+]
