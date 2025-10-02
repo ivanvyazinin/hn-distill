@@ -1,17 +1,25 @@
 [
   {
-    "id": 45413252,
-    "by": "sylware",
-    "timeISO": "2025-09-29T13:08:55.000Z",
-    "textPlain": "This is implemented with instruction fusion. Just need to document properly and publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).Adding more instructions is kind of non productive for a R(educed)ISC ISA. It has to be weighted with extreme care. Compressed instructions went thru for the sake of code density (marketing vs arm thumb instructions).In the end, programs will want probably to stay conservative and will implement only the core ISA, at best giving some love to some instruction fusion patterns and that's it, unless being built knowingly for a specific risc-v hardware implementation.",
+    "id": 45456504,
+    "by": "wren6991",
+    "timeISO": "2025-10-02T22:47:54.000Z",
+    "textPlain": "Surprised an article published on September 28, 2025 does not include any mention of the P (packed integer SIMD) extension.P adds instructions like integer multiply-accumulate, which have a third register read (for rd). So, they're taking the opportunity to add a few forms of 3-register select instructions:   MVM     Move Masked\n           for each bit i:  X(rd)[i] = X(rs2)[i] ? X(rs1)[i] : X(rd)[i]\n\n   MVMN Move Masked Not\n           for each bit i:  X(rd)[i] = X(rs2)[i] ? X(rd)[i]  : X(rs1)[i]\n\n   MERGE Merge\n           for each bit i:  X(rd)[i] = X(rd)[i]  ? X(rs2)[i] : X(rs1)[i]\n\nActually I say I'm surprised but given the way the spec is currently spread around different parts of the internet, it's easy to miss if you're not following the mailing lists!",
     "parent": 45413059,
     "depth": 1
   },
   {
-    "id": 45454856,
-    "by": "Dwedit",
-    "timeISO": "2025-10-02T20:06:42.000Z",
-    "textPlain": "32-bit ARM had literally every instruction be conditional.",
+    "id": 45456535,
+    "by": "wren6991",
+    "timeISO": "2025-10-02T22:52:52.000Z",
+    "textPlain": "I feel like the author might be slightly missing the point here:> The whole premise of fusion is predicated on the idea that it is valid for a core to transform code similar to the branchy code on the left into code similar to the branch-free code on the right.The idea of Zicond afaict is that the compiler transforms select sequences into (usually multiple) Zicond instructions, and cores with more register ports available can fuse Zicond compounds into more complex select macro-ops. It's a 2R1W vocabulary for describing selects which require more than 2 read ports.As an aside I evaluated Zicond on my scalar 3-stage implementation and found that at 1 CPI for ALU ops and 2-cycle taken branch cost, the branchless sequences GCC produced for Zicond were never better and sometimes worse than the equivalent branching sequence. It really does seem to be targeting bigger cores, or constant-time execution",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45413252,
+    "by": "sylware",
+    "timeISO": "2025-09-29T13:08:55.000Z",
+    "textPlain": "This is implemented with instruction fusion. Just need to document properly and publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).Adding more instructions is kind of non productive for a R(educed)ISC ISA. It has to be weighted with extreme care. Compressed instructions went thru for the sake of code density (marketing vs arm thumb instructions).In the end, programs will want probably to stay conservative and will implement only the core ISA, at best giving some love to some instruction fusion patterns and that's it, unless being built knowingly for a specific risc-v hardware implementation.",
     "parent": 45413059,
     "depth": 1
   },
@@ -24,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45454856,
+    "by": "Dwedit",
+    "timeISO": "2025-10-02T20:06:42.000Z",
+    "textPlain": "32-bit ARM had literally every instruction be conditional.",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
     "id": 45456150,
     "by": "mort96",
     "timeISO": "2025-10-02T22:03:07.000Z",
-    "textPlain": "> In the end, programs will want probably to stay conservative and will implement only the core ISAThis is probably not the case. The core ISA doesn't include floating point, it doesn't include integer multiply or divide, it doesn't include atomic and fence instructions.What has happened is that most compilers and programs for \"normal desktop/laptop/server/phone class systems\" all have some baseline set of extensions. Today, this is more or less what we call the \"G\" extension collection (which is short-hand for IMAFD_Zicsr_Zifencei). Though what we consider \"baseline\" in \"normal systems\" will obviously evolve over time (just like how SSE is considered a part of \"baseline amd64\" these days whereas it was once a new exotic extension).Then lower power use cases like MCUs will have fewer instructions. There will be lots of MCUs without stuff like hardware floating point support that won't run binaries compiled for the G extension collection. In MCU use cases, you typically know at the time of compiling exactly what MCU your code will be running on, so passing the right flags to the compiler to make sure it generates only the supported instructions is not an issue.And then HPC use cases will probably assume more exotic extensions. And normal \"desktop/phone/laptop/server\" style use cases will have runtime detection of things like vector instructions in some situations.",
+    "textPlain": "> In the end, programs will want probably to stay conservative and will implement only the core ISAThis is probably not the case. The core ISA doesn't include floating point, it doesn't include integer multiply or divide, it doesn't include atomic and fence instructions.What has happened is that most compilers and programs for \"normal desktop/laptop/server/phone class systems\" all have some baseline set of extensions. Today, this is more or less what we call the \"G\" extension collection (which is short-hand for IMAFD_Zicsr_Zifencei). Though what we consider \"baseline\" in \"normal systems\" will obviously evolve over time (just like how SSE is considered a part of \"baseline amd64\" these days but was once a new and exotic extension).Then lower power use cases like MCUs will have fewer instructions. There will be lots of MCUs without stuff like hardware floating point support that won't run binaries compiled for the G extension collection. In MCU use cases, you typically know at the time of compiling exactly what MCU your code will be running on, so passing the right flags to the compiler to make sure it generates only the supported instructions is not an issue.And then HPC use cases will probably assume more exotic extensions.And normal \"desktop/phone/laptop/server\" style use cases will have runtime detection of things like vector instructions in some situations, just like in aarch64/amd64.",
+    "parent": 45413252,
+    "depth": 2
+  },
+  {
+    "id": 45456564,
+    "by": "wren6991",
+    "timeISO": "2025-10-02T22:56:19.000Z",
+    "textPlain": "> publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).The div/rem one is odd because I saw it suggested in the ISA manual, but I have yet to ever see that pattern crop up in compiled code. Usually it's just in library functions like C stdlib `div()` which returns a quotient and remainder, but why on earth are you calling that library function on a processor that has a divide instruction?",
     "parent": 45413252,
     "depth": 2
   },
