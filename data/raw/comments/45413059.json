@@ -1,5 +1,21 @@
 [
   {
+    "id": 45458330,
+    "by": "kouteiheika",
+    "timeISO": "2025-10-03T02:42:45.000Z",
+    "textPlain": "Yeah, RISC-V has the `Zicond` extension, but it's not a \"proper\" conditional move in the traditional sense. For the usual situations where the compiler would use a single conditional move on any other ISA it now needs multiple instructions to get around the fact that `Zicond` will set the destination register to zero if the conditional move isn't made. This totally sucks for performance if you don't have a \"sufficiently advanced magic core\" which can macro-fuse `Zicond` instruction sequences.That said, RISC-V does have a proper conditional move instruction. And the funny part: it has multiple! `xtheadcondmov` and `xmipscmove` both implement \"real\" conditional moves. The catch is that those are vendor-specific extensions; compared to the official narrative that \"it doesn't fit the design of RISC-V\" apparently the actual hardware vendors see the value of adding real cmovs to their hardware. I wonder how many more vendor-specific extensions will it take before a common cross-vendor extension is standardized, if ever?(And yes, I'm perfectly aware of why `Zicond` was designed the way it was. I don't really want to get into a discussion whether that's the right design or not long-term.)",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45458359,
+    "by": "phkahler",
+    "timeISO": "2025-10-03T02:46:47.000Z",
+    "textPlain": "I've always thought instead of compare-and-branch, they should have just made it compare, or a better name would be \"if\".  if r1<r2 execute the next instruction. This should have worked like a 16bit prefix to whatever instructions are supported. Risc-v would have only supported jump, jalr, and branch. Then as they realized the importance of conditional instructions the could have just changed the spec to allow \"if\" to be combined with load, store, add, etc...IMHO this approach seems to fit modern CPU designs reasonably well. There is no explicit flag or predicate register, but it does require fusing 2 instructions with possibly different operand. But restricting which instructions can use it might help (even better if its completely orthogonal).",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
     "id": 45456960,
     "by": "monocasa",
     "timeISO": "2025-10-02T23:45:51.000Z",
@@ -48,6 +64,22 @@
     "depth": 1
   },
   {
+    "id": 45458419,
+    "by": "phire",
+    "timeISO": "2025-10-03T02:55:17.000Z",
+    "textPlain": "This is what ARM's Thumb-2 has with its various If-Then-Else instructions. One instruction can skip upto four subsequent instructions if the condition fails.It can also do else clauses, instructions that get executed only when the condition fails.I'm not sure how well this approach would work on modern CPUs; These days, Thumb-2 is generally only used on small microprocessors, and it's notable that ARM64 didn't carry that feature forwards.",
+    "parent": 45458359,
+    "depth": 2
+  },
+  {
+    "id": 45458341,
+    "by": "phire",
+    "timeISO": "2025-10-03T02:44:09.000Z",
+    "textPlain": "The main argument against using CMOV on OoO cores is that it creates data dependencies. The backend can't start executing downstream dependant μops until after the cmov executes.At a first glance, it might seem insane to replace a simple data dependancy with a control-flow dependency, control-flow dependencies are way more expensive as they might lead to a miss-predict and pipeline flush.But to understand modern Massively-Out-of-Order cores, you really need to get in the mindset of \"The branch predictor stupidly accurate\", and actually optimise for the cases when it was right.If the data is anything other than completely random, the branch predictor will guess correctly (at least some of the time) and the dependency is now invisible to the backend. The dependency chain is broken and the execution units can execute both segments in parallel.--------So while more CMOVs might help with ROB residency, I'm really not sure that would translate to overall improved performance.But this does make me wonder if it might be worth while designing an μarch that could dynamically swap between executing a CMOV style instruction as a branch or conditional move? If the CMOV is predictable, insert a fake branch into the branch predictor and handle it that way from now on.",
+    "parent": 45456960,
+    "depth": 2
+  },
+  {
     "id": 45456150,
     "by": "mort96",
     "timeISO": "2025-10-02T22:03:07.000Z",
@@ -85,6 +117,14 @@
     "timeISO": "2025-09-30T03:36:13.000Z",
     "textPlain": "Thanks for your input. I didn’t know what to make of the article.",
     "parent": 45418467,
+    "depth": 2
+  },
+  {
+    "id": 45458372,
+    "by": "phire",
+    "timeISO": "2025-10-03T02:48:10.000Z",
+    "textPlain": "And that design is generally regarded to have been a mistake, results in very bad code density.ARM went out of their way to remove it. Multiple times, with both AArch64 and the various implementations of Thumb.",
+    "parent": 45454856,
     "depth": 2
   }
 ]
