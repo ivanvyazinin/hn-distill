@@ -1,17 +1,57 @@
 [
   {
-    "id": 45466646,
-    "by": "hoten",
-    "timeISO": "2025-10-03T19:12:52.000Z",
-    "textPlain": "For posterity, as the submitted link seems temporary: https://github.com/python/peps/pull/4622",
+    "id": 45467330,
+    "by": "jmward01",
+    "timeISO": "2025-10-03T20:19:59.000Z",
+    "textPlain": "This is needed, but I don't like new keywords. What I would love, for many reasons, is if we could decorate statements. Then things like:import expensive_modulecould be:@lazyimport expensive_moduleor you could do:@retry(3)x = failure_prone_call(y)lazy is needed, but maybe there is a more basic change that could give more power with more organic syntax, and not create a new keyword that is special purpose (and extending an already special purpose keyword)",
     "parent": 45466086,
     "depth": 1
   },
   {
-    "id": 45466616,
-    "by": "Galanwe",
-    "timeISO": "2025-10-03T19:10:01.000Z",
-    "textPlain": "That seems really great, .moving imports in-line for CLI tools startup and test discovery has always been a pain.",
+    "id": 45466897,
+    "by": "charliermarsh",
+    "timeISO": "2025-10-03T19:35:12.000Z",
+    "textPlain": "Lazy imports have been proposed before, and were rejected most recently back in 2022: https://discuss.python.org/t/pep-690-lazy-imports-again/1966.... If I recall correctly, lazy imports are a feature supported in Cinder, Meta's version of CPython, and the PEP was driven by folks that worked on Cinder. Last time, a lot of the discussion centered around questions like: Should this be opt-in or opt-out? At what level? Should it be a build-flag for CPython itself? Etc. The linked post suggests that the Steering Council ultimately rejected it because of the complexity it would introduce to have two divergent \"modes\" of importing.I hope this proposal succeeds. I would love to use this feature.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467095,
+    "by": "simonw",
+    "timeISO": "2025-10-03T19:54:23.000Z",
+    "textPlain": "Love this. My https://llm.datasette.io/ CLI tool supports plugins, and people were complaining about really slow start times even for commands like \"llm --help\" - it turned out there were popular plugins that did things like import pytorch at the base level, so the entire startup was blocked on heavy imports.I ended up adding a note to the plugin author docs suggesting lazy loading inside of functions - https://llm.datasette.io/en/stable/plugins/advanced-model-pl... - but having a core Python language feature for this would be really nice.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466767,
+    "by": "wrmsr",
+    "timeISO": "2025-10-03T19:23:52.000Z",
+    "textPlain": "If anyone's interested I've implemented a fairly user friendly lazy import mechanism in the form of context managers (auto_proxy_import/init) at https://pypi.org/project/lazyimp/ that I use fairly heavily. Syntactically it's just wrapping otherwise unmodified import statements in a with block, so tools 'just work' and it can be easily disabled or told to import eagerly for debugging. It's powered primarily by swapping out the frame's f_builtins in a cext (as it needs more power than importlib hooks provide), but has a lame attempt at a threadsafe pure python version, and a super dumb global hook version.I was skeptical and cautious with it at first but I've since moved large chunks of my codebase to it - it's caused surprisingly few problems (honestly none besides forgetting to handle some import-time registration in some modules) and the speed boost is addictive.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466769,
+    "by": "film42",
+    "timeISO": "2025-10-03T19:23:59.000Z",
+    "textPlain": "I'm a fan because it's something you can explicitly turn on and off. For my Docker based app, I really want to verify the completeness of imports. Preferably, at build and test time. In fact, most of the time I will likely disable lazy loading outright. But, I would really appreciate a faster loading CLI tool.However, there is a pattern in python to raise an error if, say, pandas doesn't have an excel library installed, which is fine. In the future, will maintainers opt to include a bunch of unused libraries since they won't negatively impact startup time? (Think pandas including 3-4 excel parsers by default, since it will only be loaded when called). It's a much better UX, but, now if you opt out of lazy loading, your code will take longer to load than without it.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467249,
+    "by": "rplnt",
+    "timeISO": "2025-10-03T20:11:08.000Z",
+    "textPlain": "Remember mercurial? Me neither. But what I remeber is this article I've read about all the hacks they had to do to achieve reasonable startup time for CLI in python. And the no #1 cause was loading the whole world you don't ever need. As I recall they somehow monkeypatched the interpreter to ignore imports and just remember their existence until they were actually needed, at which point the import happened. So all the dead paths were just skipped.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466979,
+    "by": "f311a",
+    "timeISO": "2025-10-03T19:43:31.000Z",
+    "textPlain": "I don't like the idea of introducing a new keyword. We need a backward compatible solution. I feel like Python needs some kind of universal annotation syntax such as in go (comments) or in Rust (macros). New keyword means all parsers, lsps, editors should be updated.I’m pretty sure there will be new keywords in Python in the future that only solve one thing.",
     "parent": 45466086,
     "depth": 1
   },
@@ -24,10 +64,98 @@
     "depth": 1
   },
   {
+    "id": 45467040,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-10-03T19:48:39.000Z",
+    "textPlain": "I like the approach of ES6 where you pull in bindings that are generally lazily resolved. That is IMO the approach that should be the general strategy for Python.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467126,
+    "by": "aftbit",
+    "timeISO": "2025-10-03T19:57:59.000Z",
+    "textPlain": "We tend to prefer explicit top-level imports specifically because they reveal dependency problems as soon as the program starts, rather than potentially hours or days later when a specific code path is executed.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466996,
+    "by": "jeremyscanvic",
+    "timeISO": "2025-10-03T19:44:47.000Z",
+    "textPlain": "Really excited about this - we've recently been struggling with making imports lazy without completely messing up the code in DeepInverse https://deepinv.github.io/deepinv/",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467332,
+    "by": "waynesonfire",
+    "timeISO": "2025-10-03T20:20:22.000Z",
+    "textPlain": "why does this have to be a syntax feature and not a lazy code loader at the intepreter level?",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466575,
     "by": "sedatk",
     "timeISO": "2025-10-03T19:06:43.000Z",
     "textPlain": "I wonder how much things would break if all imports were lazy by default.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466616,
+    "by": "Galanwe",
+    "timeISO": "2025-10-03T19:10:01.000Z",
+    "textPlain": "That seems really great, .moving imports in-line for CLI tools startup and test discovery has always been a pain.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466784,
+    "by": "the__alchemist",
+    "timeISO": "2025-10-03T19:25:31.000Z",
+    "textPlain": "Does this fix the circular imports problem that comes up if you don't structural your programs in a hierarchical way?",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467014,
+    "by": "Spivak",
+    "timeISO": "2025-10-03T19:46:38.000Z",
+    "textPlain": "I love the feature but I really dislike using the word lazy as a new language keyword. It just feels off somehow. I think maybe defer might be a better word. It is at least keeps the grammar right because it would be lazily.    lazily import package.foo\n    vs\n    defer import package.foo\n\nAlso the grammar is super weird for from imports.    lazy from package import foo\n    vs.\n    from package defer import foo.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466646,
+    "by": "hoten",
+    "timeISO": "2025-10-03T19:12:52.000Z",
+    "textPlain": "For posterity, as the submitted link seems temporary: https://github.com/python/peps/pull/4622",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466888,
+    "by": "behnamoh",
+    "timeISO": "2025-10-03T19:34:27.000Z",
+    "textPlain": "Make Python more like Haskell, LFG!",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466921,
+    "by": "forrestthewoods",
+    "timeISO": "2025-10-03T19:36:59.000Z",
+    "textPlain": "I don’t want lazy imports. That’s just makes performance shitty later and harder to debug. It’s a hacky workaround.What I want is for imports to not suck and be slow. I’ve had projects where it was faster to compile and run C++ than launch and start a Python CLI. It’s so bad.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45466835,
+    "by": "keeganpoppen",
+    "timeISO": "2025-10-03T19:30:18.000Z",
+    "textPlain": "YES!!!",
     "parent": 45466086,
     "depth": 1
   },
@@ -40,6 +168,54 @@
     "depth": 1
   },
   {
+    "id": 45466955,
+    "by": "Alir3z4",
+    "timeISO": "2025-10-03T19:40:31.000Z",
+    "textPlain": "I wish all imports were lazy by default.I know/heard there are \"some\" (which I haven't seen by the way) libraries that depend on import side effects, but the advantage is much bigger.First of all, the circular import problem will go away, especially on type hints. Although there was a PEP or recent addition to make the annotation not not cause such issue.Second and most important of all, is the launch time of Python applications. A CLI that uses many different parts of the app has to wait for all the imports to be done.The second point becomes a lot painful when you have a large application, like a Django project where the auto reload becomes several seconds. Not only auto reload crawls, the testing cycle is slow as well. Every time you want to run test command, it has to wait several seconds. Painful.So far the solution has been to do the lazy import by importing inside the methods where it's required. That is something, I never got to like to be honest.Maybe it will be fixed in Python 4, where the JIT uses the type hints as well /s",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467361,
+    "by": "jmward01",
+    "timeISO": "2025-10-03T20:22:09.000Z",
+    "textPlain": "As a side note, It would be great to have a 'preview' for HN comments. I updated the above because I forgot to add line breaks. Sigh. I bet 'preview' would stop a lot of not well thought out comments too.",
+    "parent": 45467330,
+    "depth": 2
+  },
+  {
+    "id": 45467372,
+    "by": "progval",
+    "timeISO": "2025-10-03T20:23:09.000Z",
+    "textPlain": "For what it's worth, you can already do: x = retry(3)(failure_prone_call)(y)",
+    "parent": 45467330,
+    "depth": 2
+  },
+  {
+    "id": 45467350,
+    "by": "dheera",
+    "timeISO": "2025-10-03T20:21:50.000Z",
+    "textPlain": "Oof. I wish they could support version imports    import torch==2.6.0+cu124\n    import numpy>=1.2.6\n\nand support having multiple simultaneous versions of any Python library installed. End this conda/virtualenv/docker/bazel/[pick your poison] mess",
+    "parent": 45466897,
+    "depth": 2
+  },
+  {
+    "id": 45467213,
+    "by": "ashu1461",
+    "timeISO": "2025-10-03T20:06:31.000Z",
+    "textPlain": "Not sure if this can be made backward compatible.Right now all the imports are getting resolved at runtime example in a code like below  from file1 import function1\n\nWhen you write this, the entire file1 module is executed right away, which may trigger side effects.If lazy imports suddenly defer execution, those side effects won’t run until much later (or not at all, if the code path isn’t hit). That shift in timing could easily break existing code that depends on import-time behavior.To avoid using lazy, this there is also a proposal of adding the modules you want to load lazily to a global `__lazy_modules__` variable.",
+    "parent": 45466979,
+    "depth": 2
+  },
+  {
+    "id": 45467056,
+    "by": "Alir3z4",
+    "timeISO": "2025-10-03T19:50:15.000Z",
+    "textPlain": "Me neither.Introducing new keyword has become a recent thing in Python.Seems Python has a deep scare since Python2 to Python3 time and is scared to do anything that causes such drama again.For me, the worst of all is \"async\". If 2to3 didn't cause much division, the async definitely divided Python libraries in 2. Sync and Async.Maybe if they want backward compatible solution, this can be done by some compile or runtime flag like they did with free threading no-gil.",
+    "parent": 45466979,
+    "depth": 2
+  },
+  {
     "id": 45466680,
     "by": "12_throw_away",
     "timeISO": "2025-10-03T19:15:56.000Z",
@@ -48,11 +224,91 @@
     "depth": 2
   },
   {
+    "id": 45466929,
+    "by": "oofbey",
+    "timeISO": "2025-10-03T19:37:45.000Z",
+    "textPlain": "Hopefully they learned lessons from why PEP-690 was rejected.  I've spent quite a while trying to build this stuff for our codebase and it's never worked well enough to use.",
+    "parent": 45466562,
+    "depth": 2
+  },
+  {
+    "id": 45467242,
+    "by": "ashu1461",
+    "timeISO": "2025-10-03T20:10:00.000Z",
+    "textPlain": "Right, Not sure why but a lot of code which claude generates also comes with local dependencies vs globally declared import statements. Don't promote that pattern because- It reduces visibility into a module’s dependencies.- It increases the risk of introducing circular dependencies later on.",
+    "parent": 45467126,
+    "depth": 2
+  },
+  {
+    "id": 45467181,
+    "by": "bityard",
+    "timeISO": "2025-10-03T20:03:23.000Z",
+    "textPlain": "I haven't fully digested the PEP but perhaps there would be a command-line flag or external tool for dependency validation, a bit like how there are external tools for type annotations?",
+    "parent": 45467126,
+    "depth": 2
+  },
+  {
+    "id": 45467147,
+    "by": "maest",
+    "timeISO": "2025-10-03T19:59:32.000Z",
+    "textPlain": "Who is \"we\"?",
+    "parent": 45467126,
+    "depth": 2
+  },
+  {
+    "id": 45467276,
+    "by": "ashu1461",
+    "timeISO": "2025-10-03T20:13:54.000Z",
+    "textPlain": "There will be chaos, all code bases usually have tons of side effects.",
+    "parent": 45466575,
+    "depth": 2
+  },
+  {
     "id": 45466614,
     "by": "simlevesque",
     "timeISO": "2025-10-03T19:09:52.000Z",
     "textPlain": "Maybe nothing would break ?edit: ok well \"xxx in sys.modules\" would indeed be a problem",
     "parent": 45466575,
+    "depth": 2
+  },
+  {
+    "id": 45466842,
+    "by": "eesmith",
+    "timeISO": "2025-10-03T19:30:56.000Z",
+    "textPlain": "All my code which uses import probing would fail, such as fallbacks:  try:\n    import module\n  except ImportError:\n    import slow_module as module\n\nConditional support testing would also break, like having tests which only run if module2 is available:  try:\n    import module2\n  except ImportError:\n    def if_has_module2(f):\n      return unittest.skip(\"module2 not available\")(f)\n  else:\n    def if_has_module2(f):\n      return f\n\n  @if_has_module2\n  class TestModule2Bindings(....\n\nThe proto-PEP also gives an example of using  with suppress_warnings():\n    import module3\n\nwhere some global configuration changes only during import.In general, \"import this\" and \"import antigravity\" - anything with import side-effects - would stop working.Oh, and as the proto-PEP points out, changes to sys.path and others can cause problems because of the delay between time of lazy import and time of resolution.Then there's code where you do a long computation then make use of a package which might not be present.  import database  # remember to install!!\n  import qcd_simulation\n\n  universe = qcd_simulation.run(seconds = 30*24*60*60)\n  database.save(universe)\n\nAll of these would be replaced with \"import module; module.__name__\" or something to force the import, or by an explicit use to __import__.",
+    "parent": 45466575,
+    "depth": 2
+  },
+  {
+    "id": 45466836,
+    "by": "Spivak",
+    "timeISO": "2025-10-03T19:30:18.000Z",
+    "textPlain": "It should, when you do lazy imports on your own it fixes the problem.",
+    "parent": 45466784,
+    "depth": 2
+  },
+  {
+    "id": 45466834,
+    "by": "colpabar",
+    "timeISO": "2025-10-03T19:30:14.000Z",
+    "textPlain": "This is what I thought of too. I really only know python, do other languages not have that issue? In python it does not seem like a \"problem\" to me - whenever I have seen circular import issues it is because the code is organized poorly. I worry that this feature will lead to devs \"fixing\" circular import issues by using lazy imports.",
+    "parent": 45466784,
+    "depth": 2
+  },
+  {
+    "id": 45466889,
+    "by": "Spivak",
+    "timeISO": "2025-10-03T19:34:34.000Z",
+    "textPlain": "You… can? I mean in the strictest sense you're technically not importing by file path but if you make your folder a module by slapping an __init__.py in there then your relative imports will follow the directory tree. I think as of Python 3.3 the init file is optional so it will do it by default but I can't remember if there are still some cases where it's required. The only thing you can't do is go \"up\" to a higher directory than the root module.Also if that doesn't strike your fancy all of the importlib machinery is at your disposal and it's really not very much work to write an import_path() function. It's one of the patterns plug-in systems use and so is stable and expected to be used by end users. No arcane magic required.",
+    "parent": 45466659,
+    "depth": 2
+  },
+  {
+    "id": 45467036,
+    "by": "f311a",
+    "timeISO": "2025-10-03T19:48:27.000Z",
+    "textPlain": "Lazy imports mean late errors. Fail fast is a good design principle.",
+    "parent": 45466955,
     "depth": 2
   }
 ]
