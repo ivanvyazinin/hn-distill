@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45458359,
-    "by": "phkahler",
-    "timeISO": "2025-10-03T02:46:47.000Z",
-    "textPlain": "I've always thought instead of compare-and-branch, they should have just made it compare, or a better name would be \"if\".  if r1<r2 execute the next instruction. This should have worked like a 16bit prefix to whatever instructions are supported. Risc-v would have only supported jump, jalr, and branch. Then as they realized the importance of conditional instructions the could have just changed the spec to allow \"if\" to be combined with load, store, add, etc...IMHO this approach seems to fit modern CPU designs reasonably well. There is no explicit flag or predicate register, but it does require fusing 2 instructions with possibly different operand. But restricting which instructions can use it might help (even better if its completely orthogonal).",
-    "parent": 45413059,
-    "depth": 1
-  },
-  {
     "id": 45456504,
     "by": "wren6991",
     "timeISO": "2025-10-02T22:47:54.000Z",
@@ -24,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45456960,
-    "by": "monocasa",
-    "timeISO": "2025-10-02T23:45:51.000Z",
-    "textPlain": "One piece I would find interesting to see data on, but don't really know how to get meaningful information on against modern, non-academic cores is the fact that reorder buffers I've seen aren't just arrays of single instructions (and dependency metadata), but instead look more like rows of small traces of a few alu/ldst/etc instructions, and one control flow instruction per row.  It kind of ends up looking a lot like a a modern CISC microcode word with a triad/quad/etc of operations and a sequencing op (but in this case the sequencing op is for the main store, not the microprogram store).  That means in some cases, you have to fill the ROB entries with NOPs (that to be fair don't actually hit the backend) in order to account for a control flow op in an inopportune place.The conventional wisdom is that conditional moves mainly uplift in order pipelines, but I feel like there could be a benefit to increased ROB residency on OoOE cores as well with the right architecture.But like I said, I don't have a good way to prove that or not.",
+    "id": 45458359,
+    "by": "phkahler",
+    "timeISO": "2025-10-03T02:46:47.000Z",
+    "textPlain": "I've always thought instead of compare-and-branch, they should have just made it compare, or a better name would be \"if\".  if r1<r2 execute the next instruction. This should have worked like a 16bit prefix to whatever instructions are supported. Risc-v would have only supported jump, jalr, and branch. Then as they realized the importance of conditional instructions the could have just changed the spec to allow \"if\" to be combined with load, store, add, etc...IMHO this approach seems to fit modern CPU designs reasonably well. There is no explicit flag or predicate register, but it does require fusing 2 instructions with possibly different operand. But restricting which instructions can use it might help (even better if its completely orthogonal).",
     "parent": 45413059,
     "depth": 1
   },
@@ -36,6 +28,14 @@
     "by": "sylware",
     "timeISO": "2025-09-29T13:08:55.000Z",
     "textPlain": "This is implemented with instruction fusion. Just need to document properly and publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).Adding more instructions is kind of non productive for a R(educed)ISC ISA. It has to be weighted with extreme care. Compressed instructions went thru for the sake of code density (marketing vs arm thumb instructions).In the end, programs will want probably to stay conservative and will implement only the core ISA, at best giving some love to some instruction fusion patterns and that's it, unless being built knowingly for a specific risc-v hardware implementation.",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45456960,
+    "by": "monocasa",
+    "timeISO": "2025-10-02T23:45:51.000Z",
+    "textPlain": "One piece I would find interesting to see data on, but don't really know how to get meaningful information on against modern, non-academic cores is the fact that reorder buffers I've seen aren't just arrays of single instructions (and dependency metadata), but instead look more like rows of small traces of a few alu/ldst/etc instructions, and one control flow instruction per row.  It kind of ends up looking a lot like a a modern CISC microcode word with a triad/quad/etc of operations and a sequencing op (but in this case the sequencing op is for the main store, not the microprogram store).  That means in some cases, you have to fill the ROB entries with NOPs (that to be fair don't actually hit the backend) in order to account for a control flow op in an inopportune place.The conventional wisdom is that conditional moves mainly uplift in order pipelines, but I feel like there could be a benefit to increased ROB residency on OoOE cores as well with the right architecture.But like I said, I don't have a good way to prove that or not.",
     "parent": 45413059,
     "depth": 1
   },
@@ -80,14 +80,6 @@
     "depth": 2
   },
   {
-    "id": 45458341,
-    "by": "phire",
-    "timeISO": "2025-10-03T02:44:09.000Z",
-    "textPlain": "The main argument against using CMOV on OoO cores is that it creates data dependencies. The backend can't start executing downstream dependant μops until after the cmov executes.At a first glance, it might seem insane to replace a simple data dependancy with a control-flow dependency, control-flow dependencies are way more expensive as they might lead to a miss-predict and pipeline flush.But to understand modern Massively-Out-of-Order cores, you really need to get in the mindset of \"The branch predictor stupidly accurate\", and actually optimise for the cases when it was right.If the data is anything other than completely random, the branch predictor will guess correctly (at least some of the time) and the dependency is now invisible to the backend. The dependency chain is broken and the execution units can execute both segments in parallel.--------So while more CMOVs might help with ROB residency, I'm really not sure that would translate to overall improved performance.But this does make me wonder if it might be worth while designing an μarch that could dynamically swap between executing a CMOV style instruction as a branch or conditional move? If the CMOV is predictable, insert a fake branch into the branch predictor and handle it that way from now on.",
-    "parent": 45456960,
-    "depth": 2
-  },
-  {
     "id": 45456150,
     "by": "mort96",
     "timeISO": "2025-10-02T22:03:07.000Z",
@@ -117,6 +109,14 @@
     "timeISO": "2025-10-02T22:56:19.000Z",
     "textPlain": "> publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).The div/rem one is odd because I saw it suggested in the ISA manual, but I have yet to ever see that pattern crop up in compiled code. Usually it's just in library functions like C stdlib `div()` which returns a quotient and remainder, but why on earth are you calling that library function on a processor that has a divide instruction?",
     "parent": 45413252,
+    "depth": 2
+  },
+  {
+    "id": 45458341,
+    "by": "phire",
+    "timeISO": "2025-10-03T02:44:09.000Z",
+    "textPlain": "The main argument against using CMOV on OoO cores is that it creates data dependencies. The backend can't start executing downstream dependant μops until after the cmov executes.At a first glance, it might seem insane to replace a simple data dependancy with a control-flow dependency, control-flow dependencies are way more expensive as they might lead to a miss-predict and pipeline flush.But to understand modern Massively-Out-of-Order cores, you really need to get in the mindset of \"The branch predictor stupidly accurate\", and actually optimise for the cases when it was right.If the data is anything other than completely random, the branch predictor will guess correctly (at least some of the time) and the dependency is now invisible to the backend. The dependency chain is broken and the execution units can execute both segments in parallel.--------So while more CMOVs might help with ROB residency, I'm really not sure that would translate to overall improved performance.But this does make me wonder if it might be worth while designing an μarch that could dynamically swap between executing a CMOV style instruction as a branch or conditional move? If the CMOV is predictable, insert a fake branch into the branch predictor and handle it that way from now on.",
+    "parent": 45456960,
     "depth": 2
   },
   {
