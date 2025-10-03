@@ -1,5 +1,13 @@
 [
   {
+    "id": 45464169,
+    "by": "lordofmoria",
+    "timeISO": "2025-10-03T15:37:23.000Z",
+    "textPlain": "A small warning for folks.I once was responsible for migrating a legacy business app to Azure, and the app had a local MSSQL server co-running with the app (the same pattern that Litestream is using).As have been mentioned below, the app had been developed assuming the local access (and thus <1ms latency), so it had a ton of N+1 everywhere.This made it almost impossible to migrate/transition to another configuration.So, if this style of app hosting doesn't take off and you're at all worried about this being a dead end storage once you reach a certain scale, I'd recommend not doing this, otherwise your options will be very limited.Then again - I bet you could get very very far on a single box, so maybe it'd be a non factor! :)",
+    "parent": 45453936,
+    "depth": 1
+  },
+  {
     "id": 45463953,
     "by": "TemptedMuse",
     "timeISO": "2025-10-03T15:17:51.000Z",
@@ -12,6 +20,22 @@
     "by": "dave78",
     "timeISO": "2025-10-03T14:47:52.000Z",
     "textPlain": "Interesting tidbit regarding LiteFS/Litestream:> But the market has spoken! Users prefer Litestream. And honestly, we get it: Litestream is easier to run and to reason about. So we’ve shifted our focus back to it.",
+    "parent": 45453936,
+    "depth": 1
+  },
+  {
+    "id": 45464504,
+    "by": "atombender",
+    "timeISO": "2025-10-03T16:05:48.000Z",
+    "textPlain": "What I'd like to see is a system where a single-writer SQLite database is replicated to object storage so that you can spin up really cheap read replicas. Is anyone working on something like that?Such a system would also require a side channel propagating WAL updates (over Kafka or similar) to replicas, so that the running replicas can update themselves incrementally and stay fresh without loading anything from object storage.",
+    "parent": 45453936,
+    "depth": 1
+  },
+  {
+    "id": 45464359,
+    "by": "mtlynch",
+    "timeISO": "2025-10-03T15:53:57.000Z",
+    "textPlain": "Very excited to see Fly restart development on Litestream after a 2ish year freeze!I love Litestream and use it in every app I build now.They advertise it as costing \"pennies per day,\" but it's even less expensive than that. It obviously varies depending on how much storage you need, but I had a real app in production, and Litestream replication to S3 only cost me 2-3 cents ($0.02-$0.03) per month.[0][0] https://mtlynch.io/litestream/#using-logpaste-in-production",
     "parent": 45453936,
     "depth": 1
   },
@@ -40,12 +64,44 @@
     "depth": 1
   },
   {
-    "id": 45463723,
-    "by": "ipnon",
-    "timeISO": "2025-10-03T14:58:10.000Z",
-    "textPlain": "Everything Fly does is great. They’re the best. I’m a very happy customer.",
-    "parent": 45453936,
-    "depth": 1
+    "id": 45464320,
+    "by": "inerte",
+    "timeISO": "2025-10-03T15:50:39.000Z",
+    "textPlain": "I used to work on a product where the app server and database were in the same rack - so similar low latency. But the product was successful, so our N+1 would generate thousands of queries and 1ms would become >500ms or more easily. Every other month we would look at New Relic and find some slow spot.It was a Rails app, therefore easy to get into the N+1 but also somewhat easy to fix.",
+    "parent": 45464169,
+    "depth": 2
+  },
+  {
+    "id": 45464345,
+    "by": "metadat",
+    "timeISO": "2025-10-03T15:52:27.000Z",
+    "textPlain": "What is N+1?",
+    "parent": 45464169,
+    "depth": 2
+  },
+  {
+    "id": 45464684,
+    "by": "arbll",
+    "timeISO": "2025-10-03T16:22:57.000Z",
+    "textPlain": "To avoid operating a database by yourself and deal with incidents, backups, replicas, failovers, etc... You can use cheap commoditised S3-like storage and run your application statelessly.If you have access to a database that is well managed on your behalf I would definitely still go with that.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464074,
+    "by": "kblissett",
+    "timeISO": "2025-10-03T15:28:02.000Z",
+    "textPlain": "One of the big advantages people enjoy is the elimination of the network latency between the application server and the DB. With SQLite your DB is right there often directly attached over NVME. This improves all access latencies and even enables patterns like N+1 queries which would typically be considered anti-patterns in other DBs.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464143,
+    "by": "tptacek",
+    "timeISO": "2025-10-03T15:33:19.000Z",
+    "textPlain": "It's significantly faster and incurs less ops overhead. That's it.But most apps should just use a classic n-tier database architecture like Postgres. We mostly do too (though Litestream does back some stuff here like our token system).",
+    "parent": 45463953,
+    "depth": 2
   },
   {
     "id": 45463978,
@@ -56,11 +112,83 @@
     "depth": 2
   },
   {
+    "id": 45464097,
+    "by": "andrewmutz",
+    "timeISO": "2025-10-03T15:29:33.000Z",
+    "textPlain": "I'm not sure, I've never done it, but I think the idea is to have many tiny customer-specific databases and move them to be powered by sqlite very close to the customer.But I'd love to hear more from someone more well-versed in the use cases for reliable sql-lite",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464158,
+    "by": "bob1029",
+    "timeISO": "2025-10-03T15:35:10.000Z",
+    "textPlain": "I find myself mostly in this camp now.In every case where I had a SQLite vertical that required resilience, the customer simply configured the block storage device for periodic snapshots. Litestream is approximately the same idea, except you get block device snapshots implicitly as part of being in the cloud. There is no extra machinery to worry about and you won't forget about a path/file/etc.Also, streaming replication to S3 is not that valuable an idea to me when we consider the recovery story. All other solutions support hot & ready replicas within seconds.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464099,
+    "by": "sauercrowd",
+    "timeISO": "2025-10-03T15:29:51.000Z",
+    "textPlain": "It's a good question, and I don't think answered sufficiently in the recent sqlite hype.In my opinion if you have an easy way to run postgres,MySQL,... - just run that.There's usually a lot of quirks in the details of DB usage (even when it doesn't immediately seem like it - got bitten by it a few times). Features not supported, different semantics, ...IMO every project has an \"experimental stuff\" budget and if you go over it it's too broken to recover, and for most projects there's just not that much to win by spending them on a new database thing",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464137,
+    "by": "WorldMaker",
+    "timeISO": "2025-10-03T15:32:57.000Z",
+    "textPlain": "The common answer (especially from Fly.io) is \"at-the-edge\" computing/querying. There is network latency involved in sending a query to MySQL or Postgres and getting the data returned, whereas with Litestream you could put a read replica of the entire SQLite DB at every edge. Queries become fast and efficient only to the local read replica. There's still network latency associated with updating that read replica over time, but it is amortized based on the number of overall writes rather than the number of queries, is more fault tolerant in \"eventually consistent\" workflows (you can answer queries from the read replica at the edge in the state that you have it while you wait for the network to reconnect and replay the writes you missed during the fault), and with SQLite backing it still has much of the same full relational DB query power of SQL you would expect from a larger (or \"proper\") database like MySQL or Postgres.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464335,
+    "by": "bccdee",
+    "timeISO": "2025-10-03T15:51:36.000Z",
+    "textPlain": "Whatever database you end up using, you'll need some sort of backup solution. Litestream is a streamed backup solution which effectively doubles as replication for durability purposes.MySQL, Postgres, etc. have a much greater overhead for setup, unless you want to pay for a managed database, which is not going to be worth the price for small quantities of data.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464082,
+    "by": "manishsharan",
+    "timeISO": "2025-10-03T15:28:17.000Z",
+    "textPlain": "I have a branch office in boondocks with limited internet connection. The branch office cannot manage a RDBMS or access cloud services. They can use sqlite app on LAN and we could do reconciliation at end of the business day.",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
+    "id": 45464205,
+    "by": "canadiantim",
+    "timeISO": "2025-10-03T15:40:48.000Z",
+    "textPlain": "To enable local-first or offline-first design. I prefer having data stored on-device and only optionally backed up to cloud",
+    "parent": 45463953,
+    "depth": 2
+  },
+  {
     "id": 45463806,
     "by": "simonw",
     "timeISO": "2025-10-03T15:04:54.000Z",
-    "textPlain": "That makes sense to me. LiteFS used FUSE, which Keene figuring out how to run and mount a custom filesystem. Litestream is a single compiled Go binary that you point at the SQLite database file (and accompanying WAL file).",
+    "textPlain": "That makes sense to me. LiteFS used FUSE, which meant figuring out how to run and mount a custom filesystem. Litestream is a single compiled Go binary that you point at the SQLite database file (and accompanying WAL file).",
     "parent": 45463631,
+    "depth": 2
+  },
+  {
+    "id": 45464635,
+    "by": "anentropic",
+    "timeISO": "2025-10-03T16:18:39.000Z",
+    "textPlain": "Litestream is basically that, though the OP article has \"The next major feature we’re building out is a Litestream VFS for read replicas\" as a What's Next todo at the bottom.https://litestream.io/guides/s3/I think this is also roughly what Turso is, although it's becoming a SQLite-compatible db rather than vanillahttps://docs.turso.tech/features/embedded-replicas/introduct...https://docs.turso.tech/cloud/durability",
+    "parent": 45464504,
+    "depth": 2
+  },
+  {
+    "id": 45464092,
+    "by": "Aurornis",
+    "timeISO": "2025-10-03T15:29:02.000Z",
+    "textPlain": "Jepsen is primarily for testing distributed systems and consensus systems. SQLite has neither of those.",
+    "parent": 45463651,
     "depth": 2
   },
   {
@@ -68,6 +196,14 @@
     "by": "tptacek",
     "timeISO": "2025-10-03T14:53:56.000Z",
     "textPlain": "Litestream is pretty boring for the testing Kyle does. It's not a distributed consensus system, but something more like a storage engine.",
+    "parent": 45463651,
+    "depth": 2
+  },
+  {
+    "id": 45464530,
+    "by": "dastbe",
+    "timeISO": "2025-10-03T16:08:03.000Z",
+    "textPlain": "litestream makes very few consistency guarantees compared to other datastores, and so I would expect most any issues found would be \"working as intended\".at the end of the day with litestream, when you respond back to a client with a successful write you are only guaranteeing a replication factor of 1.",
     "parent": 45463651,
     "depth": 2
   }
