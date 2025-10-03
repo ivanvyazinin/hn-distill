@@ -1,9 +1,9 @@
 [
   {
-    "id": 45467360,
-    "by": "Animats",
-    "timeISO": "2025-10-03T20:22:09.000Z",
-    "textPlain": "In the initial example, it's not clear what the desired behavior is. If the queue is full, the basic options are drop something, block and wait, or panic. Timing out on a block is usually deadlock detection. He writes \"It turns out that this code is often incorrect, because not all messages make their way to the channel.\" Well, yes.\nYou're out of resources. Now what?What's he trying to do? Get a clean program shutdown? That's moderately difficult in threaded programs, and async has problems, too. The use case here is unclear.",
+    "id": 45467830,
+    "by": "alembic_fumes",
+    "timeISO": "2025-10-03T21:11:48.000Z",
+    "textPlain": "I'm not understanding what the supposed problem with these futures getting cancelled is. Since futures are not tasks, as the post itself acknowledges, does it not logically follow that one should not expect futures to complete if the future is not driven to completion, for one reason or another? What else could even be expected to happen?The examples presented for \"cancel unsafe\" futures seem to me like the root of the problem is some sort of misalignment of expectations to the reality:Example 1: one future cancelled on error in the otherlet res = tokio::try_join!(\n    do_stuff_async(),\n    more_async_work(),\n);Example 2: data not written out on cancellationlet buffer: &[u8] = /* ... */;\nwriter.write_all(buffer)?;Both of these cases are claimed to not be cancel-safe, because the work gets interrupted and so not driven to completion. But again, what else is supposed to happen? If you want the work to finish regardless of the async context being cancelled, then don't put it in the same async context but spawn a task instead.I feel like I must be missing something obvious that keeps me from understanding the author's issue here. I thought work getting dropped on cancellation is exactly how futures are supposed to work. What's the nuance that I'm missing?",
     "parent": 45464632,
     "depth": 1
   },
@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45465991,
-    "by": "CodeBrad",
-    "timeISO": "2025-10-03T18:15:52.000Z",
-    "textPlain": "This was one of my favorite talks from RustConf this year! The distinction between cancel safety and cancel correctness is really helpful.Glad to see it converted to a blog post. Talks are great, but blogs are much easier to share and reference.",
+    "id": 45467360,
+    "by": "Animats",
+    "timeISO": "2025-10-03T20:22:09.000Z",
+    "textPlain": "In the initial example, it's not clear what the desired behavior is. If the queue is full, the basic options are drop something, block and wait, or panic. Timing out on a block is usually deadlock detection. He writes \"It turns out that this code is often incorrect, because not all messages make their way to the channel.\" Well, yes.\nYou're out of resources. Now what?What's he trying to do? Get a clean program shutdown? That's moderately difficult in threaded programs, and async has problems, too. The use case here is unclear.The real use cases involve when you're sending messages back and forth to a remote site, and the remote site goes away. Now you need to dispose of the state on your end.",
     "parent": 45464632,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "Matthias247",
     "timeISO": "2025-10-03T19:07:56.000Z",
     "textPlain": "Some other material that has been written by me on that topic:- Proposal from 2020 about async functions which are forced to run to completion (and thereby would use graceful cancellation if necessary). Quite old, but I still feel that no better idea has come up so far. https://github.com/Matthias247/rfcs/pull/1- Proposal for unified cancellation between sync and async Rust (\"A case for CancellationTokens\" - https://gist.github.com/Matthias247/354941ebcc4d2270d07ff0c6...)- Exploration of an implementation of the above: https://github.com/Matthias247/min_cancel_token",
+    "parent": 45464632,
+    "depth": 1
+  },
+  {
+    "id": 45465991,
+    "by": "CodeBrad",
+    "timeISO": "2025-10-03T18:15:52.000Z",
+    "textPlain": "This was one of my favorite talks from RustConf this year! The distinction between cancel safety and cancel correctness is really helpful.Glad to see it converted to a blog post. Talks are great, but blogs are much easier to share and reference.",
     "parent": 45464632,
     "depth": 1
   },
@@ -48,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45467582,
+    "by": "arifalkner",
+    "timeISO": "2025-10-03T20:44:58.000Z",
+    "textPlain": "Great talk! One thing that would have been nice to call out for n00bs like myself is how in SOP Futures can't cancelled. I knew that .await took ownership of the future so that drop() could not be called on it, so given how futures are lazy, it wasn't clear to me how to cancel a future after .await had been called. I later researched how select! and Abortable() did this, but could be nice to include a callout in the beginning of your talk if you ever do it again. Otherwise, nice work!",
+    "parent": 45464632,
+    "depth": 1
+  },
+  {
     "id": 45465895,
     "by": "bryanlarsen",
     "timeISO": "2025-10-03T18:06:49.000Z",
@@ -56,10 +72,26 @@
     "depth": 1
   },
   {
+    "id": 45467887,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T21:16:13.000Z",
+    "textPlain": "You're absolutely right! The problem is that this has introduced many bugs in our experience at Oxide. If you've already fully internalized the idea that futures are passive and can be cancelled at any await point, the talk is just a bunch of details.",
+    "parent": 45467830,
+    "depth": 2
+  },
+  {
     "id": 45466293,
     "by": "sunshowers",
     "timeISO": "2025-10-03T18:43:06.000Z",
     "textPlain": "As the author of the talk/blog post, I was definitely going for a bit of a moral valence in the title, in the sense that future cancellations are very hard to reason about and what I call the least Rusty part of Rust. But it admittedly is a bit clickbaity too.",
+    "parent": 45465894,
+    "depth": 2
+  },
+  {
+    "id": 45467765,
+    "by": "benatkin",
+    "timeISO": "2025-10-03T21:05:30.000Z",
+    "textPlain": "It made sense to me, because I imagine a thread or coroutine as something that runs code as though it were interpreting something like psuedocode, whether it's doing that or not. So from my point of view an instance of async Rust is being cancelled - not the feature of the Rust project, but instances of code.This abstraction has served me well and facilitates stepping through code in a debugger, though I jump out of thinking it at that level when I need to think of it at a lower level.",
     "parent": 45465894,
     "depth": 2
   },
@@ -80,11 +112,59 @@
     "depth": 2
   },
   {
+    "id": 45467791,
+    "by": "leoedin",
+    "timeISO": "2025-10-03T21:08:12.000Z",
+    "textPlain": "It's in the example isn't it? The example is logging \"No space for 5 seconds\". It's just a helpful diagnostic that subtly turned into data loss.Maybe it's a bit contrived, but it's also the kind of code you'd sprinkle through your system in response to \"nothing seems to be happening and I don't know why\".",
+    "parent": 45467360,
+    "depth": 2
+  },
+  {
+    "id": 45467403,
+    "by": "AceJohnny2",
+    "timeISO": "2025-10-03T20:26:18.000Z",
+    "textPlain": "> He writesThey go by they/shehttps://sunshowers.io/about/",
+    "parent": 45467360,
+    "depth": 2
+  },
+  {
+    "id": 45467528,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T20:39:35.000Z",
+    "textPlain": "Ideally, what you would like to do is buffer up the message until there's space in the channel. I cover this later in the talk under \"What can be done\".",
+    "parent": 45467360,
+    "depth": 2
+  },
+  {
     "id": 45466300,
     "by": "sunshowers",
     "timeISO": "2025-10-03T18:43:45.000Z",
     "textPlain": "Thanks! I definitely prefer reading blog posts over watching talks as well.",
     "parent": 45465991,
+    "depth": 2
+  },
+  {
+    "id": 45467516,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T20:38:04.000Z",
+    "textPlain": "Thanks, that is a great point.",
+    "parent": 45467188,
+    "depth": 2
+  },
+  {
+    "id": 45467637,
+    "by": "Spivak",
+    "timeISO": "2025-10-03T20:51:09.000Z",
+    "textPlain": "That… seems bad? Like I guess it is what it is and you just have to deal with it but what if your \"critical section\" has two await calls? The code can be paused between them but it's such that it must eventually resume. Say making a change in the database and emitting an audit edit for that change. Is your only option to either not do that or put a big do not cancel sign on the function docs?",
+    "parent": 45465948,
+    "depth": 2
+  },
+  {
+    "id": 45467591,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T20:46:10.000Z",
+    "textPlain": "Thanks! What does SOP mean in this context?",
+    "parent": 45467582,
     "depth": 2
   }
 ]
