@@ -8,10 +8,42 @@
     "depth": 1
   },
   {
+    "id": 45468567,
+    "by": "wasmperson",
+    "timeISO": "2025-10-03T22:27:28.000Z",
+    "textPlain": "> There are several ways to solve this problem. One way is to avoid using direct references to the particular class of objects at all. Instead, allocate a big array of objects, and refer to them with integer indexes into that array. There are several names that have been used for such arrays and indexes; let's call them arenas and handles.I thought the term \"Arena\" referred to linear allocators, but maybe it's not so narrowly defined.> At one level, this question is not very fair, because an answer to it as stated would be that one simply does not use doubly linked lists. They have been popular in introductory computer science lectures because they are a neat way to explain pointers in a data structure that's easy to draw on a whiteboard, but they are not a good match to modern hardware. The last time I used one was in the nineties. I know the Linux kernel uses them, but that design was also laid down in the nineties; if you were designing a kernel from scratch today, you would probably not do it that way.The arena data structure you described is inefficient unless it uses a linked list to track empty slots.  All general-purpose heap allocators use linked lists in their implementations.  Linked lists show up wherever you want pointer stability, low fragmentation, or a way to decouple the storage of objects from their participation in data structures.  I struggle to imagine how it would be possible to implement something like Linux without at least one linked list in it.> Essentially you are bypassing the notion of pointers provided directly by the hardwarePointers aren't a hardware concept, they're a language concept.  Array indices and pointers both rely on indirect addressing, which is the underlying hardware concept.  The \"handles\" strategy in Rust feels like a kludgy approach not because it bypasses the hardware but because Rust's borrow checker isn't actually involved in ensuring safety in that case, just its bounds checking and mandatory initialization (and if",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45468488,
+    "by": "mwkaufma",
+    "timeISO": "2025-10-03T22:19:01.000Z",
+    "textPlain": "> Handles are deterministic. If a bug made your program crash on the last run, it will crash the same way on this run.> Given that the arena will still be subject to array bounds checking, handle bugs won't allow an attacker to overwrite arbitrary memory the way pointer bugs do.Just because you're in-bounds of the arena, doesn't mean you're not stomping on in-bounds neighboring data -- which can introduce \"nondeterminism\" as the author defines it. These are hand-waving arguments.",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45468557,
+    "by": "sfpotter",
+    "timeISO": "2025-10-03T22:26:18.000Z",
+    "textPlain": "Here's an implementation of a doubly-linked list which is perfectly fine on modern hardware: an array of structs where each struct contains a pointer to its next and previous elements in addition to whatever other data is being stored.Here's a situation where a traditional pointer-based double-linked list is fine: when the payload is very large (e.g., an entire document in some app).",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
     "id": 45467911,
     "by": "pizlonator",
     "timeISO": "2025-10-03T21:18:35.000Z",
     "textPlain": "Arenas let you use OOBAs to do data attacks, and those can give you the moral equivalent of remote code execution.Like if your arena contains both a buffer that OOB's and a buffer passed to a syscall, then having memory safety around the arena doesn't help you",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45468109,
+    "by": "IshKebab",
+    "timeISO": "2025-10-03T21:39:02.000Z",
+    "textPlain": "Insightful article. As they say doubly linked lists are approximately useless and never used. But trees were nodes can refer to their parents are extremely common.And I agree, a custom arena is usually the best option here. Even though it seems like \"giving up\" and going back to C, it's still way better.There's this great comparison of Arenas in Rust: https://donsz.nl/blog/arenas/Some of them have keys that can't be reused too, so you can avoid \"use after free\" style bugs (at runtime) which is way better than C pointer wrangling.It's not perfect though. I kind of wish Rust did have some kind of support for this stuff natively. Pretty low on my list of Rust desires though - way behind better compile time and fewer async footguns.",
     "parent": 45467032,
     "depth": 1
   },
@@ -24,12 +56,12 @@
     "depth": 1
   },
   {
-    "id": 45468109,
-    "by": "IshKebab",
-    "timeISO": "2025-10-03T21:39:02.000Z",
-    "textPlain": "Insightful article. As they say doubly linked lists are approximately useless and never used. But trees were nodes can refer to their parents are extremely common.And I agree, a custom arena is usually the best option here. Even though it seems like \"giving up\" and going back to C, it's still way better.There's this great comparison of Arenas in Rust: https://donsz.nl/blog/arenas/Some of them have keys that can't be reused too, so you can avoid \"use after free\" style bugs (at runtime) which is way better than C pointer wrangling.It's not perfect though. I kind of wish Rust did have some kind of support for this stuff natively. Pretty low on my list of Rust desires though - way behind better compile time and fewer async footguns.",
-    "parent": 45467032,
-    "depth": 1
+    "id": 45468569,
+    "by": "mwkaufma",
+    "timeISO": "2025-10-03T22:27:33.000Z",
+    "textPlain": "Anticipating pushback: yes, you can disallow \"pointer arithmetic\" on handles, and store fingerprints in the \"slots\" to ensure they still contain the handle's identity to detect user-after-free, but congrats, you've implemented sparse sets, which there are dozen's of C++ implementations of with the same safety guarantees, so it's unclear what rust is bringing in that case (e.g. https://github.com/skypjack/entt/blob/master/src/entt/entity...)",
+    "parent": 45468488,
+    "depth": 2
   },
   {
     "id": 45467968,

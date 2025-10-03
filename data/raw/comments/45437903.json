@@ -1,9 +1,33 @@
 [
   {
+    "id": 45468717,
+    "by": "sjrd",
+    "timeISO": "2025-10-03T22:47:21.000Z",
+    "textPlain": "Indeed, `let`s and `const`s incur a significant performance penalty. This is also why the Scala.js compiler emits `var`s by default, even when targeting very recent versions of ECMAScript.The good news is that we can still write our Scala `val`s and `var`s (`const` and `let`) in the source code, enjoying good scoping and good performance.",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
+    "id": 45468749,
+    "by": "spankalee",
+    "timeISO": "2025-10-03T22:53:43.000Z",
+    "textPlain": "I've tried to get V8 at least to implement smarter TDZ elision for a long time, which would eliminate the need for these shenanigans.There are some relatively simple heuristics where you can tell without escape analysis that a variable will not be referenced before initialization.The obviously bad constructions are references in the same scope that happen before the declaration. It'd be nice if these were an early errors, but alas, so keep the TDZ check. The next is any closed over reference that happens before the initializer. These may run before the initializer, so keep the TDZ check. Then you have hoisted closures even if they're after the initializer (eg, var and function keyword declarations). These might run before the initializer too.But everything else that comes after the initializer: access in the same or nested scope and access in closures in non-hoisted declarations, can't possibly run before the initializer and doesn't need the TDZ check.I believe this check is cheap enough to run during parsing. The reason for not pursuing it was that there wasn't a benchmark that showed TDZ checks were a problem. But TypeScript showed they were!",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
     "id": 45467482,
     "by": "taejavu",
     "timeISO": "2025-10-03T20:34:01.000Z",
     "textPlain": "The first example is not “terrible”, that’s just how lexical scope works. I don’t really see the point of complaining about language features like this - either learn how it works or ignore at your peril.",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
+    "id": 45468737,
+    "by": "Goofy_Coyote",
+    "timeISO": "2025-10-03T22:51:24.000Z",
+    "textPlain": "Need some help understanding what’s going on here.In  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out\n  <snip>\n\nWhy does the author say `calculation` and `i` are leaking? They’re not even defined at that point (they come later in the code), and we’re seeing “undefined” which, correct me if I’m wrong, is the JS way of saying “I have no idea what this thing is”. So where’s the leakage?",
     "parent": 45437903,
     "depth": 1
   },
@@ -32,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45468456,
-    "by": "happytoexplain",
-    "timeISO": "2025-10-03T22:14:31.000Z",
-    "textPlain": "I think it's reasonable to have the opinion that the way lexical scoping works in JS is \"terrible\". You may disagree, but \"that's just how it works\" isn't a good argument. That line of reasoning is often a rationalization that we make when we are very used to a technology - a sort of hostage situation.",
-    "parent": 45467482,
-    "depth": 2
-  },
-  {
     "id": 45468141,
     "by": "sfink",
     "timeISO": "2025-10-03T21:42:15.000Z",
     "textPlain": "That's not how lexical scope works anywhere but in JavaScript. Or rather, it's the interaction between \"normal\" lexical scope and hoisting. In a \"normal\" lexically scoped language, if you tried:    function f() {\n      return x; // Syntax parsing fails here.\n    }\n    let x = 4;\n    return f();\n\nyou would get the equivalent of a ReferenceError for x when f() tried to use it (well, refer to it) at the commented line. But in JavaScript, this successfully returns 4, because `let` inherits the weird hoisting behavior of `var` and `function`. And it has to, because otherwise this would be really weird:    function f1() { return x; }\n    let x = 4;\n    function f2() { return x; }\n    return Math.random() < 0.5 ? f1() : f2();\n\nWould that have a 50/50 chance of returning the outer x? Would the engine have to swap which x is referred to in f1 when x gets initialized?TDZ is also terrible because the engines have to look up at runtime whether a lexical variable's binding has been initialized yet. This is one reason (perhaps the main reason?) why they're slower. You can't constant fold even a `const`, because `const v = 7` means at runtime \"either 7 or nothing at all, not even null or undefined\".In my opinion, TDZ was a mistake. (Not one I could have predicted at the time, so no shade to the designers.) The right thing to do when introducing let/const would have been to make any capture of a lexical variable disable hoisting of the containing function. So the example from the article (trimmed down a little)    return Math.random() < 0.5 ? useX() : 1;\n    let x = 4;\n    function useX() { return x; }\n\nwould raise a ReferenceError for `useX`, because it has not yet been declared at that point in the syntactic scope. Same with the similar    return Math.random() < 0.5 ? x : 1;\n    let x = 4;\n\nwhich in current JavaScript also either returns 1 or throws a ReferenceError. I'm not against hoisting functions, and removing function hoisting would have not been possible anyway. The thing ",
+    "parent": 45467482,
+    "depth": 2
+  },
+  {
+    "id": 45468456,
+    "by": "happytoexplain",
+    "timeISO": "2025-10-03T22:14:31.000Z",
+    "textPlain": "I think it's reasonable to have the opinion that the way lexical scoping works in JS is \"terrible\". You may disagree, but \"that's just how it works\" isn't a good argument. That line of reasoning is often a rationalization that we make when we are very used to a technology - a sort of hostage situation.",
     "parent": 45467482,
     "depth": 2
   },
@@ -53,6 +77,22 @@
     "timeISO": "2025-10-03T20:50:51.000Z",
     "textPlain": "I second that, I actually don't understand why do people believe every pair of curly braces has to be its own separate scope. An explicit construct for scoping would have been so much clearer to me.",
     "parent": 45467482,
+    "depth": 2
+  },
+  {
+    "id": 45468844,
+    "by": "bigstrat2003",
+    "timeISO": "2025-10-03T23:07:05.000Z",
+    "textPlain": "I mean, it certainly is surprising to me that you can use the variables before they are declared (albeit with undefined values).",
+    "parent": 45467482,
+    "depth": 2
+  },
+  {
+    "id": 45468767,
+    "by": "Jtsummers",
+    "timeISO": "2025-10-03T22:56:16.000Z",
+    "textPlain": "Two spaces before each line in the code block. HN doesn't use markdown, it's easy to do even on mobile, a demonstration:  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out <snip>\n\nIt's \"leaking\" because the variable is in scope, it's associated value is \"undefined\". This is different than with let/const where the variable would not be in scope at that point in the function. An undefined value bound to a variable is not the same as \"I have no idea what this thing is\". That would be the reference errors seen with let/const.",
+    "parent": 45468737,
     "depth": 2
   },
   {
@@ -72,18 +112,18 @@
     "depth": 2
   },
   {
-    "id": 45468407,
-    "by": "happytoexplain",
-    "timeISO": "2025-10-03T22:09:13.000Z",
-    "textPlain": "Yes. But what are you implying by the word \"just\"? It sounds like you're saying we should be taking something different away from the article's description of this behavior simply because you have put a name to it.",
-    "parent": 45467553,
-    "depth": 2
-  },
-  {
     "id": 45467864,
     "by": "Aurornis",
     "timeISO": "2025-10-03T21:14:09.000Z",
     "textPlain": "No, the crux of the article is that using var instead of let or const can produce a performance improvement by reducing the complexity of what the interpreter must track.They cite a surprising 8% performance boost in some cases by using var.",
+    "parent": 45467553,
+    "depth": 2
+  },
+  {
+    "id": 45468407,
+    "by": "happytoexplain",
+    "timeISO": "2025-10-03T22:09:13.000Z",
+    "textPlain": "Yes. But what are you implying by the word \"just\"? It sounds like you're saying we should be taking something different away from the article's description of this behavior simply because you have put a name to it.",
     "parent": 45467553,
     "depth": 2
   }
