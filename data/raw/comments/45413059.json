@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45458359,
-    "by": "phkahler",
-    "timeISO": "2025-10-03T02:46:47.000Z",
-    "textPlain": "I've always thought instead of compare-and-branch, they should have just made it compare, or a better name would be \"if\".  if r1<r2 execute the next instruction. This should have worked like a 16bit prefix to whatever instructions are supported. Risc-v would have only supported jump, jalr, and branch. Then as they realized the importance of conditional instructions the could have just changed the spec to allow \"if\" to be combined with load, store, add, etc...IMHO this approach seems to fit modern CPU designs reasonably well. There is no explicit flag or predicate register, but it does require fusing 2 instructions with possibly different operand. But restricting which instructions can use it might help (even better if its completely orthogonal).",
-    "parent": 45413059,
-    "depth": 1
-  },
-  {
     "id": 45413252,
     "by": "sylware",
     "timeISO": "2025-09-29T13:08:55.000Z",
     "textPlain": "This is implemented with instruction fusion. Just need to document properly and publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).Adding more instructions is kind of non productive for a R(educed)ISC ISA. It has to be weighted with extreme care. Compressed instructions went thru for the sake of code density (marketing vs arm thumb instructions).In the end, programs will want probably to stay conservative and will implement only the core ISA, at best giving some love to some instruction fusion patterns and that's it, unless being built knowingly for a specific risc-v hardware implementation.",
+    "parent": 45413059,
+    "depth": 1
+  },
+  {
+    "id": 45458359,
+    "by": "phkahler",
+    "timeISO": "2025-10-03T02:46:47.000Z",
+    "textPlain": "I've always thought instead of compare-and-branch, they should have just made it compare, or a better name would be \"if\".  if r1<r2 execute the next instruction. This should have worked like a 16bit prefix to whatever instructions are supported. Risc-v would have only supported jump, jalr, and branch. Then as they realized the importance of conditional instructions the could have just changed the spec to allow \"if\" to be combined with load, store, add, etc...IMHO this approach seems to fit modern CPU designs reasonably well. There is no explicit flag or predicate register, but it does require fusing 2 instructions with possibly different operand. But restricting which instructions can use it might help (even better if its completely orthogonal).",
     "parent": 45413059,
     "depth": 1
   },
@@ -64,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45459562,
+    "by": "chc4",
+    "timeISO": "2025-10-03T06:09:54.000Z",
+    "textPlain": "\"sufficiently advanced magic core\" is a fairly funny term when a lot of other RISCV behavior basically assumes any real processor will have a macro op fusing frontend for specific series of instructions, and even provides recommendations for what fusions cores should implement.",
+    "parent": 45458330,
+    "depth": 2
+  },
+  {
     "id": 45458522,
     "by": "chasil",
     "timeISO": "2025-10-03T03:08:46.000Z",
@@ -72,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45458419,
-    "by": "phire",
-    "timeISO": "2025-10-03T02:55:17.000Z",
-    "textPlain": "This is what ARM's Thumb-2 has with its various If-Then-Else instructions. One instruction can skip upto four subsequent instructions if the condition fails.It can also do else clauses, instructions that get executed only when the condition fails.I'm not sure how well this approach would work on modern CPUs; These days, Thumb-2 is generally only used on small microprocessors, and it's notable that ARM64 didn't carry that feature forwards.",
-    "parent": 45458359,
-    "depth": 2
-  },
-  {
     "id": 45456150,
     "by": "mort96",
     "timeISO": "2025-10-02T22:03:07.000Z",
     "textPlain": "> In the end, programs will want probably to stay conservative and will implement only the core ISAThis is probably not the case. The core ISA doesn't include floating point, it doesn't include integer multiply or divide, it doesn't include atomic and fence instructions.What has happened is that most compilers and programs for \"normal desktop/laptop/server/phone class systems\" all have some baseline set of extensions. Today, this is more or less what we call the \"G\" extension collection (which is short-hand for IMAFD_Zicsr_Zifencei). Though what we consider \"baseline\" in \"normal systems\" will obviously evolve over time (just like how SSE is considered a part of \"baseline amd64\" these days but was once a new and exotic extension).Then lower power use cases like MCUs will have fewer instructions. There will be lots of MCUs without stuff like hardware floating point support that won't run binaries compiled for the G extension collection. In MCU use cases, you typically know at the time of compiling exactly what MCU your code will be running on, so passing the right flags to the compiler to make sure it generates only the supported instructions is not an issue.And then HPC use cases will probably assume more exotic extensions.And normal \"desktop/phone/laptop/server\" style use cases will have runtime detection of things like vector instructions in some situations, just like in aarch64/amd64.",
+    "parent": 45413252,
+    "depth": 2
+  },
+  {
+    "id": 45459377,
+    "by": "mshockwave",
+    "timeISO": "2025-10-03T05:38:16.000Z",
+    "textPlain": "> In the end, programs will want probably to stay conservative and will implement only the core ISAUnlikely, as pointed out in sibling comments the core ISA is too limited. What might prevail is profiles, specifically profiles for application processors like RVA22U64 and RVA23U64, which the latter one makes a lot more sense IMHO.",
     "parent": 45413252,
     "depth": 2
   },
@@ -109,6 +117,14 @@
     "timeISO": "2025-10-02T22:56:19.000Z",
     "textPlain": "> publish properly what will end up \"standard instruction fusion patterns\" (like the div/rem one).The div/rem one is odd because I saw it suggested in the ISA manual, but I have yet to ever see that pattern crop up in compiled code. Usually it's just in library functions like C stdlib `div()` which returns a quotient and remainder, but why on earth are you calling that library function on a processor that has a divide instruction?",
     "parent": 45413252,
+    "depth": 2
+  },
+  {
+    "id": 45458419,
+    "by": "phire",
+    "timeISO": "2025-10-03T02:55:17.000Z",
+    "textPlain": "This is what ARM's Thumb-2 has with its various If-Then-Else instructions. One instruction can skip upto four subsequent instructions if the condition fails.It can also do else clauses, instructions that get executed only when the condition fails.I'm not sure how well this approach would work on modern CPUs; These days, Thumb-2 is generally only used on small microprocessors, and it's notable that ARM64 didn't carry that feature forwards.",
+    "parent": 45458359,
     "depth": 2
   },
   {
