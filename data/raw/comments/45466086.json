@@ -64,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45472006,
-    "by": "pjjpo",
-    "timeISO": "2025-10-04T09:31:45.000Z",
-    "textPlain": "I wonder if this proposal suffers an because of Python's extremely generous support period and perhaps the ship has sailed.- lazy imports are a hugely impactful feature- lazy imports are already possible without syntaxThis means any libraries that get large benefit from lazy imports already use import statements within functions. They can't really use the new feature since 3.14 EoL is _2030_, forever from now. The __lazy_modules__ syntax preserves compatibility only but being eager, not performance - libraries that need lazy imports can't use it until 2030.This means that the primary target for a long time is CLI authors, which can have a more strict python target and is mentioned many times in the PEP, and libraries that don't have broad Python version support (meaning not just works but works well), which indicates they are probably not major libraries.Unless the feature gets backported to 2+ versions, it feels not so compelling. But given how it modifies the interpreter to a reasonable degree, I wonder if even any backport is on the table.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45469427,
     "by": "jacquesm",
     "timeISO": "2025-10-04T00:37:11.000Z",
     "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45472006,
+    "by": "pjjpo",
+    "timeISO": "2025-10-04T09:31:45.000Z",
+    "textPlain": "I wonder if this proposal suffers an because of Python's extremely generous support period and perhaps the ship has sailed.- lazy imports are a hugely impactful feature- lazy imports are already possible without syntaxThis means any libraries that get large benefit from lazy imports already use import statements within functions. They can't really use the new feature since 3.14 EoL is _2030_, forever from now. The __lazy_modules__ syntax preserves compatibility only but being eager, not performance - libraries that need lazy imports can't use it until 2030.This means that the primary target for a long time is CLI authors, which can have a more strict python target and is mentioned many times in the PEP, and libraries that don't have broad Python version support (meaning not just works but works well), which indicates they are probably not major libraries.Unless the feature gets backported to 2+ versions, it feels not so compelling. But given how it modifies the interpreter to a reasonable degree, I wonder if even any backport is on the table.",
     "parent": 45466086,
     "depth": 1
   },
@@ -96,18 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45471112,
-    "by": "Too",
-    "timeISO": "2025-10-04T06:46:42.000Z",
-    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466769,
     "by": "film42",
     "timeISO": "2025-10-03T19:23:59.000Z",
     "textPlain": "I'm a fan because it's something you can explicitly turn on and off. For my Docker based app, I really want to verify the completeness of imports. Preferably, at build and test time. In fact, most of the time I will likely disable lazy loading outright. But, I would really appreciate a faster loading CLI tool.However, there is a pattern in python to raise an error if, say, pandas doesn't have an excel library installed, which is fine. In the future, will maintainers opt to include a bunch of unused libraries since they won't negatively impact startup time? (Think pandas including 3-4 excel parsers by default, since it will only be loaded when called). It's a much better UX, but, now if you opt out of lazy loading, your code will take longer to load than without it.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45471112,
+    "by": "Too",
+    "timeISO": "2025-10-04T06:46:42.000Z",
+    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
     "parent": 45466086,
     "depth": 1
   },
@@ -124,14 +124,6 @@
     "by": "ajb",
     "timeISO": "2025-10-04T07:22:08.000Z",
     "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45472501,
-    "by": "Hendrikto",
-    "timeISO": "2025-10-04T11:20:16.000Z",
-    "textPlain": "Python imports are already way too complicated. I don’t think even more syntax should be added.",
     "parent": 45466086,
     "depth": 1
   },
@@ -156,6 +148,14 @@
     "by": "the_mitsuhiko",
     "timeISO": "2025-10-03T19:48:39.000Z",
     "textPlain": "I like the approach of ES6 where you pull in bindings that are generally lazily resolved. That is IMO the approach that should be the general strategy for Python.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45472501,
+    "by": "Hendrikto",
+    "timeISO": "2025-10-04T11:20:16.000Z",
+    "textPlain": "Python imports are already way too complicated. I don’t think even more syntax should be added.",
     "parent": 45466086,
     "depth": 1
   },
