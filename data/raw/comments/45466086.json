@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45472006,
+    "by": "pjjpo",
+    "timeISO": "2025-10-04T09:31:45.000Z",
+    "textPlain": "I wonder if this proposal suffers an because of Python's extremely generous support period and perhaps the ship has sailed.- lazy imports are a hugely impactful feature- lazy imports are already possible without syntaxThis means any libraries that get large benefit from lazy imports already use import statements within functions. They can't really use the new feature since 3.14 EoL is _2030_, forever from now. The __lazy_modules__ syntax preserves compatibility only but being eager, not performance - libraries that need lazy imports can't use it until 2030.This means that the primary target for a long time is CLI authors, which can have a more strict python target and is mentioned many times in the PEP, and libraries that don't have broad Python version support (meaning not just works but works well), which indicates they are probably not major libraries.Unless the feature gets backported to 2+ versions, it feels not so compelling. But given how it modifies the interpreter to a reasonable degree, I wonder if even any backport is on the table.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466767,
     "by": "wrmsr",
     "timeISO": "2025-10-03T19:23:52.000Z",
@@ -40,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45471112,
-    "by": "Too",
-    "timeISO": "2025-10-04T06:46:42.000Z",
-    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
+    "id": 45469537,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:59:02.000Z",
+    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
     "parent": 45466086,
     "depth": 1
   },
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45471334,
-    "by": "ajb",
-    "timeISO": "2025-10-04T07:22:08.000Z",
-    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
+    "id": 45469427,
+    "by": "jacquesm",
+    "timeISO": "2025-10-04T00:37:11.000Z",
+    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
     "parent": 45466086,
     "depth": 1
   },
@@ -72,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45469537,
-    "by": "bcoates",
-    "timeISO": "2025-10-04T00:59:02.000Z",
-    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
+    "id": 45471112,
+    "by": "Too",
+    "timeISO": "2025-10-04T06:46:42.000Z",
+    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
     "parent": 45466086,
     "depth": 1
   },
@@ -88,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45469427,
-    "by": "jacquesm",
-    "timeISO": "2025-10-04T00:37:11.000Z",
-    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
+    "id": 45471334,
+    "by": "ajb",
+    "timeISO": "2025-10-04T07:22:08.000Z",
+    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
     "parent": 45466086,
     "depth": 1
   },
@@ -116,6 +124,14 @@
     "by": "Boxxed",
     "timeISO": "2025-10-03T20:27:16.000Z",
     "textPlain": "Ugh...I like the idea, but I wish lazy imports were the default. Python allows side effects in the top level though so that would be a breaking change.Soooo instead now we're going to be in a situation where you're going to be writing \"lazy import ...\" 99% of the time: unless you're a barbarian, you basically never have side effects at the top level.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45472024,
+    "by": "shiandow",
+    "timeISO": "2025-10-04T09:35:11.000Z",
+    "textPlain": "I don't quite understand why they forbid this from being used in functions.I mean I get why that makes the most sense in most scenarios, but it is not as if the problem of having to choose between declaring dependencies up front or deferring expensive imports until needed does not happen in functions.Take for instance a function that quickly fails because the arguments are incorrect, it might do a whole bunch of imports that only make sense for that function but which are made immediately obsolete.It feels like it is forbidden just because someone thought it wasn't a good coding style but to me there is no obvious reason it couldn't work.",
     "parent": 45466086,
     "depth": 1
   },
@@ -160,6 +176,14 @@
     "depth": 1
   },
   {
+    "id": 45466575,
+    "by": "sedatk",
+    "timeISO": "2025-10-03T19:06:43.000Z",
+    "textPlain": "I wonder how much things would break if all imports were lazy by default.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45469333,
     "by": "throwaway81523",
     "timeISO": "2025-10-04T00:27:00.000Z",
@@ -172,14 +196,6 @@
     "by": "romanows",
     "timeISO": "2025-10-03T23:47:31.000Z",
     "textPlain": "Kinda related, I wish there was an easy way to exclude dependencies at pip-install time and mock them at runtime so an import doesn't cause an exception. Basically a way for me to approximate \"extras\" when the author isn't motivated to do it for me, even though it'd be super brittle.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45466575,
-    "by": "sedatk",
-    "timeISO": "2025-10-03T19:06:43.000Z",
-    "textPlain": "I wonder how much things would break if all imports were lazy by default.",
     "parent": 45466086,
     "depth": 1
   },
@@ -208,18 +224,18 @@
     "depth": 1
   },
   {
-    "id": 45469487,
-    "by": "d_burfoot",
-    "timeISO": "2025-10-04T00:48:58.000Z",
-    "textPlain": "Looks good to me. I use a tab-completion trick where the tab-completer tool calls the script I'm about to invoke with special arguments, and the script reflects on itself and responds with possible completions. But because of slow imports, it often takes a while for the completion to respond.I could, and sometimes do, go through all the imports to figure out which ones are taking a long time to load, but it's a chore.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466646,
     "by": "hoten",
     "timeISO": "2025-10-03T19:12:52.000Z",
     "textPlain": "For posterity, as the submitted link seems temporary: https://github.com/python/peps/pull/4622",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469487,
+    "by": "d_burfoot",
+    "timeISO": "2025-10-04T00:48:58.000Z",
+    "textPlain": "Looks good to me. I use a tab-completion trick where the tab-completer tool calls the script I'm about to invoke with special arguments, and the script reflects on itself and responds with possible completions. But because of slow imports, it often takes a while for the completion to respond.I could, and sometimes do, go through all the imports to figure out which ones are taking a long time to load, but it's a chore.",
     "parent": 45466086,
     "depth": 1
   },
@@ -380,22 +396,6 @@
     "by": "veber-alex",
     "timeISO": "2025-10-03T21:12:02.000Z",
     "textPlain": "I would gladly take a command line flag that I can pass to python that makes all module loading lazy.Unless you are writing scripts or very simple stuff running side effects when modules are loaded should be avoided at all cost anyway.",
-    "parent": 45467655,
-    "depth": 2
-  },
-  {
-    "id": 45467727,
-    "by": "Spivak",
-    "timeISO": "2025-10-03T21:02:22.000Z",
-    "textPlain": "I don't think this makes sense to be on the module side, the caller is the one with the information as to whether the module can or needs to be lazily loaded. There's nothing really for the module being imported to decide, every module can be lazily loaded. Even if it has side effects the caller may want to defer those as well.",
-    "parent": 45467655,
-    "depth": 2
-  },
-  {
-    "id": 45467728,
-    "by": "lenkite",
-    "timeISO": "2025-10-03T21:02:23.000Z",
-    "textPlain": "Wish pyproject.toml was enhanced to specify lazy loading via regexs.",
     "parent": 45467655,
     "depth": 2
   }
