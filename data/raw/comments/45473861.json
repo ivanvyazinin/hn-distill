@@ -1,21 +1,5 @@
 [
   {
-    "id": 45475825,
-    "by": "garethrowlands",
-    "timeISO": "2025-10-04T19:10:37.000Z",
-    "textPlain": "On strings in Ada vs Rust. Ada's design predates Unicode (early 1980s vs 1991), so Ada String is basically char array whereas Rust string is a Unicode text type. This explains why you can index into Ada Strings, which are arrays of bytes, but not into Rust strings, which are UTF8 encoded buffers that should be treated as text. Likely the Rust implementation could have used a byte array here.",
-    "parent": 45473861,
-    "depth": 1
-  },
-  {
-    "id": 45474671,
-    "by": "bigstrat2003",
-    "timeISO": "2025-10-04T16:51:16.000Z",
-    "textPlain": "I found it kind of odd that the author says Rust doesn't support concurrent programming out of the box. He links to another comment which points out you don't need Tokio for async (true enough), but even that aside async isn't the only way to achieve concurrency. Threads are built right into the language, and are easier to use than async. The only time they wouldn't be a good choice is if you anticipate needing to spawn so many threads that it causes resource issues, which very few programs will.",
-    "parent": 45473861,
-    "depth": 1
-  },
-  {
     "id": 45474453,
     "by": "PaulKeeble",
     "timeISO": "2025-10-04T16:20:47.000Z",
@@ -36,6 +20,22 @@
     "by": "jll29",
     "timeISO": "2025-10-04T17:45:08.000Z",
     "textPlain": "This write-up shows that while Ada may have some cultural and type-related disadvantages compared to Rust, Ada seems to generally win the readability contest.What is missing from the comparison is compiler speed - Ada was once seen as a complex language, but that may not be the case if compared against Rust.In any case, thanks for the post, it made me want to try using Ada for a real project.",
+    "parent": 45473861,
+    "depth": 1
+  },
+  {
+    "id": 45474671,
+    "by": "bigstrat2003",
+    "timeISO": "2025-10-04T16:51:16.000Z",
+    "textPlain": "I found it kind of odd that the author says Rust doesn't support concurrent programming out of the box. He links to another comment which points out you don't need Tokio for async (true enough), but even that aside async isn't the only way to achieve concurrency. Threads are built right into the language, and are easier to use than async. The only time they wouldn't be a good choice is if you anticipate needing to spawn so many threads that it causes resource issues, which very few programs will.",
+    "parent": 45473861,
+    "depth": 1
+  },
+  {
+    "id": 45475825,
+    "by": "garethrowlands",
+    "timeISO": "2025-10-04T19:10:37.000Z",
+    "textPlain": "On strings in Ada vs Rust. Ada's design predates Unicode (early 1980s vs 1991), so Ada String is basically char array whereas Rust string is a Unicode text type. This explains why you can index into Ada Strings, which are arrays of bytes, but not into Rust strings, which are UTF8 encoded buffers that should be treated as text. Likely the Rust implementation could have used a byte array here.",
     "parent": 45473861,
     "depth": 1
   },
@@ -96,30 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45474822,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-04T17:10:35.000Z",
-    "textPlain": "(Honest question from non Rustacean.)How does the cancellation story differ between threads and async in Rust? Or vs async in other languages?There's no inherent reason they should be different, but in my experience (in C++, Python, C#) cancellation is much better in async then simple threads and blocking calls. It's near impossible to have organised socket shutdown in many languages with blocking calls, assuming a standard read thread + write thread per socket. Often the only reliable way to interrupt a socket thread it's to close the socket, which may not be what you want, and in principle can leave you vulnerable to file handle reuse bugs.Async cancellation is, depending on the language, somewhere between hard but achievable (already an improvement) and fabulous. With Trio [1] you even get the guarantee that non-compared socket operations are either completed or have no effect.Did this work any better in Rust threads / blocking calls? My uneducated understanding is that things are actually worse in async than other languages because there's no way to catch and handle cancellations (unlike e.g. Python which uses exceptions for that).I'm also guessing things are no better in Ada but very happy to hear about that too.",
-    "parent": 45474671,
-    "depth": 2
-  },
-  {
-    "id": 45474891,
-    "by": "tialaramex",
-    "timeISO": "2025-10-04T17:16:54.000Z",
-    "textPlain": "I wonder where the cut-off is where a work stealing scheduler like Tokio's is noticeably faster than just making a bunch of threads to do work, and then where the hard cut-off is that making threads will cause serious problems rather than just being slower because we don't steal.It might be quite small, as I found for Maps (if we're putting 5 things in the map then we can just do the very dumbest thing which I call `VecMap` and that's fine, but if it's 25 things the VecMap is a little worse than any actual hash table, and if it's 100 things the VecMap is laughably terrible) but it might be quite large, even say 10x number of cores might be just fine without stealing.",
-    "parent": 45474671,
-    "depth": 2
-  },
-  {
-    "id": 45474859,
-    "by": "IshKebab",
-    "timeISO": "2025-10-04T17:14:45.000Z",
-    "textPlain": "Or in cases where the platform doesn't support threads easily - WASM and embedded (Embassy). Tbh I think that's a better motivation for using async than the usual \"but what if 100k people visit my anime blog all at once?\"",
-    "parent": 45474671,
-    "depth": 2
-  },
-  {
     "id": 45475118,
     "by": "plainOldText",
     "timeISO": "2025-10-04T17:41:29.000Z",
@@ -132,6 +108,14 @@
     "by": "jandrewrogers",
     "timeISO": "2025-10-04T17:19:11.000Z",
     "textPlain": "> The ability to make number types that were limited in their range is really useful for certain classes of bugs.This is a feature I use a lot in C++. It is not part of the standard library but it is trivial to programmatically generate range-restricted numeric types in modern C++. Some safety checks can even be done at compile-time instead of runtime.It should be a standard feature in programming languages.",
+    "parent": 45474453,
+    "depth": 2
+  },
+  {
+    "id": 45475904,
+    "by": "wolvesechoes",
+    "timeISO": "2025-10-04T19:21:38.000Z",
+    "textPlain": "Ada, or at least GNAT, also supports compile-time dimensional analysis (unit checking). I may be biased, because I mostly work with engineering applications, but I still do not understand why in other languages it is delegated to 3rd party libraries.https://docs.adacore.com/gnat_ugn-docs/html/gnat_ugn/gnat_ug...",
     "parent": 45474453,
     "depth": 2
   },
@@ -176,6 +160,46 @@
     "depth": 2
   },
   {
+    "id": 45476261,
+    "by": "WD-42",
+    "timeISO": "2025-10-04T20:04:54.000Z",
+    "textPlain": "You may be correct in theory though in practice the reason to use Async over threads is often because the crate you want to use is async. Reqwest is a good example, it cannot be used without Tokio. Ureq exists and works fine. I've done a fairly high level application project where I tried to avoid all async and at some point it started to feel like swimming upstream.",
+    "parent": 45474671,
+    "depth": 2
+  },
+  {
+    "id": 45474822,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-04T17:10:35.000Z",
+    "textPlain": "(Honest question from non Rustacean.)How does the cancellation story differ between threads and async in Rust? Or vs async in other languages?There's no inherent reason they should be different, but in my experience (in C++, Python, C#) cancellation is much better in async then simple threads and blocking calls. It's near impossible to have organised socket shutdown in many languages with blocking calls, assuming a standard read thread + write thread per socket. Often the only reliable way to interrupt a socket thread it's to close the socket, which may not be what you want, and in principle can leave you vulnerable to file handle reuse bugs.Async cancellation is, depending on the language, somewhere between hard but achievable (already an improvement) and fabulous. With Trio [1] you even get the guarantee that non-compared socket operations are either completed or have no effect.Did this work any better in Rust threads / blocking calls? My uneducated understanding is that things are actually worse in async than other languages because there's no way to catch and handle cancellations (unlike e.g. Python which uses exceptions for that).I'm also guessing things are no better in Ada but very happy to hear about that too.",
+    "parent": 45474671,
+    "depth": 2
+  },
+  {
+    "id": 45474891,
+    "by": "tialaramex",
+    "timeISO": "2025-10-04T17:16:54.000Z",
+    "textPlain": "I wonder where the cut-off is where a work stealing scheduler like Tokio's is noticeably faster than just making a bunch of threads to do work, and then where the hard cut-off is that making threads will cause serious problems rather than just being slower because we don't steal.It might be quite small, as I found for Maps (if we're putting 5 things in the map then we can just do the very dumbest thing which I call `VecMap` and that's fine, but if it's 25 things the VecMap is a little worse than any actual hash table, and if it's 100 things the VecMap is laughably terrible) but it might be quite large, even say 10x number of cores might be just fine without stealing.",
+    "parent": 45474671,
+    "depth": 2
+  },
+  {
+    "id": 45474859,
+    "by": "IshKebab",
+    "timeISO": "2025-10-04T17:14:45.000Z",
+    "textPlain": "Or in cases where the platform doesn't support threads easily - WASM and embedded (Embassy). Tbh I think that's a better motivation for using async than the usual \"but what if 100k people visit my anime blog all at once?\"",
+    "parent": 45474671,
+    "depth": 2
+  },
+  {
+    "id": 45476122,
+    "by": "debugnik",
+    "timeISO": "2025-10-04T19:46:43.000Z",
+    "textPlain": "> Ada String is basically char arrayWorse, the built-in Unicode strings are arrays of Unicode scalars, effectively UTF-32 in the general case. There's no proper way to write UTF-8 string literals AFAIK, you need to convert them from arrays of 8, 16 or 32 bit characters depending on the literal.",
+    "parent": 45475825,
+    "depth": 2
+  },
+  {
     "id": 45475099,
     "by": "Jtsummers",
     "timeISO": "2025-10-04T17:39:17.000Z",
@@ -192,18 +216,18 @@
     "depth": 2
   },
   {
-    "id": 45475143,
-    "by": "Jtsummers",
-    "timeISO": "2025-10-04T17:45:08.000Z",
-    "textPlain": "Ada also has hash maps and sets.http://www.ada-auth.org/standards/22rm/html/RM-TOC.html - See section A.18 on Containers.The feature of being able to use a discrete range as an array index is very helpful when you have a dense map (most keys will be used) or you also want to be able to iterate over a sequential block of memory (better performance than a dictionary will generally give you, since they don't usually play well with caches).",
-    "parent": 45474855,
-    "depth": 2
-  },
-  {
     "id": 45475102,
     "by": "tialaramex",
     "timeISO": "2025-10-04T17:39:47.000Z",
     "textPlain": "I think they're focused very much specifically on the built-in array type. Presumably Ada is allowed to say eggs is an array and the index has type BirdSpecies so eggs[Robin] and eggs[Seagull] work but eggs[5] is nonsense.Rust is OK with you having a type which implements Index<BirdSpecies> and if eggs is an instance of that type it's OK to ask for eggs[Robin] while eggs[5] won't compile, but Rust won't give you an \"array\" with this property, you'd have to make your own.My guess is that this makes more sense in a language where user defined types are allowed to be a subset of say a basic integer type, which I know Ada has and Rust as yet does not. If you can do that, then array[MyCustomType] is very useful.I call out specifically User Defined types because, Rust's NonZeroI16 - the 16-bit integers except zero - is compiler-only internal magic, if you want a MultipleOfSixU32 or even U8ButNotThreeForSomeReason that's not \"allowed\" and so you'd need nightly Rust and an explicit \"I don't care that this isn't supported\" compiler-only feature flag in your source. I want to change this so that anybody can make the IntegersFiveThroughTwelveU8 or whatever, and there is non zero interest in that happening, but I'd have said the exact same thing two years ago so...",
+    "parent": 45474855,
+    "depth": 2
+  },
+  {
+    "id": 45475143,
+    "by": "Jtsummers",
+    "timeISO": "2025-10-04T17:45:08.000Z",
+    "textPlain": "Ada also has hash maps and sets.http://www.ada-auth.org/standards/22rm/html/RM-TOC.html - See section A.18 on Containers.The feature of being able to use a discrete range as an array index is very helpful when you have a dense map (most keys will be used) or you also want to be able to iterate over a sequential block of memory (better performance than a dictionary will generally give you, since they don't usually play well with caches).",
     "parent": 45474855,
     "depth": 2
   },
