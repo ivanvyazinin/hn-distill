@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45469537,
-    "by": "bcoates",
-    "timeISO": "2025-10-04T00:59:02.000Z",
-    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466767,
     "by": "wrmsr",
     "timeISO": "2025-10-03T19:23:52.000Z",
@@ -56,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45466562,
-    "by": "TheMrZZ",
-    "timeISO": "2025-10-03T19:05:17.000Z",
-    "textPlain": "Feels like a good feature, with a simple explanation, real world use cases, and a scoped solution (global only, pretty simple keyword). I like it!",
+    "id": 45469537,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:59:02.000Z",
+    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
     "parent": 45466086,
     "depth": 1
   },
   {
-    "id": 45469427,
-    "by": "jacquesm",
-    "timeISO": "2025-10-04T00:37:11.000Z",
-    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
+    "id": 45466562,
+    "by": "TheMrZZ",
+    "timeISO": "2025-10-03T19:05:17.000Z",
+    "textPlain": "Feels like a good feature, with a simple explanation, real world use cases, and a scoped solution (global only, pretty simple keyword). I like it!",
     "parent": 45466086,
     "depth": 1
   },
@@ -80,26 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45468770,
-    "by": "nilslindemann",
-    "timeISO": "2025-10-03T22:56:42.000Z",
-    "textPlain": "This is the wrong syntax, comparable to how \"u\" strings were the wrong syntax and \"b\" strings are the right syntax.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466769,
     "by": "film42",
     "timeISO": "2025-10-03T19:23:59.000Z",
     "textPlain": "I'm a fan because it's something you can explicitly turn on and off. For my Docker based app, I really want to verify the completeness of imports. Preferably, at build and test time. In fact, most of the time I will likely disable lazy loading outright. But, I would really appreciate a faster loading CLI tool.However, there is a pattern in python to raise an error if, say, pandas doesn't have an excel library installed, which is fine. In the future, will maintainers opt to include a bunch of unused libraries since they won't negatively impact startup time? (Think pandas including 3-4 excel parsers by default, since it will only be loaded when called). It's a much better UX, but, now if you opt out of lazy loading, your code will take longer to load than without it.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45468807,
-    "by": "dataangel",
-    "timeISO": "2025-10-03T23:02:50.000Z",
-    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
     "parent": 45466086,
     "depth": 1
   },
@@ -112,10 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45469333,
-    "by": "throwaway81523",
-    "timeISO": "2025-10-04T00:27:00.000Z",
-    "textPlain": "We need some kind of unexec revival in Linux so we don't have to resort to crap like this.  Maybe CRIU based.  Worst case, some Python specific hack. But Python's import system is wacky enough without lazy loading.  This sounds like combining the worst of multiple worlds.",
+    "id": 45468770,
+    "by": "nilslindemann",
+    "timeISO": "2025-10-03T22:56:42.000Z",
+    "textPlain": "This is the wrong syntax, comparable to how \"u\" strings were the wrong syntax and \"b\" strings are the right syntax.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468807,
+    "by": "dataangel",
+    "timeISO": "2025-10-03T23:02:50.000Z",
+    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
     "parent": 45466086,
     "depth": 1
   },
@@ -128,26 +112,18 @@
     "depth": 1
   },
   {
+    "id": 45469427,
+    "by": "jacquesm",
+    "timeISO": "2025-10-04T00:37:11.000Z",
+    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45467040,
     "by": "the_mitsuhiko",
     "timeISO": "2025-10-03T19:48:39.000Z",
     "textPlain": "I like the approach of ES6 where you pull in bindings that are generally lazily resolved. That is IMO the approach that should be the general strategy for Python.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45469487,
-    "by": "d_burfoot",
-    "timeISO": "2025-10-04T00:48:58.000Z",
-    "textPlain": "Looks good to me. I use a tab-completion trick where the tab-completer tool calls the script I'm about to invoke with special arguments, and the script reflects on itself and responds with possible completions. But because of slow imports, it often takes a while for the completion to respond.I could, and sometimes do, go through all the imports to figure out which ones are taking a long time to load, but it's a chore.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45469085,
-    "by": "romanows",
-    "timeISO": "2025-10-03T23:47:31.000Z",
-    "textPlain": "Kinda related, I wish there was an easy way to exclude dependencies at pip-install time and mock them at runtime so an import doesn't cause an exception. Basically a way for me to approximate \"extras\" when the author isn't motivated to do it for me, even though it'd be super brittle.",
     "parent": 45466086,
     "depth": 1
   },
@@ -160,10 +136,34 @@
     "depth": 1
   },
   {
+    "id": 45469333,
+    "by": "throwaway81523",
+    "timeISO": "2025-10-04T00:27:00.000Z",
+    "textPlain": "We need some kind of unexec revival in Linux so we don't have to resort to crap like this.  Maybe CRIU based.  Worst case, some Python specific hack. But Python's import system is wacky enough without lazy loading.  This sounds like combining the worst of multiple worlds.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45467417,
     "by": "Boxxed",
     "timeISO": "2025-10-03T20:27:16.000Z",
     "textPlain": "Ugh...I like the idea, but I wish lazy imports were the default. Python allows side effects in the top level though so that would be a breaking change.Soooo instead now we're going to be in a situation where you're going to be writing \"lazy import ...\" 99% of the time: unless you're a barbarian, you basically never have side effects at the top level.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469085,
+    "by": "romanows",
+    "timeISO": "2025-10-03T23:47:31.000Z",
+    "textPlain": "Kinda related, I wish there was an easy way to exclude dependencies at pip-install time and mock them at runtime so an import doesn't cause an exception. Basically a way for me to approximate \"extras\" when the author isn't motivated to do it for me, even though it'd be super brittle.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469487,
+    "by": "d_burfoot",
+    "timeISO": "2025-10-04T00:48:58.000Z",
+    "textPlain": "Looks good to me. I use a tab-completion trick where the tab-completer tool calls the script I'm about to invoke with special arguments, and the script reflects on itself and responds with possible completions. But because of slow imports, it often takes a while for the completion to respond.I could, and sometimes do, go through all the imports to figure out which ones are taking a long time to load, but it's a chore.",
     "parent": 45466086,
     "depth": 1
   },
@@ -184,14 +184,6 @@
     "depth": 1
   },
   {
-    "id": 45468710,
-    "by": "mekoka",
-    "timeISO": "2025-10-03T22:46:32.000Z",
-    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466996,
     "by": "jeremyscanvic",
     "timeISO": "2025-10-03T19:44:47.000Z",
@@ -208,10 +200,26 @@
     "depth": 1
   },
   {
+    "id": 45468710,
+    "by": "mekoka",
+    "timeISO": "2025-10-03T22:46:32.000Z",
+    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466646,
     "by": "hoten",
     "timeISO": "2025-10-03T19:12:52.000Z",
     "textPlain": "For posterity, as the submitted link seems temporary: https://github.com/python/peps/pull/4622",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45467014,
+    "by": "Spivak",
+    "timeISO": "2025-10-03T19:46:38.000Z",
+    "textPlain": "I love the feature but I really dislike using the word lazy as a new language keyword. It just feels off somehow. I think maybe defer might be a better word. It is at least keeps the grammar right because it would be lazily.    lazily import package.foo\n    vs\n    defer import package.foo\n\nAlso the grammar is super weird for from imports.    lazy from package import foo\n    vs.\n    from package defer import foo.",
     "parent": 45466086,
     "depth": 1
   },
@@ -228,14 +236,6 @@
     "by": "gorgoiler",
     "timeISO": "2025-10-03T21:33:39.000Z",
     "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45467014,
-    "by": "Spivak",
-    "timeISO": "2025-10-03T19:46:38.000Z",
-    "textPlain": "I love the feature but I really dislike using the word lazy as a new language keyword. It just feels off somehow. I think maybe defer might be a better word. It is at least keeps the grammar right because it would be lazily.    lazily import package.foo\n    vs\n    defer import package.foo\n\nAlso the grammar is super weird for from imports.    lazy from package import foo\n    vs.\n    from package defer import foo.",
     "parent": 45466086,
     "depth": 1
   },
@@ -323,7 +323,7 @@
     "id": 45469331,
     "by": "flare_blitz",
     "timeISO": "2025-10-04T00:26:37.000Z",
-    "textPlain": "I also hope this proposal succeeds, but I'm not optimistic. This will break tons of code and introduce a slew of footguns. Import statements fundamentally have side effects, and when and how these side effects are applied will cause mysterious breakages that will keep people up for many nights.This is not fearmongering. There is a reason why the only flavor of Python with lazy imports comes from one of the most well-resourced companies in the world.Too many people in this thread hold the view of \"importing {pandas, numpy, my weird module that is more tangled than an eight-player game of Twister} takes too long and I will gladly support anything that makes them faster\". I would be willing to bet a large sum of money that most people who hold this opinion are unable to describe how Python's import system works, let alone describe how to implement lazy imports.PEP 690 describes a number of drawbacks. For example, lazy imports break code that uses decorators to add functions to a central registry. This behavior is crucial for Dash, a popular library for building frontends that has been around for more than a decade. At import-time, Dash uses decorators to bind a JavaScript-based interface to callbacks written in Python. If these imports were made lazy, Dash would break. Frontends used by thousands, if not millions of people, would immediately become unresponsive.You may cry, \"But lazy imports are opt-in! Developers can choose to opt-out of lazy imports if it doesn't work for them.\" What if these imports were transitive? What if our frontend needed to be completely initialized before starting a critical process, else it would cause a production outage? What if you were a maintainer of a library that was used by millions of people? How could you be sure that adding lazy imports wouldn't break any code downstream?This is before we even get to the rest of the issues the PEP describes, which are even weirder and crazier than this. This is a far more difficult undertaking tha",
+    "textPlain": "I also hope this proposal succeeds, but I'm not optimistic. This will break tons of code and introduce a slew of footguns. Import statements fundamentally have side effects, and when and how these side effects are applied will cause mysterious breakages that will keep people up for many nights.This is not fearmongering. There is a reason why the only flavor of Python with lazy imports comes from Meta, which is one of the most well-resourced companies in the world.Too many people in this thread hold the view of \"importing {pandas, numpy, my weird module that is more tangled than an eight-player game of Twister} takes too long and I will gladly support anything that makes them faster\". I would be willing to bet a large sum of money that most people who hold this opinion are unable to describe how Python's import system works, let alone describe how to implement lazy imports.PEP 690 describes a number of drawbacks. For example, lazy imports break code that uses decorators to add functions to a central registry. This behavior is crucial for Dash, a popular library for building frontends that has been around for more than a decade. At import-time, Dash uses decorators to bind a JavaScript-based interface to callbacks written in Python. If these imports were made lazy, Dash would break. Frontends used by thousands, if not millions of people, would immediately become unresponsive.You may cry, \"But lazy imports are opt-in! Developers can choose to opt-out of lazy imports if it doesn't work for them.\" What if these imports were transitive? What if our frontend needed to be completely initialized before starting a critical process, else it would cause a production outage? What if you were a maintainer of a library that was used by millions of people? How could you be sure that adding lazy imports wouldn't break any code downstream? Many people made this argument for type hints, which is sensible because type hints have no effect on runtime behavior*. This is not true for lazy",
     "parent": 45466897,
     "depth": 2
   },
