@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45471112,
+    "by": "Too",
+    "timeISO": "2025-10-04T06:46:42.000Z",
+    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, that would require taming the abuse of side-effects in imports first, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, something like a `__impure__` or `__pure__` marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to errors caught by type checkers. Modules declaring this pure-marker should then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to declare as either pure or impure. With more and more of the ecosystem moving to typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466767,
     "by": "wrmsr",
     "timeISO": "2025-10-03T19:23:52.000Z",
@@ -40,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45469537,
-    "by": "bcoates",
-    "timeISO": "2025-10-04T00:59:02.000Z",
-    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45467489,
     "by": "zahlman",
     "timeISO": "2025-10-03T20:34:28.000Z",
     "textPlain": "> The standard library provides the LazyLoader class to solve some of these inefficiency problems. It permits imports at the module level to work mostly like inline imports do.The use of these sorts of Python import internals is highly non-obvious. The Stack Overflow Q&A I found about it (https://stackoverflow.com/questions/42703908/) doesn't result in an especially nice-looking UX.So here's a proof of concept in existing Python for getting all imports to be lazy automatically, with no special syntax for the caller:  import sys\n  import threading # needed for python 3.13, at least at the REPL, because reasons\n  from importlib.util import LazyLoader # this has to be eagerly imported!\n  class LazyPathFinder(sys.meta_path[-1]): # <class '_frozen_importlib_external.PathFinder'>\n      @classmethod\n      def find_spec(cls, fullname, path=None, target=None):\n          base = super().find_spec(fullname, path, target)\n          base.loader = LazyLoader(base.loader)\n          return base\n  sys.meta_path[-1] = LazyPathFinder\n\nWe've replaced the \"meta path finder\" (which implements the logic \"when the module isn't in sys.modules, look on sys.path for source code and/or bytecode, including bytecode in __pycache__ subfolders, and create a 'spec' for it\") with our own wrapper. The \"loader\" attached to the resulting spec is replaced with an importlib.util.LazyLoader instance, which wraps the base PathFinder's provided loader. When an import statement actually imports the module, the name will actually get bound to a <class 'importlib.util._LazyModule'> instance, rather than an ordinary module. Attempting to access any attribute of this instance will trigger the normal module loading procedure — which even replaces the global name.Now we can do:  import this # nothing shows up\n  print(type(this)) # <class 'importlib.util._LazyModule'>\n  rot13 = this.s # the module is loaded, printing the Zen\n  print(type(this)) # <class 'module'>\n\nThat said, I don't know what the PEP means by \"mostl",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469537,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:59:02.000Z",
+    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
     "parent": 45466086,
     "depth": 1
   },
@@ -112,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45468807,
-    "by": "dataangel",
-    "timeISO": "2025-10-03T23:02:50.000Z",
-    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45467330,
     "by": "jmward01",
     "timeISO": "2025-10-03T20:19:59.000Z",
     "textPlain": "This is needed, but I don't like new keywords. What I would love, for many reasons, is if we could decorate statements. Then things like:import expensive_modulecould be:@lazyimport expensive_moduleor you could do:@retry(3)x = failure_prone_call(y)lazy is needed, but maybe there is a more basic change that could give more power with more organic syntax, and not create a new keyword that is special purpose (and extending an already special purpose keyword)",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468807,
+    "by": "dataangel",
+    "timeISO": "2025-10-03T23:02:50.000Z",
+    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
     "parent": 45466086,
     "depth": 1
   },
@@ -323,7 +331,7 @@
     "id": 45470517,
     "by": "what",
     "timeISO": "2025-10-04T04:27:08.000Z",
-    "textPlain": "You always find a way to spam links to your site. It’s honestly impressive.",
+    "textPlain": "[flagged]",
     "parent": 45467095,
     "depth": 2
   },
@@ -389,14 +397,6 @@
     "timeISO": "2025-10-03T21:00:47.000Z",
     "textPlain": "We heard that about types, the walrus, asyncio, dataclasses and so much more. But it didn't happen, if people don't need something (and many don't know it exists or what it does), it's unlikely they use it.In fact, half of the community basically uses only a modernized set of python 2.4 features and that's one of the beauties of the language. You don't need a lot to be productive, and if you want more, you can optionally reach for it.It has worked very well for the last 2 decades and it will likely work again.",
     "parent": 45467655,
-    "depth": 2
-  },
-  {
-    "id": 45470331,
-    "by": "NSPG911",
-    "timeISO": "2025-10-04T03:45:34.000Z",
-    "textPlain": "looks very interesting! i might use this for some of my projects as well",
-    "parent": 45466767,
     "depth": 2
   }
 ]
