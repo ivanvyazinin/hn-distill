@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45469537,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:59:02.000Z",
+    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45467489,
     "by": "zahlman",
     "timeISO": "2025-10-03T20:34:28.000Z",
@@ -56,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45467126,
-    "by": "aftbit",
-    "timeISO": "2025-10-03T19:57:59.000Z",
-    "textPlain": "We tend to prefer explicit top-level imports specifically because they reveal dependency problems as soon as the program starts, rather than potentially hours or days later when a specific code path is executed.",
+    "id": 45469427,
+    "by": "jacquesm",
+    "timeISO": "2025-10-04T00:37:11.000Z",
+    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
     "parent": 45466086,
     "depth": 1
   },
   {
-    "id": 45469537,
-    "by": "bcoates",
-    "timeISO": "2025-10-04T00:59:02.000Z",
-    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
+    "id": 45467126,
+    "by": "aftbit",
+    "timeISO": "2025-10-03T19:57:59.000Z",
+    "textPlain": "We tend to prefer explicit top-level imports specifically because they reveal dependency problems as soon as the program starts, rather than potentially hours or days later when a specific code path is executed.",
     "parent": 45466086,
     "depth": 1
   },
@@ -84,14 +92,6 @@
     "by": "f311a",
     "timeISO": "2025-10-03T19:43:31.000Z",
     "textPlain": "I don't like the idea of introducing a new keyword. We need a backward compatible solution. I feel like Python needs some kind of universal annotation syntax such as in go (comments) or in Rust (macros). New keyword means all parsers, lsps, editors should be updated.I’m pretty sure there will be new keywords in Python in the future that only solve one thing.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45469427,
-    "by": "jacquesm",
-    "timeISO": "2025-10-04T00:37:11.000Z",
-    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
     "parent": 45466086,
     "depth": 1
   },
@@ -200,10 +200,10 @@
     "depth": 1
   },
   {
-    "id": 45468710,
-    "by": "mekoka",
-    "timeISO": "2025-10-03T22:46:32.000Z",
-    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
+    "id": 45468053,
+    "by": "gorgoiler",
+    "timeISO": "2025-10-03T21:33:39.000Z",
+    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
     "parent": 45466086,
     "depth": 1
   },
@@ -224,26 +224,18 @@
     "depth": 1
   },
   {
+    "id": 45468710,
+    "by": "mekoka",
+    "timeISO": "2025-10-03T22:46:32.000Z",
+    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466784,
     "by": "the__alchemist",
     "timeISO": "2025-10-03T19:25:31.000Z",
     "textPlain": "Does this fix the circular imports problem that comes up if you don't structural your programs in a hierarchical way?",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45468053,
-    "by": "gorgoiler",
-    "timeISO": "2025-10-03T21:33:39.000Z",
-    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45466888,
-    "by": "behnamoh",
-    "timeISO": "2025-10-03T19:34:27.000Z",
-    "textPlain": "Make Python more like Haskell, LFG!",
     "parent": 45466086,
     "depth": 1
   },
@@ -256,10 +248,10 @@
     "depth": 1
   },
   {
-    "id": 45468142,
-    "by": "nodesocket",
-    "timeISO": "2025-10-03T21:42:17.000Z",
-    "textPlain": "Won’t this have a very noticeable performance hit on the first request? Thinking web frameworks like Flask and Django.",
+    "id": 45466888,
+    "by": "behnamoh",
+    "timeISO": "2025-10-03T19:34:27.000Z",
+    "textPlain": "Make Python more like Haskell, LFG!",
     "parent": 45466086,
     "depth": 1
   },
@@ -268,6 +260,14 @@
     "by": "enriquto",
     "timeISO": "2025-10-03T21:29:04.000Z",
     "textPlain": "what is the point of this?\nyou can just import inside function definitions:    def antislash(A, b):\n        from numpy.linalg import solve\n        return solve(A, b)\n\nthus numpy.linalg is only imported the first time you call the antislash function.  Much cleaner than a global import.Ignore wrong traditions.  Put all imports in the innermost scopes of your code!",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468142,
+    "by": "nodesocket",
+    "timeISO": "2025-10-03T21:42:17.000Z",
+    "textPlain": "Won’t this have a very noticeable performance hit on the first request? Thinking web frameworks like Flask and Django.",
     "parent": 45466086,
     "depth": 1
   },
@@ -316,6 +316,14 @@
     "by": "peterfirefly",
     "timeISO": "2025-10-03T21:07:37.000Z",
     "textPlain": "Parse the command line and do things like \"--help\" without doing the imports.Only do imports when you know you need them -- or as an easy approximation, only if the easy command line options have been handled and there's still something to do.",
+    "parent": 45467095,
+    "depth": 2
+  },
+  {
+    "id": 45470517,
+    "by": "what",
+    "timeISO": "2025-10-04T04:27:08.000Z",
+    "textPlain": "You always find a way to spam links to your site. It’s honestly impressive.",
     "parent": 45467095,
     "depth": 2
   },
@@ -389,14 +397,6 @@
     "timeISO": "2025-10-04T03:45:34.000Z",
     "textPlain": "looks very interesting! i might use this for some of my projects as well",
     "parent": 45466767,
-    "depth": 2
-  },
-  {
-    "id": 45469465,
-    "by": "bcoates",
-    "timeISO": "2025-10-04T00:45:07.000Z",
-    "textPlain": "I don't think there is any solution for that but \"fix your broken linter\".",
-    "parent": 45468267,
     "depth": 2
   }
 ]
