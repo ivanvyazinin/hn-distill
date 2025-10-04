@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45471137,
-    "by": "procaryote",
-    "timeISO": "2025-10-04T06:50:26.000Z",
-    "textPlain": "I kinda think rust is a dead-end. The learning curve is really challenging for most people, and you gain all these new constraints.It competes against languages that give you memory safety by having garbage collection, or I guess even by using arenas in a few cases. GC comes with a performance hit, but a bit of a performance hit is usually much easier to deal with than having a smaller pool of effective developersWorse is better",
-    "parent": 45467032,
-    "depth": 1
-  },
-  {
     "id": 45471014,
     "by": "asplake",
     "timeISO": "2025-10-04T06:27:11.000Z",
@@ -44,6 +36,14 @@
     "by": "sfpotter",
     "timeISO": "2025-10-03T22:26:18.000Z",
     "textPlain": "Here's an implementation of a doubly-linked list which is perfectly fine on modern hardware: an array of structs where each struct contains a pointer to its next and previous elements in addition to whatever other data is being stored.Here's a situation where a traditional pointer-based double-linked list is fine: when the payload is very large (e.g., an entire document in some app).",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45471137,
+    "by": "procaryote",
+    "timeISO": "2025-10-04T06:50:26.000Z",
+    "textPlain": "I kinda think rust is a dead-end. The learning curve is really challenging for most people, and you gain all these new constraints.It competes against languages that give you memory safety by having garbage collection, or I guess even by using arenas in a few cases. GC comes with a performance hit, but a bit of a performance hit is usually much easier to deal with than having a smaller pool of effective developersWorse is better",
     "parent": 45467032,
     "depth": 1
   },
@@ -112,10 +112,42 @@
     "depth": 1
   },
   {
+    "id": 45472381,
+    "by": "athrowaway3z",
+    "timeISO": "2025-10-04T10:52:06.000Z",
+    "textPlain": "My gut says the following, so take with a grain of salt:If your goal is to not do refcounting, \nYou can tie compile time guaranteed access on a 'parent getter' (but only ever as a non-mut reference) by saying:- parent element MUST be present at time of construction- When doing a 'parent get' call, you MUST still prove you're in the parent's lifetime.This can be done at compile time at 0 runtime cost. \nThe problem is, that these constraints drastically reduce the usability of those back-links.There is no compiler solution in Rust. Rust lifetimes form a DAG of (overlapping) ranges. (in terms that some leaf nodes are inductive proofs)To relax those 2 constraints require a bi-directional graph, and I'm not sure if that can ever be computed in a reasonable time.",
+    "parent": 45467959,
+    "depth": 2
+  },
+  {
+    "id": 45472361,
+    "by": "discardable_dan",
+    "timeISO": "2025-10-04T10:46:30.000Z",
+    "textPlain": "It's pretty easy to do at runtime without weak pointers, people who write rust are just allergic to reference counting. Which is absurd, because most programmer use RC values thousands of times every day without even thinking about it. It's really this easy: https://pastebin.com/SAeKG7Sw",
+    "parent": 45467959,
+    "depth": 2
+  },
+  {
+    "id": 45472388,
+    "by": "thinkharderdev",
+    "timeISO": "2025-10-04T10:53:00.000Z",
+    "textPlain": ">  doesn't mean you're not stomping on in-bounds neighboring dataI don't see how you would do that in safe rust though. The point of the arena would just be to solve the lifetime issue. It just moves the ownership problem one level higher. Instead of having circular ownership in a linked list, all linked list nodes are owned by the arena and hence have the same lifetime as the arena.",
+    "parent": 45468488,
+    "depth": 2
+  },
+  {
     "id": 45468569,
     "by": "mwkaufma",
     "timeISO": "2025-10-03T22:27:33.000Z",
     "textPlain": "Anticipating pushback: yes, you can disallow \"pointer arithmetic\" on handles, and store fingerprints in the \"slots\" to ensure they still contain the handle's identity to detect user-after-free, but congrats, you've implemented sparse sets, which there are dozen's of C++ implementations of with the same safety guarantees, so it's unclear what rust is bringing in that case (e.g. https://github.com/skypjack/entt/blob/master/src/entt/entity...)",
+    "parent": 45468488,
+    "depth": 2
+  },
+  {
+    "id": 45472307,
+    "by": "kobebrookskC3",
+    "timeISO": "2025-10-04T10:35:07.000Z",
+    "textPlain": "stomping on in-bounds data might result in \"nondeterminism\", but bounded and not ub, which is unbounded.",
     "parent": 45468488,
     "depth": 2
   },
@@ -125,14 +157,6 @@
     "timeISO": "2025-10-04T09:32:39.000Z",
     "textPlain": "There haven't been any serious proposals yet, but some ideas have been floating around from time to time. For example this blog post has some ideas that might allow them https://smallcultfollowing.com/babysteps/blog/2024/03/04/bor...The hardest problems I think is that this requires a fundamental change to the language that something might be already borrowed just by existing. It also likely needs to introduce a notion of \"stable\" places that will not move when you move a prefix of them, e.g. to allow moving a `Box` holding self-referential data. In other words, there's a lot of bikeshedding to do.",
     "parent": 45471178,
-    "depth": 2
-  },
-  {
-    "id": 45471867,
-    "by": "pimeys",
-    "timeISO": "2025-10-04T09:02:21.000Z",
-    "textPlain": "Nah. It's like learning vim, you get over the first shock and then you have a lifetime friend.And another thing is with current coding agents, like the gpt-5-codex, Rust really shines here. The agent can easily guide you through the first borrow checker issues, and the compiler helps the agent to write good code.Source: been writing Rust for a decade now. It is easily the best language I've ever used, still.",
-    "parent": 45471137,
     "depth": 2
   },
   {
@@ -149,6 +173,30 @@
     "timeISO": "2025-10-03T23:24:45.000Z",
     "textPlain": "[dead]",
     "parent": 45468557,
+    "depth": 2
+  },
+  {
+    "id": 45472373,
+    "by": "SomeoneOnTheWeb",
+    "timeISO": "2025-10-04T10:49:34.000Z",
+    "textPlain": "I strongly disagree.* The performance difference can be pretty massive depending on scenarios. Sure, most programs don't need it, but still\n* Rust has not only memory safety but full safety around it. For instance, in Java if you iterate over a list while mutating it you'll get a runtime error. In Rust, it won't compile, preventing you from a possible bug later on\n* The time you spend learning Rust is so much time saved afterwards because the language is specifically designed to reduce the risk of programming errors. Many things like the absence of a `null` value like we have in Java is an immense time saver when your program gets bigger",
+    "parent": 45471137,
+    "depth": 2
+  },
+  {
+    "id": 45472278,
+    "by": "tonyedgecombe",
+    "timeISO": "2025-10-04T10:25:52.000Z",
+    "textPlain": "> It competes against languages that give you memory safety by having garbage collectionI wouldn’t use it where I could get away with garbage collection (nor C/C++) but that still leaves enough space for Rust to exist in.",
+    "parent": 45471137,
+    "depth": 2
+  },
+  {
+    "id": 45471867,
+    "by": "pimeys",
+    "timeISO": "2025-10-04T09:02:21.000Z",
+    "textPlain": "Nah. It's like learning vim, you get over the first shock and then you have a lifetime friend.And another thing is with current coding agents, like the gpt-5-codex, Rust really shines here. The agent can easily guide you through the first borrow checker issues, and the compiler helps the agent to write good code.Source: been writing Rust for a decade now. It is easily the best language I've ever used, still.",
+    "parent": 45471137,
     "depth": 2
   },
   {
