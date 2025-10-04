@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 45469610,
+    "by": "conartist6",
+    "timeISO": "2025-10-04T01:16:19.000Z",
+    "textPlain": "Why wouldn't `let` be exactly what you want? It's block scoped but doesn't need fancy TDZ checks because like `var` it just starts out as undefined.",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
     "id": 45468749,
     "by": "spankalee",
     "timeISO": "2025-10-03T22:53:43.000Z",
     "textPlain": "I've tried to get V8 at least to implement smarter TDZ elision for a long time, which would eliminate the need for these shenanigans.There are some relatively simple heuristics where you can tell without escape analysis that a variable will not be referenced before initialization.The obviously bad constructions are references in the same scope that happen before the declaration. It'd be nice if these were an early errors, but alas, so keep the TDZ check. The next is any closed over reference that happens before the initializer. These may run before the initializer, so keep the TDZ check. Then you have hoisted closures even if they're after the initializer (eg, var and function keyword declarations). These might run before the initializer too.But everything else that comes after the initializer: access in the same or nested scope and access in closures in non-hoisted declarations, can't possibly run before the initializer and doesn't need the TDZ check.I believe this check is cheap enough to run during parsing. The reason for not pursuing it was that there wasn't a benchmark that showed TDZ checks were a problem. But TypeScript showed they were!",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
+    "id": 45469316,
+    "by": "twistedpair",
+    "timeISO": "2025-10-04T00:24:33.000Z",
+    "textPlain": "It feels like the root of the issue is the scoping design of JS itself, which makes tracking TDZ more costly for the interpreter, and the fact that JS is JIT rather than AOT compiled.I laud the recent efforts to remove the JS from JS tools (Go in TS compiler, esbuild, etc), as you don't need 100% of your lang utils written in the same interpreted lang, especially slow/expensive tasks like compilation.",
     "parent": 45437903,
     "depth": 1
   },
@@ -24,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45468737,
-    "by": "Goofy_Coyote",
-    "timeISO": "2025-10-03T22:51:24.000Z",
-    "textPlain": "Need some help understanding what’s going on here.In  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out\n  <snip>\n\nWhy does the author say `calculation` and `i` are leaking? They’re not even defined at that point (they come later in the code), and we’re seeing “undefined” which, correct me if I’m wrong, is the JS way of saying “I have no idea what this thing is”. So where’s the leakage?",
-    "parent": 45437903,
-    "depth": 1
-  },
-  {
     "id": 45467565,
     "by": "adzm",
     "timeISO": "2025-10-03T20:42:55.000Z",
     "textPlain": "Considering anything that transpiled to ES5 would have to use var anyway, I'm curious why this was done in the source itself and not as a plugin/build step.",
+    "parent": 45437903,
+    "depth": 1
+  },
+  {
+    "id": 45468737,
+    "by": "Goofy_Coyote",
+    "timeISO": "2025-10-03T22:51:24.000Z",
+    "textPlain": "Need some help understanding what’s going on here.In  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out\n  <snip>\n\nWhy does the author say `calculation` and `i` are leaking? They’re not even defined at that point (they come later in the code), and we’re seeing “undefined” which, correct me if I’m wrong, is the JS way of saying “I have no idea what this thing is”. So where’s the leakage?",
     "parent": 45437903,
     "depth": 1
   },
@@ -88,19 +104,19 @@
     "depth": 2
   },
   {
-    "id": 45468767,
-    "by": "Jtsummers",
-    "timeISO": "2025-10-03T22:56:16.000Z",
-    "textPlain": "Two spaces before each line in the code block. HN doesn't use markdown, it's easy to do even on mobile, a demonstration:  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out <snip>\n\nIt's \"leaking\" because the variable is in scope, it's associated value is \"undefined\". This is different than with let/const where the variable would not be in scope at that point in the function. An undefined value bound to a variable is not the same as \"I have no idea what this thing is\". That would be the reference errors seen with let/const.",
-    "parent": 45468737,
-    "depth": 2
-  },
-  {
     "id": 45467848,
     "by": "inbx0",
     "timeISO": "2025-10-03T21:12:54.000Z",
     "textPlain": "The post links to a TS issue [1] that explains> As of TypeScript 5.0, the project's output target was switched from es5 to es2018 as part of a transition to ECMAScript modules. This meant that TypeScript could rely on the emit for native (and often more-succinct) syntax supported between ES2015 and ES2018. One might expect that this would unconditionally make things faster, but surprise we encountered was a slowdown from using let and const natively!So they don't transpile to ES5, and that is the issue.1: https://github.com/microsoft/TypeScript/issues/52924",
     "parent": 45467565,
+    "depth": 2
+  },
+  {
+    "id": 45468767,
+    "by": "Jtsummers",
+    "timeISO": "2025-10-03T22:56:16.000Z",
+    "textPlain": "Two spaces before each line in the code block. HN doesn't use markdown, it's easy to do even on mobile, a demonstration:  function example(measurement) {\n    console.log(calculation); // undefined - accessible! calculation leaked out\n    console.log(i); // undefined - accessible! i leaked out <snip>\n\nIt's \"leaking\" because the variable is in scope, it's associated value is \"undefined\". This is different than with let/const where the variable would not be in scope at that point in the function. An undefined value bound to a variable is not the same as \"I have no idea what this thing is\". That would be the reference errors seen with let/const.",
+    "parent": 45468737,
     "depth": 2
   },
   {

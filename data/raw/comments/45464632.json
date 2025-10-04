@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45467188,
+    "by": "ossopite",
+    "timeISO": "2025-10-03T20:04:07.000Z",
+    "textPlain": "I think the send/recv with a timeout example is very interesting, because in a language where futures start running immediately without being polled, I think the situation is likely to be the opposite way around. send with a timeout is probably safe (you may still send if the timeout happened, which you might be sad about, but the message isn't lost), while recv with a timeout is probably unsafe, because you might read the message out of the channel but then discard it because you selected the timeout completion instead. And the fix is similar, you want to select either the timeout or 'something is available' from the channel, and if you select the latter you can peek to get the available data.",
+    "parent": 45464632,
+    "depth": 1
+  },
+  {
     "id": 45466583,
     "by": "Matthias247",
     "timeISO": "2025-10-03T19:07:56.000Z",
@@ -20,6 +28,22 @@
     "by": "CodeBrad",
     "timeISO": "2025-10-03T18:15:52.000Z",
     "textPlain": "This was one of my favorite talks from RustConf this year! The distinction between cancel safety and cancel correctness is really helpful.Glad to see it converted to a blog post. Talks are great, but blogs are much easier to share and reference.",
+    "parent": 45464632,
+    "depth": 1
+  },
+  {
+    "id": 45467939,
+    "by": "foota",
+    "timeISO": "2025-10-03T21:21:14.000Z",
+    "textPlain": "https://sunshowers.io/posts/cancelling-async-rust/#the-pain-... was the most interesting part of this for me, as I can totally see making mistakes like this.",
+    "parent": 45464632,
+    "depth": 1
+  },
+  {
+    "id": 45467830,
+    "by": "alembic_fumes",
+    "timeISO": "2025-10-03T21:11:48.000Z",
+    "textPlain": "I'm not understanding what the supposed problem with these futures getting cancelled is. Since futures are not tasks, as the post itself acknowledges, does it not logically follow that one should not expect futures to complete if the future is not driven to completion, for one reason or another? What else could even be expected to happen?The examples presented for \"cancel unsafe\" futures seem to me like the root of the problem is some sort of misalignment of expectations to the reality:Example 1: one future cancelled on error in the otherlet res = tokio::try_join!(\n    do_stuff_async(),\n    more_async_work(),\n);Example 2: data not written out on cancellationlet buffer: &[u8] = /* ... */;\nwriter.write_all(buffer)?;Both of these cases are claimed to not be cancel-safe, because the work gets interrupted and so not driven to completion. But again, what else is supposed to happen? If you want the work to finish regardless of the async context being cancelled, then don't put it in the same async context but spawn a task instead.I feel like I must be missing something obvious that keeps me from understanding the author's issue here. I thought work getting dropped on cancellation is exactly how futures are supposed to work. What's the nuance that I'm missing?",
     "parent": 45464632,
     "depth": 1
   },
@@ -40,18 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45467939,
-    "by": "foota",
-    "timeISO": "2025-10-03T21:21:14.000Z",
-    "textPlain": "https://sunshowers.io/posts/cancelling-async-rust/#the-pain-... was the most interesting part of this for me, as I can totally see making mistakes like this.",
-    "parent": 45464632,
-    "depth": 1
-  },
-  {
-    "id": 45467188,
-    "by": "ossopite",
-    "timeISO": "2025-10-03T20:04:07.000Z",
-    "textPlain": "I think the send/recv with a timeout example is very interesting, because in a language where futures start running immediately without being polled, I think the situation is likely to be the opposite way around. send with a timeout is probably safe (you may still send if the timeout happened, which you might be sad about, but the message isn't lost), while recv with a timeout is probably unsafe, because you might read the message out of the channel but then discard it because you selected the timeout completion instead. And the fix is similar, you want to select either the timeout or 'something is available' from the channel, and if you select the latter you can peek to get the available data.",
+    "id": 45469482,
+    "by": "dxxvi",
+    "timeISO": "2025-10-04T00:48:07.000Z",
+    "textPlain": "My Rust knowledge is too low to understand. However, thank you very much for the article. I hope AI will learn it and explain to me in a few years :-)",
     "parent": 45464632,
     "depth": 1
   },
@@ -64,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45467830,
-    "by": "alembic_fumes",
-    "timeISO": "2025-10-03T21:11:48.000Z",
-    "textPlain": "I'm not understanding what the supposed problem with these futures getting cancelled is. Since futures are not tasks, as the post itself acknowledges, does it not logically follow that one should not expect futures to complete if the future is not driven to completion, for one reason or another? What else could even be expected to happen?The examples presented for \"cancel unsafe\" futures seem to me like the root of the problem is some sort of misalignment of expectations to the reality:Example 1: one future cancelled on error in the otherlet res = tokio::try_join!(\n    do_stuff_async(),\n    more_async_work(),\n);Example 2: data not written out on cancellationlet buffer: &[u8] = /* ... */;\nwriter.write_all(buffer)?;Both of these cases are claimed to not be cancel-safe, because the work gets interrupted and so not driven to completion. But again, what else is supposed to happen? If you want the work to finish regardless of the async context being cancelled, then don't put it in the same async context but spawn a task instead.I feel like I must be missing something obvious that keeps me from understanding the author's issue here. I thought work getting dropped on cancellation is exactly how futures are supposed to work. What's the nuance that I'm missing?",
+    "id": 45465895,
+    "by": "bryanlarsen",
+    "timeISO": "2025-10-03T18:06:49.000Z",
+    "textPlain": "Timely!  Was grumbling about this today as I added a \"this function is cancel safe\" to a new function's doc comment.I really hope we get async drop soon.",
     "parent": 45464632,
     "depth": 1
   },
@@ -80,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45465895,
-    "by": "bryanlarsen",
-    "timeISO": "2025-10-03T18:06:49.000Z",
-    "textPlain": "Timely!  Was grumbling about this today as I added a \"this function is cancel safe\" to a new function's doc comment.I really hope we get async drop soon.",
+    "id": 45468342,
+    "by": "nofriend",
+    "timeISO": "2025-10-03T22:03:06.000Z",
+    "textPlain": "doesn't rust have raii?",
     "parent": 45464632,
     "depth": 1
   },
@@ -96,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45468342,
-    "by": "nofriend",
-    "timeISO": "2025-10-03T22:03:06.000Z",
-    "textPlain": "doesn't rust have raii?",
+    "id": 45469110,
+    "by": "beanjuiceII",
+    "timeISO": "2025-10-03T23:52:23.000Z",
+    "textPlain": "i am honestly glad i don't write rust anymore",
     "parent": 45464632,
     "depth": 1
   },
@@ -136,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45467516,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T20:38:04.000Z",
+    "textPlain": "Thanks, that is a great point.",
+    "parent": 45467188,
+    "depth": 2
+  },
+  {
     "id": 45468079,
     "by": "pornel",
     "timeISO": "2025-10-03T21:36:31.000Z",
@@ -152,18 +176,26 @@
     "depth": 2
   },
   {
+    "id": 45468047,
+    "by": "schmichael",
+    "timeISO": "2025-10-03T21:33:01.000Z",
+    "textPlain": "I'm a Go developer and this was still useful for me! Obviously Rust devs are more accustomed to more assistance from their tools than Go devs, but just about every gotcha listed is something that can happen in Go with goroutines, channels, select, and other shared concurrency primitives.",
+    "parent": 45467939,
+    "depth": 2
+  },
+  {
+    "id": 45467887,
+    "by": "sunshowers",
+    "timeISO": "2025-10-03T21:16:13.000Z",
+    "textPlain": "You're absolutely right! The problem is that this has introduced many bugs in our experience at Oxide. If you've already fully internalized the idea that futures are passive and can be cancelled at any await point, the talk is just a bunch of details.",
+    "parent": 45467830,
+    "depth": 2
+  },
+  {
     "id": 45467403,
     "by": "AceJohnny2",
     "timeISO": "2025-10-03T20:26:18.000Z",
     "textPlain": "> He writesThey go by they/shehttps://sunshowers.io/about/",
-    "parent": 45467360,
-    "depth": 2
-  },
-  {
-    "id": 45467791,
-    "by": "leoedin",
-    "timeISO": "2025-10-03T21:08:12.000Z",
-    "textPlain": "It's in the example isn't it? The example is logging \"No space for 5 seconds\". It's just a helpful diagnostic that subtly turned into data loss.Maybe it's a bit contrived, but it's also the kind of code you'd sprinkle through your system in response to \"nothing seems to be happening and I don't know why\".",
     "parent": 45467360,
     "depth": 2
   },
@@ -176,19 +208,11 @@
     "depth": 2
   },
   {
-    "id": 45468047,
-    "by": "schmichael",
-    "timeISO": "2025-10-03T21:33:01.000Z",
-    "textPlain": "I'm a Go developer and this was still useful for me! Obviously Rust devs are more accustomed to more assistance from their tools than Go devs, but just about every gotcha listed is something that can happen in Go with goroutines, channels, select, and other shared concurrency primitives.",
-    "parent": 45467939,
-    "depth": 2
-  },
-  {
-    "id": 45467516,
-    "by": "sunshowers",
-    "timeISO": "2025-10-03T20:38:04.000Z",
-    "textPlain": "Thanks, that is a great point.",
-    "parent": 45467188,
+    "id": 45467791,
+    "by": "leoedin",
+    "timeISO": "2025-10-03T21:08:12.000Z",
+    "textPlain": "It's in the example isn't it? The example is logging \"No space for 5 seconds\". It's just a helpful diagnostic that subtly turned into data loss.Maybe it's a bit contrived, but it's also the kind of code you'd sprinkle through your system in response to \"nothing seems to be happening and I don't know why\".",
+    "parent": 45467360,
     "depth": 2
   },
   {
@@ -205,14 +229,6 @@
     "timeISO": "2025-10-03T20:51:09.000Z",
     "textPlain": "That… seems bad? Like I guess it is what it is and you just have to deal with it but what if your \"critical section\" has two await calls? The code can be paused between them but it's such that it must eventually resume. Say making a change in the database and emitting an audit edit for that change. Is your only option to either not do that or put a big do not cancel sign on the function docs?",
     "parent": 45465948,
-    "depth": 2
-  },
-  {
-    "id": 45467887,
-    "by": "sunshowers",
-    "timeISO": "2025-10-03T21:16:13.000Z",
-    "textPlain": "You're absolutely right! The problem is that this has introduced many bugs in our experience at Oxide. If you've already fully internalized the idea that futures are passive and can be cancelled at any await point, the talk is just a bunch of details.",
-    "parent": 45467830,
     "depth": 2
   },
   {

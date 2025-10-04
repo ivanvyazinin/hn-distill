@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45467655,
-    "by": "comex",
-    "timeISO": "2025-10-03T20:53:23.000Z",
-    "textPlain": "I don't hate it but I don't love it.  It sounds like everyone will start writing `lazy` before essentially every single import, with rare exceptions where eager importing is actually needed.  That makes Python code visually noisier.  And with no plan to ever change the default, the noise will stay forever.I would have preferred a system where modules opt in to being lazy-loaded, with no extra syntax on the import side.  That would simplify things since only large libraries would have to care about laziness.  To be fair, in such a design, the interpreter would have to eagerly look up imports on the filesystem to decide whether they should be lazy-loaded.  And there are probably other downsides I'm not thinking of.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466897,
     "by": "charliermarsh",
     "timeISO": "2025-10-03T19:35:12.000Z",
@@ -24,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45468807,
-    "by": "dataangel",
-    "timeISO": "2025-10-03T23:02:50.000Z",
-    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
+    "id": 45467655,
+    "by": "comex",
+    "timeISO": "2025-10-03T20:53:23.000Z",
+    "textPlain": "I don't hate it but I don't love it.  It sounds like everyone will start writing `lazy` before essentially every single import, with rare exceptions where eager importing is actually needed.  That makes Python code visually noisier.  And with no plan to ever change the default, the noise will stay forever.I would have preferred a system where modules opt in to being lazy-loaded, with no extra syntax on the import side.  That would simplify things since only large libraries would have to care about laziness.  To be fair, in such a design, the interpreter would have to eagerly look up imports on the filesystem to decide whether they should be lazy-loaded.  And there are probably other downsides I'm not thinking of.",
     "parent": 45466086,
     "depth": 1
   },
   {
-    "id": 45468267,
-    "by": "thayne",
-    "timeISO": "2025-10-03T21:56:20.000Z",
-    "textPlain": "One thing the PEP doesn't really talk about, and that I find very annoying is that many python linters will complain if you don't put all of your imports at the top of the file, so you get lint warnings if you do the most obvious way to implement lazy imports.And that is actually a problem for more than just performance. In some cases, importing at the top might actually just fail. For example if you need a platform specific library, but only if it is running on that platform.",
+    "id": 45469537,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:59:02.000Z",
+    "textPlain": "I think they're understating the thread safety risks here. The import is going to wind up happening at a random nondeterministic time, in who knows what thread holding who knows what locks (aside from the importer lock).Previously, if you had some thread hazardous code at module import time, it was highly likely to only run during the single threaded process startup phase, so it was likely harmless. Lazy loading is going to unearth these errors in the most inconvenient way (as Heisenbugs)(Function level import can trigger this as well, but the top of a function is at least a slightly more deterministic place for imports to happen, and an explicit line of syntax triggering the import/bug)",
     "parent": 45466086,
     "depth": 1
   },
@@ -48,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45468770,
-    "by": "nilslindemann",
-    "timeISO": "2025-10-03T22:56:42.000Z",
-    "textPlain": "This is the wrong way, comparable to how \"u\" strings were the wrong way and \"b\" strings are the right way.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
+    "id": 45468267,
+    "by": "thayne",
+    "timeISO": "2025-10-03T21:56:20.000Z",
+    "textPlain": "One thing the PEP doesn't really talk about, and that I find very annoying is that many python linters will complain if you don't put all of your imports at the top of the file, so you get lint warnings if you do the most obvious way to implement lazy imports.And that is actually a problem for more than just performance. In some cases, importing at the top might actually just fail. For example if you need a platform specific library, but only if it is running on that platform.",
     "parent": 45466086,
     "depth": 1
   },
@@ -72,10 +64,26 @@
     "depth": 1
   },
   {
+    "id": 45469427,
+    "by": "jacquesm",
+    "timeISO": "2025-10-04T00:37:11.000Z",
+    "textPlain": "Lazy imports are a great way to create runtime errors far into the operation of a long lived service. Yes, it gives the superficial benefit of 'fast startup', but that upside is negated by the downside of not being sure that once something runs it will run to completion due to a failed import much further down the line. It also allows for some interesting edge cases with the items that are going to be imported no longer being what is on the tin at the time the program is started.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45467126,
     "by": "aftbit",
     "timeISO": "2025-10-03T19:57:59.000Z",
     "textPlain": "We tend to prefer explicit top-level imports specifically because they reveal dependency problems as soon as the program starts, rather than potentially hours or days later when a specific code path is executed.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468770,
+    "by": "nilslindemann",
+    "timeISO": "2025-10-03T22:56:42.000Z",
+    "textPlain": "This is the wrong syntax, comparable to how \"u\" strings were the wrong syntax and \"b\" strings are the right syntax.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
     "parent": 45466086,
     "depth": 1
   },
@@ -88,10 +96,26 @@
     "depth": 1
   },
   {
+    "id": 45468807,
+    "by": "dataangel",
+    "timeISO": "2025-10-03T23:02:50.000Z",
+    "textPlain": "This would be a huge deal for Python startup time *if* it was applied to all the standard library packages recursively. Right now importing asyncio brings in half the standard library through transitive imports.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466979,
     "by": "f311a",
     "timeISO": "2025-10-03T19:43:31.000Z",
     "textPlain": "I don't like the idea of introducing a new keyword. We need a backward compatible solution. I feel like Python needs some kind of universal annotation syntax such as in go (comments) or in Rust (macros). New keyword means all parsers, lsps, editors should be updated.I’m pretty sure there will be new keywords in Python in the future that only solve one thing.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469333,
+    "by": "throwaway81523",
+    "timeISO": "2025-10-04T00:27:00.000Z",
+    "textPlain": "We need some kind of unexec revival in Linux so we don't have to resort to crap like this.  Maybe CRIU based.  Worst case, some Python specific hack. But Python's import system is wacky enough without lazy loading.  This sounds like combining the worst of multiple worlds.",
     "parent": 45466086,
     "depth": 1
   },
@@ -104,14 +128,6 @@
     "depth": 1
   },
   {
-    "id": 45468626,
-    "by": "thijsvandien",
-    "timeISO": "2025-10-03T22:36:02.000Z",
-    "textPlain": "Very unfortunate how from json lazy import dumps would result in backward compatibility issues. It reads much better and makes it easier to search for lazy imports, especially if in the future something else becomes optionally lazy as well.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45467040,
     "by": "the_mitsuhiko",
     "timeISO": "2025-10-03T19:48:39.000Z",
@@ -120,10 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45468710,
-    "by": "mekoka",
-    "timeISO": "2025-10-03T22:46:32.000Z",
-    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
+    "id": 45469487,
+    "by": "d_burfoot",
+    "timeISO": "2025-10-04T00:48:58.000Z",
+    "textPlain": "Looks good to me. I use a tab-completion trick where the tab-completer tool calls the script I'm about to invoke with special arguments, and the script reflects on itself and responds with possible completions. But because of slow imports, it often takes a while for the completion to respond.I could, and sometimes do, go through all the imports to figure out which ones are taking a long time to load, but it's a chore.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45469085,
+    "by": "romanows",
+    "timeISO": "2025-10-03T23:47:31.000Z",
+    "textPlain": "Kinda related, I wish there was an easy way to exclude dependencies at pip-install time and mock them at runtime so an import doesn't cause an exception. Basically a way for me to approximate \"extras\" when the author isn't motivated to do it for me, even though it'd be super brittle.",
     "parent": 45466086,
     "depth": 1
   },
@@ -144,10 +168,26 @@
     "depth": 1
   },
   {
+    "id": 45468626,
+    "by": "thijsvandien",
+    "timeISO": "2025-10-03T22:36:02.000Z",
+    "textPlain": "Very unfortunate how from json lazy import dumps would result in backward compatibility issues. It reads much better and makes it easier to search for lazy imports, especially if in the future something else becomes optionally lazy as well.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45466575,
     "by": "sedatk",
     "timeISO": "2025-10-03T19:06:43.000Z",
     "textPlain": "I wonder how much things would break if all imports were lazy by default.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468710,
+    "by": "mekoka",
+    "timeISO": "2025-10-03T22:46:32.000Z",
+    "textPlain": "Crossing my fingers that it goes through this time. Been in the top 3 of my Python wishlist for nearly a decade.",
     "parent": 45466086,
     "depth": 1
   },
@@ -176,18 +216,18 @@
     "depth": 1
   },
   {
-    "id": 45468053,
-    "by": "gorgoiler",
-    "timeISO": "2025-10-03T21:33:39.000Z",
-    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466784,
     "by": "the__alchemist",
     "timeISO": "2025-10-03T19:25:31.000Z",
     "textPlain": "Does this fix the circular imports problem that comes up if you don't structural your programs in a hierarchical way?",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468053,
+    "by": "gorgoiler",
+    "timeISO": "2025-10-03T21:33:39.000Z",
+    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
     "parent": 45466086,
     "depth": 1
   },
@@ -208,18 +248,18 @@
     "depth": 1
   },
   {
-    "id": 45468142,
-    "by": "nodesocket",
-    "timeISO": "2025-10-03T21:42:17.000Z",
-    "textPlain": "Won’t this have a very noticeable performance hit on the first request? Thinking web frameworks like Flask and Django.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466921,
     "by": "forrestthewoods",
     "timeISO": "2025-10-03T19:36:59.000Z",
     "textPlain": "I don’t want lazy imports. That’s just makes performance shitty later and harder to debug. It’s a hacky workaround.What I want is for imports to not suck and be slow. I’ve had projects where it was faster to compile and run C++ than launch and start a Python CLI. It’s so bad.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468142,
+    "by": "nodesocket",
+    "timeISO": "2025-10-03T21:42:17.000Z",
+    "textPlain": "Won’t this have a very noticeable performance hit on the first request? Thinking web frameworks like Flask and Django.",
     "parent": 45466086,
     "depth": 1
   },
@@ -280,6 +320,30 @@
     "depth": 2
   },
   {
+    "id": 45469331,
+    "by": "flare_blitz",
+    "timeISO": "2025-10-04T00:26:37.000Z",
+    "textPlain": "I also hope this proposal succeeds, but I'm not optimistic. This will break tons of code and introduce a slew of footguns. Import statements fundamentally have side effects, and when and how these side effects are applied will cause mysterious breakages that will keep people up for many nights.This is not fearmongering. There is a reason why the only flavor of Python with lazy imports comes from one of the most well-resourced companies in the world.Too many people in this thread hold the view of \"importing {pandas, numpy, my weird module that is more tangled than an eight-player game of Twister} takes too long and I will gladly support anything that makes them faster\". I would be willing to bet a large sum of money that most people who hold this opinion are unable to describe how Python's import system works, let alone describe how to implement lazy imports.PEP 690 describes a number of drawbacks. For example, lazy imports break code that uses decorators to add functions to a central registry. This behavior is crucial for Dash, a popular library for building frontends that has been around for more than a decade. At import-time, Dash uses decorators to bind a JavaScript-based interface to callbacks written in Python. If these imports were made lazy, Dash would break. Frontends used by thousands, if not millions of people, would immediately become unresponsive.You may cry, \"But lazy imports are opt-in! Developers can choose to opt-out of lazy imports if it doesn't work for them.\" What if these imports were transitive? What if our frontend needed to be completely initialized before starting a critical process, else it would cause a production outage? What if you were a maintainer of a library that was used by millions of people? How could you be sure that adding lazy imports wouldn't break any code downstream?This is before we even get to the rest of the issues the PEP describes, which are even weirder and crazier than this. This is a far more difficult undertaking tha",
+    "parent": 45466897,
+    "depth": 2
+  },
+  {
+    "id": 45467722,
+    "by": "BiteCode_dev",
+    "timeISO": "2025-10-03T21:01:39.000Z",
+    "textPlain": "Especially since it is opt in, with various level of granularity, and a global off switch. Very well constructed spec given the constraints.",
+    "parent": 45466897,
+    "depth": 2
+  },
+  {
+    "id": 45467350,
+    "by": "dheera",
+    "timeISO": "2025-10-03T20:21:50.000Z",
+    "textPlain": "Oof. I wish they could support version imports    import torch==2.6.0+cu124\n    import numpy>=1.2.6\n\nand support having multiple simultaneous versions of any Python library installed. End this conda/virtualenv/docker/bazel/[pick your poison] mess",
+    "parent": 45466897,
+    "depth": 2
+  },
+  {
     "id": 45468644,
     "by": "mekoka",
     "timeISO": "2025-10-03T22:38:55.000Z",
@@ -320,83 +384,19 @@
     "depth": 2
   },
   {
-    "id": 45467722,
-    "by": "BiteCode_dev",
-    "timeISO": "2025-10-03T21:01:39.000Z",
-    "textPlain": "Especially since it is opt in, with various level of granularity, and a global off switch. Very well constructed spec given the constraints.",
-    "parent": 45466897,
+    "id": 45469465,
+    "by": "bcoates",
+    "timeISO": "2025-10-04T00:45:07.000Z",
+    "textPlain": "I don't think there is any solution for that but \"fix your broken linter\".",
+    "parent": 45468267,
     "depth": 2
   },
   {
-    "id": 45467350,
-    "by": "dheera",
-    "timeISO": "2025-10-03T20:21:50.000Z",
-    "textPlain": "Oof. I wish they could support version imports    import torch==2.6.0+cu124\n    import numpy>=1.2.6\n\nand support having multiple simultaneous versions of any Python library installed. End this conda/virtualenv/docker/bazel/[pick your poison] mess",
-    "parent": 45466897,
-    "depth": 2
-  },
-  {
-    "id": 45468799,
-    "by": "nilslindemann",
-    "timeISO": "2025-10-03T23:01:34.000Z",
-    "textPlain": "In short, grandiose change, wrong syntax.",
-    "parent": 45468770,
-    "depth": 2
-  },
-  {
-    "id": 45466680,
-    "by": "12_throw_away",
-    "timeISO": "2025-10-03T19:15:56.000Z",
-    "textPlain": "Yeah, I think this is one of the cleanest PEPs to come around in quite a while, at least from the userspace perspective. Interested to see what happens after the traditional syntax bikeshedding ritual has been completed.",
-    "parent": 45466562,
-    "depth": 2
-  },
-  {
-    "id": 45467787,
-    "by": "BiteCode_dev",
-    "timeISO": "2025-10-03T21:07:37.000Z",
-    "textPlain": "Agree, they really did their homework, listed edge cases, made practical compromises, chose not to overdo it, reworked it again and again quite a bit and compared it to real life experience.It's really beautiful work, especially since touching the back bone (the import system) of a language as popular as Python with such a diverse community is super dangerous surgery.I'm impressed.",
-    "parent": 45466562,
-    "depth": 2
-  },
-  {
-    "id": 45466929,
-    "by": "oofbey",
-    "timeISO": "2025-10-03T19:37:45.000Z",
-    "textPlain": "Hopefully they learned lessons from why PEP-690 was rejected.  I've spent quite a while trying to build this stuff for our codebase and it's never worked well enough to use.",
-    "parent": 45466562,
-    "depth": 2
-  },
-  {
-    "id": 45467658,
-    "by": "zahlman",
-    "timeISO": "2025-10-03T20:53:42.000Z",
-    "textPlain": "As a counterpoint, having all the imports automatically deferred would instantly dramatically speed up pip for short tasks.  $ time pip install --disable-pip-version-check\n  ERROR: You must give at least one requirement to install (see \"pip help install\")\n\n  real 0m0.399s\n  user 0m0.360s\n  sys 0m0.041s\n\nAlmost all of this time is spent importing (and later unloading) ultimately useless vendored code. From my testing (hacking the wrapper script to output some diagnostics), literally about 500 modules get imported in total (on top of the baseline for a default Python process), including almost a hundred modules related to Requests and its dependencies, even though no web request was necessary for this command.",
-    "parent": 45467126,
-    "depth": 2
-  },
-  {
-    "id": 45467242,
-    "by": "ashu1461",
-    "timeISO": "2025-10-03T20:10:00.000Z",
-    "textPlain": "Right, Not sure why but a lot of code which claude generates also comes with local dependencies vs globally declared import statements. Don't promote that pattern because- It reduces visibility into a module’s dependencies.- It increases the risk of introducing circular dependencies later on.",
-    "parent": 45467126,
-    "depth": 2
-  },
-  {
-    "id": 45467181,
-    "by": "bityard",
-    "timeISO": "2025-10-03T20:03:23.000Z",
-    "textPlain": "I haven't fully digested the PEP but perhaps there would be a command-line flag or external tool for dependency validation, a bit like how there are external tools for type annotations?",
-    "parent": 45467126,
-    "depth": 2
-  },
-  {
-    "id": 45467147,
-    "by": "maest",
-    "timeISO": "2025-10-03T19:59:32.000Z",
-    "textPlain": "Who is \"we\"?",
-    "parent": 45467126,
+    "id": 45469498,
+    "by": "phainopepla2",
+    "timeISO": "2025-10-04T00:51:12.000Z",
+    "textPlain": "It is annoying, but most linters will accept a `#noqa E402` comment to ignore it",
+    "parent": 45468267,
     "depth": 2
   }
 ]
