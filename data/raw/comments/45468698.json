@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45471120,
-    "by": "geokon",
-    "timeISO": "2025-10-04T06:47:16.000Z",
-    "textPlain": "Trying to understand the Zig goals a bit better..If you care about compilation speed b/c it's slowing down development - wouldn't it make sense to work on an interpreter?\nMaybe I'm naiive, but it seems the simpler optionCompiling for executable-speed seems inherently orthogonal to compilation timeWith an interpreter you have the potential of lots of extra development tools as you can instrument the code easily and you control the runtime.Sure, in some corner cases people need to only be debugging their full-optimization-RELEASE binary and for them working on a interpreter, or even a DEBUG build just doesn't makes sense. But that's a tiny minority. Even there, you're usually optimizing a hot loop that's going to be compiling instantly anyway",
-    "parent": 45468698,
-    "depth": 1
-  },
-  {
     "id": 45469473,
     "by": "stephc_int13",
     "timeISO": "2025-10-04T00:46:25.000Z",
     "textPlain": "The gold standard for compiler speed so far is TCC. (Fabrice Bellard)It is not even super optimized (single thread, no fancy tricks) but it is so far unbeaten by a large margin. Of course I use Clang for releases, but the codegen of tcc is not even awful.",
+    "parent": 45468698,
+    "depth": 1
+  },
+  {
+    "id": 45471120,
+    "by": "geokon",
+    "timeISO": "2025-10-04T06:47:16.000Z",
+    "textPlain": "Trying to understand the Zig goals a bit better..If you care about compilation speed b/c it's slowing down development - wouldn't it make sense to work on an interpreter?\nMaybe I'm naiive, but it seems the simpler optionCompiling for executable-speed seems inherently orthogonal to compilation timeWith an interpreter you have the potential of lots of extra development tools as you can instrument the code easily and you control the runtime.Sure, in some corner cases people need to only be debugging their full-optimization-RELEASE binary and for them working on a interpreter, or even a DEBUG build just doesn't makes sense. But that's a tiny minority. Even there, you're usually optimizing a hot loop that's going to be compiling instantly anyway",
     "parent": 45468698,
     "depth": 1
   },
@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45469187,
-    "by": "Ygg2",
-    "timeISO": "2025-10-04T00:04:54.000Z",
-    "textPlain": "It's a bold strategy - let's see if it works out for them.But from what I remember, this still uses the LLVM backend, right? Sure, you can beat LLVM on compilation speed and number of platforms supported, but when it comes to emitting great assembly, it is almost unbeatable.",
-    "parent": 45468698,
-    "depth": 1
-  },
-  {
     "id": 45469742,
     "by": "dcsommer",
     "timeISO": "2025-10-04T01:38:29.000Z",
     "textPlain": "Is there a straightforward path to building Zig with polyglot build systems like Bazel and Buck2? I'm worried Zig's reliance on Turing complete build scripts will make building (and caching) such code difficult in those deterministic systems. In Rust, libraries that eschew build.rs are far preferable for this reason. Do Zig libraries typically have a lot of custom build setup?",
+    "parent": 45468698,
+    "depth": 1
+  },
+  {
+    "id": 45469187,
+    "by": "Ygg2",
+    "timeISO": "2025-10-04T00:04:54.000Z",
+    "textPlain": "It's a bold strategy - let's see if it works out for them.But from what I remember, this still uses the LLVM backend, right? Sure, you can beat LLVM on compilation speed and number of platforms supported, but when it comes to emitting great assembly, it is almost unbeatable.",
     "parent": 45468698,
     "depth": 1
   },
@@ -72,12 +72,28 @@
     "depth": 1
   },
   {
+    "id": 45471554,
+    "by": "self_awareness",
+    "timeISO": "2025-10-04T07:59:03.000Z",
+    "textPlain": "For me, Zig the language is \"meh\", but Zig the toolchain is very interesting. It's really ambitious, to the point I think it can't work in reality in the long term, but I want it to succeed.",
+    "parent": 45468698,
+    "depth": 1
+  },
+  {
     "id": 45469119,
     "by": "jtrueb",
     "timeISO": "2025-10-03T23:53:08.000Z",
     "textPlain": "Wow!",
     "parent": 45468698,
     "depth": 1
+  },
+  {
+    "id": 45471630,
+    "by": "nikic",
+    "timeISO": "2025-10-04T08:13:34.000Z",
+    "textPlain": "> LLVM is a trap.Is it? I think Rust is a great showcase for why it isn't. Of course it depends somewhat on your compiler implementation approach, but actual codegen-to-LLVM tends to only be a tiny part of the compiler, and it is not particularly hard to replace it with codegen-to-something-else if you so desire. Which is why there is now codegen_cranelift, codegen_gcc, etc.The main \"vendor lock-in\" LLVM has is if you are exposing the tens of thousands of vendor SIMD intrinsics, but I think that's inherent to the problem space.Of course, whether you're going to find another codegen backend (or are willing to write one yourself) that provides similar capabilities to LLVM is another question...> You bootstrap extra fast, you get all sorts of optimization passes and platforms for free, but you lose out on the ability to tune the final optimization passes and performance of the linking stages.You can tune the pass pipeline when using LLVM. If your language is C/C++ \"like\", the default pipeline is good enough that many such users of LLVM don't bother, but languages that differ more substantially will usually use fully custom pipelines.> I think we'll see cranelift take off in Rust quite soon, though I also think it wouldn't be the juggernaut of a language if they hadn't stuck with LLVM those early years.I'd expect that most (compiled) languages do well to start with an LLVM backend. Having a tightly integrated custom backend can certainly be worthwhile (and Go is a great success story in that space), but it's usually not the defining the feature of the language, and there is a great opportunity cost to implementing one.",
+    "parent": 45469281,
+    "depth": 2
   },
   {
     "id": 45470743,
@@ -88,10 +104,26 @@
     "depth": 2
   },
   {
+    "id": 45471468,
+    "by": "pjmlp",
+    "timeISO": "2025-10-04T07:42:57.000Z",
+    "textPlain": "Additionally any language that wants to be a C++ replacement,  keeps a dependency on C++ as long as LLVM is part of its tooling infrastructure.For me beyond the initial adoption hump, programming languages should bootstrap themselves, if nothing else, reduces the urban myth that C or C++ have to always be part of the equation.Not at all, in most cases it is a convenience, writing usable compilers takes time, and it is an easy way to get everything else going, especially when it comes to porting across multiple platforms.However that doesn't make them magical tools, without which is impossible to write compilers.That is one area where I am fully on board with Go team's decisions.",
+    "parent": 45469281,
+    "depth": 2
+  },
+  {
     "id": 45470930,
     "by": "dbtc",
     "timeISO": "2025-10-04T06:11:22.000Z",
     "textPlain": "How is it a trap if languages are able to move away?",
+    "parent": 45469281,
+    "depth": 2
+  },
+  {
+    "id": 45471586,
+    "by": "goodpoint",
+    "timeISO": "2025-10-04T08:05:39.000Z",
+    "textPlain": "GCC is the way.",
     "parent": 45469281,
     "depth": 2
   },
@@ -112,19 +144,11 @@
     "depth": 2
   },
   {
-    "id": 45471255,
-    "by": "IshKebab",
-    "timeISO": "2025-10-04T07:10:09.000Z",
-    "textPlain": "I wouldn't say games are a corner case.",
-    "parent": 45471120,
-    "depth": 2
-  },
-  {
-    "id": 45471214,
-    "by": "delusional",
-    "timeISO": "2025-10-04T07:04:34.000Z",
-    "textPlain": "> Compiling for executable-speed seems inherently orthogonal to compilation timeThat true at the limit. As is often the case there's a vast space in the middle, between the extremes of ultimate executable speed and ultimate compiler speed, where you can make optimizations that don't trade off against each other. Where you can make the compiler faster while producing the exact same bytecode.",
-    "parent": 45471120,
+    "id": 45471531,
+    "by": "pjmlp",
+    "timeISO": "2025-10-04T07:53:30.000Z",
+    "textPlain": "I would rather vouch for Delphi, as a much more expressive, and safer language, while having blazing fast compile times.",
+    "parent": 45469473,
     "depth": 2
   },
   {
@@ -160,6 +184,38 @@
     "depth": 2
   },
   {
+    "id": 45471548,
+    "by": "weinzierl",
+    "timeISO": "2025-10-04T07:57:39.000Z",
+    "textPlain": "\"Trying to understand the Zig goals a bit better..\nIf you care about compilation speed b/c it's slowing down development - wouldn't it make sense to work on an interpreter?\"I've heard Rust classified as Safety, Performance, Usability in that order and Zig as Performance, Usability, Safety. From that perspective the build speed-ups make sense while an interpreter would only fit a triple where usability comes first.",
+    "parent": 45471120,
+    "depth": 2
+  },
+  {
+    "id": 45471255,
+    "by": "IshKebab",
+    "timeISO": "2025-10-04T07:10:09.000Z",
+    "textPlain": "I wouldn't say games are a corner case.",
+    "parent": 45471120,
+    "depth": 2
+  },
+  {
+    "id": 45471214,
+    "by": "delusional",
+    "timeISO": "2025-10-04T07:04:34.000Z",
+    "textPlain": "> Compiling for executable-speed seems inherently orthogonal to compilation timeThat true at the limit. As is often the case there's a vast space in the middle, between the extremes of ultimate executable speed and ultimate compiler speed, where you can make optimizations that don't trade off against each other. Where you can make the compiler faster while producing the exact same bytecode.",
+    "parent": 45471120,
+    "depth": 2
+  },
+  {
+    "id": 45469985,
+    "by": "rockwotj",
+    "timeISO": "2025-10-04T02:20:57.000Z",
+    "textPlain": "For bazel:https://github.com/aherrmann/rules_zigReal world projects like ZML uses it:https://github.com/zml/zml",
+    "parent": 45469742,
+    "depth": 2
+  },
+  {
     "id": 45469383,
     "by": "mitchellh",
     "timeISO": "2025-10-04T00:31:34.000Z",
@@ -181,14 +237,6 @@
     "timeISO": "2025-10-04T00:08:04.000Z",
     "textPlain": "I don't really get the obsession w/ compiler performance. At the end of the day you are trading performance optimizations (inlining, dead code elimination, partial evaluation, etc) for compile times. If you want fast compile times then use a compiler w/ no optimization passes, done. The compile times are now linear w/ respect to lines of code & there is provably no further improvement you can make on that b/c any further passes will add linear or superlinear amount of overhead depending on the complexity of the optimization.",
     "parent": 45469187,
-    "depth": 2
-  },
-  {
-    "id": 45469985,
-    "by": "rockwotj",
-    "timeISO": "2025-10-04T02:20:57.000Z",
-    "textPlain": "For bazel:https://github.com/aherrmann/rules_zigReal world projects like ZML uses it:https://github.com/zml/zml",
-    "parent": 45469742,
     "depth": 2
   },
   {
