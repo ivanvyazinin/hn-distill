@@ -64,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45468770,
+    "by": "nilslindemann",
+    "timeISO": "2025-10-03T22:56:42.000Z",
+    "textPlain": "This is the wrong syntax, comparable to how \"u\" strings were the wrong syntax and \"b\" strings are the right syntax.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
     "id": 45469427,
     "by": "jacquesm",
     "timeISO": "2025-10-04T00:37:11.000Z",
@@ -88,26 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45468770,
-    "by": "nilslindemann",
-    "timeISO": "2025-10-03T22:56:42.000Z",
-    "textPlain": "This is the wrong syntax, comparable to how \"u\" strings were the wrong syntax and \"b\" strings are the right syntax.They make that, what should be the default, a special case. Soon, every new code will use \"lazy\". The long term effect of such changes is a verbose language syntax.They should have had a period where one, if they want lazy imports, has to do \"from __future__ import lazy_import\". After that period, lazy imports become the default. For old-style immediate imports, introduce a syntax: \"import now foo\" and \"from foo import now bar\".All which authors of old code would have to do is run a provided fix script in the root directory of their code.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466769,
     "by": "film42",
     "timeISO": "2025-10-03T19:23:59.000Z",
     "textPlain": "I'm a fan because it's something you can explicitly turn on and off. For my Docker based app, I really want to verify the completeness of imports. Preferably, at build and test time. In fact, most of the time I will likely disable lazy loading outright. But, I would really appreciate a faster loading CLI tool.However, there is a pattern in python to raise an error if, say, pandas doesn't have an excel library installed, which is fine. In the future, will maintainers opt to include a bunch of unused libraries since they won't negatively impact startup time? (Think pandas including 3-4 excel parsers by default, since it will only be loaded when called). It's a much better UX, but, now if you opt out of lazy loading, your code will take longer to load than without it.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
-    "id": 45471112,
-    "by": "Too",
-    "timeISO": "2025-10-04T06:46:42.000Z",
-    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
     "parent": 45466086,
     "depth": 1
   },
@@ -120,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45471334,
-    "by": "ajb",
-    "timeISO": "2025-10-04T07:22:08.000Z",
-    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
+    "id": 45471112,
+    "by": "Too",
+    "timeISO": "2025-10-04T06:46:42.000Z",
+    "textPlain": "This is a great compromise given how much would break if this was the default. Making this the default would be better in the long-run, require taming the abuse of side-effects in imports too, win-win.If one could dream, modules should have to explicitly declare whether they have side-effects or not, with a marker at the top of the module. Not declaring this and trying anything except declaring a function or class should lead to type-checker errors. Modules declaring this pure-marker then automatically become lazy. Others should require explicit \"import_with_side_effects\" keyword.    __pure__ = True\n    import logging \n    import threading\n  \n    app = Flask()          # << ImpureError\n    sys.path.append()      # << ImpureError\n    with open(.. )         # << ImpureError\n    logging.basicSetup()   # << ImpureError\n    if foo:                # << ImpureError  (arguable)\n   \n    @app.route(\"/foo\")     # Questionable\n    def serve():           # OK\n        ...\n\n    serve()                # << ImpureError\n    t = threading.Thread(target=serve) # << ImpureError\n\nAll of this would be impossible today, given how much the Python relies on metaprogramming. Even standard library exposes functions to create classes on the fly like Enum and dataclasses, that are difficult to assert as either pure or impure. With more and more of the ecosystem embracing typed Python, this metaprogramming is reducing into a less dynamic subset. Type checkers and LSPs must have at least some awareness of these modules, without executing them as plain python-code.",
     "parent": 45466086,
     "depth": 1
   },
@@ -132,6 +124,14 @@
     "by": "Boxxed",
     "timeISO": "2025-10-03T20:27:16.000Z",
     "textPlain": "Ugh...I like the idea, but I wish lazy imports were the default. Python allows side effects in the top level though so that would be a breaking change.Soooo instead now we're going to be in a situation where you're going to be writing \"lazy import ...\" 99% of the time: unless you're a barbarian, you basically never have side effects at the top level.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45471334,
+    "by": "ajb",
+    "timeISO": "2025-10-04T07:22:08.000Z",
+    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
     "parent": 45466086,
     "depth": 1
   },
@@ -160,18 +160,18 @@
     "depth": 1
   },
   {
-    "id": 45472501,
-    "by": "Hendrikto",
-    "timeISO": "2025-10-04T11:20:16.000Z",
-    "textPlain": "Python imports are already way too complicated. I don’t think even more syntax should be added.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45467249,
     "by": "rplnt",
     "timeISO": "2025-10-03T20:11:08.000Z",
     "textPlain": "Remember mercurial? Me neither. But what I remeber is this article I've read about all the hacks they had to do to achieve reasonable startup time for CLI in python. And the no #1 cause was loading the whole world you don't ever need. As I recall they somehow monkeypatched the interpreter to ignore imports and just remember their existence until they were actually needed, at which point the import happened. So all the dead paths were just skipped.",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45472501,
+    "by": "Hendrikto",
+    "timeISO": "2025-10-04T11:20:16.000Z",
+    "textPlain": "Python imports are already way too complicated. I don’t think even more syntax should be added.",
     "parent": 45466086,
     "depth": 1
   },
