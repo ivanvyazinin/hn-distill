@@ -1,25 +1,9 @@
 [
   {
-    "id": 45471178,
-    "by": "Someone",
-    "timeISO": "2025-10-04T06:58:33.000Z",
-    "textPlain": "Given Rust’s memory safety goal, IMO the proper way to solve the circular reference problem in the context of Rust would be in the language. It should have a way to express what cycles may exist, maybe also how the code will break them when needed.Have people been thinking about that?",
-    "parent": 45467032,
-    "depth": 1
-  },
-  {
     "id": 45467959,
     "by": "Animats",
     "timeISO": "2025-10-03T21:23:11.000Z",
     "textPlain": "This is the back-link problem in Rust. You can do back links with weak pointers, but it's rather verbose and involves extra run-time checks.I've been trying to figure out a compile-time approach to that problem. \nHere's an early version of a tech note on that.[1]\nIt looks possible, but there are many issues. But it's important to look at now. The C++ people are trying to figure out safe backlinks.[1] https://github.com/John-Nagle/technotes/blob/main/docs/rust/...",
-    "parent": 45467032,
-    "depth": 1
-  },
-  {
-    "id": 45471014,
-    "by": "asplake",
-    "timeISO": "2025-10-04T06:27:11.000Z",
-    "textPlain": "> The last time I used [a doubly linked list] was in the nineties. I know the Linux kernel uses them, but that design was also laid down in the nineties; if you were designing a kernel from scratch today, you would probably not do it that way.Curious to know in the Linux context whether moves away from doubly linked lists have ever been tested?",
     "parent": 45467032,
     "depth": 1
   },
@@ -32,18 +16,34 @@
     "depth": 1
   },
   {
-    "id": 45469262,
-    "by": "jmull",
-    "timeISO": "2025-10-04T00:15:50.000Z",
-    "textPlain": "> Doesn't that mean you are throwing out all the memory safety properties you were hoping to achieve by using Rust in the first place? ...That argument sounds logical, but it's not actually correct.Actually, it is correct. The more generally you use \"arenas\" the more they are subject to the same kinds of issues as other manual memory management systems. \"arenas\" can only avoid/reduce the \"nondeterminism\" and \"security\" issues of general manual memory management on top of a buffer of bytes by not becoming general manual memory management on top of a buffer of bytes.",
+    "id": 45471178,
+    "by": "Someone",
+    "timeISO": "2025-10-04T06:58:33.000Z",
+    "textPlain": "Given Rust’s memory safety goal, IMO the proper way to solve the circular reference problem in the context of Rust would be in the language. It should have a way to express what cycles may exist, maybe also how the code will break them when needed.Have people been thinking about that?",
     "parent": 45467032,
     "depth": 1
   },
   {
-    "id": 45470875,
-    "by": "lenkite",
-    "timeISO": "2025-10-04T05:58:18.000Z",
-    "textPlain": "I wish Rust would finalize its custom memory allocators api (allocator_api) and put it in the stdlib as soon as possible. That feature has been unstable for a decade now.",
+    "id": 45471014,
+    "by": "asplake",
+    "timeISO": "2025-10-04T06:27:11.000Z",
+    "textPlain": "> The last time I used [a doubly linked list] was in the nineties. I know the Linux kernel uses them, but that design was also laid down in the nineties; if you were designing a kernel from scratch today, you would probably not do it that way.Curious to know in the Linux context whether moves away from doubly linked lists have ever been tested?",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45471137,
+    "by": "procaryote",
+    "timeISO": "2025-10-04T06:50:26.000Z",
+    "textPlain": "I kinda think rust is a dead-end. The learning curve is really challenging for most people, and you gain all these new constraints.It competes against languages that give you memory safety by having garbage collection, or I guess even by using arenas in a few cases. GC comes with a performance hit, but a bit of a performance hit is usually much easier to deal with than having a smaller pool of effective developersWorse is better",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45469133,
+    "by": "crq-yml",
+    "timeISO": "2025-10-03T23:55:36.000Z",
+    "textPlain": "I'm a bit agnostic about the specific solution these days. In general, early binding(so, static memory and types, formalized arenas and handles, in-line linear logic with few or no loops or branches) debugs more readily than late(dynamic memory allocs and types, raw pointers, virtual functions, runtime configuration). The appeal of late binding is in deferring the final computation to later so that your options stay open, while the converse is true with early binding - if you can write a program that always returns a precomputed answer, that's easier to grasp and verify.When we compare one method of early binding with another, it's probably going to be a comparison of the granularity. Arenas are \"stupid simple\" - they partition out memory into chunks that limit the blast radius of error, but you still make the error. Ownership logic is a \"picky generalization\" - it lets you be more intricate and gain some assurances if you put up with the procedures necessary, but it starts to inhibit certain uses because its view into usage is too narrow with too many corner cases.If we take Go's philosophy as an example of \"what do you do if you want idioms for a really scalable codebase\" - though you can certainly argue that it didn't work - it's that you usually want to lean on the stupid simple stuff and customize what you need for the rest. You don't opt into a picky Swiss Army Knife unless there's a specific problem to solve with it. Larger codebases have proportionately smaller sections that demand intricacy because more and more of the code is going to itself be a method of defining late binding, of configuring and deferring parts of processing.That said, Rust lets you fall back to \"stupid simple\", it just doesn't pave the way to make that the default.",
     "parent": 45467032,
     "depth": 1
   },
@@ -64,10 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45469133,
-    "by": "crq-yml",
-    "timeISO": "2025-10-03T23:55:36.000Z",
-    "textPlain": "I'm a bit agnostic about the specific solution these days. In general, early binding(so, static memory and types, formalized arenas and handles, in-line linear logic with few or no loops or branches) debugs more readily than late(dynamic memory allocs and types, raw pointers, virtual functions, runtime configuration). The appeal of late binding is in deferring the final computation to later so that your options stay open, while the converse is true with early binding - if you can write a program that always returns a precomputed answer, that's easier to grasp and verify.When we compare one method of early binding with another, it's probably going to be a comparison of the granularity. Arenas are \"stupid simple\" - they partition out memory into chunks that limit the blast radius of error, but you still make the error. Ownership logic is a \"picky generalization\" - it lets you be more intricate and gain some assurances if you put up with the procedures necessary, but it starts to inhibit certain uses because its view into usage is too narrow with too many corner cases.If we take Go's philosophy as an example of \"what do you do if you want idioms for a really scalable codebase\" - though you can certainly argue that it didn't work - it's that you usually want to lean on the stupid simple stuff and customize what you need for the rest. You don't opt into a picky Swiss Army Knife unless there's a specific problem to solve with it. Larger codebases have proportionately smaller sections that demand intricacy because more and more of the code is going to itself be a method of defining late binding, of configuring and deferring parts of processing.That said, Rust lets you fall back to \"stupid simple\", it just doesn't pave the way to make that the default.",
+    "id": 45470875,
+    "by": "lenkite",
+    "timeISO": "2025-10-04T05:58:18.000Z",
+    "textPlain": "I wish Rust would finalize its custom memory allocators api (allocator_api) and put it in the stdlib as soon as possible. That feature has been unstable for a decade now.",
+    "parent": 45467032,
+    "depth": 1
+  },
+  {
+    "id": 45469262,
+    "by": "jmull",
+    "timeISO": "2025-10-04T00:15:50.000Z",
+    "textPlain": "> Doesn't that mean you are throwing out all the memory safety properties you were hoping to achieve by using Rust in the first place? ...That argument sounds logical, but it's not actually correct.Actually, it is correct. The more generally you use \"arenas\" the more they are subject to the same kinds of issues as other manual memory management systems. \"arenas\" can only avoid/reduce the \"nondeterminism\" and \"security\" issues of general manual memory management on top of a buffer of bytes by not becoming general manual memory management on top of a buffer of bytes.",
     "parent": 45467032,
     "depth": 1
   },
@@ -104,14 +112,6 @@
     "depth": 1
   },
   {
-    "id": 45471137,
-    "by": "procaryote",
-    "timeISO": "2025-10-04T06:50:26.000Z",
-    "textPlain": "I kinda think rust is a dead-end. The learning curve is really challenging for most people, and you gain all these new constraints.It competes against languages that give you memory safety by having garbage collection, or I guess even by using arenas in a few cases. GC comes with a performance hit, but a bit of a performance hit is usually much easier to deal with than having a smaller pool of effective developersWorse is better",
-    "parent": 45467032,
-    "depth": 1
-  },
-  {
     "id": 45468569,
     "by": "mwkaufma",
     "timeISO": "2025-10-03T22:27:33.000Z",
@@ -120,11 +120,19 @@
     "depth": 2
   },
   {
-    "id": 45471189,
-    "by": "tyre",
-    "timeISO": "2025-10-04T07:00:26.000Z",
-    "textPlain": "How could using arenas lead to remote code execution?",
-    "parent": 45469262,
+    "id": 45471933,
+    "by": "gavinsyancey",
+    "timeISO": "2025-10-04T09:15:59.000Z",
+    "textPlain": "Linux uses them because it has a lot of lists of objects that very rarely or never need to be iterated over, but where it needs to be fast to- Insert a new item- Delete a specific item (that you have a pointer to- Move a specific item from list A to list B- Get the next item to work onAnd where pointers to an item need to be stable. Doubly-linked lists are very fast for all of that; their main downside is they are slow to iterate over due to cache incoherency but that doesn't matter if you very rarely or never iterate through the entire list.",
+    "parent": 45471014,
+    "depth": 2
+  },
+  {
+    "id": 45471867,
+    "by": "pimeys",
+    "timeISO": "2025-10-04T09:02:21.000Z",
+    "textPlain": "Nah. It's like learning vim, you get over the first shock and then you have a lifetime friend.And another thing is with current coding agents, like the gpt-5-codex, Rust really shines here. The agent can easily guide you through the first borrow checker issues, and the compiler helps the agent to write good code.Source: been writing Rust for a decade now. It is easily the best language I've ever used, still.",
+    "parent": 45471137,
     "depth": 2
   },
   {
@@ -133,6 +141,22 @@
     "timeISO": "2025-10-03T23:24:45.000Z",
     "textPlain": "[dead]",
     "parent": 45468557,
+    "depth": 2
+  },
+  {
+    "id": 45471678,
+    "by": "whytevuhuni",
+    "timeISO": "2025-10-04T08:26:07.000Z",
+    "textPlain": "I'd really like them not to hurry (or at least not \"ASAP\"). Among features that Rust should get right, this is definitely one of them.And from its tracking issue [1], it seems there's alternatives with really important trade-offs (especially the very interesting storage API alternative), and it'd be really sad if we got stuck with something that ends up being unusable in many cases people actually want to use them on.[1] https://github.com/rust-lang/rust/issues/32838",
+    "parent": 45470875,
+    "depth": 2
+  },
+  {
+    "id": 45471189,
+    "by": "tyre",
+    "timeISO": "2025-10-04T07:00:26.000Z",
+    "textPlain": "How could using arenas lead to remote code execution?",
+    "parent": 45469262,
     "depth": 2
   },
   {

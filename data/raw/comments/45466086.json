@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45471334,
-    "by": "ajb",
-    "timeISO": "2025-10-04T07:22:08.000Z",
-    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
+    "id": 45468267,
+    "by": "thayne",
+    "timeISO": "2025-10-03T21:56:20.000Z",
+    "textPlain": "One thing the PEP doesn't really talk about, and that I find very annoying is that many python linters will complain if you don't put all of your imports at the top of the file, so you get lint warnings if you do the most obvious way to implement lazy imports.And that is actually a problem for more than just performance. In some cases, importing at the top might actually just fail. For example if you need a platform specific library, but only if it is running on that platform.",
     "parent": 45466086,
     "depth": 1
   },
@@ -48,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45468267,
-    "by": "thayne",
-    "timeISO": "2025-10-03T21:56:20.000Z",
-    "textPlain": "One thing the PEP doesn't really talk about, and that I find very annoying is that many python linters will complain if you don't put all of your imports at the top of the file, so you get lint warnings if you do the most obvious way to implement lazy imports.And that is actually a problem for more than just performance. In some cases, importing at the top might actually just fail. For example if you need a platform specific library, but only if it is running on that platform.",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45467489,
     "by": "zahlman",
     "timeISO": "2025-10-03T20:34:28.000Z",
     "textPlain": "> The standard library provides the LazyLoader class to solve some of these inefficiency problems. It permits imports at the module level to work mostly like inline imports do.The use of these sorts of Python import internals is highly non-obvious. The Stack Overflow Q&A I found about it (https://stackoverflow.com/questions/42703908/) doesn't result in an especially nice-looking UX.So here's a proof of concept in existing Python for getting all imports to be lazy automatically, with no special syntax for the caller:  import sys\n  import threading # needed for python 3.13, at least at the REPL, because reasons\n  from importlib.util import LazyLoader # this has to be eagerly imported!\n  class LazyPathFinder(sys.meta_path[-1]): # <class '_frozen_importlib_external.PathFinder'>\n      @classmethod\n      def find_spec(cls, fullname, path=None, target=None):\n          base = super().find_spec(fullname, path, target)\n          base.loader = LazyLoader(base.loader)\n          return base\n  sys.meta_path[-1] = LazyPathFinder\n\nWe've replaced the \"meta path finder\" (which implements the logic \"when the module isn't in sys.modules, look on sys.path for source code and/or bytecode, including bytecode in __pycache__ subfolders, and create a 'spec' for it\") with our own wrapper. The \"loader\" attached to the resulting spec is replaced with an importlib.util.LazyLoader instance, which wraps the base PathFinder's provided loader. When an import statement actually imports the module, the name will actually get bound to a <class 'importlib.util._LazyModule'> instance, rather than an ordinary module. Attempting to access any attribute of this instance will trigger the normal module loading procedure — which even replaces the global name.Now we can do:  import this # nothing shows up\n  print(type(this)) # <class 'importlib.util._LazyModule'>\n  rot13 = this.s # the module is loaded, printing the Zen\n  print(type(this)) # <class 'module'>\n\nThat said, I don't know what the PEP means by \"mostl",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45471334,
+    "by": "ajb",
+    "timeISO": "2025-10-04T07:22:08.000Z",
+    "textPlain": "Given all the problems people are mentioning, it seems like this proposal is on the wrong side. There should be an easy way for a module to declare itself to be lazy loaded. The module author, not the user, is the one who knows whether lazy loading will break stuff.",
     "parent": 45466086,
     "depth": 1
   },
@@ -216,18 +216,18 @@
     "depth": 1
   },
   {
-    "id": 45468053,
-    "by": "gorgoiler",
-    "timeISO": "2025-10-03T21:33:39.000Z",
-    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
-    "parent": 45466086,
-    "depth": 1
-  },
-  {
     "id": 45466646,
     "by": "hoten",
     "timeISO": "2025-10-03T19:12:52.000Z",
     "textPlain": "For posterity, as the submitted link seems temporary: https://github.com/python/peps/pull/4622",
+    "parent": 45466086,
+    "depth": 1
+  },
+  {
+    "id": 45468053,
+    "by": "gorgoiler",
+    "timeISO": "2025-10-03T21:33:39.000Z",
+    "textPlain": "I don’t really agree with the premise:> The dominant convention in Python code is to place all imports at the beginning of the file. This avoids repetition, makes import dependencies clear and minimizes runtime overhead.> A somewhat common way to delay imports is to move the imports into functions, but this practice requires more work [and] obfuscates the full set of dependencies for a module.The first part is just saying the traditions exist because the traditions have always existed.  Traditions are allowed to change!The second part is basically saying if you do your own logic-based lazy imports (inline imports in functions) then you’re going against the traditions.  Again, traditions are allowed to change!The point about the import graph being obfuscated would ring more true if Python didn’t already provide lightning fast static analysis tools like ast.  If you care about import graphs at the module level then you’re probably already automating everything with ast anyway, at which point you just walk the whole tree looking for imports rather than the top level.So, really, the whole argument for a new lazy keyword (instead of inlining giant imports where they are needed) is because people like to see import pytorch at the top\nof the file, and baulk at seeing it  — and will refuse to even look\nfor it! — anywhere else?  Hmmm.What does seem like a pain in the ass is having to do this kind of repetitive crap (which they mention in their intro):  def f1():\n    import pytorch\n    …\n\n  def f2():\n    import pytorch\n    …\n\n  def f3():\n    import pytorch\n    …\n\nBut perhaps the solution is a pattern where you put all your stuff like that in your own module and it’s that module which is lazy loaded instead?",
     "parent": 45466086,
     "depth": 1
   },
