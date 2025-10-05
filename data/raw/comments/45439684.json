@@ -1,17 +1,17 @@
 [
   {
-    "id": 45481561,
-    "by": "Demiurge",
-    "timeISO": "2025-10-05T14:04:00.000Z",
-    "textPlain": "I don't understand, what was the issue with changing the column type from `int` to `bigint`? What does exposing the IDs have to do with how large those ints can be? This seems like a backend issue, if we're talking about HTTP/REST APIs. Now, if we're talking compiled C style APIs, then yes, obviously widening the types will cause issues. This is very important context that is missing from this article.",
-    "parent": 45439684,
-    "depth": 1
-  },
-  {
     "id": 45481007,
     "by": "CodesInChaos",
     "timeISO": "2025-10-05T12:26:58.000Z",
     "textPlain": "I'd expect negative integer ids in an API to break even more integrations than unexpectedly large integers.Though I guess that likelyhood is influenced by the choice of protocol. For example when using protobuf the client code generated from the specification file will use a 32-bit integer, if that's how it was defined. While in JSON I'd generally assume it's a positive integer smaller than 2^53.",
+    "parent": 45439684,
+    "depth": 1
+  },
+  {
+    "id": 45481561,
+    "by": "Demiurge",
+    "timeISO": "2025-10-05T14:04:00.000Z",
+    "textPlain": "I don't understand, what was the issue with changing the column type from `int` to `bigint`? What does exposing the IDs have to do with how large those ints can be? This seems like a backend issue, if we're talking about HTTP/REST APIs. Now, if we're talking compiled C style APIs, then yes, obviously widening the types will cause issues. This is very important context that is missing from this article.",
     "parent": 45439684,
     "depth": 1
   },
@@ -32,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45481222,
+    "by": "dusted",
+    "timeISO": "2025-10-05T13:08:47.000Z",
+    "textPlain": "> No-one really likes engineering war stories,I love engineering war stories",
+    "parent": 45439684,
+    "depth": 1
+  },
+  {
     "id": 45480295,
     "by": "sorrythanks",
     "timeISO": "2025-10-05T09:48:18.000Z",
@@ -48,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45479529,
+    "by": "thewisenerd",
+    "timeISO": "2025-10-05T07:15:46.000Z",
+    "textPlain": "can't wait for solutions of a similar nature around 2038-01-19a free 68 more years!(hopefully nobody optimized for the 1 signed bit when allocating memory tho)",
+    "parent": 45439684,
+    "depth": 1
+  },
+  {
     "id": 45481009,
     "by": "VladVladikoff",
     "timeISO": "2025-10-05T12:27:12.000Z",
@@ -60,22 +76,6 @@
     "by": "IshKebab",
     "timeISO": "2025-10-05T11:34:32.000Z",
     "textPlain": "Hard to believe that all their customers had written their code to work with signed IDs though.Honestly I would expect that to break more users code (and in weirder ways) than just changing the type. It's unclear from the story how the type was exposed though.",
-    "parent": 45439684,
-    "depth": 1
-  },
-  {
-    "id": 45479529,
-    "by": "thewisenerd",
-    "timeISO": "2025-10-05T07:15:46.000Z",
-    "textPlain": "can't wait for solutions of a similar nature around 2038-01-19a free 68 more years!(hopefully nobody optimized for the 1 signed bit when allocating memory tho)",
-    "parent": 45439684,
-    "depth": 1
-  },
-  {
-    "id": 45481222,
-    "by": "dusted",
-    "timeISO": "2025-10-05T13:08:47.000Z",
-    "textPlain": "> No-one really likes engineering war stories,I love engineering war stories",
     "parent": 45439684,
     "depth": 1
   },
@@ -101,6 +101,14 @@
     "timeISO": "2025-10-05T12:43:17.000Z",
     "textPlain": "Right. You can have the best documentation:If they expose them as string and mention they're opaque? Then customers who parse them to uint will get bugs and be unhappy.Did they expose them as ints? Customers who used uints will be unhappy.At `jobs[-2]` the front-end parsed the ids (exposed as strings, but ints under the cover).The backend left them alone.That caused some issues when building out shared libraries.",
     "parent": 45481007,
+    "depth": 2
+  },
+  {
+    "id": 45481830,
+    "by": "icedchai",
+    "timeISO": "2025-10-05T14:39:58.000Z",
+    "textPlain": "The issue was probably database migration time. I was once at a startup that had close over 1 billion+ rows in MySQL. We were approaching the `int` limit in another year or so. Many tables would need to be migrated due to foreign key constraints. Migrating one of the tables required significant downtime (6 to 8 hours, IIRC) due to slow spinning disks. Some servers didn't have enough space to rebuild the tables, so we'd want to add disks just in case. There were several servers.A few \"alter table\" commands cascades to an operational PITA.",
+    "parent": 45481561,
     "depth": 2
   },
   {
@@ -136,19 +144,27 @@
     "depth": 2
   },
   {
+    "id": 45481694,
+    "by": "slipperybeluga",
+    "timeISO": "2025-10-05T14:20:32.000Z",
+    "textPlain": "[dead]",
+    "parent": 45480295,
+    "depth": 2
+  },
+  {
+    "id": 45481465,
+    "by": "fweimer",
+    "timeISO": "2025-10-05T13:50:30.000Z",
+    "textPlain": "https://sourceware.org/cgit/glibc/commit/bits/utmp.h?id=5361...The file format is obsolete (it assumes a fixed number of terminal lines per system) and has unfixable locking issues, so it has to be replaced anyway.",
+    "parent": 45479529,
+    "depth": 2
+  },
+  {
     "id": 45481099,
     "by": "OptionOfT",
     "timeISO": "2025-10-05T12:44:36.000Z",
     "textPlain": "None!But 2038 is gonna be awesome!",
     "parent": 45481009,
-    "depth": 2
-  },
-  {
-    "id": 45481644,
-    "by": "hn92726819",
-    "timeISO": "2025-10-05T14:16:09.000Z",
-    "textPlain": "I'd believe it. Not sure when this is, but if it's a few years old and business software, they could probably asume everyone uses java, which doesn't even have unsigned integers.",
-    "parent": 45480751,
     "depth": 2
   },
   {
@@ -160,19 +176,19 @@
     "depth": 2
   },
   {
+    "id": 45481644,
+    "by": "hn92726819",
+    "timeISO": "2025-10-05T14:16:09.000Z",
+    "textPlain": "I'd believe it. Not sure when this is, but if it's a few years old and business software, they could probably asume everyone uses java, which doesn't even have unsigned integers.",
+    "parent": 45480751,
+    "depth": 2
+  },
+  {
     "id": 45480829,
     "by": "crazygringo",
     "timeISO": "2025-10-05T11:49:46.000Z",
     "textPlain": "Came here to say exactly this. Programming languages usually default to signed, but if you're storing these things in databases it's common to explicitly choose unsigned, since ID's are virtually always unsigned and it gives you twice the space until you run out.Like, instead of using negative primary keys, they could have also just have converted to an unsigned int32. I would assume both of those would break a bunch of customer implementations though.",
     "parent": 45480751,
-    "depth": 2
-  },
-  {
-    "id": 45481465,
-    "by": "fweimer",
-    "timeISO": "2025-10-05T13:50:30.000Z",
-    "textPlain": "https://sourceware.org/cgit/glibc/commit/bits/utmp.h?id=5361...The file format is obsolete (it assumes a fixed number of terminal lines per system) and has unfixable locking issues, so it has to be replaced anyway.",
-    "parent": 45479529,
     "depth": 2
   },
   {
