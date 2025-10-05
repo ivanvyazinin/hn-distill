@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45481561,
-    "by": "Demiurge",
-    "timeISO": "2025-10-05T14:04:00.000Z",
-    "textPlain": "I don't understand, what was the issue with changing the column type from `int` to `bigint`? What does exposing the IDs have to do with how large those ints can be? This seems like a backend issue, if we're talking about HTTP/REST APIs. Now, if we're talking compiled C style APIs, then yes, obviously widening the types will cause issues. This is very important context that is missing from this article.",
-    "parent": 45439684,
-    "depth": 1
-  },
-  {
     "id": 45480341,
     "by": "zeograd",
     "timeISO": "2025-10-05T09:57:16.000Z",
     "textPlain": "I often see code relying on the increasing property of primary key (keeping track of processed vs unprocessed by the last processed pk only).This wrap into negative domain would wreck havoc for sure.",
+    "parent": 45439684,
+    "depth": 1
+  },
+  {
+    "id": 45481561,
+    "by": "Demiurge",
+    "timeISO": "2025-10-05T14:04:00.000Z",
+    "textPlain": "I don't understand, what was the issue with changing the column type from `int` to `bigint`? What does exposing the IDs have to do with how large those ints can be? This seems like a backend issue, if we're talking about HTTP/REST APIs. Now, if we're talking compiled C style APIs, then yes, obviously widening the types will cause issues. This is very important context that is missing from this article.",
     "parent": 45439684,
     "depth": 1
   },
@@ -48,14 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45481019,
-    "by": "1egg0myegg0",
-    "timeISO": "2025-10-05T12:30:24.000Z",
-    "textPlain": "Whoever gets that magical -2,147,483,648 is going to be really surprised that things keep working",
-    "parent": 45439684,
-    "depth": 1
-  },
-  {
     "id": 45479529,
     "by": "thewisenerd",
     "timeISO": "2025-10-05T07:15:46.000Z",
@@ -64,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45481009,
-    "by": "VladVladikoff",
-    "timeISO": "2025-10-05T12:27:12.000Z",
-    "textPlain": "I wonder how many Unix timestamps are going to wrap around to negative in 2032?",
+    "id": 45481019,
+    "by": "1egg0myegg0",
+    "timeISO": "2025-10-05T12:30:24.000Z",
+    "textPlain": "Whoever gets that magical -2,147,483,648 is going to be really surprised that things keep working",
     "parent": 45439684,
     "depth": 1
   },
@@ -76,6 +68,14 @@
     "by": "IshKebab",
     "timeISO": "2025-10-05T11:34:32.000Z",
     "textPlain": "Hard to believe that all their customers had written their code to work with signed IDs though.Honestly I would expect that to break more users code (and in weirder ways) than just changing the type. It's unclear from the story how the type was exposed though.",
+    "parent": 45439684,
+    "depth": 1
+  },
+  {
+    "id": 45481009,
+    "by": "VladVladikoff",
+    "timeISO": "2025-10-05T12:27:12.000Z",
+    "textPlain": "I wonder how many Unix timestamps are going to wrap around to negative in 2032?",
     "parent": 45439684,
     "depth": 1
   },
@@ -104,14 +104,6 @@
     "depth": 2
   },
   {
-    "id": 45481830,
-    "by": "icedchai",
-    "timeISO": "2025-10-05T14:39:58.000Z",
-    "textPlain": "The issue was probably database migration time. I was once at a startup that had close over 1 billion+ rows in MySQL. We were approaching the `int` limit in another year or so. Many tables would need to be migrated due to foreign key constraints. Migrating one of the tables required significant downtime (6 to 8 hours, IIRC) due to slow spinning disks. Some servers didn't have enough space to rebuild the tables, so we'd want to add disks just in case. There were several servers.A few \"alter table\" commands cascades to an operational PITA.",
-    "parent": 45481561,
-    "depth": 2
-  },
-  {
     "id": 45481021,
     "by": "CodesInChaos",
     "timeISO": "2025-10-05T12:30:44.000Z",
@@ -125,6 +117,22 @@
     "timeISO": "2025-10-05T11:05:02.000Z",
     "textPlain": "Well, I'd imagine that before returning the value through their API they could just check that if the number is negative, then add 2^32 to it, which would make it look like an unsigned 32 bit integer.",
     "parent": 45480341,
+    "depth": 2
+  },
+  {
+    "id": 45481830,
+    "by": "icedchai",
+    "timeISO": "2025-10-05T14:39:58.000Z",
+    "textPlain": "The issue was probably database migration time. I was once at a startup that had close over 1 billion+ rows in MySQL. We were approaching the `int` limit in another year or so. Many tables would need to be migrated due to foreign key constraints. Migrating one of the tables required significant downtime (6 to 8 hours, IIRC) due to slow spinning disks. Some servers didn't have enough space to rebuild the tables, so we'd want to add disks just in case. There were several servers.A few \"alter table\" commands cascades to an operational PITA.",
+    "parent": 45481561,
+    "depth": 2
+  },
+  {
+    "id": 45482322,
+    "by": "masfuerte",
+    "timeISO": "2025-10-05T15:35:09.000Z",
+    "textPlain": "There was no problem on the back end.  They had done the work and were about to switch.The problem was that the id was exposed to third parties, and they didn't know what the third parties were doing with it.  If the third parties were storing it in a 32-bit int then their integrations would have broken.So they had to delay the switch and get their clients to upgrade first.",
+    "parent": 45481561,
     "depth": 2
   },
   {
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45482556,
+    "by": "derekcheng08",
+    "timeISO": "2025-10-05T15:58:17.000Z",
+    "textPlain": "LOL came here to say this exactly. Everyone LOVES war stories in my experience :)",
+    "parent": 45480097,
+    "depth": 2
+  },
+  {
     "id": 45481694,
     "by": "slipperybeluga",
     "timeISO": "2025-10-05T14:20:32.000Z",
@@ -157,14 +173,6 @@
     "timeISO": "2025-10-05T13:50:30.000Z",
     "textPlain": "https://sourceware.org/cgit/glibc/commit/bits/utmp.h?id=5361...The file format is obsolete (it assumes a fixed number of terminal lines per system) and has unfixable locking issues, so it has to be replaced anyway.",
     "parent": 45479529,
-    "depth": 2
-  },
-  {
-    "id": 45481099,
-    "by": "OptionOfT",
-    "timeISO": "2025-10-05T12:44:36.000Z",
-    "textPlain": "None!But 2038 is gonna be awesome!",
-    "parent": 45481009,
     "depth": 2
   },
   {
@@ -189,6 +197,14 @@
     "timeISO": "2025-10-05T11:49:46.000Z",
     "textPlain": "Came here to say exactly this. Programming languages usually default to signed, but if you're storing these things in databases it's common to explicitly choose unsigned, since ID's are virtually always unsigned and it gives you twice the space until you run out.Like, instead of using negative primary keys, they could have also just have converted to an unsigned int32. I would assume both of those would break a bunch of customer implementations though.",
     "parent": 45480751,
+    "depth": 2
+  },
+  {
+    "id": 45481099,
+    "by": "OptionOfT",
+    "timeISO": "2025-10-05T12:44:36.000Z",
+    "textPlain": "None!But 2038 is gonna be awesome!",
+    "parent": 45481009,
     "depth": 2
   },
   {
