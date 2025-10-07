@@ -1,1 +1,10 @@
-[]
+[
+  {
+    "id": 45506989,
+    "by": "kazinator",
+    "timeISO": "2025-10-07T18:38:34.000Z",
+    "textPlain": "The main problem that threading macros solve is the lack of implicit partial application. If you farm that problem to partial-applicative combinators, you can do it:  This is the TXR Lisp interactive listener of TXR 302.\n  Quit with :quit or Ctrl-D on an empty line. Ctrl-X ? for cheatsheet.\n  1> (defun bind1 (fn a1) (lambda (a2) [fn a1 a2]))\n  bind1\n  2> (defun bind2 (fn a2) (lambda (a1) [fn a1 a2]))\n  bind2\n\nWe define bind1 and bind2 for binding the left or right argument of a binary function producing a unary function, then:  3> [chain [bind1 * 2] succ]\n  #<intrinsic fun: 0 param + variadic>\n  4> [*3 10]\n  21\n\nThe only wart is you have that explicit bind1.You can write functions that notice they have fewer arguments than ostensibly required and partially apply themselves. Obviously the standard * can't do that because it's usefully variadic already.Anyway, in the implementation of TXR, I've done this kind of thing in C, just with function calls: no macros. E.g. in eval.c, certain functions are prepared that the quasiquote expander uses:static val consp_f, second_f, list_form_p_f, quote_form_p_f;\nstatic val xform_listed_quote_f;  static void qquote_init(void)\n  {\n    val eq_to_list_f = pa_12_1(eq_f, list_s);\n    val eq_to_quote_f = pa_12_1(eq_f, quote_s);\n    val cons_f = func_n2(cons);\n\n    protect(&consp_f, &second_f, &list_form_p_f,\n            &quote_form_p_f, &xform_listed_quote_f, convert(val *, 0));\n\n    eq_to_list_f = pa_12_1(eq_f, list_s);\n    consp_f = func_n1(consp);\n    second_f = func_n1(second);\n    list_form_p_f = andf(consp_f,\n                         chain(car_f, eq_to_list_f, nao),\n                         nao);\n    quote_form_p_f = andf(consp_f,\n                          chain(cdr_f, consp_f, nao),\n                          chain(cdr_f, cdr_f, null_f, nao),\n                          chain(car_f, eq_to_quote_f, nao),\n                          nao);\n    xform_listed_quote_f = iffi(andf(consp_f,\n                                     chain(car_f, eq_t",
+    "parent": 45489913,
+    "depth": 1
+  }
+]
