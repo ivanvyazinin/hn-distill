@@ -1,10 +1,50 @@
 [
   {
+    "id": 45507967,
+    "by": "kazinator",
+    "timeISO": "2025-10-07T19:51:44.000Z",
+    "textPlain": "> This pattern was officially standardized in C99,No it wasn't; the C99 flexible array uses [] not [1] or [0].When using the [1] hack, you cannot use the sizeof the structure to get the offset, because it includes the [1] array.When using C99, you also cannot use sizeof to get the offset of the [0] element of the flexible array; sizeof is allowed to pretend that there is padding as if the flexible member were not there.>  // The (N - 1) adjusts for the 1-element array in Payload struct\n  Payload *item = malloc(sizeof(Payload) + (N - 1) * sizeof(char))\n\n>If you are in C++ you need a cast; the void * return value of malloc cannot implicitly convert to Payload *.  Payload *item = static_cast<Payload *>(malloc(...));\n\nOr of course a C cast if the code has to compile as C or C++:  Payload *item = (Payload *) malloc(...);\n\nSetting aside that issue for brevity, pretending we are in C, I would make the malloc expression:  Payload *item = malloc(offsetof(Payload, elements) + N);\n\nsizeof(char) is by definition 1, so we do not need to multiply N by it.By taking the offset of the elements array, we don't need to subtract 1 from N to account for the [1] element being skipped by sizeof.These kinds of little things take away complexity for something that must be carefully coded to avoid a memory safety issue. You really want the calculations around the memory to use the simplest possible formulas that are as easy as possible to reason about to convince yourself they are correct.Also, when you do use sizeof in a malloc expression, the following pattern avoids repeating the type name for the size, and also lets a pair of parentheses be dropped since sizeof only requires parentheses when the operand is a type:  Payload *item = malloc(sizeof *item);",
+    "parent": 45505398,
+    "depth": 1
+  },
+  {
+    "id": 45507639,
+    "by": "thesz",
+    "timeISO": "2025-10-07T19:26:30.000Z",
+    "textPlain": "One would be better off implementing cache-oblivious lookahead array [1] or even log-structured merge trees.[1] https://www3.cs.stonybrook.edu/~bender/newpub/BenderFaFi07.p...Both structures exploit the fact that most of the data does not change much and can be packed as tight as one wishes. Even prefixes (and suffixes) can be factored out.",
+    "parent": 45505398,
+    "depth": 1
+  },
+  {
     "id": 45507455,
     "by": "apelapan",
     "timeISO": "2025-10-07T19:12:07.000Z",
     "textPlain": "Many mentions of things being too slow and other things being high performance. I'm not doubting the truthfulness, but it would have been really nice to see some hard numbers that show the magnitude of improvement in a scenario or two.",
     "parent": 45505398,
     "depth": 1
+  },
+  {
+    "id": 45508103,
+    "by": "pluto_modadic",
+    "timeISO": "2025-10-07T20:02:13.000Z",
+    "textPlain": "is there an implementation of B+ trees that fluidly pulls from disk vs RAM?e.g., two B+ trees, one in RAM and one on disk, with the RAM one evicted with sieve caching? possibly a very lite WAL?something that lets you use a B+ tree bigger than RAM, and persist to disk",
+    "parent": 45505398,
+    "depth": 1
+  },
+  {
+    "id": 45508290,
+    "by": "moab",
+    "timeISO": "2025-10-07T20:17:44.000Z",
+    "textPlain": "Do you know of important real-world use-cases where cache-oblivious data structures are used? They are frequently mentioned on HN when relevant discussions like this one pop up, but I would love to hear about places where they are actually used in production.",
+    "parent": 45507639,
+    "depth": 2
+  },
+  {
+    "id": 45508114,
+    "by": "pluto_modadic",
+    "timeISO": "2025-10-07T20:03:11.000Z",
+    "textPlain": "LSM is great for write heavy loads. not sure about random reads, isn't that a B+ tree's turf?",
+    "parent": 45507639,
+    "depth": 2
   }
 ]
