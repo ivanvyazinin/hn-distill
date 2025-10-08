@@ -1,5 +1,13 @@
 [
   {
+    "id": 45512953,
+    "by": "Evidlo",
+    "timeISO": "2025-10-08T06:56:45.000Z",
+    "textPlain": "Anyone else feel like the pendulum motion seems off?  Maybe the default mass settings are weird, but the movement just does not look physical to me.",
+    "parent": 45512342,
+    "depth": 1
+  },
+  {
     "id": 45513887,
     "by": "isoprophlex",
     "timeISO": "2025-10-08T09:10:35.000Z",
@@ -8,12 +16,12 @@
     "depth": 1
   },
   {
-    "id": 45512953,
-    "by": "Evidlo",
-    "timeISO": "2025-10-08T06:56:45.000Z",
-    "textPlain": "Anyone else feel like the pendulum motion seems off?  Maybe the default mass settings are weird, but the movement just does not look physical to me.",
-    "parent": 45512342,
-    "depth": 1
+    "id": 45514149,
+    "by": "magicalhippo",
+    "timeISO": "2025-10-08T09:48:37.000Z",
+    "textPlain": "It's way off. My first guess was that there was something wrong with the physics code, but after carefully checking against this[1] derivation of the Hamiltonian it seemed fine, and once I wrapped my head around the JavaScript the RK4 integration[2] checked out as well.So, what else might be wrong I wondered. Well, it seems to move in the wrong direction... so I checked how the pendulum is displayed. And sure enough, I think there's a sign error:  getUpperBob() {\n     const { x0, y0, ang0, l0 } = this;\n     const { x, y } = this.calculateBobPosition(x0, y0, ang0, l0);\n     return { x, y };\n   }\n\n   getLowerBob() {\n     const upperBobPos = this.getUpperBob();\n     const { ang1, l1 } = this;\n     const { x, y } = this.calculateBobPosition(\n    upperBobPos.x,\n    upperBobPos.y,\n    -ang1,\n    l1\n     );\n     return { x, y };\n   }\n\nNote how the upper bob uses ang0 while the lower one has -ang1. Meanwhile the physics derivation assumes both angles are against the vertical, so have same sign.Changing -ang1 to ang1 does indeed make the pendulum move in a natural way, except now dragging it is flipped. Ie you drag it left and it moves right. Another sign error in setLowerBobPos. Fixing that as well it now works as I'd expect.[1]: https://dassencio.org/46[2]: https://lpsa.swarthmore.edu/NumInt/NumIntFourth.html##sectio...",
+    "parent": 45512953,
+    "depth": 2
   },
   {
     "id": 45513075,
