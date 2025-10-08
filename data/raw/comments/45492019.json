@@ -1,5 +1,37 @@
 [
   {
+    "id": 45511598,
+    "by": "Animats",
+    "timeISO": "2025-10-08T03:02:06.000Z",
+    "textPlain": "The MAC address is meaningful only for a single link. It doesn't get copied through routers and get carried along to the destination. (At least in theory. Between software defined network hardware and enterprise WiFi, there are cases where MAC addresses have wider scope. But they rarely leave an organization.)The Xerox plan for Ethernet was to use XNS, with a 32-bit network ID and a 48-bit MAC. Routers only had to know how to find a network ID, and once the packet hit the correct destination network, the MAC address routed it to the destination.Early on, there was a thing for \"multi-protocol routers\", that forwarded XNS, DECnet, IP, and a few other things such as Parc Universal Protocol, PUP. Cisco was once big on this, because Cisco came out of Stanford, which had a few of everything and tried to interconnect them.\nIn the 1990s, most of those branded protocols died out, although as late as Windows 2000, Microsoft still supported TP4, a bad idea from circuit-oriented telco people. There was a telco approach to networking, where you dialed up a reliable circuit to your destination, transmitted what you had to send, and later got a bill for the call. This, fortunately, lost out to IP.(I had real doubts about pure datagram long distance networks. We didn't know how to deal with congestion in the middle of a pure datagram network. We still don't, but cheap fiber saved us from having to.)",
+    "parent": 45492019,
+    "depth": 1
+  },
+  {
+    "id": 45511695,
+    "by": "userbinator",
+    "timeISO": "2025-10-08T03:18:39.000Z",
+    "textPlain": "Something seems a bit off about this article. \"Because Ethernet came first\" is the real answer; and it being a local network technology, was not readily scaled beyond that, despite the MAC address space being 64k times larger than the IPv4 address space. A key point worth noting about the IP address space, which enabled this crucial scaling to global networks, is its hierarchical structure. MAC addresses are assigned to hardware interfaces, independent of their location, while IP addresses are assigned hierarchically much like numbers in the telephone system, allowing for relatively easy routing at a global scale.A typical packet found on a typical network has a structure like thisIPv6? That's... not really \"typical\", yet. IMHO even packets with 802.1q tags are going to be more commonly found and \"typical\" than IPv6.",
+    "parent": 45492019,
+    "depth": 1
+  },
+  {
+    "id": 45511783,
+    "by": "mrbluecoat",
+    "timeISO": "2025-10-08T03:34:12.000Z",
+    "textPlain": "Why do we need MAC addresses?So we can spoof them, of course.",
+    "parent": 45492019,
+    "depth": 1
+  },
+  {
+    "id": 45511594,
+    "by": "shrubble",
+    "timeISO": "2025-10-08T03:01:30.000Z",
+    "textPlain": "When a router is used you still do see the MAC address but only of the directly connected next hop/device.  If another router, then it would change the headers appropriately.",
+    "parent": 45492019,
+    "depth": 1
+  },
+  {
     "id": 45511556,
     "by": "ajross",
     "timeISO": "2025-10-08T02:54:22.000Z",
@@ -8,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45492193,
-    "by": "mmastrac",
-    "timeISO": "2025-10-06T15:03:42.000Z",
-    "textPlain": "A MAC address is needed to bootstrap IP, even if non-routable - and because we don't want to bootstrap MAC addresses, we just assign them statically. From the very beginning (oversimplifying a bit, but I digress), a MAC has really just been the key in a hashed map from MAC to switch port.You _could_ design a system where MAC addresses were always randomized, but this technology evolved at a time where processing power and the bandwidth of your switches likely might have struggled with the additional load.If we were designing a system from scratch it would probably make sense for everything to have hierarchical, switch-local identities that were cheap to allocate and check and put a bit more extra routing storage in the switch chips to efficiently route these.",
+    "id": 45511527,
+    "by": "yusyusyus",
+    "timeISO": "2025-10-08T02:49:36.000Z",
+    "textPlain": "a bit disappointed this only points to ethernet as its answer. it does help to understand why ethernet requires addressing versus some others that do not.",
     "parent": 45492019,
     "depth": 1
   },
@@ -24,12 +56,76 @@
     "depth": 1
   },
   {
-    "id": 45511527,
-    "by": "yusyusyus",
-    "timeISO": "2025-10-08T02:49:36.000Z",
-    "textPlain": "a bit disappointed this only points to ethernet as its answer. it does help to understand why ethernet requires addressing versus some others that do not.",
+    "id": 45492193,
+    "by": "mmastrac",
+    "timeISO": "2025-10-06T15:03:42.000Z",
+    "textPlain": "A MAC address is needed to bootstrap IP, even if non-routable - and because we don't want to bootstrap MAC addresses, we just assign them statically. From the very beginning (oversimplifying a bit, but I digress), a MAC has really just been the key in a hashed map from MAC to switch port.You _could_ design a system where MAC addresses were always randomized, but this technology evolved at a time where processing power and the bandwidth of your switches likely might have struggled with the additional load.If we were designing a system from scratch it would probably make sense for everything to have hierarchical, switch-local identities that were cheap to allocate and check and put a bit more extra routing storage in the switch chips to efficiently route these.",
     "parent": 45492019,
     "depth": 1
+  },
+  {
+    "id": 45511784,
+    "by": "gizmo686",
+    "timeISO": "2025-10-08T03:34:13.000Z",
+    "textPlain": "> The MAC address is meaningful only for a single linkThis isn't entirely true. In ye-olden days, Ethernet was a proper bus architecture, where you would have many devices talking on a single line.As networks got larger, we wanted to have more devices than we could get on a single cable, so we introduced cheap booster hubs that would physically connect multiple cables. Since these hubs didn't have any fancy switching logic, it continued to look to devices like everyone was on a single bus (which they basically were).Eventually, compute became cheaper, and the limitations of having a massive bus more apparent, so we started replacing some of the Ethernet hubs with Ethernet switches to reduce contention. It still looks as if everyone is on a single bus; but now a node only sees traffic involving a node on its side of the nearest switch. Notably, these switches were drop in replacements for hubs, so they did not rewrite MAC addresses.Nowadays, actual Ethernet hubs are a dying breed (although I still keep one lying around to avoid buying an expensive managed switch with a monitor port). Almost every Ethernet cable you run into today is a genuine point-to-point connection connecting two specific nodes, and carrying only the data that needs to be sent between those nodes.Now that modern Ethernet is a full featured packet switched protocol, it has to deal with all the routing issues that come with that. This led to the introduction of the Spanning Tree Protocol, to allow Ethernet switches to construct Ethernet routing tables. Notably, nothing inside of these Ethernet networks replaces MAC addresses. When computer A sends to computer B on the same Ethernet network, the destination MAC address A uses is B's actual MAC address, regardless of how many switches are between them.",
+    "parent": 45511598,
+    "depth": 2
+  },
+  {
+    "id": 45511664,
+    "by": "kstrauser",
+    "timeISO": "2025-10-08T03:13:12.000Z",
+    "textPlain": "Don’t get me started on the ugly detour that was ATM, for when Bellheads wanted to build out the Internet like a phone switch, and when no one could agree on optimal cell sizes and they compromised on 53 bytes to piss off everyone equally.(Also, to have been a fly on the while when you worked out that whole congestion thing.)",
+    "parent": 45511598,
+    "depth": 2
+  },
+  {
+    "id": 45511727,
+    "by": "Neywiny",
+    "timeISO": "2025-10-08T03:23:26.000Z",
+    "textPlain": "I see the Ethernet coming first answer in another comment too. Just to be clear, many protocols came before IPv4 that aren't in play. It's not because it came first, it's because they're layered. Why need an IP if you have a port number? Why need a port number if you have a url?. As also mentioned in a comment, there's IPv4 over not just Ethernet. So I agree with your comment, but a bit of pedantry goes a long way",
+    "parent": 45511695,
+    "depth": 2
+  },
+  {
+    "id": 45511719,
+    "by": "kstrauser",
+    "timeISO": "2025-10-08T03:22:14.000Z",
+    "textPlain": "Google says nearly half their global traffic is IPv6 today, as is a vast chunk of mobile traffic. It’s pretty typical lately.",
+    "parent": 45511695,
+    "depth": 2
+  },
+  {
+    "id": 45511654,
+    "by": "kstrauser",
+    "timeISO": "2025-10-08T03:11:07.000Z",
+    "textPlain": "Pretty much everything that isn’t point to point, like PPP or a VPN, can carry IP traffic directly without needing to care about MACs (because they’re only talking to one other interface). Anything that routes physical packets around needs the equivalent of a MAC address.",
+    "parent": 45511527,
+    "depth": 2
+  },
+  {
+    "id": 45511623,
+    "by": "kstrauser",
+    "timeISO": "2025-10-08T03:06:09.000Z",
+    "textPlain": "IP packets and Ethernet frames are separate animals. Ethernet doesn’t know IP, except for a flag saying “interpret my payload as an IP packet”. It doesn’t have src or dst IP addresses. And an IP packet doesn’t know about its physical transport. It doesn’t have src or dst MAC addresses.You can put other things than IP packets inside Ethernet frames. You can put IP packets into non-Ethernet carriers.The short version is that small LANs route frames by MAC addresses and don’t know about IP addresses, and the Internet cares only about IP addresses and not MAC addresses.",
+    "parent": 45511515,
+    "depth": 2
+  },
+  {
+    "id": 45511613,
+    "by": "userbinator",
+    "timeISO": "2025-10-08T03:04:51.000Z",
+    "textPlain": "That jumped out at me too and seemed an \"LLM-ism\", but the article looks entirely human-generated.",
+    "parent": 45511515,
+    "depth": 2
+  },
+  {
+    "id": 45511644,
+    "by": "Polizeiposaune",
+    "timeISO": "2025-10-08T03:09:53.000Z",
+    "textPlain": "In the very beginning of ethernet there were no switches - you just had a bunch of transceivers connected to a length of coax cable.Every NIC on the wire saw every packet; the destination mac address indicated whether the packet was interesting enough to each node to be worth putting a copy in host memory and bothering the CPU to look at.",
+    "parent": 45492193,
+    "depth": 2
   },
   {
     "id": 45511499,
