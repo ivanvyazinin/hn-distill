@@ -14,11 +14,9 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("deepseek/deepseek-chat-v3.1:free"),
+  OPENROUTER_MODEL: z.string().default("moonshotai/kimi-k2:free"),
   // When primary model fails for summaries, try this model next
-  OPENROUTER_FALLBACK_MODEL: z
-    .string()
-    .default("moonshotai/kimi-k2:free"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("deepseek/deepseek-chat-v3.1:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
   TAGS_MODEL: z.string().default("mistralai/mistral-small-3.2-24b-instruct:free"), // try structured outputs, fallback to JSON
@@ -33,14 +31,14 @@ const EnvironmentSchema = z.object({
 
   // Summarization workload controls
   // Hard cap: how many stories to actually summarize per run (prioritized newest and missing/outdated first)
-  SUMMARIZE_MAX_STORIES_PER_RUN: z.coerce
+  SUMMARIZE_MAX_STORIES_PER_RUN: z.coerce.number().int().min(1).max(500).default(500),
+  // Cooldown in minutes: if a story had its summaries generated within this window, skip re-summarizing even if inputs changed
+  SUMMARIZE_COOLDOWN_MINUTES: z.coerce
     .number()
     .int()
-    .min(1)
-    .max(500)
-    .default(500),
-  // Cooldown in minutes: if a story had its summaries generated within this window, skip re-summarizing even if inputs changed
-  SUMMARIZE_COOLDOWN_MINUTES: z.coerce.number().int().min(0).max(24 * 60).default(0),
+    .min(0)
+    .max(24 * 60)
+    .default(0),
 
   // Posts: skip regeneration entirely if a post summary already exists
   POST_SUMMARY_ONLY_IF_MISSING: z
@@ -55,7 +53,14 @@ const EnvironmentSchema = z.object({
   // YouTube transcript preferences
   YT_TRANSCRIPT_LANGS: z
     .string()
-    .transform((v) => (v ? v.split(",").map((s) => s.trim()).filter(Boolean) : []))
+    .transform((v) =>
+      v
+        ? v
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : []
+    )
     .optional(),
 });
 
