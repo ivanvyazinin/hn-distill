@@ -1,9 +1,89 @@
 [
   {
+    "id": 45524410,
+    "by": "rossant",
+    "timeISO": "2025-10-09T06:56:32.000Z",
+    "textPlain": "Recently, I asked Codex CLI to refactor some HTML files. It didn't literally copy and pasted snippets here and there as I would have done myself, it rewrote them from memory, removing comments in the process. There was a section with 40 successive <a href...> links with complex URLs.A few days later, just before deployment to production, I wanted to double check all 40 links. First one worked. Second one worked. Third one worked. Fourth one worked. So far so good. Then I tried the last four. Perfect.Just to be sure, I proceeded with the fifth one. 404. Huh. Weird. The domain was correct though and the URL seemed reasonable.I tried the other 31 links. ALL of them 404ed. I was totally confused. The domain was always correct. It seemed highly suspicious that all websites would have had moved internal URLs at the same time. I didn't even remember that this part of the code had gone through an LLM.Fortunately, I could retrieve the old URLs on old git commits. I checked the URLs carefully. The LLM had HALLUCINATED most of the path part of the URLs! Replacing things like domain.com/this-article-is-about-foobar-123456/ by domain.com/foobar-is-so-great-162543/...These kinds of very subtle and silently introduced mistakes are quite dangerous. Be careful out there!",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524545,
+    "by": "senko",
+    "timeISO": "2025-10-09T07:18:15.000Z",
+    "textPlain": "[delayed]",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524551,
+    "by": "clayliu",
+    "timeISO": "2025-10-09T07:18:39.000Z",
+    "textPlain": "“They’re still more like weird, overconfident interns.”\nPerfect summary. LLMs can emit code fast but they don’t really handle code like developers do — there’s no sense of spatial manipulation, no memory of where things live, no questions asked before moving stuff around. Until they can “copy-paste” both code and context with intent, they’ll stay great at producing snippets and terrible at collaborating.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
     "id": 45524241,
     "by": "AllegedAlec",
     "timeISO": "2025-10-09T06:32:35.000Z",
     "textPlain": "On a more important level, I found that they still do really badly at even a minorly complex task without extreme babysitting.I wanted it to refactor a parser in a small project (2.5K lines total) because it'd gotten a bit too interconnected. It made a plan, which looked reasonable, so I told it to do this in stages, with checkpoints.\nIt said it'd done so. I asked it \"so is the old architecture also removed?\" \"No, it has not been removed.\" \"Is the new structured used in place of the old one?\" \"No, it has not.\" \nAfter it did so, 80% of the test suite failed because nothing it'd written was actually right.Did so three times with increasingly more babysitting, but it failed at the abstract task of \"refactor this\" no matter what with pretty much the same failure mode. I feel like I have to tell it exactly to make changes X and Y to class Z, remove class A etc etc, at which point I can't let it do stuff unsupervised, which is half of the reason for letting an LLM do this in the first place.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524468,
+    "by": "cat-whisperer",
+    "timeISO": "2025-10-09T07:05:34.000Z",
+    "textPlain": "The copy-paste thing is interesting because it hints at a deeper issue: LLMs don't have a concept of \"identity\" for code blocks—they just regenerate from learned patterns. I've noticed similar vibes when agents refactor—they'll confidently rewrite a chunk and introduce subtle bugs (formatting, whitespace, comments) that copy-paste would've preserved. The \"no questions\" problem feels more solvable with better prompting/tooling though, like explicitly rewarding clarification in RLHF.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524322,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-10-09T06:42:58.000Z",
+    "textPlain": "> LLMs don’t copy-paste (or cut and paste) code. For instance, when you ask them to refactor a big file into smaller ones, they’ll \"remember\" a block or slice of code, use a delete tool on the old file, and then a write tool to spit out the extracted code from memory. There are no real cut or paste tools. Every tweak is just them emitting write commands from memory. This feels weird because, as humans, we lean on copy-paste all the time.There is not that much copy/paste that happens as part of refactoring so it leans to just using context recall.  It's not entirely clear if providing an actual copy/paste command is particularly useful, at least from my testing it does not do much.  More interesting are repetitive changes that clog up the context.  Those you can improve on if you have `fastmod` or some similar tool available: with it you can instruct codex or claude to perform edits with it.> And it’s not just how they handle code movement -- their whole approach to problem-solving feels alien too.It is, but if you go back and forth to work out a plan for how to solve the problem, then the approach greatly changes.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524281,
+    "by": "tjansen",
+    "timeISO": "2025-10-09T06:37:56.000Z",
+    "textPlain": "Agreed with the points in that article, but IMHO the no 1 issue is that agents only see a fraction of the code repository. They don't know whether there is a helper function they could use, so they re-implement it. When contributing to UIs, they can't check the whole UI to identify common design patterns, so they re-invent it.The most important task for the human using the agent is to provide the right context. \"Look at this file for helper functions\", \"do it like that implementation\", \"read this doc to understand how to do it\"... you can get very far with agents when you provide them with the right context.(BTW another issue is that they have problems navigating the directory structure in a large mono repo. When the agents needs to run commands like 'npm test' in a sub-directory, they almost never get it right the first time)",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524527,
+    "by": "SafeDusk",
+    "timeISO": "2025-10-09T07:14:54.000Z",
+    "textPlain": "@kixpanganiban Do you think it will work if for refactoring tasks, we take aways OpenAI's `apply_patch` tool and just provide `cut` and `paste` for the first few steps?I can run this experiment using ToolKami[0] framework if there is enough interest or if someone can give some insights.[0]: https://github.com/aperoc/toolkami",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524469,
+    "by": "nxpnsv",
+    "timeISO": "2025-10-09T07:05:34.000Z",
+    "textPlain": "Codex has got me a few times lately, doing what I asked but certainly not what I intended:- Get rid of these warnings \"...\": captures and silences warnings instead of fixing them\n- Update this unit test to relfect the changes \"...\": changes the code so the outdated test works\n- The argument passed is now wrong: catches the exception instead of fixing the argumentMy advice is to prefer small changes and read everything it does before accepting anything, often this means using the agent actually is slower than just coding...",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524529,
+    "by": "bad_username",
+    "timeISO": "2025-10-09T07:15:14.000Z",
+    "textPlain": "LLMs are great at asking questions if you ask them to ask questions. Try it: \"before writing the code, ask me about anything that is nuclear or ambiguous about the task\".",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524400,
+    "by": "freetonik",
+    "timeISO": "2025-10-09T06:54:49.000Z",
+    "textPlain": "I see a pattern in these discussions all the time: some people say how very, very good LLMs are, and others say how LLMs fail miserably; almost always the first group presents examples of simple CRUD apps, frontend \"represent data using some JS-framework\" kind of tasks, while the second group presents examples of non-trivial refactoring, stuff like parsers (in this thread), algorithms that can't be found in leetcode, etc.Tech twitter keeps showing \"one-shotting full-stack apps\" or \"games\", and it's always something extremely banal. It's impressive that a computer can do it on its own, don't get me wrong, but it was trivial to programmers, and now it is commoditized.",
     "parent": 45523537,
     "depth": 1
   },
@@ -16,10 +96,42 @@
     "depth": 1
   },
   {
-    "id": 45524208,
-    "by": "zjaffee",
-    "timeISO": "2025-10-09T06:28:19.000Z",
-    "textPlain": "I saw this happen just yesterday where I was doing a decent sized refactor of some configuration files where it was deleting comments on the line above a refactor in some files but not others. Honestly this was easy to fix, but it also would've been easier if it didn't happen in the first place.",
+    "id": 45524497,
+    "by": "pammf",
+    "timeISO": "2025-10-09T07:10:00.000Z",
+    "textPlain": "In Claude Code, it always shows the diff between current and proposed changes and I have to explicitly allow it to actually modify the code. Doesn’t that “fix” the copy-&-paste issue?",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524405,
+    "by": "sidgtm",
+    "timeISO": "2025-10-09T06:55:53.000Z",
+    "textPlain": "As a UX designer I see they lack the ability of being opinionated about a design piece and go with the standard mental model. I got fed up with this and made a simple java script code to run a simple canvas on the localhost to pass on more subjective feedback using highlights and notes feature. I tried using playwright first but a. its token heavy b. it's still for finding what's working or breaking instead of thinking deeply about the design.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524364,
+    "by": "ziotom78",
+    "timeISO": "2025-10-09T06:48:48.000Z",
+    "textPlain": "I fully resonate with point #2. A few days ago, I was stuck trying to implement some feature in a C++ library, so I used ChatGPT for brainstorming.ChatGPT proposed a few ideas, all apparently reasonable, and then it advocated for one that was presented unambiguously as the \"best\". After a few iterations, I realized that its solution would have required a class hierarchy where the base class contained a templated virtual function, which is not allowed in C++. I pointed this out to ChatGPT and asked it to rethink the solution; it then immediately advocated for the other approach it had initially suggested.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524298,
+    "by": "throw-10-8",
+    "timeISO": "2025-10-09T06:39:57.000Z",
+    "textPlain": "3. Saying noLLMs will gladly go along with bad ideas that any reasonable dev would shoot down.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524291,
+    "by": "Vipsy",
+    "timeISO": "2025-10-09T06:39:23.000Z",
+    "textPlain": "Coding agents tend to assume that the development environment is static and predictable, but real codebases are full of subtle, moving parts - tooling versions, custom scripts, CI quirks, and non-standard file layouts.Many agents break down not because the code is too complex, but because invisible, “boring” infrastructure details trip them up. Human developers subconsciously navigate these pitfalls using tribal memory and accumulated hacks, but agents bluff through them until confronted by an edge case. This is why even trivial tasks intermittently fail with automation agents. you’re fighting not logic errors, but mismatches with the real lived context. Upgrading this context-awareness would be a genuine step change.",
     "parent": 45523537,
     "depth": 1
   },
@@ -32,10 +144,50 @@
     "depth": 1
   },
   {
+    "id": 45524254,
+    "by": "schiho",
+    "timeISO": "2025-10-09T06:33:54.000Z",
+    "textPlain": "I just run into this issue with claude sonet 4.5, asked it to copy/paste some constants from one file to another, a bigger chunk of code, it instead \"extracted\" pieces and named them so. As a last resort, after going back and forth it agreed to do a file/copy by running a system command. I was surprised that of all the programming tasks, a copy/paste felt challenging for the agent.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524307,
+    "by": "giancarlostoro",
+    "timeISO": "2025-10-09T06:41:45.000Z",
+    "textPlain": "Point #2 cracks me up because I do see with JetBrains AI (no fault of JetBrains mind you) the model updates the file, and sometimes I somehow wind up with like a few build errors, or other times like 90% of the file is now build errors. Hey what? Did you not run some sort of what if?",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524208,
+    "by": "zjaffee",
+    "timeISO": "2025-10-09T06:28:19.000Z",
+    "textPlain": "I saw this happen just yesterday where I was doing a decent sized refactor of some configuration files where it was deleting comments on the line above a refactor in some files but not others. Honestly this was easy to fix, but it also would've been easier if it didn't happen in the first place.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
     "id": 45524207,
     "by": "rconti",
     "timeISO": "2025-10-09T06:28:09.000Z",
     "textPlain": "Doing hard things that aren't greenfield? Basically any difficult and slightly obscure question I get stuck with and hope the collective wisdom of the internet can solve?",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524253,
+    "by": "hu3",
+    "timeISO": "2025-10-09T06:33:42.000Z",
+    "textPlain": "I have seen LLMs in VSCode Copilot ask to execute 'mv oldfile.py newfile.py'.So there's hope.But often they just delete and recreate the file, indeed.",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524351,
+    "by": "sxp",
+    "timeISO": "2025-10-09T06:46:42.000Z",
+    "textPlain": "Another place where LLMs have a problem is when you ask them to do something that can't be done via duct taping a bunch of Stack Overflow posts together. E.g, I've been vibe coding in Typescript on Deno recently. For various reasons, I didn't want to use the standard Express + Node stack which is what most LLMs seem to prefer for web apps. So I ran into issues with Replit and Gemini failing to handle the subtle differences between node and deno when it comes to serving HTTP requests.LLMs also have trouble figuring out that a task is impossible. I wanted boilerplate code that rendered a mesh in Three.js using GL_TRIANGLE_STRIP because I was writing a custom shader and needed to experiment with the math. But Three.js does support GL_TRIANGLE_STRIP rendering for architectural reasons. Grok, ChatGPT, and Gemini all hallucinated a GL_TRIANGLE_STRIP rendering API rather than telling be about this and I had to Google the problem myself.It feels like current Coding LLMs are good at replacing junior engineers when it comes to shallow but broad tasks like creating UIs, modifying examples available on the web, etc. But they fail at senior-level tasks like realizing that the requirements being asked of them aren't valid and doing something that no one has done in their corpus of training data.",
     "parent": 45523537,
     "depth": 1
   },
@@ -48,18 +200,18 @@
     "depth": 1
   },
   {
-    "id": 45524199,
-    "by": "ra",
-    "timeISO": "2025-10-09T06:27:00.000Z",
-    "textPlain": "[delayed]",
+    "id": 45524417,
+    "by": "juped",
+    "timeISO": "2025-10-09T06:57:29.000Z",
+    "textPlain": "It's apparently lese-Copilot to suggest this these days, but you can find very good hypothesizing and problem solving if you talk conversationally to Claude or probably any of its friends that isn't the terminally personality-collapsed SlopGPT (with or without showing it code, or diagrams); it's actually what they're best at, and often they're even less likely than human interlocutors to just parrot some set phrase at you.It's only when you take the tech out of the area it's good at and start trying to get it to \"write code\" or even worse \"be an agent\" that it starts cracking up and emitting garbage; this is only done because companies want to forcememe some kind of product besides \"chatbot\", whether or not it makes sense. It's a shame because it'll happily and effectively write the docs that don't exist but you wish did for more or less anything. (Writing code examples for docs is not a weak point at all.)",
     "parent": 45523537,
     "depth": 1
   },
   {
-    "id": 45524206,
-    "by": "nikanj",
-    "timeISO": "2025-10-09T06:28:04.000Z",
-    "textPlain": "4/5 times when Claude is looking for a file, it starts by running bash(dir c:\\test /b)First it gets an error because bash doesn’t understand \\Then it gets an error because /b doesn’t workAnd as LLMs don’t learn from their mistakes, it always spends at least half a dozen tries (e.g. bash(cmd.exe /c dir c:\\test /b )) before it figures out how to list filesIf it was an actual coworker, we’d send it off to HR",
+    "id": 45524199,
+    "by": "ra",
+    "timeISO": "2025-10-09T06:27:00.000Z",
+    "textPlain": "IaC, and DSLs in general.",
     "parent": 45523537,
     "depth": 1
   },
@@ -72,11 +224,131 @@
     "depth": 1
   },
   {
+    "id": 45524206,
+    "by": "nikanj",
+    "timeISO": "2025-10-09T06:28:04.000Z",
+    "textPlain": "4/5 times when Claude is looking for a file, it starts by running bash(dir c:\\test /b)First it gets an error because bash doesn’t understand \\Then it gets an error because /b doesn’t workAnd as LLMs don’t learn from their mistakes, it always spends at least half a dozen tries (e.g. bash(cmd.exe /c dir c:\\test /b )) before it figures out how to list filesIf it was an actual coworker, we’d send it off to HR",
+    "parent": 45523537,
+    "depth": 1
+  },
+  {
+    "id": 45524512,
+    "by": "ivape",
+    "timeISO": "2025-10-09T07:12:21.000Z",
+    "textPlain": "You’re just not using LLMs enough. You can never trust the LLM to generate a url, and this was known over two years ago. It takes one token hallucination to fuck up a url.It’s very good at a fuzzy great answer, not a precise one. You have to really use this thing all the time and pick up on stuff like that.",
+    "parent": 45524410,
+    "depth": 2
+  },
+  {
+    "id": 45524425,
+    "by": "habibur",
+    "timeISO": "2025-10-09T06:59:14.000Z",
+    "textPlain": "Might be related with what the article was talking. AI can't cut-paste. It deletes the code and then regenerates it at another location instead of cut-paste.Obviously generated code drift a little from deleted ones.",
+    "parent": 45524241,
+    "depth": 2
+  },
+  {
+    "id": 45524264,
+    "by": "hu3",
+    "timeISO": "2025-10-09T06:35:36.000Z",
+    "textPlain": "Interesting. What model and tool was used?I have seen similar failure modes in Cursor and VSCode Copilot (using gpt5) where I have to babysit relatively small refactors.",
+    "parent": 45524241,
+    "depth": 2
+  },
+  {
+    "id": 45524471,
+    "by": "brianpan",
+    "timeISO": "2025-10-09T07:05:58.000Z",
+    "textPlain": "How is it not clear that it would be beneficial?To use another example, with my IDE I can change a signature or rename something across multiple files basically instantly. But an LLM agent will take multiple minutes to do the same thing and doesn't get it right.",
+    "parent": 45524322,
+    "depth": 2
+  },
+  {
+    "id": 45524343,
+    "by": "3abiton",
+    "timeISO": "2025-10-09T06:45:55.000Z",
+    "textPlain": "I think copy/paste can alleviate context explosion. Basically the model can remember what's the code block contain, can access it at any time, without needing to \"remember\" it.",
+    "parent": 45524322,
+    "depth": 2
+  },
+  {
+    "id": 45524549,
+    "by": "d1sxeyes",
+    "timeISO": "2025-10-09T07:18:30.000Z",
+    "textPlain": "“If you think I’m asking you to split atoms, you’re probably wrong”.",
+    "parent": 45524529,
+    "depth": 2
+  },
+  {
+    "id": 45524510,
+    "by": "NitpickLawyer",
+    "timeISO": "2025-10-09T07:12:15.000Z",
+    "textPlain": "> almost always the first group presents examples of simple CRUD appsHow about a full programming language written by cc \"in a loop\" in ~3 months? With a compiler and stuff?https://cursed-lang.org/It might be a meme project, but it's still impressive as hell we're here.I learned about this from a yt content creator that took that repo, asked cc to \"make it so that variables can be emojis\", and cc did that 5$ later. Pretty cool.",
+    "parent": 45524400,
+    "depth": 2
+  },
+  {
+    "id": 45524439,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-09T07:01:28.000Z",
+    "textPlain": "Yesterday, I got Claude Code to make a script that tried out different point clustering algorithms and visualise them. It made the odd mistake, which it then corrected with help, but broadly speaking it was amazing. It would've taken me at least a week to write by hsnd, maybe longer. It was writing the algorithms itself, definitely not just simple CRUD stuff.",
+    "parent": 45524400,
+    "depth": 2
+  },
+  {
     "id": 45524234,
     "by": "rkomorn",
     "timeISO": "2025-10-09T06:31:24.000Z",
     "textPlain": "But, just like lots of people expect/want self-driving to outperform humans even on edge cases in order to trust them, they also want \"AI\" to outperform humans in order to trust it.So: \"humans are bad at this too\" doesn't have much weight (for people with that mindset).It makes sense to me, at least.",
     "parent": 45524210,
+    "depth": 2
+  },
+  {
+    "id": 45524424,
+    "by": "pimeys",
+    "timeISO": "2025-10-09T06:58:57.000Z",
+    "textPlain": "I've found codex to be better here than Claude. It has stopped many times and said hey you might be wrong. Of course this changes with a larger context.Claude is just chirping away \"You're absolutely right\" and making me to turn on caps lock when I talk to it and it's not even noon yet.",
+    "parent": 45524298,
+    "depth": 2
+  },
+  {
+    "id": 45524402,
+    "by": "nxpnsv",
+    "timeISO": "2025-10-09T06:55:26.000Z",
+    "textPlain": "Agree, this is really bad.",
+    "parent": 45524298,
+    "depth": 2
+  },
+  {
+    "id": 45524397,
+    "by": "pimeys",
+    "timeISO": "2025-10-09T06:54:14.000Z",
+    "textPlain": "Yep. One of the things I've found agents always having a lot of trouble with is anything related to OpenTelemetry. There's a thing you call that uses some global somewhere, there's a docker container or two and there's the timing issues. It takes multiple tries to get anything right. Of course this is hard for a human too if you haven't used otel before...",
+    "parent": 45524291,
+    "depth": 2
+  },
+  {
+    "id": 45524302,
+    "by": "tjansen",
+    "timeISO": "2025-10-09T06:40:41.000Z",
+    "textPlain": "I guess the LLMs are trained to know what finished code looks like. They don't really know the operations a human would use to get there.",
+    "parent": 45524254,
+    "depth": 2
+  },
+  {
+    "id": 45524454,
+    "by": "athrowaway3z",
+    "timeISO": "2025-10-09T07:03:03.000Z",
+    "textPlain": "You don't learn new languages/paradigms/frameworks by inserting it into an existing project.LLMs are especially tricky because they do appear to work magic on a small greenfield, and the majority of people are doing clown-engineering.But I think some people are underestimating what can be done in larger projects if you do everything right (eg docs, tests, comments, tools) and take time to plan.",
+    "parent": 45524207,
+    "depth": 2
+  },
+  {
+    "id": 45524372,
+    "by": "athrowaway3z",
+    "timeISO": "2025-10-09T06:50:10.000Z",
+    "textPlain": ">But Three.js does support GL_TRIANGLE_STRIP rendering for architectural reasons.Typo or trolling the next LLM to index HN comments?",
+    "parent": 45524351,
     "depth": 2
   },
   {
@@ -93,6 +365,22 @@
     "timeISO": "2025-10-09T06:11:00.000Z",
     "textPlain": "Copy and pasting.Oh, sorry. You already said that. :D",
     "parent": 45523549,
+    "depth": 2
+  },
+  {
+    "id": 45524487,
+    "by": "cheema33",
+    "timeISO": "2025-10-09T07:07:40.000Z",
+    "textPlain": "Most models struggle in a Windows environment. They are trained on a lot of Unixy commands and not as much on Windows and PowerShell commands. It was frustrating enough that I started using WSL for development when using Windows. That helped me significantly.I am guessing this because:1. Most of the training material online references Unix commands.\n2. Most Windows devs are used to GUIs for development using Visual Studio etc. GUIs are not as easy to train on.Side note:\nInteresting thing I have noticed in my own org is that devs with Windows background strictly use GUIs for git. The rest are comfortable with using git from the command line.",
+    "parent": 45524206,
+    "depth": 2
+  },
+  {
+    "id": 45524288,
+    "by": "anonzzzies",
+    "timeISO": "2025-10-09T06:38:53.000Z",
+    "textPlain": "I have a list of those things in CLAUDE.md -> it seems to help (unless it's context is full, but you should never let it get close really).",
+    "parent": 45524206,
     "depth": 2
   }
 ]
