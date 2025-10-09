@@ -16,18 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45528650,
-    "by": "gethly",
-    "timeISO": "2025-10-09T14:59:48.000Z",
-    "textPlain": "Most of this should be handled by the compiler already. But it is only 2025, I guess we're just not ready for it.",
+    "id": 45530143,
+    "by": "jasonthorsness",
+    "timeISO": "2025-10-09T16:47:02.000Z",
+    "textPlain": "If you are sweating this level of performance, are larger gains possible by switching to C, C++, Rust? How is Rust for micro-managing memory layouts?",
     "parent": 45488201,
     "depth": 1
   },
   {
-    "id": 45529872,
-    "by": "OutOfHere",
-    "timeISO": "2025-10-09T16:25:23.000Z",
-    "textPlain": "If you are worrying about cache structure latencies in Go, maybe you should just be using Rust or Zig instead that implicitly handle this better.",
+    "id": 45530017,
+    "by": "citizenpaul",
+    "timeISO": "2025-10-09T16:36:26.000Z",
+    "textPlain": "Really cool article this is the kind of stuff I still come to HN for.",
+    "parent": 45488201,
+    "depth": 1
+  },
+  {
+    "id": 45528650,
+    "by": "gethly",
+    "timeISO": "2025-10-09T14:59:48.000Z",
+    "textPlain": "Most of this should be handled by the compiler already. But it is only 2025, I guess we're just not ready for it.",
     "parent": 45488201,
     "depth": 1
   },
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45529872,
+    "by": "OutOfHere",
+    "timeISO": "2025-10-09T16:25:23.000Z",
+    "textPlain": "If you are worrying about cache structure latencies in Go, maybe you should just be using Rust or Zig instead that implicitly handle this better.",
+    "parent": 45488201,
+    "depth": 1
+  },
+  {
     "id": 45528370,
     "by": "truth_seeker",
     "timeISO": "2025-10-09T14:40:31.000Z",
@@ -80,10 +96,26 @@
     "depth": 2
   },
   {
-    "id": 45529042,
-    "by": "truth_seeker",
-    "timeISO": "2025-10-09T15:27:01.000Z",
-    "textPlain": "or at least Linter should catch thishttps://golangci-lint.run/docs/linters/",
+    "id": 45530284,
+    "by": "danudey",
+    "timeISO": "2025-10-09T16:59:01.000Z",
+    "textPlain": "I'm not sure if golang has the same fundamental issues in common use, but in e.g. C you don't want the compiler reordering your structs or adding arbitrary padding because that makes it incompatible with other in-memory representations - e.g. if you're using shared memory with another process that hasn't received the same optimizations, if you're loading raw data into memory/using mmap, etc.Likewise, one of the examples is moving from an array of structs to a struct of arrays; that's a lot more complex of a code reorganization than you'd want a compiler doing.It would be good to have a static analyzer that could suggest these changes, but, at least in many cases, you don't want them done automatically.",
+    "parent": 45528650,
+    "depth": 2
+  },
+  {
+    "id": 45529941,
+    "by": "jerf",
+    "timeISO": "2025-10-09T16:30:14.000Z",
+    "textPlain": "Are you thinking of some sort of annotation the compiler could read and handle?Because if a compiler starts automatically padding all my structures to put all of the members on their own cache line I'm going to be quite peeved. It would be easy for it to do, yes, but it would be wrong 99%+ of the time.A far more trenchant complaint is that Go won't automatically sort struct members if necessary to shrink them and you have to apply a linter to get that at linting time if you want it.",
+    "parent": 45528650,
+    "depth": 2
+  },
+  {
+    "id": 45530340,
+    "by": "Thaxll",
+    "timeISO": "2025-10-09T17:05:04.000Z",
+    "textPlain": "Do compiler ( GCC / llvm ) actually do that?",
     "parent": 45528650,
     "depth": 2
   },
@@ -93,6 +125,30 @@
     "timeISO": "2025-10-09T15:26:07.000Z",
     "textPlain": "Not really, virtually all these patterns involve tradeoffs that require understanding the data access patterns.I don't want my compiler adding more padding than bare minimum to every struct. I don't want it transforming an AoS to SoA when I choose AoS to match data access patterns. And so on...At best Go could add some local directives for compiling these optimizations, but these code changes are really minimal anyways. I would rather see the padding explicitly than some abstract directive.",
     "parent": 45528650,
+    "depth": 2
+  },
+  {
+    "id": 45529042,
+    "by": "truth_seeker",
+    "timeISO": "2025-10-09T15:27:01.000Z",
+    "textPlain": "or at least Linter should catch thishttps://golangci-lint.run/docs/linters/",
+    "parent": 45528650,
+    "depth": 2
+  },
+  {
+    "id": 45529975,
+    "by": "kbolino",
+    "timeISO": "2025-10-09T16:33:13.000Z",
+    "textPlain": "I can't find any claim anywhere else about the [0]byte trick, and in fact my own experiments in the playground show that it doesn't do anything.If you embed an AlignedBuffer in another struct type, with smaller fields in front of it, it doesn't get 64-byte alignment.If you directly allocate an AlignedBuffer (as a stack var or with new), it seems to end up page-aligned (the allocator probably has size classes) regardless of the presence of the [0]byte field.https://go.dev/play/p/Ok7fFk3uhDnExample output (w is a wrapper, w.b is the field in the wrapper, x is an allocated int32 to try to push the heap base forward, b is an allocated AlignedStruct):  &w   = 0xc000126000\n  &w.b = 0xc000126008\n  &x   = 0xc00010e020\n  &b   = 0xc000138000\n\nTake out the [0]byte field and the results look similar.",
+    "parent": 45529455,
+    "depth": 2
+  },
+  {
+    "id": 45530455,
+    "by": "danudey",
+    "timeISO": "2025-10-09T17:14:09.000Z",
+    "textPlain": "Honestly I don't think there's much in here that's Go-specific other than the syntax itself. I've seen basically the same tricks used in C or C++.Was there any particular part that felt like it needed more explanation?",
+    "parent": 45528637,
     "depth": 2
   },
   {
@@ -109,6 +165,14 @@
     "timeISO": "2025-10-09T15:16:26.000Z",
     "textPlain": "That's just one prompt away!",
     "parent": 45528614,
+    "depth": 2
+  },
+  {
+    "id": 45529960,
+    "by": "nasretdinov",
+    "timeISO": "2025-10-09T16:31:39.000Z",
+    "textPlain": "Not necessarily: you can go quite far with Go alone. It also makes it trivial to run \"green threads\" code, so if you need both (decent) performance and easy async code then Go still might be a good fit. Despite Go being pretty high level GC language on the surface it actually allows you to control stuff like struct layout, CPU affinity, etc, which typically matter more for performance than just a programming language of choice. There's a reason why e.g. VictoriaMetrics is still in Go even though they could've easily chosen any other language too",
+    "parent": 45529872,
     "depth": 2
   },
   {
