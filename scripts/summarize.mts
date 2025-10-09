@@ -505,8 +505,9 @@ async function callOpenRouterWithRetry(
   messages: ChatMessage[],
   context: LlmLogContext
 ): Promise<LlmResult> {
-  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL } = env;
+  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_FALLBACK_MODEL_2 } = env;
   let primaryFailure: LlmCallError | undefined;
+  let fallbackFailure: LlmCallError | undefined;
 
   try {
     return await callOpenRouterAttempt(services, messages, OPENROUTER_MODEL, "primary", context);
@@ -536,17 +537,40 @@ async function callOpenRouterWithRetry(
       throw error;
     }
     if (error instanceof LlmCallError) {
-      const fallbackFailure = error;
-      log.error(LOG_NAMESPACE_LLM, "Fallback model failed", {
+      fallbackFailure = error;
+      log.warn(LOG_NAMESPACE_LLM, "First fallback model failed; trying second fallback", {
         primary: OPENROUTER_MODEL,
         fallback: OPENROUTER_FALLBACK_MODEL,
+        fallback2: OPENROUTER_FALLBACK_MODEL_2,
+        ...context,
+        error: error.cause instanceof Error ? error.cause.message : error.message,
+      });
+    } else {
+      throw error;
+    }
+  }
+
+  try {
+    return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL_2, "fallback", context);
+  } catch (error) {
+    if (error instanceof RateLimitError) {
+      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered on second fallback model", error.toLogMeta(context));
+      throw error;
+    }
+    if (error instanceof LlmCallError) {
+      const fallback2Failure = error;
+      log.error(LOG_NAMESPACE_LLM, "All models failed", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        fallback2: OPENROUTER_FALLBACK_MODEL_2,
         ...context,
         primaryError: primaryFailure.describe(),
         fallbackError: fallbackFailure.describe(),
+        fallback2Error: fallback2Failure.describe(),
       });
       throw new AggregateError(
-        [primaryFailure.toError(), fallbackFailure.toError()],
-        `LLM call failed for primary model ${OPENROUTER_MODEL} and fallback model ${OPENROUTER_FALLBACK_MODEL}`
+        [primaryFailure.toError(), fallbackFailure.toError(), fallback2Failure.toError()],
+        `LLM call failed for primary model ${OPENROUTER_MODEL}, fallback model ${OPENROUTER_FALLBACK_MODEL}, and second fallback model ${OPENROUTER_FALLBACK_MODEL_2}`
       );
     }
     throw error;

@@ -1,10 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
 import { env } from "../config/env.ts";
-import { RateLimitError, summarizeComments } from "../scripts/summarize.mts";
 import type { Services } from "../scripts/summarize.mts";
-import type { ChatMessage } from "../utils/openrouter";
+import { RateLimitError, summarizeComments } from "../scripts/summarize.mts";
 import { HttpError } from "../utils/http-client.ts";
+import type { ChatMessage } from "../utils/openrouter";
 
 type Handler = (req: { model: string; messages: ChatMessage[] }) => Promise<string>;
 
@@ -54,11 +54,7 @@ function makeRateLimit(scope: string, resetMs: number): HttpError {
       },
     },
   };
-  return new HttpError(
-    "https://openrouter.ai/api/v1/chat/completions",
-    429,
-    `HTTP 429 ${JSON.stringify(payload)}`
-  );
+  return new HttpError("https://openrouter.ai/api/v1/chat/completions", 429, `HTTP 429 ${JSON.stringify(payload)}`);
 }
 
 describe("summarizeComments LLM handling", () => {
@@ -78,7 +74,7 @@ describe("summarizeComments LLM handling", () => {
     expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
   });
 
-  test("falls back when primary throws non-rate-limited error", async () => {
+  test("falls back to first fallback when primary throws non-rate-limited error", async () => {
     const { services, calls } = makeServices([
       async () => {
         throw new Error("primary outage");
@@ -96,6 +92,30 @@ describe("summarizeComments LLM handling", () => {
     expect(calls).toHaveLength(2);
     expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
     expect(calls[1]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
+  });
+
+  test("falls back to second fallback when primary and first fallback fail", async () => {
+    const { services, calls } = makeServices([
+      async () => {
+        throw new Error("primary outage");
+      },
+      async () => {
+        throw new Error("first fallback outage");
+      },
+      async ({ model }) => {
+        expect(model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
+        return "Second fallback content";
+      },
+    ]);
+
+    const result = await summarizeComments(services, 128, PROMPT_TEXT, []);
+
+    expect(result.summary).toBe("Second fallback content");
+    expect(result.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
+    expect(calls).toHaveLength(3);
+    expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
+    expect(calls[1]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
+    expect(calls[2]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
   });
 
   test("surfaces rate limit from primary model", async () => {
@@ -139,13 +159,17 @@ describe("summarizeComments LLM handling", () => {
     expect(calls[1]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
   });
 
-  test("throws aggregate error when both models fail", async () => {
+  test("throws aggregate error when all three models fail", async () => {
+    const ERROR_MSG = "failure";
     const { services, calls } = makeServices([
       async () => {
-        throw new Error("primary failure");
+        throw new Error(`primary ${ERROR_MSG}`);
       },
       async () => {
-        throw new Error("fallback failure");
+        throw new Error(`first fallback ${ERROR_MSG}`);
+      },
+      async () => {
+        throw new Error(`second fallback ${ERROR_MSG}`);
       },
     ]);
 
@@ -153,7 +177,33 @@ describe("summarizeComments LLM handling", () => {
 
     expect(error).toBeInstanceOf(AggregateError);
     const aggregate = error as AggregateError;
-    expect([...aggregate.errors]).toHaveLength(2);
-    expect(calls).toHaveLength(2);
+    expect([...aggregate.errors]).toHaveLength(3);
+    expect(calls).toHaveLength(3);
+  });
+
+  test("surfaces rate limit from second fallback model", async () => {
+    const ERROR_MSG = "failure";
+    const resetMs = Date.now() + 180_000;
+    const { services, calls } = makeServices([
+      async () => {
+        throw new Error(`primary ${ERROR_MSG}`);
+      },
+      async () => {
+        throw new Error(`first fallback ${ERROR_MSG}`);
+      },
+      async () => {
+        throw makeRateLimit("free-models-per-hour", resetMs);
+      },
+    ]);
+
+    const error = await summarizeComments(services, 129, PROMPT_TEXT, []).catch((err) => err);
+
+    expect(error).toBeInstanceOf(RateLimitError);
+    const rateError = error as RateLimitError;
+    expect(rateError.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
+    expect(rateError.limitScope).toBe("free-models-per-hour");
+    expect(rateError.retryDate?.getTime()).toBe(Math.floor(resetMs));
+    expect(calls).toHaveLength(3);
+    expect(calls[2]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
   });
 });
