@@ -64,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45526548,
-    "by": "James_K",
-    "timeISO": "2025-10-09T12:13:16.000Z",
-    "textPlain": "While safe Rust may be relatively simple to write, and certainly easier to write than safe C, this article has someone added to my belief that unsafe Rust is far too difficult to write. Perhaps some of this is deliberate, as a kind of defence mechanism against people using it willy-nilly, it still seems over-designed.",
-    "parent": 45488647,
-    "depth": 1
-  },
-  {
     "id": 45526785,
     "by": "constantcrying",
     "timeISO": "2025-10-09T12:37:48.000Z",
     "textPlain": "I gave up half way through. The constant description of deep emotional feelings when it comes to something as sober as data types in the rust standard library make this rather hard to read. It is difficult to untangle the point the author is trying to make from the constant bombardment with deep emotional writing.",
+    "parent": 45488647,
+    "depth": 1
+  },
+  {
+    "id": 45526548,
+    "by": "James_K",
+    "timeISO": "2025-10-09T12:13:16.000Z",
+    "textPlain": "While safe Rust may be relatively simple to write, and certainly easier to write than safe C, this article has someone added to my belief that unsafe Rust is far too difficult to write. Perhaps some of this is deliberate, as a kind of defence mechanism against people using it willy-nilly, it still seems over-designed.",
     "parent": 45488647,
     "depth": 1
   },
@@ -86,6 +86,14 @@
     "textPlain": "I love how it shows that you can have both performance and safety without jumping through hoops. The little details of memory management really shape how we end up writing code, often without even noticing. Rust makes it possible to get close to the hardware while still keeping you out of the usual trouble spots. It’s one of those things you appreciate more the longer you use it",
     "parent": 45488647,
     "depth": 1
+  },
+  {
+    "id": 45530067,
+    "by": "panzi",
+    "timeISO": "2025-10-09T16:40:57.000Z",
+    "textPlain": "Just today I saw a (2 year old) video on that very topic in Rust and C++: https://www.youtube.com/watch?v=algDLvbl1YY\nTowards the end they mention what to use instead in C++ to get the same characteristics as Rust's Vec::reserve:    vec.insert(\n        vec.cend(),\n        std::move_iterator(newElems.begin()),\n        std::move_iterator(newElems.end())\n    );",
+    "parent": 45527298,
+    "depth": 2
   },
   {
     "id": 45527583,
@@ -200,11 +208,11 @@
     "depth": 2
   },
   {
-    "id": 45528557,
-    "by": "dathinab",
-    "timeISO": "2025-10-09T14:54:01.000Z",
-    "textPlain": "It's a pretty normal experience for lookin at standard libraries (I mean look at cpython, where you now need to know C++, cpython interpreter internal,C++ std in addition to all the complicated meta class magic you normally don't need to care about.)Like in Vec we have following things most normal rust code wouldn't do:- Unique<u8> instead of Unique<T>, to micro optimize code size- RawVec, RawVecInner, due to the previous point, internal structure of libstd, relations to libcore/liballoc usage and more clean separation between unsafe and safe code etc. Which a \"just my own vec\" impl might not have- internal `Unique` helper type to reuse code between various data structures in std- the `NonNull` part is another micro optimization which might save 1-4 byte for `Option<Vec<T>>` (up to 4 due to alignment, but I think this optimization isn't guaranteed in this context)Like it could be just a `Vec<T> { ptr: *const T, cap: usize, len: usize, _marker: PhantomData<T> }`, but that wouldn't have quite the maximized (and micro optimized) fine tuning which tends to be in std libraries but not in random other code. (I mean e.g. the code size micro-opt. is irrelevant for most rust code, but std goes into _all_ (std using) rust code, so it's needed.But anyway, yes, unsafe rust can be hard. Especially if you go beyond \"straight forward C bindings\" and write clever micro optimized data structures. It's also normally not needed.But also \"straight forward C bindings\" can be very okay from complexity _as long as you don't try to be clever_ (which in part isn't even rust specific, it tends to just become visible in rust).",
-    "parent": 45526548,
+    "id": 45528253,
+    "by": "swiftcoder",
+    "timeISO": "2025-10-09T14:33:20.000Z",
+    "textPlain": "If a little lighthearted banter counts as \"deeply emotional\", I guess I understand why your username is \"constant crying\"",
+    "parent": 45526785,
     "depth": 2
   },
   {
@@ -212,6 +220,22 @@
     "by": "hmry",
     "timeISO": "2025-10-09T12:53:27.000Z",
     "textPlain": "I think most of the complexity here comes from trying to write as little unsafe code as possible (and not repeating any unsafe operation in multiple places, hence the many layered abstractions).If you were to implement Vec without layering, it would be no more complicated than writing a dynamic array in C (but more verbose due to all the unsafe blocks and unabbreviated names)",
+    "parent": 45526548,
+    "depth": 2
+  },
+  {
+    "id": 45530780,
+    "by": "steveklabnik",
+    "timeISO": "2025-10-09T17:43:03.000Z",
+    "textPlain": "Even the earlier versions of this code that used unsafe were much simpler. The implementation has grown in complexity over time to address real needs.Here's what it looked like at 1.0.0: https://github.com/rust-lang/rust/blob/1.0.0/src/libcollecti...",
+    "parent": 45526548,
+    "depth": 2
+  },
+  {
+    "id": 45528557,
+    "by": "dathinab",
+    "timeISO": "2025-10-09T14:54:01.000Z",
+    "textPlain": "It's a pretty normal experience for lookin at standard libraries (I mean look at cpython, where you now need to know C++, cpython interpreter internal,C++ std in addition to all the complicated meta class magic you normally don't need to care about.)Like in Vec we have following things most normal rust code wouldn't do:- Unique<u8> instead of Unique<T>, to micro optimize code size- RawVec, RawVecInner, due to the previous point, internal structure of libstd, relations to libcore/liballoc usage and more clean separation between unsafe and safe code etc. Which a \"just my own vec\" impl might not have- internal `Unique` helper type to reuse code between various data structures in std- the `NonNull` part is another micro optimization which might save 1-4 byte for `Option<Vec<T>>` (up to 4 due to alignment, but I think this optimization isn't guaranteed in this context)Like it could be just a `Vec<T> { ptr: *const T, cap: usize, len: usize, _marker: PhantomData<T> }`, but that wouldn't have quite the maximized (and micro optimized) fine tuning which tends to be in std libraries but not in random other code. (I mean e.g. the code size micro-opt. is irrelevant for most rust code, but std goes into _all_ (std using) rust code, so it's needed.But anyway, yes, unsafe rust can be hard. Especially if you go beyond \"straight forward C bindings\" and write clever micro optimized data structures. It's also normally not needed.But also \"straight forward C bindings\" can be very okay from complexity _as long as you don't try to be clever_ (which in part isn't even rust specific, it tends to just become visible in rust).",
     "parent": 45526548,
     "depth": 2
   },
@@ -237,14 +261,6 @@
     "timeISO": "2025-10-09T13:13:38.000Z",
     "textPlain": "Yes, it is indeed very difficult to write unsafe rust, also very difficult to write anything low level and reusable",
     "parent": 45526548,
-    "depth": 2
-  },
-  {
-    "id": 45528253,
-    "by": "swiftcoder",
-    "timeISO": "2025-10-09T14:33:20.000Z",
-    "textPlain": "If a little lighthearted banter counts as \"deeply emotional\", I guess I understand why your username is \"constant crying\"",
-    "parent": 45526785,
     "depth": 2
   },
   {
