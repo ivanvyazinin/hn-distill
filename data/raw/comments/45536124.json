@@ -16,10 +16,42 @@
     "depth": 1
   },
   {
+    "id": 45537650,
+    "by": "bob1029",
+    "timeISO": "2025-10-10T11:29:20.000Z",
+    "textPlain": "The thing I struggle with is that most userland applications simply don't need multiple physical cores from a capacity standpoint.Proper use of concepts like async/await for IO bound activity is probably the most important thing. There are very few tasks that are truly CPU bound that a typical user is doing all day. Even in the case of gaming you are often GPU bound. You need to fire up things like Factorio, Cities Skylines, etc., to max out a multicore CPU.Even when I'm writing web backends I am not really thinking about how I can spread my workload across the cores. I just use the same async/await interface and let the compiler, runtime and scheduler figure the annoying shit out for me.Task.WhenAll tends to be much more applicable than Parallel.ForEach. If the information your code is interacting with doesn't currently reside in the same physical host, use of the latter is almost certainly incorrect.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45540412,
+    "by": "nberkman",
+    "timeISO": "2025-10-10T15:58:17.000Z",
+    "textPlain": "Interesting - this is the exact problem José Valim cited when creating Elixir: he was working on Rails multi-core performance in 2010 and found that \"writing multi-core software, which is software that runs on all cores with Ruby, was not really straightforward.\"[1] Ruby's GIL meant only one thread executes at a time.Fleury's arriving at similar conclusions from the C/systems side: make multi-core the default, not an opt-in. Though his approach still requires explicit coordination (LaneIdx(), barriers, range distribution) vs BEAM where the scheduler automatically distributes processes across cores.Different tradeoffs for different domains, but both are reacting to the same backwards reality where we program single-core-first on multi-core hardware.[1] https://www.welcometothejungle.com/en/articles/btc-elixir-jo...",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
     "id": 45539439,
     "by": "samuelknight",
     "timeISO": "2025-10-10T14:22:28.000Z",
     "textPlain": "There is a deep literature on this in the High Performance Computing (HPC) field, where researchers traditionally needed to design simulations to run on hundreds to thousands of nodes with up to hundreds of CPU threads each. Computation can be defined as dependency graphs at the function or even variable level (depending on how granular you can make your threads). Languages built on top of LLVM or interpreters that expose AST can get you a long way there.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45540961,
+    "by": "keith_analog",
+    "timeISO": "2025-10-10T16:47:08.000Z",
+    "textPlain": "The article makes for an interesting technical read, and points to some very important issues, such as debugging in a multicore environment.Even so, I encourage anyone reading this article to keep in mind that there is a massive amount of work dedicated to software support for multicore parallelism.For anyone interested in digging deeper into multicore parallelism, I recommend taking a look at the CMU approach to teaching algorithms [1]. They teach parallel programming to second-year undergraduates by default, and the students even write parallel implementations, which can achieve good parallel speedups on a multicore system.Moreover, they do it using either a parallel functional language or a parallel library in modern C++.Importantly, they get this far by largely hiding details of exactly how parallel tasks are scheduled across cores. There's a scheduler that does it, much like there's a garbage collector that frees unused memory in a memory-managed language.[1] https://www.cs.cmu.edu/~15210/docs/book.pdf",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45540503,
+    "by": "jjtheblunt",
+    "timeISO": "2025-10-10T16:05:33.000Z",
+    "textPlain": "there's a wealth of papers and theses on these topics from the early-mid 90s, for examplehttps://link.springer.com/article/10.1007/BF02577777",
     "parent": 45536124,
     "depth": 1
   },
@@ -32,10 +64,26 @@
     "depth": 1
   },
   {
-    "id": 45537650,
-    "by": "bob1029",
-    "timeISO": "2025-10-10T11:29:20.000Z",
-    "textPlain": "The thing I struggle with is that most userland applications simply don't need multiple physical cores from a capacity standpoint.Proper use of concepts like async/await for IO bound activity is probably the most important thing. There are very few tasks that are truly CPU bound that a typical user is doing all day. Even in the case of gaming you are often GPU bound. You need to fire up things like Factorio, Cities Skylines, etc., to max out a multicore CPU.Even when I'm writing web backends I am not really thinking about how I can spread my workload across the cores. I just use the same async/await interface and let the compiler, runtime and scheduler figure the annoying shit out for me.Task.WhenAll tends to be much more applicable than Parallel.ForEach. If the information your code is interacting with doesn't currently reside in the same physical host, use of the latter is almost certainly incorrect.",
+    "id": 45536802,
+    "by": "kelsolaar",
+    "timeISO": "2025-10-10T09:18:54.000Z",
+    "textPlain": "Ryan is the author of the RAD Debugger: https://github.com/EpicGamesExt/raddebugger",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45540135,
+    "by": "TinkersW",
+    "timeISO": "2025-10-10T15:31:42.000Z",
+    "textPlain": "Somewhat interesting read, if rather long..My experience is that multi-threading has quite abit of overhead, not necessary from the scheduling, but from the cache misses because now everything is unlikely to be in cache, so a naive parallel for can easily end up consuming a ton of CPU resources, it may indeed finish quicker, but use 5x the overall CPU time to do so.Then there is the other issue that parallel_for suffers from, the \"starter\" thread has to finish the loop, and if may end up with nothing to do for some time(like when one of the helper threads get suspended..), or it might end up going off to process some other work, causing the entire loop to  take much longer to finish. So parallel_for kinda sucks, and I prefer using dependency graphs when I can.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45537835,
+    "by": "stephc_int13",
+    "timeISO": "2025-10-10T11:49:55.000Z",
+    "textPlain": "I think this is less innovative than it seems.The approach described in this article is to reverse the good old fork/join, but it would only be practical for simple sub tasks or basic CLI tools, not entire programs.In the end, using this style is almost the same as doing fork/join, except the setup is somewhat hidden.",
     "parent": 45536124,
     "depth": 1
   },
@@ -56,18 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45537835,
-    "by": "stephc_int13",
-    "timeISO": "2025-10-10T11:49:55.000Z",
-    "textPlain": "I think this is less innovative than it seems.The approach described in this article is to reverse the good old fork/join, but it would only be practical for simple sub tasks or basic CLI tools, not entire programs.In the end, using this style is almost the same as doing fork/join, except the setup is somewhat hidden.",
-    "parent": 45536124,
-    "depth": 1
-  },
-  {
-    "id": 45536802,
-    "by": "kelsolaar",
-    "timeISO": "2025-10-10T09:18:54.000Z",
-    "textPlain": "Ryan is the author of the RAD Debugger: https://github.com/EpicGamesExt/raddebugger",
+    "id": 45540227,
+    "by": "JohnBooty",
+    "timeISO": "2025-10-10T15:41:33.000Z",
+    "textPlain": "What I have found is that even among talented senior engineers there is massive Dunning-Kruger effect when it comes to performant architecture. They don't know how to do it, and they don't know that they don't know how to do it.    I have always wanted reasonable performance (though this \n    might appear like “performance programming” to a concerning \n    proportion of the software industry),\n\nThis hit me right in the heart.I'm often the only person on the team who cares about performance, so I am drawn to these performance-related challenges... and it has really hurt my career, because I am then often perceived as some kind of person focused on optimization rather than delivering features.Like the author I do not focus on performance for performance's sake. Nearly all of the time the right course of action is \"do not optimize this piece of code; focus on maintainability and readability instead.\"However, sometimes, you really need to design for performance from the beginning.... or you don't have a product.At my most recent job they were trying to push lots of data through RabbitMQ/Celery for scientific work. This worked for trivial jobs (tens of megabytes) but not for moderate or large ones (hundreds of gigabytes)To make such a product viable, you really need to consider performance from the start. Celery explicitly tells you not to pass non-trivial amounts of data around: you should be passing pointers to data (database ID's, file paths, S3 URIs, whatever) rather than the actual full-fat data.The team really struggled with this. Their next proposed solution was \"well, okay, we'll store intermediate results in the database and 'optimize' later\" Great idea, but this involved 1B+ result objects. Wrong again. You are not serializing 1B+ Python objects, sending them over the wire, and performing 1B+ Redis or Postgres inserts in any reasonable amount of time or memory. Optimize and bulk insert all you want, but that's an absolute dead end.There aren't a whole lot of op",
     "parent": 45536124,
     "depth": 1
   },
@@ -80,11 +120,59 @@
     "depth": 1
   },
   {
+    "id": 45540552,
+    "by": "charcircuit",
+    "timeISO": "2025-10-10T16:09:53.000Z",
+    "textPlain": "Imagine if your whole system followed this concept,  bloating your thread count by 32x or something. Using multiple threads is not free and scheduling between them all eats performance. Not only that each thread will use up extra memory.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45541602,
+    "by": "zackmorris",
+    "timeISO": "2025-10-10T17:37:48.000Z",
+    "textPlain": "One thing that might help is that state space explosion is mainly caused by mutability. Because each mutation potentially creates branching that can be difficult or impossible to statically analyze.In other words, imperative programming with const is directly transpilable to/from functional programming.Using modern techniques like higher order methods, scatter-gather arrays (similar to map-reduce), passing by value via copy-on-write, etc, code can be written that works like piping data between unix executables. Everything becomes a spreadsheet basically.Which also has implications for multiprocessing. When all data is const, many of the async edge cases that we're normally forced to deal with go away. Loosely that means that we can use techniques similar to double buffering to create new mutated copies where only the part that changed was actually copied. The rest of the data can reference one source of truth. In practice, this turns out to most closely approximate optimal algorithms, where the best-effort imperative code may paint itself into a corner because logic design choices get dictated by the realities of the runtime instead of the problem domain itself, so the optimizer loses opportunities to simplify it.I find that in my daily work, nearly all of my time is spent untangling highly-imperative mutable code. Because I must hold the entire state in my mind when mutable references (mostly to objects) are passed between functions. My higher-order method solutions often end up shorter, more readable, faster, even more efficient, but harder to explain to junior developers. So I would really like a compiler that implicitly converts imperative code like for() loops and references into const/functional code whose intermediate code (i-code) can be reduced to its simplest form.This is also my main concern about Rust and other mainstream imperative languages like C# and even Javascript, that they encourage bare-hands methods that go away with const/functional code if th",
+    "parent": 45539056,
+    "depth": 2
+  },
+  {
+    "id": 45540340,
+    "by": "jayd16",
+    "timeISO": "2025-10-10T15:50:38.000Z",
+    "textPlain": "I guess you can argue that instruction reordering, SMT/Hyper-threading are already eating the easy wins there.  And as you said, it seems like the gains taper off at 2x.I'm not sure why games would be a good target.  They're traditionally very much tied to a single thread, because ironically, passing data to the graphics and display hardware and to multi threaded subroutines like physics all has to be synchronized.The easiest way to do that without locking a bunch of threads is to let a single thread go as fast as possible through all that main thread work.If you really want a game focused parallelization framework, look into the Entity Component System pattern.  The developer defines the data and mutability flow of various features in the game.Because the execution ordering is fully known, the frameworks can chunk, schedule, reorder, and fan-out, etc the work across threads with less waiting or cache misses.",
+    "parent": 45539056,
+    "depth": 2
+  },
+  {
+    "id": 45542254,
+    "by": "variadix",
+    "timeISO": "2025-10-10T18:35:43.000Z",
+    "textPlain": "What about pipelining? Something that has clear serial dependencies could still be pipelined to execute separate (but dependent at work boundaries) units of work in parallel.",
+    "parent": 45539056,
+    "depth": 2
+  },
+  {
     "id": 45539945,
     "by": "tomsmeding",
     "timeISO": "2025-10-10T15:11:37.000Z",
     "textPlain": "There is some recent work on this too: https://dl.acm.org/doi/10.1145/3632880",
     "parent": 45539056,
+    "depth": 2
+  },
+  {
+    "id": 45540715,
+    "by": "wbpaelias",
+    "timeISO": "2025-10-10T16:26:25.000Z",
+    "textPlain": "If you're willing to let go of imperative syntax, Interaction Nets[0] might be interesting to maximize parallelism where possible. I think Bend[1] is probably the most mature implementation of that idea.[0]: https://en.wikipedia.org/wiki/Interaction_nets\n[1]: https://github.com/HigherOrderCO/Bend",
+    "parent": 45538212,
+    "depth": 2
+  },
+  {
+    "id": 45540671,
+    "by": "procaryote",
+    "timeISO": "2025-10-10T16:22:19.000Z",
+    "textPlain": "Sometimes this approach means that you end up with really compact code where you need to do a lot of research and mental modelling to understand if it actually adds up to things being executed in parallel, and if that is good or not.",
+    "parent": 45538212,
     "depth": 2
   },
   {
@@ -96,11 +184,11 @@
     "depth": 2
   },
   {
-    "id": 45537355,
-    "by": "pjmlp",
-    "timeISO": "2025-10-10T10:50:12.000Z",
-    "textPlain": "On .NET side, there is dataflow framework based on TPL for structured concurrency, but few people are even aware it exists, it is async/await all over the place nowadays.",
-    "parent": 45537175,
+    "id": 45543724,
+    "by": "vitaminCPP",
+    "timeISO": "2025-10-10T21:00:13.000Z",
+    "textPlain": "> they do it using either a parallel functional language or a parallel library in modern C++.IMO this is a weakness not a strength.\nThe approach of Fleury (low level C, no lib), makes his articles a lot more valuable for understanding fundamentals.",
+    "parent": 45540961,
     "depth": 2
   },
   {
@@ -117,6 +205,38 @@
     "timeISO": "2025-10-10T13:39:39.000Z",
     "textPlain": "Based on the title I would have assumed that the programming model would be inverted, but it wasn't. What is needed is something akin to the Haskell model where the evaluation order is unspecified while simultaneously allowing mutation. The way to do this would be a Rust style linear type system where you are allowed to acquire exclusive write access to a region in memory, but not be allowed to perform any side effect and all modifications must be returned as if the function was referentially transparent. This is parallel by default, because you actively have to opt into a sequential execution order if you want to perform side effects.The barriers to this approach are the same old problems with automatic parallelization.Current hardware assumes a sequential instruction stream with hardware threads and cores and no hardware primitive in the microsecond range to rapidly schedule code to be executed on another core. This means you must split your program into two identical programs that then are managed by the operating system. This kills performance due to excessive amount of synchronization overhead.The other problem is that even if you have low latency scheduling, you still need to gather a sufficient amount of work for each thread. Too fine grained and you run into synchronization overhead (no matter how good your hardware is), too coarse grained and you won't be able to spread the load onto all the processors.There is also a third problem that is lurking in the dark and many developers with the exception of the Haskell community are underestimating: Running programs in a suboptimal order can lead to a massive increase in the instantaneous memory usage to the point where the program can no longer run. Think of a program allocating memory for each request, processing it and then deallocating, then allocating again. What if it accepts all requests in parallel? It will first allocate everything, then process everything and then deallocate everything.",
     "parent": 45537835,
+    "depth": 2
+  },
+  {
+    "id": 45537355,
+    "by": "pjmlp",
+    "timeISO": "2025-10-10T10:50:12.000Z",
+    "textPlain": "On .NET side, there is dataflow framework based on TPL for structured concurrency, but few people are even aware it exists, it is async/await all over the place nowadays.",
+    "parent": 45537175,
+    "depth": 2
+  },
+  {
+    "id": 45540680,
+    "by": "kstrauser",
+    "timeISO": "2025-10-10T16:22:57.000Z",
+    "textPlain": "> I'm often the only person on the team who cares about performance, so I am drawn to these performance-related challenges... and it has really hurt my career, because I am then often perceived as some kind of person focused on optimization rather than delivering features.Pro tip: always turn that kind of thing into a dollar value you can put on your annual review. \"My update to X let us use Y fewer EC2 instances, saving us $Z per year.\" Then it's not some Don Quixote obsession, but a clear fiscal benefit to the company.",
+    "parent": 45540227,
+    "depth": 2
+  },
+  {
+    "id": 45540359,
+    "by": "stephc_int13",
+    "timeISO": "2025-10-10T15:52:49.000Z",
+    "textPlain": "I think that software performance is the good kind of vanity metric, speed almost always translate to better end-user experience, but there is a point where it can turn into a pointless rabbit hole.",
+    "parent": 45540227,
+    "depth": 2
+  },
+  {
+    "id": 45540418,
+    "by": "procaryote",
+    "timeISO": "2025-10-10T15:58:47.000Z",
+    "textPlain": "In backends, you usually need to solve having concurrent requests from multiple users, regardless if you need it for performance. From that, the step to using multiple cores is sometimes very small.I.e. you don't usually need to make a for loop parallel, you can just make sure different requests are parallel.",
+    "parent": 45539564,
     "depth": 2
   }
 ]
