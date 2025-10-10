@@ -1,5 +1,37 @@
 [
   {
+    "id": 45538212,
+    "by": "MontyCarloHall",
+    "timeISO": "2025-10-10T12:30:36.000Z",
+    "textPlain": "This post underscores how traditional imperative language syntax just isn't that well-suited to elegantly expressing parallelism. On the other hand, this is exactly where array languages like APL/J/etc. or array-based frameworks like NumPy/PyTorch/etc. really shine.For this particular example, the `reduce` function of the language could easily detect whether the reduction operator is associative and automatically parallelize the reduce behind-the-scenes. `reduce(values, +)` and `reduce(values, *)` would execute seamlessly without the user needing to explicitly care about the exact subdivision of work. On the other hand, `reduce(values, /)` would run in serial, since division is not associative. Custom binary operators would just need to declare whether they're associative (and possibly commutative, depending on how the parallel scheduler works internally), and they'd be parallelized out-of-the-box.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45538155,
+    "by": "zelphirkalt",
+    "timeISO": "2025-10-10T12:22:52.000Z",
+    "textPlain": "I think the actually interesting non-obvious part starts at \"Redesigning Algorithms For Uniform Work Distribution\". All the prior stuff done you basically get for free in a functional language that has some thread pool or futures built in, doing FP. The real question is how you write algorithms or parts of programs in a way that they lend themselves to be run in parallel as small units with results that easily merge again (parallel map reduce) or maybe don't even need to be merged again. That is the real difficult part, aside from transforming some mutating program into FP style and having appropriate data structures.And then of course the heuristics start to become important. How much parallelism, before overhead eats the speedup?Another question is energy efficiency. Is it more important to finish calculation as quickly as possible, or would it be OK to need some longer time, but in total calculate less, due to less overhead and no/less merging?",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45537650,
+    "by": "bob1029",
+    "timeISO": "2025-10-10T11:29:20.000Z",
+    "textPlain": "The thing I struggle with is that most userland applications simply don't need multiple physical cores from a capacity standpoint.Proper use of concepts like async/await for IO bound activity is probably the most important thing. There are very few tasks that are truly CPU bound that a typical user is doing all day. Even in the case of gaming you are often GPU bound. You need to fire up things like Factorio, Cities Skylines, etc., to max out a multicore CPU.Even when I'm writing web backends I am not really thinking about how I can spread my workload across the cores. I just use the same async/await interface and let the compiler, runtime and scheduler figure the annoying shit out for me.Task.WhenAll tends to be much more applicable than Parallel.ForEach. If the information your code is interacting with doesn't currently reside in the same physical host, use of the latter is almost certainly incorrect.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45537835,
+    "by": "stephc_int13",
+    "timeISO": "2025-10-10T11:49:55.000Z",
+    "textPlain": "I think this is less innovative than it seems.The approach described in this article is to reverse the good old fork/join, but it would only be practical for simple sub tasks or basic CLI tools, not entire programs.In the end, using this style is almost the same as doing fork/join, except the setup is somewhat hidden.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
     "id": 45536802,
     "by": "kelsolaar",
     "timeISO": "2025-10-10T09:18:54.000Z",
@@ -14,6 +46,22 @@
     "textPlain": "The main challenge here is that a lot of languages have historically treated threading as an afterthought. Python is a good example where support was so limited (due to the GIL, which they are only now in the process of removing) that people mostly just didn't bother with it and just tried to orchestrate processes instead. Languages like go and javascript are really good at async stuff but that's mostly all happening on 1 core. You can of course run these with multiple cores but you have only limited control over which core does what.Java has had threading from v1. Fun fact, it was all green threads in 1.0. Real threads that were able to use a second CPU (if you had one) did not come until 1.1. And they've now come full circle with a way to use \"virtual\" threads. Which technically is what they started with 30 years ago. Java also went on a journey of doing blocking IO on threads, jumping through a lot of hoops (nio) to introduce non blocking io, and lately rearchitecting the blocking io such that you can (mostly) pretend your blocking io is non blocking via virtual threads.That's essentially what project Loom enables. Pretty impressive from a technical point of view but it's a bit of a leaky abstraction with some ugly failure modes (e.g. deadlocks if something happens to use the synchronized keyword deep down in some library). If that happens on a single real thread running a lot of virtual threads, the whole thread and all the virtual threads on it are blocked.There are other languages on the JVM that use a bit higher level abstractions here. I'm mainly familiar with Kotlin's coroutines. But Scala went there before them of course. What I like in Kotlin's take on this is the notion of structured concurrency where jobs fork and join in a context and can be scheduled via dispatchers as a light weight co-routine, a thread pool, or a virtual thread pool (same API, that kind of was the point of Loom). So, it kind of mixes parallelism and concurrency and treats them as co",
     "parent": 45536124,
     "depth": 1
+  },
+  {
+    "id": 45537847,
+    "by": "CJefferson",
+    "timeISO": "2025-10-10T11:50:56.000Z",
+    "textPlain": "I find async a terrible way to write interactive apps, because eventually something will take too long, and then suddenly your app jerks. So I have to keep figuring out manually which tasks need sending to a thread pool, or splitting my tasks into smaller and smaller pieces.I’m obviously doing something wrong, as the rest of the world seems to love async. Do their programs just do no interesting CPU intensive work?",
+    "parent": 45537650,
+    "depth": 2
+  },
+  {
+    "id": 45537928,
+    "by": "rfleury",
+    "timeISO": "2025-10-10T12:00:16.000Z",
+    "textPlain": "Those interested can go look at all of the actual code I’ve written using these techniques, and decide for themselves whether or not it’s practical only for “simple sub tasks or basic CLI tools”:https://github.com/EpicGamesExt/raddebugger/blob/c738768e411...https://github.com/EpicGamesExt/raddebugger/blob/master/src/...",
+    "parent": 45537835,
+    "depth": 2
   },
   {
     "id": 45537355,
