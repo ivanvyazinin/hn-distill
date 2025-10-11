@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45546934,
-    "by": "kazinator",
-    "timeISO": "2025-10-11T05:53:03.000Z",
-    "textPlain": "I definitely don't love C that does atoi on a Content-Length value that came from the network and passes that to malloc.Even before we get to how a malicious would interact with malloc, there is this:> The functions atof, atoi, atol, and atoll are not required to affect the value of the integer expression errno on an error. If the value of the result cannot be represented, the behavior is undefined. [ISO C N3220 draft]That includes not only out-of-range values by garbage that cannot be converted to a number at all. atoi(\"foo\") can behave in any manner whatsoever and return anything.Those functions are okay to use on something that has been validated in a way that it cannot cause a problem. If you know you have a nonempty sequence of nothing but digits, possibly with a minus sign, and the number digits is small enough that the value will fit into int, you are okay.> A malicious user can pass Content-Length of 4294967295But why would they when it's fewer keystrokes to use -1, which will go to 4294967295 on a 32 bit malloc, while scaling to 18446744073709551615 on 64 bit?",
-    "parent": 45535183,
-    "depth": 1
-  },
-  {
     "id": 45545217,
     "by": "acidx",
     "timeISO": "2025-10-11T00:11:26.000Z",
     "textPlain": "One thing to note, too, is that `atoi()` should be avoided as much as possible. On error (parse error, overflow, etc), it has an unspecified return value (!), although most libcs will return 0, which can be just as bad in some scenarios.Also not mentioned, is that atoi() can return a negative number -- which is then passed to malloc(), that takes a size_t, which is unsigned... which will make it become a very large number if a negative number is passed as its argument.It's better to use strtol(), but even that is a bit tricky to use, because it doesn't touch errno when there's no error but you need to check errno to know if things like overflow happened, so you need to set errno to 0 before calling the function. The man page explains how to use it properly.I think it would be a very interesting exercise for that web framework author to make its HTTP request parser go through a fuzz-tester; clang comes with one that's quite good and easy to use (https://llvm.org/docs/LibFuzzer.html), especially if used alongside address sanitizer or the undefined behavior sanitizer.  Errors like the one I mentioned will most likely be found by a fuzzer really quickly. :)",
+    "parent": 45535183,
+    "depth": 1
+  },
+  {
+    "id": 45546934,
+    "by": "kazinator",
+    "timeISO": "2025-10-11T05:53:03.000Z",
+    "textPlain": "I definitely don't love C that does atoi on a Content-Length value that came from the network and passes that to malloc.Even before we get to how a malicious would interact with malloc, there is this:> The functions atof, atoi, atol, and atoll are not required to affect the value of the integer expression errno on an error. If the value of the result cannot be represented, the behavior is undefined. [ISO C N3220 draft]That includes not only out-of-range values by garbage that cannot be converted to a number at all. atoi(\"foo\") can behave in any manner whatsoever and return anything.Those functions are okay to use on something that has been validated in a way that it cannot cause a problem. If you know you have a nonempty sequence of nothing but digits, possibly with a minus sign, and the number digits is small enough that the value will fit into int, you are okay.> A malicious user can pass Content-Length of 4294967295But why would they when it's fewer keystrokes to use -1, which will go to 4294967295 on a 32 bit malloc, while scaling to 18446744073709551615 on 64 bit?",
     "parent": 45535183,
     "depth": 1
   },
@@ -104,6 +104,14 @@
     "depth": 1
   },
   {
+    "id": 45547421,
+    "by": "riedel",
+    "timeISO": "2025-10-11T07:51:15.000Z",
+    "textPlain": "A long time ago I was involved in building compilers. It was common that we solved this problem with obstacks, which are basically stacked heaps. I wonder one could not build more things like this, where freeing is a bit more best effort but you have some checkpoints. (I guess one would rather need tree like stacks)  Just have to disallow pointers going the wrong way. Allocation remains ugly in C and I think explicit data structures are are definitely a better way of handling it.",
+    "parent": 45535934,
+    "depth": 2
+  },
+  {
     "id": 45536803,
     "by": "lelanthran",
     "timeISO": "2025-10-10T09:18:55.000Z",
@@ -160,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45547528,
+    "by": "varjag",
+    "timeISO": "2025-10-11T08:17:56.000Z",
+    "textPlain": "Some of the most famous C codebases (e.g. the Linux kernel) been using them for some time.",
+    "parent": 45544115,
+    "depth": 2
+  },
+  {
     "id": 45546945,
     "by": "rurban",
     "timeISO": "2025-10-11T05:56:56.000Z",
@@ -189,6 +205,14 @@
     "timeISO": "2025-10-11T06:07:10.000Z",
     "textPlain": "> While the classic \"Parse, don’t validate\"[0] paper uses Haskell instead of C as its illustrative programming language, the approach detailed is very much applicable in these scenarios.Good thing someone (i.e. me) took the time to demonstrate PdV in C: https://www.lelanthran.com/chap13/content.html",
     "parent": 45546151,
+    "depth": 2
+  },
+  {
+    "id": 45547485,
+    "by": "adhamsalama",
+    "timeISO": "2025-10-11T08:07:25.000Z",
+    "textPlain": "Why isn't this used more?",
+    "parent": 45537127,
     "depth": 2
   },
   {
