@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 45549439,
+    "by": "qoez",
+    "timeISO": "2025-10-11T14:32:01.000Z",
+    "textPlain": "Makes me sad this won't ever get to webgl since 'webgl3' is basically not considered anymore (replaced by webgpu)",
+    "parent": 45537890,
+    "depth": 1
+  },
+  {
     "id": 45541900,
     "by": "zackmorris",
     "timeISO": "2025-10-10T18:02:35.000Z",
     "textPlain": "A little bit off topic but: GL_LINES doesn't have a performant analog on lots of other platforms, even Unity. Drawing a line properly requires turning the two endpoint vertices into a quad and optionally adding endcaps which are at least triangular but can be polygons. From my understanding, that requires a geometry shader since we're adding virtual/implicit vertices. Does anyone know if mesh shaders could accomplish the same thing?Also I wish that GL_LINES was open-sourced for other platforms. Maybe it is in the OpenGL spec and I just haven't looked. I've attempted some other techniques like having the fragment shader draw a border around each triangle, but they all have their drawbacks.",
+    "parent": 45537890,
+    "depth": 1
+  },
+  {
+    "id": 45548237,
+    "by": "Pannoniae",
+    "timeISO": "2025-10-11T11:18:33.000Z",
+    "textPlain": "Wow, very nice ;)OpenGL was a very nice API and even despite its shortcomings, it is quite telling that VK didn't fully replace it 10 years later.Cross-vendor mesh shader support is great - we had NV_mesh_shader for quite a while but it's great that it's also supported on AMD now. It's good for voxel games like this - the shape of the vertex data is fairly fixed and very compressible, mesh shaders can really cut down on the VRAM usage and help reduce overhead.Most minecraft optimisation mods generally try to reduce drawcalls by batching chunks (16x16x16) into bigger regions and use more modern OpenGL to reduce API overhead.This mod does GPU-driven culling for invisible chunk sections (so the hidden chunks aren't rendered but without a roundtrip to the CPU) and also generates the triangles themselves with a mesh shader from the terrain data, which cuts down on the vertex size a lot.\n(EDIT: I reworded this section because the mod does only a few drawcalls in total so my wording was inaccurate. Sorry!)Sadly, optimising the game is a bit tricky due to several reasons - the first big one is translucency sorting, because there are translucent blocks in the game like stained glass, which have to be properly sorted for the blending to work. (the base game doesn't sort correctly either by default....)The second is that it's quite overengineered, so improving it while also not breaking other mods and accidentally fixing vanilla bugs is quite hard.There are further improvements possible but honestly, this is day and night compared to the vanilla renderer :)For us mere mortals (not working at Unity or Unreal), the complexity is just too much. Vulkan tries to abstract desktop and mobile together, but if you're making an indie game, there's no value for you in that. The GL/GLES split was better because each could evolve to its strengths instead of being chained to a fundamentally different design.The global state in OpenGL is certainly an annoyance, but I do not think that replac",
     "parent": 45537890,
     "depth": 1
   },
@@ -28,14 +44,6 @@
     "by": "catapart",
     "timeISO": "2025-10-10T16:09:48.000Z",
     "textPlain": "This sounds pretty cool, but can anyone dumb this down for me? Mesh shaders are good because they are more efficient than the general purpose triangle shaders? Or is this something else entirely?",
-    "parent": 45537890,
-    "depth": 1
-  },
-  {
-    "id": 45548237,
-    "by": "Pannoniae",
-    "timeISO": "2025-10-11T11:18:33.000Z",
-    "textPlain": "Wow, very nice ;)OpenGL was a very nice API and even despite its shortcomings, it is quite telling that VK didn't fully replace it 10 years later.Cross-vendor mesh shader support is great - we had NV_mesh_shader for quite a while but it's great that it's also supported on AMD now. It's good for voxel games like this - the shape of the vertex data is fairly fixed and very compressible, mesh shaders can really cut down on the VRAM usage and help reduce overhead.Most minecraft optimisation mods generally try to reduce drawcalls by batching chunks (16x16x16) into bigger regions and use more modern OpenGL to reduce API overhead.This mod does GPU-driven culling for invisible chunk sections (so the hidden chunks aren't rendered but without a roundtrip to the CPU) and also generates the triangles themselves with a mesh shader from the terrain data, which cuts down on the vertex size a lot.\n(EDIT: I reworded this section because the mod does only a few drawcalls in total so my wording was inaccurate. Sorry!)Sadly, optimising the game is a bit tricky due to several reasons - the first big one is translucency sorting, because there are translucent blocks in the game like stained glass, which have to be properly sorted for the blending to work. (the base game doesn't sort correctly either by default....)The second is that it's quite overengineered, so improving it while also not breaking other mods and accidentally fixing vanilla bugs is quite hard.There are further improvements possible but honestly, this is day and night compared to the vanilla renderer :)For us mere mortals (not working at Unity or Unreal), the complexity is just too much. Vulkan tries to abstract desktop and mobile together, but if you're making an indie game, there's no value for you in that. The GL/GLES split was better because each could evolve to its strengths instead of being chained to a fundamentally different design.The global state in OpenGL is certainly an annoyance, but I do not think that replac",
     "parent": 45537890,
     "depth": 1
   },
@@ -72,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45547196,
-    "by": "bsder",
-    "timeISO": "2025-10-11T06:57:22.000Z",
-    "textPlain": "VK_EXT_descriptor_buffer?If you are using Slang, then you just access everything as standard pointers to chunks of GPU memory.And it's mostly Intel and mobile dragging their feet on VK_EXT_descriptor_buffer ...",
-    "parent": 45539776,
-    "depth": 2
-  },
-  {
     "id": 45540181,
     "by": "garaetjjte",
     "timeISO": "2025-10-10T15:38:14.000Z",
     "textPlain": "You could do similar thing with SSBO, I think?",
+    "parent": 45539776,
+    "depth": 2
+  },
+  {
+    "id": 45547196,
+    "by": "bsder",
+    "timeISO": "2025-10-11T06:57:22.000Z",
+    "textPlain": "VK_EXT_descriptor_buffer?If you are using Slang, then you just access everything as standard pointers to chunks of GPU memory.And it's mostly Intel and mobile dragging their feet on VK_EXT_descriptor_buffer ...",
     "parent": 45539776,
     "depth": 2
   },
@@ -117,6 +125,14 @@
     "timeISO": "2025-10-10T19:18:56.000Z",
     "textPlain": "To draw lines instead of a geometry shader you can use instancing, since you know how many vertices you need to represent a line segment's bounding box. Have one vertex buffer that just contains N vertices (the actual attribute data doesn't matter, but you can shove UVs or index values in there) and bind it alongside a buffer containing your actual line information (start, end, color, etc). The driver+GPU will replicate the 'line vertex buffer' vertices for every instance in the 'line instance buffer' that you bound.This works for most other regular shapes too, like a relatively tight bounding box for circles if you're drawing a bunch of them.",
     "parent": 45541900,
+    "depth": 2
+  },
+  {
+    "id": 45548337,
+    "by": "flohofwoe",
+    "timeISO": "2025-10-11T11:37:24.000Z",
+    "textPlain": "> OpenGL was a very nice APII think this is an extremely subjective take :) If you haven't been closely following OpenGL development since the late 1990s it is a very confusing API, since it simply stacks new concepts on top of old concepts all the way back to GL 2.0. E.g. if anything good can be said about Vulkan it's that at least it isn't such a hot mess of an API (yet) like OpenGL has become in the last 25 years ;)Just look at glVertexAttribPointer()... it's an absolute mess of hidden footguns. A call to glVertexAttribPointer() 'captures' the current global vertex buffer binding for that attribute (very common source of bugs when working with vertex-input from different buffers), and the 'pointer' argument isn't a pointer at all, but a byte-offset into a vertex buffer. The entire API is full of such weird \"sediment layers\", and yes there are more recent vertex specification functions which are cleaner, but the old functions are still part of the new GL versions and just contribute to the confusion for new people trying to understand the API.",
+    "parent": 45548237,
     "depth": 2
   },
   {
@@ -173,14 +189,6 @@
     "timeISO": "2025-10-10T16:48:22.000Z",
     "textPlain": "[dead]",
     "parent": 45540551,
-    "depth": 2
-  },
-  {
-    "id": 45548337,
-    "by": "flohofwoe",
-    "timeISO": "2025-10-11T11:37:24.000Z",
-    "textPlain": "> OpenGL was a very nice APII think this is an extremely subjective take :) If you haven't been closely following OpenGL development since the late 1990s it is a very confusing API, since it simply stacks new concepts on top of old concepts all the way back to GL 2.0. E.g. if anything good can be said about Vulkan it's that at least it isn't such a hot mess of an API (yet) like OpenGL has become in the last 25 years ;)Just look at glVertexAttribPointer()... it's an absolute mess of hidden footguns. A call to glVertexAttribPointer() 'captures' the current global vertex buffer binding for that attribute (very common source of bugs when working with vertex-input from different buffers), and the 'pointer' argument isn't a pointer at all, but a byte-offset into a vertex buffer. The entire API is full of such weird \"sediment layers\", and yes there are more recent vertex specification functions which are cleaner, but the old functions are still part of the new GL versions and just contribute to the confusion for new people trying to understand the API.",
-    "parent": 45548237,
     "depth": 2
   },
   {
