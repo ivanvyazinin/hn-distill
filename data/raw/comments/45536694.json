@@ -1,25 +1,9 @@
 [
   {
-    "id": 45543745,
-    "by": "aseg",
-    "timeISO": "2025-10-10T21:01:54.000Z",
-    "textPlain": "Slightly meta-level: I'm glad the authors finds the ICLR reviews useful, and this illustrates one of the successes of ICLR's policy of always open sourcing the reviews (regardless of whether the paper is accepted or rejected).The authors benefit from having \"testimonials\" of how anonymous reviewers interpreted their works, and it also allows opens the door to people outside of the classic academic pipeline to see the behind the scenes arguments to accept/reject a paper.Here are the reviews for this paper btw: https://openreview.net/forum?id=xNsIfzlefGAnd here's a list of all the rejected papers: https://openreview.net/group?id=ICLR.cc/2025/Conference#tab-...",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
-    "id": 45546511,
-    "by": "cttet",
-    "timeISO": "2025-10-11T04:13:33.000Z",
-    "textPlain": "It seem to have both feature and a discrete number passed into next layer, which one did you think of first? or it is both by design?",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
-    "id": 45544834,
-    "by": "E-Reverance",
-    "timeISO": "2025-10-10T23:05:28.000Z",
-    "textPlain": ">Figure 18: The Taiji-DDN exhibits a surprising similarity to the ancient Chinese philosophy\nof Taiji. Records of Taiji can be traced back to the I Ching (Book of Changes) from the late 9th\ncentury BC, often described by the quote on the left (a) that explains the universe’s generation and transformation. This description coincidentally also summarizes the generation process and the transformations in the generative space of Taiji-DDN. Moreover, the diagram (b) from the book Tom (2013) bears a closely resemblance to the tree structure of DDN’s latent fig. 1b. Therefore, we have named the DDN with K = 2 as Taiji-DDN.Very nitpicky comment, but I personally find such things to make for a bad impression. \nTo be more specific, branching structures are a fairly universal idea, so the choice of relating it ancient proverbs instead of something much mundane raises an eyebrow.",
+    "id": 45546648,
+    "by": "cooljoseph",
+    "timeISO": "2025-10-11T04:47:13.000Z",
+    "textPlain": "This sounds somewhat like a normalizing flow from a discrete space to a continuous space. I think there's a way you can rewrite your DDN layer as a normalizing flow which avoids the whole split and prune method.1. Replace the DDN layer with a flow between images and a latent variable. During training, compute in the direction image -> latent. During inference, compute in the direction latent -> image.\n2. For your discrete options 1, ..., k, have trainable latent variables z_1, ..., z_k. This is a \"code book\".Training looks like the following: Start with an image and run a flow from the image to the latent space (with conditioning, etc.). Find the closest option z_i, and compute the L2 loss between z_i and your flowed latent variable. Additionally, add a loss corresponding to the log determinant of the Jacobian of the flow. This second loss is the way a normalizing flow avoids mode collapse. Finally, I think you should divide the resulting gradient by the\nsoftmax of the negative L2 losses for all the latent variables. This gradient division is done for the same reason as dividing the gradient when training a mixture-of-experts model.During inference, choose any latent variable z_i and flow from that to a generated image.",
     "parent": 45536694,
     "depth": 1
   },
@@ -48,18 +32,26 @@
     "depth": 1
   },
   {
-    "id": 45541532,
-    "by": "qazxcvbnm",
-    "timeISO": "2025-10-10T17:32:34.000Z",
-    "textPlain": "An uninformed question: If the network is fully composed of 1x1 convolutions, doesn’t that mean no information mixing between pixels occur? Would that not imply that each pixel is independent of each other? How can that not lead to incoherent results?",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
     "id": 45544754,
     "by": "hatthew",
     "timeISO": "2025-10-10T22:54:16.000Z",
     "textPlain": "Super cool concept!Looking at the examples below the abstract, there's several details that surprise me with how correct the model is. For examples: hairline in row 2 column 3; shirt color in row 2 columns 7, 8, 9, 11; lipstick throughout rows 4 and 6; face/hair position and shape in row 6 column 4. Of particular note is the red in the bottom left of row 6 column 4. It's a bit surprising—but still understandable—that the model realized there is something red there, but it's very surprising that it chose to put the red blob in exactly the right spot.I think some of this can be explained by bias in the dataset (e.g. lipstick) and cherry picking on my part (I'm ignoring the ones it got wildly wrong), but I can't explain the red shoulder strap/blob. Is there any possibility of data leakage and/or overfitting of a biased dataset, or are these just coincidences?",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45546511,
+    "by": "cttet",
+    "timeISO": "2025-10-11T04:13:33.000Z",
+    "textPlain": "It seem to have both feature and a discrete number passed into next layer, which one did you think of first? or it is both by design?",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45541532,
+    "by": "qazxcvbnm",
+    "timeISO": "2025-10-10T17:32:34.000Z",
+    "textPlain": "An uninformed question: If the network is fully composed of 1x1 convolutions, doesn’t that mean no information mixing between pixels occur? Would that not imply that each pixel is independent of each other? How can that not lead to incoherent results?",
     "parent": 45536694,
     "depth": 1
   },
@@ -80,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45538286,
-    "by": "FitchApps",
-    "timeISO": "2025-10-10T12:38:37.000Z",
-    "textPlain": "Can you train this model to detect objects (e.g detect a fish in the picture)?",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
     "id": 45538635,
     "by": "moconnor",
     "timeISO": "2025-10-10T13:14:26.000Z",
@@ -96,10 +80,34 @@
     "depth": 1
   },
   {
+    "id": 45543745,
+    "by": "aseg",
+    "timeISO": "2025-10-10T21:01:54.000Z",
+    "textPlain": "Slightly meta-level: I'm glad the authors finds the ICLR reviews useful, and this illustrates one of the successes of ICLR's policy of always open sourcing the reviews (regardless of whether the paper is accepted or rejected).The authors benefit from having \"testimonials\" of how anonymous reviewers interpreted their works, and it also allows opens the door to people outside of the classic academic pipeline to see the behind the scenes arguments to accept/reject a paper.Here are the reviews for this paper btw: https://openreview.net/forum?id=xNsIfzlefGAnd here's a list of all the rejected papers: https://openreview.net/group?id=ICLR.cc/2025/Conference#tab-...",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45538286,
+    "by": "FitchApps",
+    "timeISO": "2025-10-10T12:38:37.000Z",
+    "textPlain": "Can you train this model to detect objects (e.g detect a fish in the picture)?",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
     "id": 45540940,
     "by": "cs702",
     "timeISO": "2025-10-10T16:45:37.000Z",
     "textPlain": "This looks like great work.I've added it to my reading list.Thank you for sharing it on HN.",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45537268,
+    "by": "VoidWhisperer",
+    "timeISO": "2025-10-10T10:33:52.000Z",
+    "textPlain": "I don't have a super deep understanding of the underlying algorithms involved, but going off the demo and that page, is this mainly a model for image related tasks, or could it also be trained to do things like what GPT/Claude/etc does (chat conversations)?",
     "parent": 45536694,
     "depth": 1
   },
@@ -144,22 +152,6 @@
     "depth": 1
   },
   {
-    "id": 45537268,
-    "by": "VoidWhisperer",
-    "timeISO": "2025-10-10T10:33:52.000Z",
-    "textPlain": "I don't have a super deep understanding of the underlying algorithms involved, but going off the demo and that page, is this mainly a model for image related tasks, or could it also be trained to do things like what GPT/Claude/etc does (chat conversations)?",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
-    "id": 45543529,
-    "by": "wordglyph",
-    "timeISO": "2025-10-10T20:40:13.000Z",
-    "textPlain": "Amazing! So basically the statistical LLM concept for imaging.",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
     "id": 45540832,
     "by": "0xdeadbeefbabe",
     "timeISO": "2025-10-10T16:36:41.000Z",
@@ -172,6 +164,14 @@
     "by": "serf",
     "timeISO": "2025-10-10T11:13:16.000Z",
     "textPlain": "isn't this kind of like an 80% vq-vae?",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45543529,
+    "by": "wordglyph",
+    "timeISO": "2025-10-10T20:40:13.000Z",
+    "textPlain": "Amazing! So basically the statistical LLM concept for imaging.",
     "parent": 45536694,
     "depth": 1
   },
@@ -208,18 +208,18 @@
     "depth": 1
   },
   {
-    "id": 45542648,
-    "by": "throwaway314155",
-    "timeISO": "2025-10-10T19:14:35.000Z",
-    "textPlain": "Deeply uninformed person here:Is the inference cost of generating this tree to be pruned something of a hindrance? In particular I'm watching your MNIST example and thinking - does each cell in that video require a full inference? Or is this done in parallel at least? In any case, you're basically memory for \"faster\" runtime (for more correct outputs), no?",
-    "parent": 45536694,
-    "depth": 1
-  },
-  {
     "id": 45538324,
     "by": "nvr219",
     "timeISO": "2025-10-10T12:42:08.000Z",
     "textPlain": "Congrats!! Very cool.",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
+    "id": 45542648,
+    "by": "throwaway314155",
+    "timeISO": "2025-10-10T19:14:35.000Z",
+    "textPlain": "Deeply uninformed person here:Is the inference cost of generating this tree to be pruned something of a hindrance? In particular I'm watching your MNIST example and thinking - does each cell in that video require a full inference? Or is this done in parallel at least? In any case, you're basically memory for \"faster\" runtime (for more correct outputs), no?",
     "parent": 45536694,
     "depth": 1
   },
@@ -248,44 +248,20 @@
     "depth": 1
   },
   {
+    "id": 45544834,
+    "by": "E-Reverance",
+    "timeISO": "2025-10-10T23:05:28.000Z",
+    "textPlain": ">Figure 18: The Taiji-DDN exhibits a surprising similarity to the ancient Chinese philosophy\nof Taiji. Records of Taiji can be traced back to the I Ching (Book of Changes) from the late 9th\ncentury BC, often described by the quote on the left (a) that explains the universe’s generation and transformation. This description coincidentally also summarizes the generation process and the transformations in the generative space of Taiji-DDN. Moreover, the diagram (b) from the book Tom (2013) bears a closely resemblance to the tree structure of DDN’s latent fig. 1b. Therefore, we have named the DDN with K = 2 as Taiji-DDN.Very nitpicky comment, but I personally find such things to make for a bad impression. \nTo be more specific, branching structures are a fairly universal idea, so the choice of relating it ancient proverbs instead of something much mundane raises an eyebrow.",
+    "parent": 45536694,
+    "depth": 1
+  },
+  {
     "id": 45539108,
     "by": "tensorlibb",
     "timeISO": "2025-10-10T13:55:28.000Z",
     "textPlain": "[dead]",
     "parent": 45536694,
     "depth": 1
-  },
-  {
-    "id": 45544728,
-    "by": "3abiton",
-    "timeISO": "2025-10-10T22:49:05.000Z",
-    "textPlain": "Absolutely, whenever I got ICLR rejections, at least I could always ppint out to that reviewer who didn't understand core concepts of the paper.",
-    "parent": 45543745,
-    "depth": 2
-  },
-  {
-    "id": 45544727,
-    "by": "3abiton",
-    "timeISO": "2025-10-10T22:49:05.000Z",
-    "textPlain": "Absolutely, whenever I got ICLR rejections, at least I could always ppint out to that reviewer who didn't understand core concepts of the paper.",
-    "parent": 45543745,
-    "depth": 2
-  },
-  {
-    "id": 45546408,
-    "by": "kcexn",
-    "timeISO": "2025-10-11T03:40:47.000Z",
-    "textPlain": "Not sure about the LLM community, but it's not uncommon in other computer-science communities to assign common names to models and implementations.Common names will always be influenced by the authors culture, so it seems unfair to exclude a name based on any individual opinion that it is or isn't a mundane choice.Unless you would also exclude names based on their relationship to old, but culturally relevant texts in the western tradition to, e.g., the bible.",
-    "parent": 45544834,
-    "depth": 2
-  },
-  {
-    "id": 45545333,
-    "by": "idiotsecant",
-    "timeISO": "2025-10-11T00:33:48.000Z",
-    "textPlain": "I think it's just a fun justification for a somewhat obscure naming choice, I don't think it's trying to introduce woo",
-    "parent": 45544834,
-    "depth": 2
   },
   {
     "id": 45537638,
@@ -301,6 +277,14 @@
     "timeISO": "2025-10-10T16:32:21.000Z",
     "textPlain": "I don't think you've understood the paper.- There are no experts. The outputs are approximating random samples from the distribution.- There is no latent diffusion going on. It's using convolutions similar to a GAN.- At inference time, you select ahead-of-time the sample index, so you don't discard any computations.",
     "parent": 45537537,
+    "depth": 2
+  },
+  {
+    "id": 45546559,
+    "by": "diyer22",
+    "timeISO": "2025-10-11T04:24:56.000Z",
+    "textPlain": "I understand that by \"discrete number\" you mean the selected output of each layer.Both the \"feature\" and the \"selected output\" are designed to be passed to the next layer.",
+    "parent": 45546511,
     "depth": 2
   },
   {
@@ -320,6 +304,30 @@
     "depth": 2
   },
   {
+    "id": 45538880,
+    "by": "diyer22",
+    "timeISO": "2025-10-10T13:38:59.000Z",
+    "textPlain": "Thank you for your appreciation. I will update the future work on both GitHub and Twitter.https://github.com/DIYer22    \nhttps://x.com/diyerxx",
+    "parent": 45538635,
+    "depth": 2
+  },
+  {
+    "id": 45544728,
+    "by": "3abiton",
+    "timeISO": "2025-10-10T22:49:05.000Z",
+    "textPlain": "Absolutely, whenever I got ICLR rejections, at least I could always ppint out to that reviewer who didn't understand core concepts of the paper.",
+    "parent": 45543745,
+    "depth": 2
+  },
+  {
+    "id": 45544727,
+    "by": "3abiton",
+    "timeISO": "2025-10-10T22:49:05.000Z",
+    "textPlain": "[dupe]",
+    "parent": 45543745,
+    "depth": 2
+  },
+  {
     "id": 45538449,
     "by": "diyer22",
     "timeISO": "2025-10-10T12:55:06.000Z",
@@ -328,11 +336,19 @@
     "depth": 2
   },
   {
-    "id": 45538880,
+    "id": 45537623,
     "by": "diyer22",
-    "timeISO": "2025-10-10T13:38:59.000Z",
-    "textPlain": "Thank you for your appreciation. I will update the future work on both GitHub and Twitter.https://github.com/DIYer22    \nhttps://x.com/diyerxx",
-    "parent": 45538635,
+    "timeISO": "2025-10-10T11:24:22.000Z",
+    "textPlain": "Yes, it's absolutely possible—just like how diffusion LLMs work, we can do the same with DDN LLMs.I made an initial attempt to combine [DDN with GPT](https://github.com/Discrete-Distribution-Networks/Discrete-D...), aiming to remove tokenizers and let LLMs directly model binary strings. In each forward pass, the model adaptively adjusts the byte length of generated content based on generation difficulty (naturally supporting speculative sampling).",
+    "parent": 45537268,
+    "depth": 2
+  },
+  {
+    "id": 45537309,
+    "by": "booli",
+    "timeISO": "2025-10-10T10:41:46.000Z",
+    "textPlain": "The posts mentions that: https://github.com/Discrete-Distribution-Networks/Discrete-D...",
+    "parent": 45537268,
     "depth": 2
   },
   {
@@ -357,22 +373,6 @@
     "timeISO": "2025-10-10T15:48:59.000Z",
     "textPlain": "We provide the source code and weights along with a Docker environment to facilitate reproducing the experimental results.  \nThe original paper’s EXPERIMENTS section mentions the hardware configuration (8× RTX 2080 Ti).",
     "parent": 45540024,
-    "depth": 2
-  },
-  {
-    "id": 45537623,
-    "by": "diyer22",
-    "timeISO": "2025-10-10T11:24:22.000Z",
-    "textPlain": "Yes, it's absolutely possible—just like how diffusion LLMs work, we can do the same with DDN LLMs.I made an initial attempt to combine [DDN with GPT](https://github.com/Discrete-Distribution-Networks/Discrete-D...), aiming to remove tokenizers and let LLMs directly model binary strings. In each forward pass, the model adaptively adjusts the byte length of generated content based on generation difficulty (naturally supporting speculative sampling).",
-    "parent": 45537268,
-    "depth": 2
-  },
-  {
-    "id": 45537309,
-    "by": "booli",
-    "timeISO": "2025-10-10T10:41:46.000Z",
-    "textPlain": "The posts mentions that: https://github.com/Discrete-Distribution-Networks/Discrete-D...",
-    "parent": 45537268,
     "depth": 2
   },
   {
