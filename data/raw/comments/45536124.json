@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45544831,
-    "by": "jandrewrogers",
-    "timeISO": "2025-10-10T23:05:21.000Z",
-    "textPlain": "I think a common blindspot that makes it difficult to fully take advantage of modern silicon is making distinctions between parallelism and concurrency in code that are in actuality ambiguous.The canonical overly reductive examples are parallelism as trivial SIMD loop parallelism and concurrency as multiple threads working on different but related tasks. If those are your only models the opportunities will be limited. Parallelism, in the sense of executing multiple physical operations in a single instruction, is not limited to e.g. an arithmetic operation on arrays of numbers. If you can execute semantically orthogonal threads of logic in the same instruction, you arguably have both concurrency and parallelism at the same time.For example, one of the most effective models for using AVX-512 is to treat registers as specialized engines for computing on 64-byte structs, where the structs are an arbitrary collection of unrelated types of different sizes. There are idiomatic techniques for doing many semantically orthogonal computations on the fields in these structs in parallel using the same handful of vector instructions. It essentially turns SIMD into MIMD with clever abstractions. A well-known simple example is searching row-structured data by evaluating a collection of different predicates across any number of columns in parallel with a short sequence of vector intrinsics. Query performance is faster than columnar for some workloads. For most code there is substantially more parallelism available within a single thread of execution than you'll see if you are only looking for trivial array parallelism. It is rare to see code that does this but the gains can be large.On the other hand, I think concurrency is largely a solved problem to the extent that you can use thread-per-core architectures, particularly if you don't rely on shared task queues or work stealing to balance load.",
+    "id": 45546027,
+    "by": "whatsakandr",
+    "timeISO": "2025-10-11T02:20:50.000Z",
+    "textPlain": "He's describing the Cuda execition model.More interestingly, it's the same model as Intel's Implicit SPMD Program compiler (ispc, God that name is awful). But ispc works across SIMD lanes.",
     "parent": 45536124,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "nberkman",
     "timeISO": "2025-10-10T15:58:17.000Z",
     "textPlain": "Interesting - this is the exact problem José Valim cited when creating Elixir: he was working on Rails multi-core performance in 2010 and found that \"writing multi-core software, which is software that runs on all cores with Ruby, was not really straightforward.\"[1] Ruby's GIL meant only one thread executes at a time.Fleury's arriving at similar conclusions from the C/systems side: make multi-core the default, not an opt-in. Though his approach still requires explicit coordination (LaneIdx(), barriers, range distribution) vs BEAM where the scheduler automatically distributes processes across cores.Different tradeoffs for different domains, but both are reacting to the same backwards reality where we program single-core-first on multi-core hardware.[1] https://www.welcometothejungle.com/en/articles/btc-elixir-jo...",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45544831,
+    "by": "jandrewrogers",
+    "timeISO": "2025-10-10T23:05:21.000Z",
+    "textPlain": "I think a common blindspot that makes it difficult to fully take advantage of modern silicon is making distinctions between parallelism and concurrency in code that are in actuality ambiguous.The canonical overly reductive examples are parallelism as trivial SIMD loop parallelism and concurrency as multiple threads working on different but related tasks. If those are your only models the opportunities will be limited. Parallelism, in the sense of executing multiple physical operations in a single instruction, is not limited to e.g. an arithmetic operation on arrays of numbers. If you can execute semantically orthogonal threads of logic in the same instruction, you arguably have both concurrency and parallelism at the same time.For example, one of the most effective models for using AVX-512 is to treat registers as specialized engines for computing on 64-byte structs, where the structs are an arbitrary collection of unrelated types of different sizes. There are idiomatic techniques for doing many semantically orthogonal computations on the fields in these structs in parallel using the same handful of vector instructions. It essentially turns SIMD into MIMD with clever abstractions. A well-known simple example is searching row-structured data by evaluating a collection of different predicates across any number of columns in parallel with a short sequence of vector intrinsics. Query performance is faster than columnar for some workloads. For most code there is substantially more parallelism available within a single thread of execution than you'll see if you are only looking for trivial array parallelism. It is rare to see code that does this but the gains can be large.On the other hand, I think concurrency is largely a solved problem to the extent that you can use thread-per-core architectures, particularly if you don't rely on shared task queues or work stealing to balance load.",
     "parent": 45536124,
     "depth": 1
   },
@@ -84,6 +92,14 @@
     "by": "kelsolaar",
     "timeISO": "2025-10-10T09:18:54.000Z",
     "textPlain": "Ryan is the author of the RAD Debugger: https://github.com/EpicGamesExt/raddebugger",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45545887,
+    "by": "kazinator",
+    "timeISO": "2025-10-11T01:52:47.000Z",
+    "textPlain": "> programmers leave an enormous amount of performance on the table by ignoring the fundamentally multi-core reality of their machines.It's left on the user's table for them to use to run other things.",
     "parent": 45536124,
     "depth": 1
   },
@@ -142,6 +158,14 @@
     "textPlain": "Imagine if your whole system followed this concept,  bloating your thread count by 32x or something. Using multiple threads is not free and scheduling between them all eats performance. Not only that each thread will use up extra memory.",
     "parent": 45536124,
     "depth": 1
+  },
+  {
+    "id": 45546113,
+    "by": "Animats",
+    "timeISO": "2025-10-11T02:38:10.000Z",
+    "textPlain": "Back about 20 years, DO CONCURRENT went into FORTRAN. It says that the programmer claims all the iterations of a DO look are non-interfering. This was never really that useful. It holds for matrix multiply, but not much else.\nIt's exactly what you want for the article's use case of adding things up\nin parallel.There are a few standard cases for parallelism:- There's no interaction between tasks at all for long periods. Easiest case. Use case is codebreaking and crypto mining. Best done on special purpose hardware.- You're running a service with a large number of incoming connections. The connections are essentially independent of each other.\nThis is easy to do concurrently, because the threads don't talk to each other. For N > 1000 or so, this is the useful case for server-side async.- You have some big area or volume oriented computation, like weather prediction, where there are many local regions being computed, and the regions talk to their neighbors a bit. This is the classic supercomputer application.- You have lots of little tasks going on, queuing up events for each other. \nThis was the vision Alan Kay had for Smalltalk. It sometimes shows up inside games,\nand inside discrete event simulations. The internals of some operating systems work this way.- Anything that runs on a GPU. Very limited interaction between tasks. Until you get to shadows, lighting, occlusion culling, reflections, and anything where you don't want to \ndo N lights x M meshes processing. Vulkan gives you the low-level tools to deal with the interlocking needed to do that, which is why Vulkan is so complicated.(I can't speak to LLM training; haven't been inside that.)",
+    "parent": 45539056,
+    "depth": 2
   },
   {
     "id": 45540340,
