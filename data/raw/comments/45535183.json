@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45543523,
-    "by": "dang",
-    "timeISO": "2025-10-10T20:39:08.000Z",
-    "textPlain": "Recent and related:Show HN: I built a web framework in C - https://news.ycombinator.com/item?id=45526890 - Oct 2025 (208 comments)",
+    "id": 45545217,
+    "by": "acidx",
+    "timeISO": "2025-10-11T00:11:26.000Z",
+    "textPlain": "One thing to note, too, is that `atoi()` should be avoided as much as possible. On error (parse error, overflow, etc), it has an unspecified return value (!), although most libcs will return 0, which can be just as bad in some scenarios.Also not mentioned, is that atoi() can return a negative number -- which is then passed to malloc(), that takes a size_t, which is unsigned... which will make it become a very large number if it's negative.It's better to use strtol(), but even that is a bit tricky to use, because it doesn't touch errno when there's no error but you need to check errno to know if things like overflow happened, so you need to set errno to 0 before calling the function. The man page explains how to use it properly.I think it would be a very interesting exercise for that web framework to make its HTTP request parser go through a fuzz-tester; clang comes with one that's quite good and easy to use (https://llvm.org/docs/LibFuzzer.html), especially if used alongside address sanitizer or the undefined behavior sanitizer.  Errors like the one I mentioned will most likely be found by a fuzzer really quickly. :)",
     "parent": 45535183,
     "depth": 1
   },
   {
-    "id": 45544115,
-    "by": "yipikaya",
-    "timeISO": "2025-10-10T21:42:06.000Z",
-    "textPlain": "As an aside, it's amusing that it took 25 years for C coders to embrace the C99 named struct designator feature:    HttpParser parser = {\n        .isValid = true,\n        .requestBuffer = strdup(request),\n        .requestLength = strlen(request),\n        .position = 0,\n    };\n\nAll the kids are doing it now!",
+    "id": 45543523,
+    "by": "dang",
+    "timeISO": "2025-10-10T20:39:08.000Z",
+    "textPlain": "Recent and related:Show HN: I built a web framework in C - https://news.ycombinator.com/item?id=45526890 - Oct 2025 (208 comments)",
     "parent": 45535183,
     "depth": 1
   },
@@ -32,18 +32,26 @@
     "depth": 1
   },
   {
-    "id": 45536220,
-    "by": "jqpabc123",
-    "timeISO": "2025-10-10T07:28:48.000Z",
-    "textPlain": "Reads like an indictment of vibe coding.LLMs are fundamentally probabilistic --- not deterministic.This basically means that anything produced this way is highly suspect. And this framework is an example.",
+    "id": 45544115,
+    "by": "yipikaya",
+    "timeISO": "2025-10-10T21:42:06.000Z",
+    "textPlain": "As an aside, it's amusing that it took 25 years for C coders to embrace the C99 named struct designator feature:    HttpParser parser = {\n        .isValid = true,\n        .requestBuffer = strdup(request),\n        .requestLength = strlen(request),\n        .position = 0,\n    };\n\nAll the kids are doing it now!",
     "parent": 45535183,
     "depth": 1
   },
   {
-    "id": 45544240,
-    "by": "ge96",
-    "timeISO": "2025-10-10T21:55:29.000Z",
-    "textPlain": "Long as you allocate me, it's alright",
+    "id": 45535756,
+    "by": "messe",
+    "timeISO": "2025-10-10T06:04:42.000Z",
+    "textPlain": "> Another interesting choice in this project is to make lengths signed:There are good reasons for this choice in C (and C++) due to broken integer promotion and casting rules.See: \"Subscripts and sizes should be signed\" (Bjarne Stroustrup) https://open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1428r0...As a nice bonus, it means that ubsan traps on overflow (unsigned overflows just wrap).",
+    "parent": 45535183,
+    "depth": 1
+  },
+  {
+    "id": 45536220,
+    "by": "jqpabc123",
+    "timeISO": "2025-10-10T07:28:48.000Z",
+    "textPlain": "Reads like an indictment of vibe coding.LLMs are fundamentally probabilistic --- not deterministic.This basically means that anything produced this way is highly suspect. And this framework is an example.",
     "parent": 45535183,
     "depth": 1
   },
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45535756,
-    "by": "messe",
-    "timeISO": "2025-10-10T06:04:42.000Z",
-    "textPlain": "> Another interesting choice in this project is to make lengths signed:There are good reasons for this choice in C (and C++) due to broken integer promotion and casting rules.See: \"Subscripts and sizes should be signed\" (Bjarne Stroustrup) https://open-std.org/jtc1/sc22/wg21/docs/papers/2019/p1428r0...As a nice bonus, it means that ubsan traps on overflow (unsigned overflows just wrap).",
+    "id": 45544240,
+    "by": "ge96",
+    "timeISO": "2025-10-10T21:55:29.000Z",
+    "textPlain": "Long as you allocate me, it's alright",
     "parent": 45535183,
     "depth": 1
   },
@@ -96,11 +104,11 @@
     "depth": 2
   },
   {
-    "id": 45544555,
-    "by": "1718627440",
-    "timeISO": "2025-10-10T22:27:04.000Z",
-    "textPlain": "This is nice for constant data, but strdup can return NULL here, which is again never checked.> it took 25 years for C coders to embrace the C99 named struct designator featureNot sure if this actually true, but this is kind of the feature of C, 20 years old code or compiler is supposed to work just fine, so you just wait for some time to settle things.  For fast and shiny, there is Javascript.",
-    "parent": 45544115,
+    "id": 45545260,
+    "by": "MathMonkeyMan",
+    "timeISO": "2025-10-11T00:18:25.000Z",
+    "textPlain": "Unspecified, really? cppreference's [C documentation][1] says that it returns zero. The [OpenGroup][2] documentation doesn't specify a return value when the conversion can't be performed. This recent [draft][3] of the ISO standard for C says that if the value cannot be represented (does that mean over/underflow, bad parse, both, neither?), then it's undefined behavior.So three references give three different answers.You could always use sscanf instead, which tells you how many values were scanned (e.g. zero or one).[1]: https://en.cppreference.com/w/c/string/byte/atoi.html[2]: https://pubs.opengroup.org/onlinepubs/9799919799/functions/a...[3]: https://www.open-std.org/jtc1/sc22/wg14/www/docs/n2310.pdf",
+    "parent": 45545217,
     "depth": 2
   },
   {
@@ -120,11 +128,11 @@
     "depth": 2
   },
   {
-    "id": 45543629,
-    "by": "Karrot_Kream",
-    "timeISO": "2025-10-10T20:49:57.000Z",
-    "textPlain": "Wow this is really cool, I'd never seen this before. Thanks!",
-    "parent": 45537127,
+    "id": 45544555,
+    "by": "1718627440",
+    "timeISO": "2025-10-10T22:27:04.000Z",
+    "textPlain": "This is nice for constant data, but strdup can return NULL here, which is again never checked.> it took 25 years for C coders to embrace the C99 named struct designator featureNot sure if this actually true, but this is kind of the feature of C, 20 years old code or compiler is supposed to work just fine, so you just wait for some time to settle things.  For fast and shiny, there is Javascript.",
+    "parent": 45544115,
     "depth": 2
   },
   {
@@ -149,6 +157,14 @@
     "timeISO": "2025-10-10T06:53:31.000Z",
     "textPlain": "I just put assertions to check the ranges of all sizes and indices upon function entry, doubles as documentation, and I mostly don't have to worry about signedness as a result.",
     "parent": 45535756,
+    "depth": 2
+  },
+  {
+    "id": 45543629,
+    "by": "Karrot_Kream",
+    "timeISO": "2025-10-10T20:49:57.000Z",
+    "textPlain": "Wow this is really cool, I'd never seen this before. Thanks!",
+    "parent": 45537127,
     "depth": 2
   },
   {

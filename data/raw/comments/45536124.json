@@ -1,13 +1,5 @@
 [
   {
-    "id": 45544831,
-    "by": "jandrewrogers",
-    "timeISO": "2025-10-10T23:05:21.000Z",
-    "textPlain": "I think a common blindspot that makes it difficult to fully take advantage of modern silicon is making distinctions between parallelism and concurrency in code that are in actuality ambiguous.The canonical overly reductive examples are parallelism as trivial SIMD loop parallelism and concurrency as multiple threads working on different but related tasks. If those are your only models the opportunities will be limited. Parallelism, in the sense of executing multiple physical operations in a single instruction, is not limited to e.g. an arithmetic operation on arrays of numbers. If you can execute semantically orthogonal threads of logic in the same instruction, you arguably have both concurrency and parallelism at the same time.For example, one of the most effective models for using AVX-512 is to treat registers as specialized engines for computing on 64-byte structs, where the structs are an arbitrary collection of unrelated types of different sizes. There are idiomatic techniques for doing many semantically orthogonal computations on the fields in these structs in parallel using the same handful of vector instructions. It essentially turns SIMD into MIMD with clever abstractions. A well-known simple example is searching row-structured data by evaluating a collection of different predicates across any number of columns in parallel with a short sequence of vector intrinsics. Query performance is faster than columnar for some workloads. For most code there is substantially more parallelism available within a single thread of execution than you'll see if you are only looking for trivial array parallelism. It is rare to see code that does this but the gains can be large.On the other hand, I think concurrency is largely a solved problem to the extent that you can use thread-per-core architectures, particularly if you don't rely on shared task queues or work stealing to balance load.",
-    "parent": 45536124,
-    "depth": 1
-  },
-  {
     "id": 45539056,
     "by": "jerf",
     "timeISO": "2025-10-10T13:51:20.000Z",
@@ -20,6 +12,22 @@
     "by": "MontyCarloHall",
     "timeISO": "2025-10-10T12:30:36.000Z",
     "textPlain": "This post underscores how traditional imperative language syntax just isn't that well-suited to elegantly expressing parallelism. On the other hand, this is exactly where array languages like APL/J/etc. or array-based frameworks like NumPy/PyTorch/etc. really shine.The list summation task in the post is just a list reduction, and a reduction can automatically be parallelized for any associative operator. The gory parallelization details in the post are only something the user needs to care about in a purely imperative language that lacks native array operations like reduction. In an array language, the `reduce` function can detect whether the reduction operator is associative and if so, automatically handle the parallelization logic behind-the-scenes. Thus `reduce(values, +)` and `reduce(values, *)` would execute seamlessly without the user needing to explicitly implement the exact subdivision of work. On the other hand, `reduce(values, /)` would run in serial, since division is not associative. Custom binary operators would just need to declare whether they're associative (and possibly commutative, depending on how the parallel scheduler works internally), and they'd be parallelized out-of-the-box.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45545230,
+    "by": "tombert",
+    "timeISO": "2025-10-11T00:13:11.000Z",
+    "textPlain": "I genuinely think that writing things in a message-passing/channel-based concurrency setup is often easier than doing things in single-core.Obviously it's hard to get right, but a lot of the time doing a concurrent-first setup allows for a very clear separation of concerns (at least if you have a proper green threading solution).  You can have one thread whose sole job is to do one thing, and then spit back the response onto a channel or respond to a pid. It's elegant and for me I find it fairly straightforward to reason about.I do a lot of Clojure for my personal projects, and I will import core.async to a lot of projects, even for stuff that could be handled single-threaded, simply because I find it easier to reason about.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
+    "id": 45544831,
+    "by": "jandrewrogers",
+    "timeISO": "2025-10-10T23:05:21.000Z",
+    "textPlain": "I think a common blindspot that makes it difficult to fully take advantage of modern silicon is making distinctions between parallelism and concurrency in code that are in actuality ambiguous.The canonical overly reductive examples are parallelism as trivial SIMD loop parallelism and concurrency as multiple threads working on different but related tasks. If those are your only models the opportunities will be limited. Parallelism, in the sense of executing multiple physical operations in a single instruction, is not limited to e.g. an arithmetic operation on arrays of numbers. If you can execute semantically orthogonal threads of logic in the same instruction, you arguably have both concurrency and parallelism at the same time.For example, one of the most effective models for using AVX-512 is to treat registers as specialized engines for computing on 64-byte structs, where the structs are an arbitrary collection of unrelated types of different sizes. There are idiomatic techniques for doing many semantically orthogonal computations on the fields in these structs in parallel using the same handful of vector instructions. It essentially turns SIMD into MIMD with clever abstractions. A well-known simple example is searching row-structured data by evaluating a collection of different predicates across any number of columns in parallel with a short sequence of vector intrinsics. Query performance is faster than columnar for some workloads. For most code there is substantially more parallelism available within a single thread of execution than you'll see if you are only looking for trivial array parallelism. It is rare to see code that does this but the gains can be large.On the other hand, I think concurrency is largely a solved problem to the extent that you can use thread-per-core architectures, particularly if you don't rely on shared task queues or work stealing to balance load.",
     "parent": 45536124,
     "depth": 1
   },
@@ -40,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45539439,
-    "by": "samuelknight",
-    "timeISO": "2025-10-10T14:22:28.000Z",
-    "textPlain": "There is a deep literature on this in the High Performance Computing (HPC) field, where researchers traditionally needed to design simulations to run on hundreds to thousands of nodes with up to hundreds of CPU threads each. Computation can be defined as dependency graphs at the function or even variable level (depending on how granular you can make your threads). Languages built on top of LLVM or interpreters that expose AST can get you a long way there.",
+    "id": 45540961,
+    "by": "keith_analog",
+    "timeISO": "2025-10-10T16:47:08.000Z",
+    "textPlain": "The article makes for an interesting technical read, and points to some very important issues, such as debugging in a multicore environment.Even so, I encourage anyone reading this article to keep in mind that there is a massive amount of work dedicated to software support for multicore parallelism.For anyone interested in digging deeper into multicore parallelism, I recommend taking a look at the CMU approach to teaching algorithms [1]. They teach parallel programming to second-year undergraduates by default, and the students even write parallel implementations, which can achieve good parallel speedups on a multicore system.Moreover, they do it using either a parallel functional language or a parallel library in modern C++.Importantly, they get this far by largely hiding details of exactly how parallel tasks are scheduled across cores. There's a scheduler that does it, much like there's a garbage collector that frees unused memory in a memory-managed language.[1] https://www.cs.cmu.edu/~15210/docs/book.pdf",
     "parent": 45536124,
     "depth": 1
   },
   {
-    "id": 45538155,
-    "by": "zelphirkalt",
-    "timeISO": "2025-10-10T12:22:52.000Z",
-    "textPlain": "I think the actually interesting non-obvious part starts at \"Redesigning Algorithms For Uniform Work Distribution\". All the prior stuff done you basically get for free in a functional language that has some thread pool or futures built in, doing FP. The real question is how you write algorithms or parts of programs in a way that they lend themselves to be run in parallel as small units with results that easily merge again (parallel map reduce) or maybe don't even need to be merged again. That is the real difficult part, aside from transforming some mutating program into FP style and having appropriate data structures.And then of course the heuristics start to become important. How much parallelism, before overhead eats the speedup?Another question is energy efficiency. Is it more important to finish calculation as quickly as possible, or would it be OK to need some longer time, but in total calculate less, due to less overhead and no/less merging?",
+    "id": 45539439,
+    "by": "samuelknight",
+    "timeISO": "2025-10-10T14:22:28.000Z",
+    "textPlain": "There is a deep literature on this in the High Performance Computing (HPC) field, where researchers traditionally needed to design simulations to run on hundreds to thousands of nodes with up to hundreds of CPU threads each. Computation can be defined as dependency graphs at the function or even variable level (depending on how granular you can make your threads). Languages built on top of LLVM or interpreters that expose AST can get you a long way there.",
     "parent": 45536124,
     "depth": 1
   },
@@ -64,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45540961,
-    "by": "keith_analog",
-    "timeISO": "2025-10-10T16:47:08.000Z",
-    "textPlain": "The article makes for an interesting technical read, and points to some very important issues, such as debugging in a multicore environment.Even so, I encourage anyone reading this article to keep in mind that there is a massive amount of work dedicated to software support for multicore parallelism.For anyone interested in digging deeper into multicore parallelism, I recommend taking a look at the CMU approach to teaching algorithms [1]. They teach parallel programming to second-year undergraduates by default, and the students even write parallel implementations, which can achieve good parallel speedups on a multicore system.Moreover, they do it using either a parallel functional language or a parallel library in modern C++.Importantly, they get this far by largely hiding details of exactly how parallel tasks are scheduled across cores. There's a scheduler that does it, much like there's a garbage collector that frees unused memory in a memory-managed language.[1] https://www.cs.cmu.edu/~15210/docs/book.pdf",
+    "id": 45538155,
+    "by": "zelphirkalt",
+    "timeISO": "2025-10-10T12:22:52.000Z",
+    "textPlain": "I think the actually interesting non-obvious part starts at \"Redesigning Algorithms For Uniform Work Distribution\". All the prior stuff done you basically get for free in a functional language that has some thread pool or futures built in, doing FP. The real question is how you write algorithms or parts of programs in a way that they lend themselves to be run in parallel as small units with results that easily merge again (parallel map reduce) or maybe don't even need to be merged again. That is the real difficult part, aside from transforming some mutating program into FP style and having appropriate data structures.And then of course the heuristics start to become important. How much parallelism, before overhead eats the speedup?Another question is energy efficiency. Is it more important to finish calculation as quickly as possible, or would it be OK to need some longer time, but in total calculate less, due to less overhead and no/less merging?",
     "parent": 45536124,
     "depth": 1
   },
@@ -76,14 +84,6 @@
     "by": "kelsolaar",
     "timeISO": "2025-10-10T09:18:54.000Z",
     "textPlain": "Ryan is the author of the RAD Debugger: https://github.com/EpicGamesExt/raddebugger",
-    "parent": 45536124,
-    "depth": 1
-  },
-  {
-    "id": 45540135,
-    "by": "TinkersW",
-    "timeISO": "2025-10-10T15:31:42.000Z",
-    "textPlain": "Somewhat interesting read, if rather long..My experience is that multi-threading has quite abit of overhead, not necessary from the scheduling, but from the cache misses because now everything is unlikely to be in cache, so a naive parallel for can easily end up consuming a ton of CPU resources, it may indeed finish quicker, but use 5x the overall CPU time to do so.Then there is the other issue that parallel_for suffers from, the \"starter\" thread has to finish the loop, and if may end up with nothing to do for some time(like when one of the helper threads get suspended..), or it might end up going off to process some other work, causing the entire loop to  take much longer to finish. So parallel_for kinda sucks, and I prefer using dependency graphs when I can.",
     "parent": 45536124,
     "depth": 1
   },
@@ -120,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45540135,
+    "by": "TinkersW",
+    "timeISO": "2025-10-10T15:31:42.000Z",
+    "textPlain": "Somewhat interesting read, if rather long..My experience is that multi-threading has quite abit of overhead, not necessary from the scheduling, but from the cache misses because now everything is unlikely to be in cache, so a naive parallel for can easily end up consuming a ton of CPU resources, it may indeed finish quicker, but use 5x the overall CPU time to do so.Then there is the other issue that parallel_for suffers from, the \"starter\" thread has to finish the loop, and if may end up with nothing to do for some time(like when one of the helper threads get suspended..), or it might end up going off to process some other work, causing the entire loop to  take much longer to finish. So parallel_for kinda sucks, and I prefer using dependency graphs when I can.",
+    "parent": 45536124,
+    "depth": 1
+  },
+  {
     "id": 45539564,
     "by": "jongjong",
     "timeISO": "2025-10-10T14:33:13.000Z",
@@ -136,14 +144,6 @@
     "depth": 1
   },
   {
-    "id": 45541602,
-    "by": "zackmorris",
-    "timeISO": "2025-10-10T17:37:48.000Z",
-    "textPlain": "One thing that might help is that state space explosion is mainly caused by mutability. Because each mutation potentially creates branching that can be difficult or impossible to statically analyze.In other words, imperative programming with const is directly transpilable to/from functional programming.Using modern techniques like higher order methods, scatter-gather arrays (similar to map-reduce), passing by value via copy-on-write, etc, code can be written that works like piping data between unix executables. Everything becomes a spreadsheet basically.Which also has implications for multiprocessing. When all data is const, many of the async edge cases that we're normally forced to deal with go away. Loosely that means that we can use techniques similar to double buffering to create new mutated copies where only the part that changed was actually copied. The rest of the data can reference one source of truth. In practice, this turns out to most closely approximate optimal algorithms, where the best-effort imperative code may paint itself into a corner because logic design choices get dictated by the realities of the runtime instead of the problem domain itself, so the optimizer loses opportunities to simplify it.I find that in my daily work, nearly all of my time is spent untangling highly-imperative mutable code. Because I must hold the entire state in my mind when mutable references (mostly to objects) are passed between functions. My higher-order method solutions often end up shorter, more readable, faster, even more efficient, but harder to explain to junior developers. So I would really like a compiler that implicitly converts imperative code like for() loops and references into const/functional code whose intermediate code (i-code) can be reduced to its simplest form.This is also my main concern about Rust and other mainstream imperative languages like C# and even Javascript, that they encourage bare-hands methods that go away with const/functional code if th",
-    "parent": 45539056,
-    "depth": 2
-  },
-  {
     "id": 45540340,
     "by": "jayd16",
     "timeISO": "2025-10-10T15:50:38.000Z",
@@ -152,10 +152,10 @@
     "depth": 2
   },
   {
-    "id": 45544693,
-    "by": "Izikiel43",
-    "timeISO": "2025-10-10T22:45:13.000Z",
-    "textPlain": "> would automatically extract all the implicit parallelism in the code and parallelize it, resulting in massive essentially-free gains.Sounds like what mojo is attempting to do:https://www.modular.com/mojo",
+    "id": 45541602,
+    "by": "zackmorris",
+    "timeISO": "2025-10-10T17:37:48.000Z",
+    "textPlain": "One thing that might help is that state space explosion is mainly caused by mutability. Because each mutation potentially creates branching that can be difficult or impossible to statically analyze.In other words, imperative programming with const is directly transpilable to/from functional programming.Using modern techniques like higher order methods, scatter-gather arrays (similar to map-reduce), passing by value via copy-on-write, etc, code can be written that works like piping data between unix executables. Everything becomes a spreadsheet basically.Which also has implications for multiprocessing. When all data is const, many of the async edge cases that we're normally forced to deal with go away. Loosely that means that we can use techniques similar to double buffering to create new mutated copies where only the part that changed was actually copied. The rest of the data can reference one source of truth. In practice, this turns out to most closely approximate optimal algorithms, where the best-effort imperative code may paint itself into a corner because logic design choices get dictated by the realities of the runtime instead of the problem domain itself, so the optimizer loses opportunities to simplify it.I find that in my daily work, nearly all of my time is spent untangling highly-imperative mutable code. Because I must hold the entire state in my mind when mutable references (mostly to objects) are passed between functions. My higher-order method solutions often end up shorter, more readable, faster, even more efficient, but harder to explain to junior developers. So I would really like a compiler that implicitly converts imperative code like for() loops and references into const/functional code whose intermediate code (i-code) can be reduced to its simplest form.This is also my main concern about Rust and other mainstream imperative languages like C# and even Javascript, that they encourage bare-hands methods that go away with const/functional code if th",
     "parent": 45539056,
     "depth": 2
   },
@@ -172,6 +172,14 @@
     "by": "tomsmeding",
     "timeISO": "2025-10-10T15:11:37.000Z",
     "textPlain": "There is some recent work on this too: https://dl.acm.org/doi/10.1145/3632880",
+    "parent": 45539056,
+    "depth": 2
+  },
+  {
+    "id": 45544693,
+    "by": "Izikiel43",
+    "timeISO": "2025-10-10T22:45:13.000Z",
+    "textPlain": "> would automatically extract all the implicit parallelism in the code and parallelize it, resulting in massive essentially-free gains.Sounds like what mojo is attempting to do:https://www.modular.com/mojo",
     "parent": 45539056,
     "depth": 2
   },
