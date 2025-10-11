@@ -1,10 +1,130 @@
 [
   {
+    "id": 45500837,
+    "by": "flohofwoe",
+    "timeISO": "2025-10-07T08:50:47.000Z",
+    "textPlain": "Weird article.Hasn't most code that's been compiled in the last few decades using the x86 frame pointer register (ebp) as a regular register? And C also worked just fine on CPUs that didn't have a dedicated frame pointer.AFAIK the concepts of the stack and 'subroutine call instructions' existed before C because those concepts are also useful when writing assembly code (subroutines which return to the caller location are about the only way to isolate and share reusable pieces of code, and a stack is useful for deep call hierarchies - for instance some very old CPUs with a dedicated on-chip call-stack or 'return register' only allowed a limited call-depth or even only a single call-depth).Also it's not like radical approaches in CPU designs are not tried all the time, they just usually fail because hardware and software are not developed in a vacuum, they heavily depend on each other. How much C played a role in that symbiosis can be argued about, but the internal design of modern CPUs doesn't have much in common with their ISA (which is more or less just a thin compatibility wrapper around the actual CPU and really doesn't take up much CPU space).",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45499177,
+    "by": "summa_tech",
+    "timeISO": "2025-10-07T03:42:04.000Z",
+    "textPlain": "> Look at a modern CPU die. See those frame pointer registers? That stack management hardware? That’s real estate. Silicon. Transistor budget.You don't. What you see is caches, lots of caches. Huge vector register files. Massive TLBs.Get real - learn something about modern chips and stop fighting 1980s battles.",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45499408,
+    "by": "wrs",
+    "timeISO": "2025-10-07T04:31:19.000Z",
+    "textPlain": "Given this is rewinding to the 1970s, I expected a mention of CSP [0], or Transputers [1], or systolic arrays [2], or Connection Machines [3], or... The history wasn't quite as one-dimensional as this makes it seem.[0] https://en.wikipedia.org/wiki/Communicating_sequential_proce...[1] https://en.wikipedia.org/wiki/Transputer[2] https://en.wikipedia.org/wiki/Systolic_array[3] https://en.wikipedia.org/wiki/Connection_Machine",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45499324,
+    "by": "mrheosuper",
+    "timeISO": "2025-10-07T04:13:52.000Z",
+    "textPlain": ">Pong had no software. Zero. It was built entirely from hardware logic chips - flip-flops, counters, comparators. Massively parallel.And that is what FPGA for.This strikes me the author lack of hardware knowledge but still try to write a post about hardware.",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45501917,
+    "by": "mcdeltat",
+    "timeISO": "2025-10-07T11:40:46.000Z",
+    "textPlain": "Would some message passing hardware actually be \"better\" in terms of performance, efficiency, and ease of construction? I thought moving data between hardware subsystems is generally pretty expensive (e.g. atomic memory instructions, there's a significant performance penalty).Disclaimer that I'm not a hardware engineer though.",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45499243,
+    "by": "Animats",
+    "timeISO": "2025-10-07T03:57:17.000Z",
+    "textPlain": "If you disallow recursion, or put an upper bound on recursion depth, you can statically allocate all \"stack based\" objects at compile time. Modula I did this, allowing multithreading on machines which did not have enough memory to allow stack growth. Statically analyzing worst case stack depth is still a thing in real time control.Not clear that this would speed things up much today.",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
     "id": 45498929,
     "by": "bibanez",
     "timeISO": "2025-10-07T02:50:29.000Z",
     "textPlain": "You see innovation in this space a lot in research. For example, Dalorex [1] or Azul [2] for operations on sparse matrices. Currently a more general version of Azul is being developed at MIT with support for arbitrary matrix/graph algorithms with reconfigurable logic.[1] https://ieeexplore.ieee.org/document/10071089\n[2] https://ieeexplore.ieee.org/document/10764548",
     "parent": 45498109,
     "depth": 1
+  },
+  {
+    "id": 45508458,
+    "by": "cadamsdotcom",
+    "timeISO": "2025-10-07T20:32:22.000Z",
+    "textPlain": "To say nothing of virtualization!And we solve the inefficiency with hypervisors!",
+    "parent": 45498109,
+    "depth": 1
+  },
+  {
+    "id": 45501379,
+    "by": "tdeck",
+    "timeISO": "2025-10-07T10:25:42.000Z",
+    "textPlain": "It's because the historical perspective in this article is really lacking, despite that being the premise of the article.Not only does the author seem to believe that C was the first popular high-level language, but the claim that hardware provided stack based CALL and RETURN instructions was not universally true. Many systems had no call/return stack, or supported only a single level of subroutine calls (essentially useless for a high level language but maybe useful for some hand written machine code).FORTRAN compilers often worked by dedicating certain statically allocated RAM locations near a function's machine code for the arguments, return value, and return address for that function. So a function call involved writing to those locations and then performing a branch instruction (not a CALL). This worked absolutely fine if you didn't need recursion. The real benefit of a stack is to support recursion.",
+    "parent": 45500837,
+    "depth": 2
+  },
+  {
+    "id": 45503064,
+    "by": "rep_lodsb",
+    "timeISO": "2025-10-07T13:51:00.000Z",
+    "textPlain": "The prevailing opinion seems to have shifted towards using the frame pointer for its special purpose, in order to improve debuggability/exception handling?But the article is really quite misinformed. As you say, many mainframe/mini, and some early microprocessor architectures don't have the concept of a stack pointer register at all, neither do \"pure\" RISCs.I'd argue there is a real \"C Stockholm Syndrome\" though, particularly with the idea of needing to use a single \"calling convention\". x86 had - and still has - a return instruction that can also remove arguments from the stack. But C couldn't use it, because historically (before ANSI C), every single function could take a variable number of arguments, and even nowadays function prototypes are optional and come from header files that are simply textually #included into the code.So every function call using this convention had to be followed by \"add sp,n\" to remove the pushed arguments, instead of performing the same operation as part of the return instruction itself. That's 3 extra bytes for every call that simply wouldn't have to be there if the CPU architecture's features were used properly.And because operating system and critical libraries \"must\" be written in C, that's just a fundamental physical law or something you see, and we have to interface with them everywhere in our programs, and it's too complicated to keep track of which of the functions we have to call are using this brain-damaged convention, the entire (non-DOS/Windows) ecosystem decided to standardize on it!Probably as a result, Intel and AMD even neglected optimizing this instruction. So now it's a legacy feature that you shouldn't use anymore if you want your code to run fast. Even though a normal RET isn't \"RISC-like\" either, and you can bet it's handled as efficiently as possible.Obviously x86-64 has more registers now, so most of the time we can get away without pushing anything on the stack. This time it's actually Windows (and UEFI) which h",
+    "parent": 45500837,
+    "depth": 2
+  },
+  {
+    "id": 45501212,
+    "by": "burnt-resistor",
+    "timeISO": "2025-10-07T09:54:49.000Z",
+    "textPlain": "This. They're shouting at the sky from whatever squirrels are running around their brains without understanding anything about real CPUs. It's somewhere between a shitpost and AI slop. They offered no better alternative except to bitch about how \"imperfect\" things are that work. I'd like to see their FOSHW RTL design, test bench, and formal verification for a green field multicore, pipelined, superscalar, SIMD RISC design competitive to RISC-V RV64GC  or Arm 64.",
+    "parent": 45499177,
+    "depth": 2
+  },
+  {
+    "id": 45546932,
+    "by": "atq2119",
+    "timeISO": "2025-10-11T05:52:49.000Z",
+    "textPlain": "You forgot about branch predictors.",
+    "parent": 45499177,
+    "depth": 2
+  },
+  {
+    "id": 45546996,
+    "by": "shash",
+    "timeISO": "2025-10-11T06:07:35.000Z",
+    "textPlain": "I mean, you can’t even see a single frame pointer register. The srams dominate everything else.Even the functional units are relatively cheap.",
+    "parent": 45499177,
+    "depth": 2
+  },
+  {
+    "id": 45500624,
+    "by": "lukeh",
+    "timeISO": "2025-10-07T08:16:03.000Z",
+    "textPlain": "XMOS still very much alive. But CSP comes with its own set of challenges which ironically have force one back to using shared memory.",
+    "parent": 45499408,
+    "depth": 2
+  },
+  {
+    "id": 45502969,
+    "by": "kjs3",
+    "timeISO": "2025-10-07T13:41:36.000Z",
+    "textPlain": "Well, you can check out the iAPX432 to see an architecture with message passing hardware, and see how well it worked out in practice.",
+    "parent": 45501917,
+    "depth": 2
+  },
+  {
+    "id": 45499944,
+    "by": "Panzerschrek",
+    "timeISO": "2025-10-07T06:25:57.000Z",
+    "textPlain": "It's too constrained to statically-analyze the whole program to determine required stack size. You can't have calls via function pointers (even virtual calls), can't call thirdparty code without sources available, can't call any code from a shared library (since analyzing it is impossible). This may work only in very constrained environments, like in embedded world.",
+    "parent": 45499243,
+    "depth": 2
   }
 ]
