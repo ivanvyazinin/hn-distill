@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45558022,
-    "by": "stephen",
-    "timeISO": "2025-10-12T13:13:37.000Z",
-    "textPlain": "I really want to use pipelining for our \"em.flush\" of sending all INSERTs & UPDATEs to the db as part of a transaction, b/c my initial prototyping showed a 3-6x increase:https://joist-orm.io/blog/initial-pipelining-benchmark/If you're not in a transaction, afaiu pipelining is not as applicable/useful b/c any SQL statement failing in the pipeline fails all other queries after it, and imo it would suck for separate/unrelated web requests that \"share a pipeline\" to have one request fail the others -- but for a single txn/single request, these semantics are what you expect anyway.Unfortunately in the TypeScript ecosystem, the node-pg package/driver doesn't support pipelining yet, instead this \"didn't quite hit mainstream adoption and now the author is AWOL\" driver does: https://github.com/porsager/postgresI've got a branch to convert our TypeScript ORM to postgres.js solely for this \"send all our INSERTs/UPDATEs/DELETEs in parallel\" perf benefit, and have some great stats so far:https://github.com/joist-orm/joist-orm/pull/1373#issuecommen...But it's not \"must have\" for us atm, so haven't gotten time to rebase/ship/etc...hoping to rebase & land the PR by eoy...",
-    "parent": 45555308,
-    "depth": 1
-  },
-  {
     "id": 45556686,
     "by": "theThree",
     "timeISO": "2025-10-12T09:10:14.000Z",
@@ -40,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45559670,
-    "by": "waynesonfire",
-    "timeISO": "2025-10-12T16:53:07.000Z",
-    "textPlain": "I havn't had to deal with this problem until recently and seems like an obvious scalablity issue so I'm sure I'm not the only one to have hit this.How do I handle, say 100K concurrent transactions in an OLTP database? Here are my learnings that make this difficult,- a transaction has a one-to-one mapping with a connection- a connection can only process one transaction at at time, so pooling isn't going to help.- database connections are \"expensive\"- a client can open at maximum, 65k connections as otherwise it would run out of ports.A 100k connections isn't that crazy; say you have 100k concurrent users and each one needs a transaction to manage it's independent state. Transactions are useful as they enforce consistency.",
+    "id": 45558022,
+    "by": "stephen",
+    "timeISO": "2025-10-12T13:13:37.000Z",
+    "textPlain": "I really want to use pipelining for our \"em.flush\" of sending all INSERTs & UPDATEs to the db as part of a transaction, b/c my initial prototyping showed a 3-6x increase:https://joist-orm.io/blog/initial-pipelining-benchmark/If you're not in a transaction, afaiu pipelining is not as applicable/useful b/c any SQL statement failing in the pipeline fails all other queries after it, and imo it would suck for separate/unrelated web requests that \"share a pipeline\" to have one request fail the others -- but for a single txn/single request, these semantics are what you expect anyway.Unfortunately in the TypeScript ecosystem, the node-pg package/driver doesn't support pipelining yet, instead this \"didn't quite hit mainstream adoption and now the author is AWOL\" driver does: https://github.com/porsager/postgresI've got a branch to convert our TypeScript ORM to postgres.js solely for this \"send all our INSERTs/UPDATEs/DELETEs in parallel\" perf benefit, and have some great stats so far:https://github.com/joist-orm/joist-orm/pull/1373#issuecommen...But it's not \"must have\" for us atm, so haven't gotten time to rebase/ship/etc...hoping to rebase & land the PR by eoy...",
     "parent": 45555308,
     "depth": 1
   },
@@ -60,6 +52,14 @@
     "by": "codesnik",
     "timeISO": "2025-10-12T08:46:25.000Z",
     "textPlain": "activerecord in Rails has async mode, which allows you to queue several requests and read results later. But those will go through the connection pool, and will be executed in separate connections, separate transactions, and separate PostgreSQL server processes. I wonder if using pipelining instead, on a driver level (app code would be the same), would be a better approach in general, or at least easier on db instance.",
+    "parent": 45555308,
+    "depth": 1
+  },
+  {
+    "id": 45559670,
+    "by": "waynesonfire",
+    "timeISO": "2025-10-12T16:53:07.000Z",
+    "textPlain": "I havn't had to deal with this problem until recently and seems like an obvious scalablity issue so I'm sure I'm not the only one to have hit this.How do I handle, say 100K concurrent transactions in an OLTP database? Here are my learnings that make this difficult,- a transaction has a one-to-one mapping with a connection- a connection can only process one transaction at at time, so pooling isn't going to help.- database connections are \"expensive\"- a client can open at maximum, 65k connections as otherwise it would run out of ports.A 100k connections isn't that crazy; say you have 100k concurrent users and each one needs a transaction to manage it's independent state. Transactions are useful as they enforce consistency.",
     "parent": 45555308,
     "depth": 1
   },
@@ -84,6 +84,14 @@
     "by": "tmountain",
     "timeISO": "2025-10-12T07:40:08.000Z",
     "textPlain": "Batching in general is slept upon. So many queue systems support batch injection, and I have seen countless cases where a poorly performing system is “fixed” simply by moving away from incremental injection. This stuff is usually on page two of the docs, which explains why it’s so overlooked…",
+    "parent": 45555998,
+    "depth": 2
+  },
+  {
+    "id": 45560268,
+    "by": "BiteCode_dev",
+    "timeISO": "2025-10-12T17:58:42.000Z",
+    "textPlain": "Most of my big clients have about 10 intermediaries between them and the data: the antivirus, the browser, the VPN, the company proxy, the API gateway, their authentication layer, the virtualization layer, the application server, the microservice it requests and whatever data source this one requests.So unless you are a lean startup, the reasons many products are horribly slow are very low hanging fruits no body are ever going to bother picking.If you ever reach the time where pipelining is giving you a boost in perf, your app was already in a nice state.It's so nice to be able to code on a baremetal server where my monolith has directly access to my postgres instance on my personal projects.",
     "parent": 45555998,
     "depth": 2
   },
@@ -117,6 +125,14 @@
     "timeISO": "2025-10-12T13:26:25.000Z",
     "textPlain": "I'm right here - what are you missing?",
     "parent": 45558022,
+    "depth": 2
+  },
+  {
+    "id": 45559996,
+    "by": "namibj",
+    "timeISO": "2025-10-12T17:26:27.000Z",
+    "textPlain": "There are no multi-statement queries in the binary protocol (where you get things like native cursors/pagination to efficiently iterate over result rows, and where you get the true parameter binding that is inherently robust against SQL injection.It has a separate client to server packet that forces previous ones to complete as it will make otherwise-asynchronous (because pipelining) error reporting forcefully serial.Other than this which is arguably not needed for queries that don't expect errors enough to need early/eager exception throwing during the course of a transaction, it's inherently naturally pipelined as you can just fire two or more statements worth of parameter binding and result fetching back-to-back without blocking on anything.",
+    "parent": 45557674,
     "depth": 2
   },
   {
