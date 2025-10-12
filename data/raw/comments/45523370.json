@@ -1,9 +1,9 @@
 [
   {
-    "id": 45557810,
-    "by": "khaledh",
-    "timeISO": "2025-10-12T12:39:53.000Z",
-    "textPlain": "Needs \"(2020)\" in the title.",
+    "id": 45557836,
+    "by": "thasso",
+    "timeISO": "2025-10-12T12:43:01.000Z",
+    "textPlain": "This part is bewildering to me:> Now, if you try to watch file descriptor 2000, select will loop over fds from 0 to 1999 and will read garbage. The bigger issue is when it tries to set results for a file descriptor past 1024 and tries to set that bit field in say readfds, writefds or errorfds field. At this point it will write something random on the stack eventually crashing the process and making it very hard to debug what happened since your stack is randomized.I'm not too literate on the Linux kernel code, but I checked, and it looks like the author is right [1].It would have been so easy to introduce a size check on the array to make sure this can't happen. The man page reads like FD_SETSIZE differs between platforms. It states that FD_SETSIZE is 1024 in glibc, but no upper limit is imposed by the Linux kernel. My guess is that the Linux kernel doesn't want to assume a value of FD_SETSIZE so they leave it unbounded.It's hard to imagine how anyone came up with this thinking it's a good design. Maybe 1024 FDs was so much at the time when this was designed that nobody considered what would happen if this limit is reached? Or they were working on system where 1024 was the maximum number of FDs that a process can open?[1]: The core_sys_select function checks the nfds argument passed to select(2) and modifies the fd_set structures that were passed to the system call. The function ensures that n <= max_fds (as the author of the post stated), but it doesn't compare n to the size of the fd_set structures. The set_fd_set function, which modifies the user-side fd_set structures, calls right into __copy_to_user without additional bounds checks. This means page faults will be caught and return -EFAULT, but out-of-bounds accesses that corrupt the user stack are possible.",
     "parent": 45523370,
     "depth": 1
   },
@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45557720,
-    "by": "Luker88",
-    "timeISO": "2025-10-12T12:26:13.000Z",
-    "textPlain": "I have vague memories of OSX kqueue not supporting all the usecases that FreeBSD kqueue does from many years ago.Have they reached feature parity?",
-    "parent": 45523370,
-    "depth": 1
-  },
-  {
     "id": 45556929,
     "by": "tarruda",
     "timeISO": "2025-10-12T10:03:23.000Z",
@@ -48,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45557720,
+    "by": "Luker88",
+    "timeISO": "2025-10-12T12:26:13.000Z",
+    "textPlain": "I have vague memories of OSX kqueue not supporting all the usecases that FreeBSD kqueue does from many years ago.Have they reached feature parity?",
+    "parent": 45523370,
+    "depth": 1
+  },
+  {
     "id": 45557394,
     "by": "quibono",
     "timeISO": "2025-10-12T11:33:35.000Z",
     "textPlain": "I'm assuming epoll is covered implicitly by the section on kqueue.\nAre there any differences between the two besides the name?",
+    "parent": 45523370,
+    "depth": 1
+  },
+  {
+    "id": 45557810,
+    "by": "khaledh",
+    "timeISO": "2025-10-12T12:39:53.000Z",
+    "textPlain": "Needs \"(2020)\" in the title.",
     "parent": 45523370,
     "depth": 1
   },
@@ -70,6 +78,14 @@
     "textPlain": "Nice article, though a few spelling mistakes that I thought was to distinguish it from AI slop, only to realise this was written a few years before the AI/GPT craze.",
     "parent": 45523370,
     "depth": 1
+  },
+  {
+    "id": 45558066,
+    "by": "ajross",
+    "timeISO": "2025-10-12T13:22:07.000Z",
+    "textPlain": "You (and the author) are misunderstanding.  These are all userspace pointers.  If the process passes the kernel a buffer and tells it to access it past the end, the kernel will happily do so.  It applies all the standard memory protection rules, which means that if your pointer is unmapped or unwritable, the kernel will signal the error (as a SIGSEGV) just as if the process had touched the memory itself.It's no different that creating a 1024 byte buffer and telling read() to read 2048 bytes into it.To be fair there's an API bug here in that \"fd_set\" is a fixed-size thing for historical compatibility reasons, while the kernel accepts arbitrarily large buffers now.  So code cutting and pasting from historical examples will have a essentially needless 1024 FD limit.",
+    "parent": 45557836,
+    "depth": 2
   },
   {
     "id": 45557141,
@@ -96,19 +112,19 @@
     "depth": 2
   },
   {
-    "id": 45557751,
-    "by": "nesarkvechnep",
-    "timeISO": "2025-10-12T12:30:57.000Z",
-    "textPlain": "I doubt it because applications, using kqueue, written for OSX can’t easily be ported to FreeBSD. ghostty is one such app.",
-    "parent": 45557720,
-    "depth": 2
-  },
-  {
     "id": 45557201,
     "by": "marginalia_nu",
     "timeISO": "2025-10-12T10:55:44.000Z",
     "textPlain": "It's probably hard to include io_uring in something like this, without the article turning into an article mostly about io_uring.  It's a cool API that can be incredibly fast, but it also comes with a very long list of caveats.",
     "parent": 45555833,
+    "depth": 2
+  },
+  {
+    "id": 45557751,
+    "by": "nesarkvechnep",
+    "timeISO": "2025-10-12T12:30:57.000Z",
+    "textPlain": "I doubt it because applications, using kqueue, written for OSX can’t easily be ported to FreeBSD. ghostty is one such app.",
+    "parent": 45557720,
     "depth": 2
   },
   {
