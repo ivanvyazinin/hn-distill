@@ -1,13 +1,5 @@
 [
   {
-    "id": 45565509,
-    "by": "jillesvangurp",
-    "timeISO": "2025-10-13T06:57:22.000Z",
-    "textPlain": "Interesting one. That and and relying on system character encodings is a source of subtle bugs. I've been bitten by that many times with e.g. XML parsing in the past. Modern Kotlin thankfully has very few (if any) places left where this can happen. Kotlin has parameters with default values. So anything that relies on a character encoding usually has a parameter of encoding set to UTF-8.The bug here was the default Java implementation that Kotlin uses on JVM. On kotlin-js both toLowerCase() and lowercase() do exactly the same thing. Also, the deprecation mechanism in Kotlin is kind of cool. The deprecated implementation is still there and you could use it with a compiler flag to disable the error.  @Deprecated(\"Use lowercase() instead.\", ReplaceWith(\"lowercase(Locale.getDefault())\", \"java.util.Locale\"))\n  @DeprecatedSinceKotlin(warningSince = \"1.5\", errorSince = \"2.1\")\n  @kotlin.internal.InlineOnly\n  public actual inline fun String.toLowerCase(): String = (this as java.lang.String).toLowerCase()\n\n  /**\n   * Returns a copy of this string converted to lower case using Unicode mapping rules of the invariant locale.\n   *\n   * This function supports one-to-many and many-to-one character mapping,\n   * thus the length of the returned string can be different from the length of the original string.\n   *\n   * @sample samples.text.Strings.lowercase\n   */\n  @SinceKotlin(\"1.5\")\n  @kotlin.internal.InlineOnly\n  public actual inline fun String.lowercase(): String = (this as java.lang.String).toLowerCase(Locale.ROOT)",
-    "parent": 45559767,
-    "depth": 1
-  },
-  {
     "id": 45562071,
     "by": "okanat",
     "timeISO": "2025-10-12T21:27:00.000Z",
@@ -16,18 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45566015,
-    "by": "voidUpdate",
-    "timeISO": "2025-10-13T08:15:11.000Z",
-    "textPlain": "> If capitalize() was an ambiguous name, what should its replacement be called? Can you think of a name that describes the function’s behaviour more clearly?In c#, setting every letter to its uppercase form is ToUpper, and I think capitalise is perfectly reasonable for setting the first character. I'm not sure I've ever referred to uppercasing a string as capitalising it",
-    "parent": 45559767,
-    "depth": 1
-  },
-  {
-    "id": 45565719,
-    "by": "Someone",
-    "timeISO": "2025-10-13T07:29:49.000Z",
-    "textPlain": "FTA: “Less than a week later, they had a fix ready: (source: GitHub)    map[name] = \"box${primitiveType.javaKeywordName.capitalize(Locale.US)}\"\n\n[…]In September 2020, nearly a year after the coroutines bug had been fixed and forgotten[…]When they came to fix this issue, the Kotlin team weren’t leaving anything to chance. They scoured the entire compiler codebase for case-conversion operations—calls to capitalize(), decapitalize(), toLowerCase(), and toUpperCase()”Bloody late, I would say. If something like this happened in OpenBSD, I think they would have done that, and more (the article doesn’t mention tooling to detect the introduction of new similar bugs ofof adding warnings to documentation), at the first spotting of such a bug.How come no reviewer mentioned such things when the first fix was reviewed?Also, why are they using Locale.US, and not Locale.ROOT (https://docs.oracle.com/javase/8/docs/api/java/util/Locale.h...)?",
+    "id": 45565509,
+    "by": "jillesvangurp",
+    "timeISO": "2025-10-13T06:57:22.000Z",
+    "textPlain": "Interesting one. That and and relying on system character encodings is a source of subtle bugs. I've been bitten by that many times with e.g. XML parsing in the past. Modern Kotlin thankfully has very few (if any) places left where this can happen. Kotlin has parameters with default values. So anything that relies on a character encoding usually has a parameter of encoding set to UTF-8.The bug here was the default Java implementation that Kotlin uses on JVM. On kotlin-js both toLowerCase() and lowercase() do exactly the same thing. Also, the deprecation mechanism in Kotlin is kind of cool. The deprecated implementation is still there and you could use it with a compiler flag to disable the error.  @Deprecated(\"Use lowercase() instead.\", ReplaceWith(\"lowercase(Locale.getDefault())\", \"java.util.Locale\"))\n  @DeprecatedSinceKotlin(warningSince = \"1.5\", errorSince = \"2.1\")\n  @kotlin.internal.InlineOnly\n  public actual inline fun String.toLowerCase(): String = (this as java.lang.String).toLowerCase()\n\n  /**\n   * Returns a copy of this string converted to lower case using Unicode mapping rules of the invariant locale.\n   *\n   * This function supports one-to-many and many-to-one character mapping,\n   * thus the length of the returned string can be different from the length of the original string.\n   *\n   * @sample samples.text.Strings.lowercase\n   */\n  @SinceKotlin(\"1.5\")\n  @kotlin.internal.InlineOnly\n  public actual inline fun String.lowercase(): String = (this as java.lang.String).toLowerCase(Locale.ROOT)",
     "parent": 45559767,
     "depth": 1
   },
@@ -40,10 +24,26 @@
     "depth": 1
   },
   {
+    "id": 45565719,
+    "by": "Someone",
+    "timeISO": "2025-10-13T07:29:49.000Z",
+    "textPlain": "FTA: “Less than a week later, they had a fix ready: (source: GitHub)    map[name] = \"box${primitiveType.javaKeywordName.capitalize(Locale.US)}\"\n\n[…]In September 2020, nearly a year after the coroutines bug had been fixed and forgotten[…]When they came to fix this issue, the Kotlin team weren’t leaving anything to chance. They scoured the entire compiler codebase for case-conversion operations—calls to capitalize(), decapitalize(), toLowerCase(), and toUpperCase()”Bloody late, I would say. If something like this happened in OpenBSD, I think they would have done that, and more (the article doesn’t mention tooling to detect the introduction of new similar bugs ofof adding warnings to documentation), at the first spotting of such a bug.How come no reviewer mentioned such things when the first fix was reviewed?Also, why are they using Locale.US, and not Locale.ROOT (https://docs.oracle.com/javase/8/docs/api/java/util/Locale.h...)?",
+    "parent": 45559767,
+    "depth": 1
+  },
+  {
     "id": 45562202,
     "by": "sjrd",
     "timeISO": "2025-10-12T21:42:50.000Z",
     "textPlain": "I am one of the maintainers is the Scala compiler, and this is one of the things that immediately jump to me when I review code that contains any casing operation. Always explicitly specify the locale. However, unlike TFA and other comments, I don't suggest `Locale.US`. That's a little too US-centric. The canonical locale is in fact `Locale.ROOT`. Granted, in practice it's equivalent, but I find it a little bit more sensible.Also, this is the last remaining major system-dependent default in Java. They made strict floating point the default in 17; UTF-8 the default encoding some versions later (21?); only the locale remains. I hope they make ROOT the default in an upcoming version.FWIW, in the Scala.js implementation, we've been using UTF-8 and ROOT as the defaults forever.",
+    "parent": 45559767,
+    "depth": 1
+  },
+  {
+    "id": 45566015,
+    "by": "voidUpdate",
+    "timeISO": "2025-10-13T08:15:11.000Z",
+    "textPlain": "> If capitalize() was an ambiguous name, what should its replacement be called? Can you think of a name that describes the function’s behaviour more clearly?In c#, setting every letter to its uppercase form is ToUpper, and I think capitalise is perfectly reasonable for setting the first character. I'm not sure I've ever referred to uppercasing a string as capitalising it",
     "parent": 45559767,
     "depth": 1
   },
@@ -56,14 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45565799,
-    "by": "phplovesong",
-    "timeISO": "2025-10-13T07:43:23.000Z",
-    "textPlain": "Wow this is bad. Even for a language like Java having vanilla strings as some sort of enum like value, and then even going further and downcasing them is a 100% bugmagnet waiting for the kaboom.",
-    "parent": 45559767,
-    "depth": 1
-  },
-  {
     "id": 45561965,
     "by": "zettabomb",
     "timeISO": "2025-10-12T21:13:20.000Z",
@@ -72,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45565906,
-    "by": "originHarbor1",
-    "timeISO": "2025-10-13T07:59:38.000Z",
-    "textPlain": "Every programmer learns about Turkish 'i' the hard way, usually at 3 AM in production.",
+    "id": 45565799,
+    "by": "phplovesong",
+    "timeISO": "2025-10-13T07:43:23.000Z",
+    "textPlain": "Wow this is bad. Even for a language like Java having vanilla strings as some sort of enum like value, and then even going further and downcasing them is a 100% bugmagnet waiting for the kaboom.",
     "parent": 45559767,
     "depth": 1
   },
@@ -108,6 +100,14 @@
     "by": "emmelaich",
     "timeISO": "2025-10-12T23:57:22.000Z",
     "textPlain": "Could have been worse --    Ramazan Çalçoban sent his estranged wife Emine the text message:\n    Zaten sen sıkışınca konuyu değiştiriyorsun.\n    \"Anyhow, whenever you can't answer an argument, you change the subject.\"\n\n    Unfortunately, what she thought he wrote was:\n    Zaten sen sikişınce konuyu değiştiriyorsun.\n    \"Anyhow, whenever they are fucking you, you change the subject.\"\n\nThis led to a fight in which the woman was stabbed and died and the man committed suicide in prison.https://gizmodo.com/a-cellphones-missing-dot-kills-two-peopl...",
+    "parent": 45559767,
+    "depth": 1
+  },
+  {
+    "id": 45565906,
+    "by": "originHarbor1",
+    "timeISO": "2025-10-13T07:59:38.000Z",
+    "textPlain": "Every programmer learns about Turkish 'i' the hard way, usually at 3 AM in production.",
     "parent": 45559767,
     "depth": 1
   },
@@ -216,18 +216,18 @@
     "depth": 2
   },
   {
-    "id": 45566040,
-    "by": "kokada",
-    "timeISO": "2025-10-13T08:19:00.000Z",
-    "textPlain": "Without looking at the source code I think it is because the log functions are lowercase, but I am not sure this is the reason.",
-    "parent": 45561883,
-    "depth": 2
-  },
-  {
     "id": 45563497,
     "by": "kevin_thibedeau",
     "timeISO": "2025-10-13T00:34:47.000Z",
     "textPlain": "With Turkish you can't safely case-fold with toupper() or tolower() in a C/US locale: i->I and I->i are both wrong. Uppercasing wouldn't work. You have to use Unicode or Latin-5 to manage it.",
+    "parent": 45561883,
+    "depth": 2
+  },
+  {
+    "id": 45566040,
+    "by": "kokada",
+    "timeISO": "2025-10-13T08:19:00.000Z",
+    "textPlain": "Without looking at the source code I think it is because the log functions are lowercase, but I am not sure this is the reason.",
     "parent": 45561883,
     "depth": 2
   },
@@ -317,6 +317,14 @@
     "timeISO": "2025-10-12T21:08:41.000Z",
     "textPlain": "well now I wanna know what's going on there!",
     "parent": 45561826,
+    "depth": 2
+  },
+  {
+    "id": 45566174,
+    "by": "rhdunn",
+    "timeISO": "2025-10-13T08:42:09.000Z",
+    "textPlain": "There are 3 types of case folding:1. Simple one-to-one mappings -- E.g. `T` to `t`. These are typically the ones handled by `lower()` or similar methods as they work on single characters so can modify a string in place (the length of the string doesn't change).2. More complex one-to-many mappings -- E.g. German `ß` to `ss`. These are covered by functions like `casefold()`. You can't modify the string in place so the function needs to always write to a new string buffer.3. Locale-specific mappings -- This is what this bug is about. In Turkish `I` maps to `ı` whereas other languages/locales it maps to `i`. You can only implement this by passing the locale to the case function, irrespective of whether you are also doing (1) or (2).",
+    "parent": 45563700,
     "depth": 2
   },
   {
