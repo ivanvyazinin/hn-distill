@@ -1,5 +1,13 @@
 [
   {
+    "id": 45571370,
+    "by": "stackskipton",
+    "timeISO": "2025-10-13T17:56:37.000Z",
+    "textPlain": "SRE/Sysadmin/DevOps/Whatever here, while blog didn't talk about doing anything difficult but setting ENVVAR standards, I will point out all replacements are just as frustrating especially when talking about secrets.Anything involving vaults where Application reaches out to specific secret vault like Hashicorp Vault/OpenBao/Secrets Manager quickly becomes massive vendor lock in where replacement is very difficult due to library replacement and makes vault uptime extremely important. This puts Ops in extremely difficult place when it becomes time to upgrade or do maintenance.Config files have problem of you have secrets, how do you get them into config file since config files are generally kept in public systems? Most of the time it's some form of either \"Template replacement by privileged system before handing it to application\" or \"Entire Config File gets loaded into secret vault and passed into application\". Templating can be error prone and loading entire config files into secret manager is frustrating as well since someone could screw up the load.Speaking of config files, since most systems are running containers, and unless you are at Ops discipline company, these config files are never in the right place, it becomes error prone for Ops to screw up the mounting. Also, whatever format you use, JSON/YAML/TOML is ripe for some weird config file bug to emerge like Norway problem in YAML.Getting secrets from Kubernetes Secrets API I've seen done but lock in again. I'd strongly not recommend this approach unless you are designing a Kubernetes operator or other such type system.I will say I've seen Subprocess thing bite people but I've seen less and less subprocess generation these days. Most teams go with message bus type system instead of sub processing since it's more robust and allows independent scaling.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
     "id": 45570778,
     "by": "simonask",
     "timeISO": "2025-10-13T17:08:07.000Z",
@@ -11,7 +19,39 @@
     "id": 45570736,
     "by": "rsyring",
     "timeISO": "2025-10-13T17:04:46.000Z",
-    "textPlain": "Environment variables are often used to pass secrets around.  But, despite its ubiquity, I believe that's a bad practice:- On Linux systems, any user process can inspect any other process of that same user for it's environment variables. We can argue about threat model but, especially for a developer's system, there are A LOT of processes running as the same user as the developer.- IMO, this has become an even more pronounced problem with the popularity of running non-containerized LLM agents in the same user space as the developer's primary OS user. It's a secret exfiltration exploiter's dream.- Environment variables are usually passed down to other spawned processes instead of being contained to the primary process which is often the only one that needs it.- Systemd exposes unit environment variables to all system clients through DBUS and warns against using environment variables for secrets[1].  I believe this means non-root users have access to environment variables set for root-only units/services.  I could be wrong, I haven't tested it yet.  But if this is the case, I bet that's a HUGE surprise to many system admins.I think ephemeral file sharing between a secret managing process (e.g. 1Password's op cli tool) and the process that needs the secrets (flask, terraform, etc.) is likely the only solution that keeps secrets out of files and also out of environment variables. This is how Systemd's credentials system works.  But it's far from widely supported.Any good solutions for passing secrets around that don't involve environment variables or regular plain text files?1: https://www.freedesktop.org/software/systemd/man/latest/syst...",
+    "textPlain": "Environment variables are often used to pass secrets around.  But, despite its ubiquity, I believe that's a bad practice:- On Linux systems, any user process can inspect any other process of that same user for it's environment variables. We can argue about threat model but, especially for a developer's system, there are A LOT of processes running as the same user as the developer.- IMO, this has become an even more pronounced problem with the popularity of running non-containerized LLM agents in the same user space as the developer's primary OS user. It's a secret exfiltration exploiter's dream.- Environment variables are usually passed down to other spawned processes instead of being contained to the primary process which is often the only one that needs it.- Systemd exposes unit environment variables to all system clients through DBUS and warns against using environment variables for secrets[1].  I believe this means non-root users have access to environment variables set for root-only units/services.  I could be wrong, I haven't tested it yet.  But if this is the case, I bet that's a HUGE surprise to many system admins.I think ephemeral file sharing between a secret managing process (e.g. 1Password's op cli tool) and the process that needs the secrets (flask, terraform, etc.) is likely the only solution that keeps secrets out of files and also out of environment variables. This is how Systemd's credentials system works.  But it's far from widely supported.Any good solutions for passing secrets around that don't involve environment variables or regular plain text files?Edit: I think 1Password's op client has a good start in that each new \"session\" requires my authorization. So I can enable that tool for a cli sessions where I need some secrets but a rogue process that just tries to use the `op` binary isn't going to get to piggyback on that authorization.  I'd get a new popup.  But this is only step 1.  Step 2 is...how to share that secret with the process that ne",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571506,
+    "by": "jonny_eh",
+    "timeISO": "2025-10-13T18:07:16.000Z",
+    "textPlain": "I can't recommend Varlock [1] enough. A great way to manage env vars in a project. It lets you define which ones are necessary or optional, their types, and where they should be fetched from.[1] https://varlock.dev/",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571602,
+    "by": "alexpotato",
+    "timeISO": "2025-10-13T18:15:52.000Z",
+    "textPlain": "To give an illustration of how bad this can get:At a past firm, I was trying to debug how a particular ENV var was getting set. I started out thinking it was something simple like the user's .bashrc or equivalent.I quickly realized that there were roughly 10 \"layers\" of env var loadings happening where the first couple layers were:- firm wide- region- business unit- department- team etc etcI ended up having to turn on a bash debug flag so that I could see exactly where the var was getting set in the layer stack.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45570901,
+    "by": "the__alchemist",
+    "timeISO": "2025-10-13T17:19:01.000Z",
+    "textPlain": "I get anxiety whenever I need to set an environment var on Linux. There are (somewhat distro-specific) ways that work properly, but the usual procedures you find online stops working once you reboot (or close the terminal I think?). They should add a simple env var GUI like Windows has that just works, and isn't terminal-specific. Windows has the annoyance of needing to restart the the terminal (or open a new one) for changes to take effect, but works well other than that.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571069,
+    "by": "WalterBright",
+    "timeISO": "2025-10-13T17:32:20.000Z",
+    "textPlain": "I gave up on environment variables long ago. Now my compilers read a dmd.conf file that is in the same directory as the compiler executable.",
     "parent": 45570537,
     "depth": 1
   },
@@ -24,12 +64,132 @@
     "depth": 1
   },
   {
+    "id": 45571103,
+    "by": "m3047",
+    "timeISO": "2025-10-13T17:34:53.000Z",
+    "textPlain": "...and people have to find special ways to set them. I didn't even know that pam_env existed until a recent security vulnerability announcement. It's never come to my attention before, I don't think I've ever seen it utilized. I've now made a runbook item to disable it. It's a shame that \"configuration\" includes undoing the fetishes and helpfulness [0][1] of others.  pam-config -d --env\n\n[0] Crowded elevator atrium. Multiple elevators running. Elevator wants to close, another one is coming (oh! I heard it \"ding\"!). Somebody is holding the elevator which wants to depart and trying to wave me in. Why doesn't somebody push them out?[1] I'm at a stop sign. Some complete idiot is trying to turn left onto the street I'm leaving and waving me to turn left in front of them. Fuck no! I turn in front of you, somebody rearends you, you fly forward into me: my fault! You should be able to make this turn, if you can't go around the block! [2][2] I could go out of my way and turn right. Or I can just wait and see what happens.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
     "id": 45570802,
     "by": "amelius",
     "timeISO": "2025-10-13T17:11:04.000Z",
     "textPlain": "Another legacy mess:    Argument list too long\n\nIt's absolutely crazy that this isn't a dynamically resizable vector.",
     "parent": 45570537,
     "depth": 1
+  },
+  {
+    "id": 45571380,
+    "by": "jhallenworld",
+    "timeISO": "2025-10-13T17:57:51.000Z",
+    "textPlain": "Eh, they are just more command line arguments, ones that go on the left side of the command instead of the right.  I guess an alternative is something the Windows registry, but I'm not seeing that as a great improvement since it's less direct.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571583,
+    "by": "peter_d_sherman",
+    "timeISO": "2025-10-13T18:13:54.000Z",
+    "textPlain": ">\"Wow, I really enjoyed writing this…\n…and I hope it wasn’t a boring read.\"No, it was very interesting actually!An excellent deep-dive into the murky area of Unix/Linux environment variables, how they are set, how they are passed, what's really going on behind the scenes.Basically a must-read for any present or future OS designer...Observation (if I might!) -- environment variables are to programs (especially chains of programs, parent processes, sub processes and sub-sub processes, etc.) what parameters are to functions -- and/or what command-line parameters are... they're sort of like global variables that get passed around a lot...They also can influence program behavior -- and thus the determinism of a program -- and thus the determinism of a chain of programs...Phrased another way -- software that works on one developer's machine might not work on another developer's machine and/or in a production environment because one crucial environment variable was either set or not set, or set to the wrong value...(NixOS seems to understand this pretty well... that \"hermetically sealing\" or closing or \"performing a closure around\" (that's probably slightly the wrong language/terminology in \"Nix-speak\" but bear with me!) a software environment, including the environment variables is the way to create deterministic software builds that run on any machine... but here I'm digressing...)But my main point: I complete agree with the article's author -- environment variables are a legacy mess!Although, if we think about it, environment variables (if we broaden the definition) are a sub-pattern of anything that affects the state of an individual machine or runtime environment -- in other words, things such as the Windows Registry, at least the global aspects of it -- are also in the same category.Future OS's, when they offer environments for programs or chains of programs to run -- should be completely containerized -- that is, the view of the system -- what data/settings/environm",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571029,
+    "by": "aleksandrm",
+    "timeISO": "2025-10-13T17:29:11.000Z",
+    "textPlain": "That was a hard to read font.",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45570957,
+    "by": "bjourne",
+    "timeISO": "2025-10-13T17:23:28.000Z",
+    "textPlain": "We're almost rid of dotfiles in $HOME. Can we please also get rid of the abuse of environment variables for configuration? There is no reason your program needs to muck up the environment table of every process by defining MY_PROGRAM_API_KEY instead of taking a command line argument or reading a configuration file. It's not \"secure\" just because it's not on the command line. And it will mess up for users because it's nigh impossible to ensure you have the same environment variables over all login types. The variable might be there when you run locally, but not in an ssh session or cron. Some ephemeral configuration such as LD_LIBRARY_PATH and PWD is difficult to handle without environment variables, but those are rare exceptions and not the norm.Contribute to a clean environment! Don't use environment variables for configuration! </rant>",
+    "parent": 45570537,
+    "depth": 1
+  },
+  {
+    "id": 45571480,
+    "by": "jppittma",
+    "timeISO": "2025-10-13T18:04:54.000Z",
+    "textPlain": "How is the kubernetes secret API lock in? Genuinely wondering - were you trying to use that deployment yaml for something other than a kubernetes deployment? For most applications, you should be mounting the secret on your application, then you can inject it as either an environment variable or a json file that your application reads in an environment agnostic way.Then, on the backend, you can configure etcd to use whatever KMS provider you like for encryption.",
+    "parent": 45571370,
+    "depth": 2
+  },
+  {
+    "id": 45571543,
+    "by": "1718627440",
+    "timeISO": "2025-10-13T18:09:26.000Z",
+    "textPlain": "You can have a command setting that is invoked to get the string.  This way you don't have vendor login, but also don't need a separate template step.",
+    "parent": 45571370,
+    "depth": 2
+  },
+  {
+    "id": 45571115,
+    "by": "nrds",
+    "timeISO": "2025-10-13T17:35:47.000Z",
+    "textPlain": "I think it's worth specifically calling out that the right way to set environment variables is in execve() only, as communication across an exec() is the precise niche for which they are the right tool.",
+    "parent": 45570778,
+    "depth": 2
+  },
+  {
+    "id": 45570932,
+    "by": "wmf",
+    "timeISO": "2025-10-13T17:21:20.000Z",
+    "textPlain": "AFAIK Solaris solved that problem but Linux refuses to copy their solution.",
+    "parent": 45570778,
+    "depth": 2
+  },
+  {
+    "id": 45571748,
+    "by": "mixmastamyk",
+    "timeISO": "2025-10-13T18:29:22.000Z",
+    "textPlain": "You've described the classic Unix security model, with minor improvements.  While decent for the time it is showing its age.  Specifically the difficulty in adapting to cheap, ubiquitous computing which it wasn't designed for.If you need to keep secrets from other processes—don't run them under the same user account.",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45571742,
+    "by": "Narushia",
+    "timeISO": "2025-10-13T18:28:45.000Z",
+    "textPlain": "> Any good solutions for passing secrets around that don't involve environment variables or regular plain text files?Honestly, my answer is still systemd-creds. It's a few years old by now, should be available on most distros. It's easy to use and solves the problem. Although credential support for user-level systemd services was added just a few weeks ago.",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45571692,
+    "by": "jkrejcha",
+    "timeISO": "2025-10-13T18:23:51.000Z",
+    "textPlain": "> - On Linux systems, any user process can inspect any other process of that same user for it's environment variables. We can argue about threat model but, especially for a developer's system, there are A LOT of processes running as the same user as the developer.Here's the thing though, the security model of most operating systems means that running a process as a user is acting as that user. There are some caveats (FreeBSD has capsicum, Linux has landlock, SELinux, AppLocker, Windows has integrity labels), but in the general case, if you can convince someone to run something, the program has delegated authority to act on behalf of that user. (And some user accounts on many systems may have authority to impersonate others.)While it's by no means the only security model (there exists fully capability based operating systems out there), it's the security model that is used for most forms of computing, for better or worse. One of the consequences of this is that you can control anything within your domain. I can kill my own processes, put them to sleep, and most importantly for this, debug them. Anything I own that has secrets can grab them my ptrace/process_vm_readv/ReadProcessMemory/etc.",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45571065,
+    "by": "amluto",
+    "timeISO": "2025-10-13T17:32:08.000Z",
+    "textPlain": "Since at least 2012, environment variables have been at least as secure as ordinary memory:    commit b409e578d9a4ec95913e06d8fea2a33f1754ea69\n    Author: Cong Wang <xiyou.wangcong@gmail.com>\n    Date:   Thu May 31 16:26:17 2012 -0700\n    \n        proc: clean up /proc/<pid>/environ handling\n\nYou can't read another process's environment unless you can ptrace-read the process, and if you can ptrace-read the process you know all its secrets anyway.cmdline is a different story.",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45570967,
+    "by": "mhitza",
+    "timeISO": "2025-10-13T17:24:24.000Z",
+    "textPlain": "> Any good solutions for passing secrets around that don't involve environment variables or regular plain text files?memfd_secret comes to mind https://man7.org/linux/man-pages/man2/memfd_secret.2.htmlI haven't seen much language support for it, though. On one part maybe because it's Linux only.People that write in Rust (and maybe Go, depends how easy FFI is) should give it a try.I wanted for a time to get some support for it in PHP, since wrapping a C function should be easy, but the thought of having to also modify php-fpm put a dent in that. I can't and don't want to hack on C code.In practice it'd be great if the process manager spawn children after opening a secret file descriptor, and pass those on. Not in visible memory, not in /proc/*/environ",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45571334,
+    "by": "motorest",
+    "timeISO": "2025-10-13T17:54:12.000Z",
+    "textPlain": "> Environment variables are often used to pass secrets around. But, despite its ubiquity, I believe that's a bad practice:I think environment variables are recommended to pass configuration parameters, and also secrets, in containerized applications managed by container orchestration systems.By design, other processes cannot inspect what environment variables are running in a container.Also, environment variables are passed to child processes because, by design, the goal is to run child processes in the same environment (i.e., same values) as the parent process, or with minor tweaks. Also, the process that spawns child processes is the one responsible for set it's environment variables, which means it already has at least read access to those secrets.All in all I think all your concerns are based on specious reasoning, but I'll gladly discuss them in finer detail.",
+    "parent": 45570736,
+    "depth": 2
   },
   {
     "id": 45570878,
@@ -40,10 +200,10 @@
     "depth": 2
   },
   {
-    "id": 45570894,
-    "by": "skylurk",
-    "timeISO": "2025-10-13T17:18:09.000Z",
-    "textPlain": "I've used keyring, but ultimately does not solve the issue of every application running under the same user.https://pypi.org/project/keyring/",
+    "id": 45570952,
+    "by": "cedws",
+    "timeISO": "2025-10-13T17:22:52.000Z",
+    "textPlain": "Linux security model is pretty broken without namespaces. systemd has some bells and whistles that help but if you want something better than environment variables you're naturally going to reach for cgroups.",
     "parent": 45570736,
     "depth": 2
   },
@@ -56,6 +216,22 @@
     "depth": 2
   },
   {
+    "id": 45571116,
+    "by": "vendiddy",
+    "timeISO": "2025-10-13T17:35:54.000Z",
+    "textPlain": "Not an answer, but I do wish there was a low level primitive and a corresponding high level language construct to pass around secrets.Something like:\nmy_secret = create_secret(value)Then ideally it's an opaque value from that point on",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45570894,
+    "by": "skylurk",
+    "timeISO": "2025-10-13T17:18:09.000Z",
+    "textPlain": "I've used keyring, but ultimately does not solve the issue of every application running under the same user.https://pypi.org/project/keyring/",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
     "id": 45570848,
     "by": "formerly_proven",
     "timeISO": "2025-10-13T17:14:59.000Z",
@@ -64,11 +240,99 @@
     "depth": 2
   },
   {
+    "id": 45571026,
+    "by": "bjourne",
+    "timeISO": "2025-10-13T17:28:59.000Z",
+    "textPlain": "If are like most users you have secrets stored in read-protected files in ~/.ssh. There's nothing wrong with that.",
+    "parent": 45570736,
+    "depth": 2
+  },
+  {
+    "id": 45571019,
+    "by": "zdragnar",
+    "timeISO": "2025-10-13T17:28:36.000Z",
+    "textPlain": ">  but the usual procedures you find online stops working once you reboot (or close the terminal I think?)The environment isn't persistent between sessions. That means you need to make the change in a way that runs on every new session (login or new terminal window).Depending on how your system is configured:.bash_profile gets run once on every login.bashrc gets run once on every non-login new session (i.e. a new terminal window)It's typical, if using these files, to do something like this:    if [ -f ~/.bashrc ]; then\n        source ~/.bashrc\n    fi\n\nin the .bash_profile file, putting most other things in .bashrc, such that you don't have to worry about the distinction.If you're not even using bash or bash-likes at all, but instead something like Zsh, fish, etc you'll need to set things the way they want to be set there.> They should add a simple env var GUI like Windows has that just works, and isn't terminal-specificThis doesn't exist in linux, because there isn't \"one place\" that all possible terminals draw from. Conceivably, it's possible to write a GUI tool that reads your .bashrc file, looks for anything that resembles a variable, parses the bash code to look for ways it is set, and then present a GUI tool that could update it in common cases, but... it's way easier to just write the change in a text editor.",
+    "parent": 45570901,
+    "depth": 2
+  },
+  {
+    "id": 45571563,
+    "by": "NekkoDroid",
+    "timeISO": "2025-10-13T18:12:01.000Z",
+    "textPlain": "On systemd systems you can just either set KEY=VALUE pairs in `/etc/environment` or any file in `/etc/environment.d/` (and technically a few other places [0]). \nIn theory it should be relatively easy to write a GUI for it by manually parsing the files.The application restarting part can't really be fixed, since environment variables aren't ever injected to a running process and can only be changed by the process itself (terms and conditions may apply) and even changes during runtime could be ignored since the program itself may have cached some already computed value based on the variable.[0]: https://www.freedesktop.org/software/systemd/man/latest/envi...",
+    "parent": 45570901,
+    "depth": 2
+  },
+  {
+    "id": 45571022,
+    "by": "jcelerier",
+    "timeISO": "2025-10-13T17:28:43.000Z",
+    "textPlain": "Funny, as a primarily linux user the windows behaviour irks me to no end, it's the cause of so many recurrent problems on end-user machines with so many apps that pollute environment.. and then you wonder why something doesn't work and then it turns out that for some reason you're using $SOFTWARE from c:\\Perl64\\bin instead of its proper place",
+    "parent": 45570901,
+    "depth": 2
+  },
+  {
+    "id": 45571562,
+    "by": "chasil",
+    "timeISO": "2025-10-13T18:11:54.000Z",
+    "textPlain": "The xargs command was designed to address this. From this perspective, it is a kludge.",
+    "parent": 45570802,
+    "depth": 2
+  },
+  {
     "id": 45570870,
     "by": "formerly_proven",
     "timeISO": "2025-10-13T17:16:43.000Z",
     "textPlain": "It is, there’s just a limit set by the kernel for the number of pages the command line as a whole can occupy or something like that.",
     "parent": 45570802,
+    "depth": 2
+  },
+  {
+    "id": 45571470,
+    "by": "compiler-guy",
+    "timeISO": "2025-10-13T18:04:10.000Z",
+    "textPlain": "Command-line arguments aren't passed to subprocesseses, can't be inspected by arbitrary functions in the same process, and don't leak memory if they are changed.",
+    "parent": 45571380,
+    "depth": 2
+  },
+  {
+    "id": 45571086,
+    "by": "lemontheme",
+    "timeISO": "2025-10-13T17:33:52.000Z",
+    "textPlain": "Huh... Guess it's what you're used to.First thing that struck me about the site is how beautiful I found it. I even inspected the font: Iosevka Web, apparently.",
+    "parent": 45571029,
+    "depth": 2
+  },
+  {
+    "id": 45571132,
+    "by": "db48x",
+    "timeISO": "2025-10-13T17:37:15.000Z",
+    "textPlain": "Change your browser settings. You can tell the browser what font you prefer to use, and set minimum font sizes. You can also turn off remote fonts, so that pages can only use fonts you already have. Then you can just uninstall any fonts you don’t like or that you cannot read easily.",
+    "parent": 45571029,
+    "depth": 2
+  },
+  {
+    "id": 45571529,
+    "by": "mixedbit",
+    "timeISO": "2025-10-13T18:08:34.000Z",
+    "textPlain": "Depending on your system, passing secrets via environment can be more secure than passing secrets via a command line. Command line arguments of all running processes can be visible to other users of the system, environment variables are usually not.",
+    "parent": 45570957,
+    "depth": 2
+  },
+  {
+    "id": 45571050,
+    "by": "1718627440",
+    "timeISO": "2025-10-13T17:31:12.000Z",
+    "textPlain": "This problem is also removed by just not exporting the variables.  Also you can just pass an envp to execvE.",
+    "parent": 45570957,
+    "depth": 2
+  },
+  {
+    "id": 45571498,
+    "by": "phito",
+    "timeISO": "2025-10-13T18:06:19.000Z",
+    "textPlain": "They're the standard for Docker container configuration tho. Otherwise I do agree.",
+    "parent": 45570957,
     "depth": 2
   }
 ]
