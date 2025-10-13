@@ -1,5 +1,45 @@
 [
   {
+    "id": 45570753,
+    "by": "syx",
+    "timeISO": "2025-10-13T17:05:50.000Z",
+    "textPlain": "For those wondering about the use case, this is very useful when enabling streaming for structured output in LLM responses, such as JSON responses. For my local Raspberry Pi agent I needed something performant, I've been using streaming-json-js [1], but development appears to have been a bit dormant over the past year. I'll definitely take a look at your jsonriver and see how it compares![1] https://github.com/karminski/streaming-json-js",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570782,
+    "by": "AaronFriel",
+    "timeISO": "2025-10-13T17:08:22.000Z",
+    "textPlain": "Oh, this is quite similar to an online parser I'd written a few years ago[1]. I have some worked examples on how to use it with the now-standard Chat Completions API for LLMs to stream and filter structured outputs (aka JSON). This is the underlying technology for a \"Copilot\" or \"AI\" application I worked on in my last role.This library is orders of magnitude faster[2] than alternatives for parsing LLM tool calls for the very simple reason that alternative approaches repeatedly parse the entire concatenated response, which requires buffering the entire payload, repeatedly allocating new objects, and for an N token response, you parse the first token N times! All of the \"industry standard\" approaches here are quadratic, which is going to scale quite poorly as LLMs generate larger and larger responses to meet application needs, and users want low latency outputs.One of the most useful features of this approach is filtering LLM tool calls on the server and passing through a subset of the parse events to the client. This makes it relatively easy to put moderation, metadata capture, and other requirements in a single tool call, while still providing low latency streaming UI. It also avoids the problem with many moderation APIs where for cost or speed reasons, one might delegate to a smaller, cheaper model to generate output in a side-channel of the normal output stream. This not only doesn't scale, but it also means the more powerful model is unaware of these requirements, or you end up with a \"flash of unapproved content\" due to moderation delays, etc.I found that it was extremely helpful to work at the level of parse events, but recognize that building partial values is also important, so I'm working on something similar in Rust[3], but taking a more holistic view and building more of an \"AI SDK\" akin to Vercel's, but written in Rust.[1] https://github.com/aaronfriel/fn-stream[2] https://github.com/vercel/ai/pull/1883[3] https://github.com/aaronfriel/jsonmodem(These are",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570713,
+    "by": "simonw",
+    "timeISO": "2025-10-13T17:02:30.000Z",
+    "textPlain": "If anyone needs to do this in Python I've had success with both ijson and jiter - notes here: https://til.simonwillison.net/json/ijson-stream and https://simonwillison.net/2024/Sep/22/jiter/",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570618,
+    "by": "seanalltogether",
+    "timeISO": "2025-10-13T16:56:07.000Z",
+    "textPlain": "Maybe I'm wrong but it seems like you would only want to parse partial values for objects and arrays, but not strings or numbers. Objects and arrays can be unbounded so it makes sense to process what you can, when you can, whereas a string or number usually is not.",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570635,
+    "by": "holdenc137",
+    "timeISO": "2025-10-13T16:57:27.000Z",
+    "textPlain": "I don't get it (and I'd call this cumulative not incremental)Why not at least wait until the key is complete - what's the use in a partial key?",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
     "id": 45518530,
     "by": "magicalhippo",
     "timeISO": "2025-10-08T17:28:38.000Z",
@@ -8,11 +48,83 @@
     "depth": 1
   },
   {
+    "id": 45570522,
+    "by": "codesnik",
+    "timeISO": "2025-10-13T16:47:59.000Z",
+    "textPlain": "I can't imagine a usecase. Ok, you receive incremental updates, which could be useful, but how to find out that json object is actually received in full already?",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570380,
+    "by": "alganet",
+    "timeISO": "2025-10-13T16:36:59.000Z",
+    "textPlain": "Interesting approach.I would expect an object JSON stream to be more like a SAX parser though. It's familiar, fast and simple.Any thougts on not chosing the SAX approach?",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570547,
+    "by": "florians",
+    "timeISO": "2025-10-13T16:50:18.000Z",
+    "textPlain": "Noteworthy: Contributions by Claude",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45570843,
+    "by": "AaronFriel",
+    "timeISO": "2025-10-13T17:14:42.000Z",
+    "textPlain": "If you're generating long reports, code, etc. with an LLM, partial strings matter quite a lot for user experience.",
+    "parent": 45570618,
+    "depth": 2
+  },
+  {
+    "id": 45570744,
+    "by": "everforward",
+    "timeISO": "2025-10-13T17:05:16.000Z",
+    "textPlain": "It could be useful if you're doing something with the string that operates sequentially anyways (i.e. block-by-block AES, or SHA sums).I _think_ the intended use of this is for people with bad internet connections so your UI can show data that's already been received without waiting for a full response.  I.e. if their connection is 1KB/s and you send an 8KB JSON blob that's mostly a single text field, you can show them the first kilobyte after a second rather than waiting 8 seconds to get the whole blob.At first I thought maybe it was for handling gigantic JSON blobs that you don't want to entirely load into memory, but the API looks like it still loads the whole thing into memory.",
+    "parent": 45570618,
+    "depth": 2
+  },
+  {
+    "id": 45570672,
+    "by": "simonw",
+    "timeISO": "2025-10-13T16:59:42.000Z",
+    "textPlain": "If you're building a UI that renders output from a streaming LLM you might get back something which looks like this:  {\"role\": \"assistant\", \"text\": \"Here's that Python code you aske\n\nIncomplete parsing with incomplete strings is still useful in order to render that to your end user while it's still streaming in.",
+    "parent": 45570635,
+    "depth": 2
+  },
+  {
     "id": 45519114,
     "by": "rickcarlino",
     "timeISO": "2025-10-08T18:27:01.000Z",
     "textPlain": "I found this because I am interested in streaming responses that populate a user interface quickly, or use spinners if it is loading still",
     "parent": 45518530,
+    "depth": 2
+  },
+  {
+    "id": 45570812,
+    "by": "Supermancho",
+    "timeISO": "2025-10-13T17:12:08.000Z",
+    "textPlain": "When you want to pull multi-gig JSON files and not wait for the full file before processing is where I first used this.",
+    "parent": 45570522,
+    "depth": 2
+  },
+  {
+    "id": 45570553,
+    "by": "philipallstar",
+    "timeISO": "2025-10-13T16:50:45.000Z",
+    "textPlain": "When its closing brace or square bracket appears.EDIT: this is totally wrong and the question is right.",
+    "parent": 45570522,
+    "depth": 2
+  },
+  {
+    "id": 45570491,
+    "by": "benatkin",
+    "timeISO": "2025-10-13T16:46:12.000Z",
+    "textPlain": "I think this is a lot like etree in python's streaming approach for XML, but with a simpler API, and incremental text parsing. With etree in python, you can access the incomplete tree data and not have to worry about events. So it's missing the SAX API part of a SAX approach, but is built like some real world libraries that use the SAX approach, which end up having a hybrid of events and trees.",
+    "parent": 45570380,
     "depth": 2
   }
 ]
