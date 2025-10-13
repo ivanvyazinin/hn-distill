@@ -1,5 +1,5 @@
-declare module 'pdf-parse/lib/pdf-parse.js' {
-  import { Buffer } from 'node:buffer';
+declare module "pdf-parse/lib/pdf-parse" {
+  import { Buffer } from "node:buffer";
 
   export interface PdfParseResult {
     numpages: number;

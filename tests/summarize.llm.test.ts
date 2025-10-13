@@ -70,7 +70,7 @@ describe("summarizeComments LLM handling", () => {
 
     expect(result.summary).toBe("Primary success");
     expect(result.model).toBe(env.OPENROUTER_MODEL);
-    expect(calls).toHaveLength(1);
+    expect(calls.length).toBe(1);
     expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
   });
 
@@ -89,7 +89,7 @@ describe("summarizeComments LLM handling", () => {
 
     expect(result.summary).toBe("Fallback content");
     expect(result.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
-    expect(calls).toHaveLength(2);
+    expect(calls.length).toBe(2);
     expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
     expect(calls[1]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
   });
@@ -112,7 +112,7 @@ describe("summarizeComments LLM handling", () => {
 
     expect(result.summary).toBe("Second fallback content");
     expect(result.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
-    expect(calls).toHaveLength(3);
+    expect(calls.length).toBe(3);
     expect(calls[0]?.model).toBe(env.OPENROUTER_MODEL);
     expect(calls[1]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL);
     expect(calls[2]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
@@ -124,9 +124,7 @@ describe("summarizeComments LLM handling", () => {
       async () => {
         throw makeRateLimit("free-models-per-day-high-balance", resetMs);
       },
-      async () => {
-        return "fallback success";
-      },
+      async () => "fallback success",
     ]);
 
     const result = await summarizeComments(services, 125, PROMPT_TEXT, []);
@@ -147,9 +145,7 @@ describe("summarizeComments LLM handling", () => {
       async () => {
         throw makeRateLimit("free-models-per-min", resetMs);
       },
-      async () => {
-        return "second fallback success";
-      },
+      async () => "second fallback success",
     ]);
 
     const result = await summarizeComments(services, 126, PROMPT_TEXT, []);
@@ -180,8 +176,8 @@ describe("summarizeComments LLM handling", () => {
 
     expect(error).toBeInstanceOf(AggregateError);
     const aggregate = error as AggregateError;
-    expect([...aggregate.errors]).toHaveLength(3);
-    expect(calls).toHaveLength(3);
+    expect([...aggregate.errors].length).toBe(3);
+    expect(calls.length).toBe(3);
   });
 
   test("surfaces rate limit from second fallback model", async () => {
@@ -206,7 +202,7 @@ describe("summarizeComments LLM handling", () => {
     expect(rateError.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
     expect(rateError.limitScope).toBe("free-models-per-hour");
     expect(rateError.retryDate?.getTime()).toBe(Math.floor(resetMs));
-    expect(calls).toHaveLength(3);
+    expect(calls.length).toBe(3);
     expect(calls[2]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
   });
 });

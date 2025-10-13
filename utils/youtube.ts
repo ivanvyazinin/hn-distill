@@ -61,7 +61,12 @@ function isCaptionTrack(value: unknown): value is CaptionTrack {
     return false;
   }
 
-  const candidate = value as Record<string, unknown>;
+  const candidate = value as {
+    baseUrl?: string;
+    languageCode?: string;
+    kind?: string;
+    name?: { simpleText?: string };
+  };
 
   if (typeof candidate.baseUrl !== "string" || typeof candidate.languageCode !== "string") {
     return false;
@@ -72,11 +77,11 @@ function isCaptionTrack(value: unknown): value is CaptionTrack {
   }
 
   if (candidate.name !== undefined) {
-    if (typeof candidate.name !== "object" || candidate.name === null) {
+    if (typeof candidate.name !== "object") {
       return false;
     }
 
-    const name = candidate.name as Record<string, unknown>;
+    const name = candidate.name as { simpleText?: string };
     if (name.simpleText !== undefined && typeof name.simpleText !== "string") {
       return false;
     }
@@ -101,7 +106,7 @@ function isPlayerResponse(value: unknown): value is PlayerResponse {
     return false;
   }
 
-  const renderer = (captions as Record<string, unknown>).playerCaptionsTracklistRenderer;
+  const renderer = (captions as { playerCaptionsTracklistRenderer?: unknown }).playerCaptionsTracklistRenderer;
 
   if (renderer === undefined) {
     return true;
@@ -127,7 +132,7 @@ function isPlayerResponse(value: unknown): value is PlayerResponse {
 function extractCaptionTracks(html: string): CaptionTrack[] {
   const playerResponseRegex = /ytInitialPlayerResponse\s*=\s*(?<json>\{.*?\});/su;
   const match = playerResponseRegex.exec(html);
-  const jsonPayload = match?.groups?.json;
+  const jsonPayload = (match?.groups as { json?: string } | undefined)?.json;
 
   if (typeof jsonPayload !== "string") {
     log.warn(LOG_NAMESPACE, "Could not find ytInitialPlayerResponse in HTML");
@@ -187,9 +192,7 @@ function pickTrack(tracks: readonly CaptionTrack[], preferLangs: readonly string
 function vttToText(vtt: string): string {
   return vtt
     .split("\n")
-    .filter(
-      (line) => !line.startsWith("WEBVTT") && !line.includes("-->") && line.trim() !== "" && !/^\d+$/u.test(line)
-    )
+    .filter((line) => !line.startsWith("WEBVTT") && !line.includes("-->") && line.trim() !== "" && !/^\d+$/u.test(line))
     .map((line) => line.trim())
     .join(" ")
     .replaceAll(/\s+/gu, " ")
@@ -224,7 +227,7 @@ function xmlToText(xml: string): string {
     .split("</text>")
     .map((line) => {
       const match = /<text[^>]*>(?<content>[\s\S]*)/u.exec(line);
-      const content = match?.groups?.content ?? "";
+      const content = (match?.groups as { content?: string } | undefined)?.content ?? "";
       return content.length > 0 ? he.decode(content) : "";
     })
     .join(" ")

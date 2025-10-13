@@ -70,7 +70,10 @@ export function makeServices(e: Env): Services {
         return undefined;
       }
       log.info(LOG_NAMESPACE_ARTICLE, "Fetching YouTube transcript", { url, vid });
-      const prefer = (e.YT_TRANSCRIPT_LANGS?.length ?? 0) > 0 ? e.YT_TRANSCRIPT_LANGS : [e.SUMMARY_LANG, "en"];
+      const prefer =
+        (e.YT_TRANSCRIPT_LANGS?.length ?? 0) > 0
+          ? e.YT_TRANSCRIPT_LANGS ?? [e.SUMMARY_LANG, "en"]
+          : [e.SUMMARY_LANG, "en"];
       const transcript = await fetchYouTubeTranscript(http, vid, prefer);
       const trimmed = transcript?.text.trim();
       if (trimmed) {
@@ -212,10 +215,10 @@ function parseResetHeader(value: unknown): number | undefined {
 }
 
 type RateLimitDetails = {
-  scope?: string;
-  limit?: number;
-  remaining?: number;
-  resetEpochMs?: number;
+  scope?: string | undefined;
+  limit?: number | undefined;
+  remaining?: number | undefined;
+  resetEpochMs?: number | undefined;
 };
 
 function extractRateLimitDetails(error: HttpError): RateLimitDetails | undefined {
@@ -227,7 +230,8 @@ function extractRateLimitDetails(error: HttpError): RateLimitDetails | undefined
   if (!errorPayload || typeof errorPayload !== "object") {
     return undefined;
   }
-  const { message, metadata } = errorPayload;
+  const errorObj = errorPayload as { message?: unknown; metadata?: unknown };
+  const { message, metadata } = errorObj;
   const headers = metadata && typeof metadata === "object" ? (metadata as { headers?: unknown }).headers : undefined;
 
   const headerRecord = headers && typeof headers === "object" ? (headers as Record<string, unknown>) : undefined;
@@ -236,12 +240,20 @@ function extractRateLimitDetails(error: HttpError): RateLimitDetails | undefined
   const remaining = headerRecord ? parseNumberish(headerRecord["X-RateLimit-Remaining"]) : undefined;
   const resetEpochMs = headerRecord ? parseResetHeader(headerRecord["X-RateLimit-Reset"]) : undefined;
 
-  return {
-    scope: typeof message === "string" ? parseRateLimitScope(message) : undefined,
-    limit,
-    remaining,
-    resetEpochMs,
-  };
+  const result: RateLimitDetails = {};
+  if (typeof message === "string") {
+    result.scope = parseRateLimitScope(message);
+  }
+  if (limit !== undefined) {
+    result.limit = limit;
+  }
+  if (remaining !== undefined) {
+    result.remaining = remaining;
+  }
+  if (resetEpochMs !== undefined) {
+    result.resetEpochMs = resetEpochMs;
+  }
+  return result;
 }
 
 type RateLimitErrorInit = RateLimitDetails & {
@@ -250,10 +262,10 @@ type RateLimitErrorInit = RateLimitDetails & {
 
 export class RateLimitError extends Error {
   readonly model: string;
-  readonly limitScope?: string;
-  readonly limit?: number;
-  readonly remaining?: number;
-  readonly resetEpochMs?: number;
+  readonly limitScope?: string | undefined;
+  readonly limit?: number | undefined;
+  readonly remaining?: number | undefined;
+  readonly resetEpochMs?: number | undefined;
 
   constructor(init: RateLimitErrorInit, options?: { cause?: Error }) {
     const parts = ["OpenRouter rate limit hit"];
@@ -266,10 +278,10 @@ export class RateLimitError extends Error {
     super(parts.join(" "), options);
     this.name = "RateLimitError";
     this.model = init.model;
-    this.limitScope = init.scope;
-    this.limit = init.limit;
-    this.remaining = init.remaining;
-    this.resetEpochMs = init.resetEpochMs;
+    this.limitScope = init.scope ?? undefined;
+    this.limit = init.limit ?? undefined;
+    this.remaining = init.remaining ?? undefined;
+    this.resetEpochMs = init.resetEpochMs ?? undefined;
   }
 
   get retryDate(): Date | undefined {
@@ -820,7 +832,7 @@ async function processTags(
   }
 }
 
-async function processSingleStory(services: Services, id: number): Promise<void> {
+export async function processSingleStory(services: Services, id: number): Promise<void> {
   const story = await readJsonSafeOr<NormalizedStory>(
     pathFor.rawItem(id),
     NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
