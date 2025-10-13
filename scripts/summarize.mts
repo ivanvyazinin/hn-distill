@@ -506,17 +506,20 @@ async function callOpenRouterWithRetry(
   context: LlmLogContext
 ): Promise<LlmResult> {
   const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_FALLBACK_MODEL_2 } = env;
-  let primaryFailure: LlmCallError | undefined;
-  let fallbackFailure: LlmCallError | undefined;
+  let primaryFailure: LlmCallError | RateLimitError | undefined;
+  let fallbackFailure: LlmCallError | RateLimitError | undefined;
 
   try {
     return await callOpenRouterAttempt(services, messages, OPENROUTER_MODEL, "primary", context);
   } catch (error) {
     if (error instanceof RateLimitError) {
-      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered", error.toLogMeta(context));
-      throw error;
-    }
-    if (error instanceof LlmCallError) {
+      primaryFailure = error;
+      log.warn(LOG_NAMESPACE_LLM, "Rate limit on primary model; trying fallback", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        ...error.toLogMeta(context),
+      });
+    } else if (error instanceof LlmCallError) {
       primaryFailure = error;
       log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
         primary: OPENROUTER_MODEL,
@@ -533,10 +536,14 @@ async function callOpenRouterWithRetry(
     return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL, "fallback", context);
   } catch (error) {
     if (error instanceof RateLimitError) {
-      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered on fallback model", error.toLogMeta(context));
-      throw error;
-    }
-    if (error instanceof LlmCallError) {
+      fallbackFailure = error;
+      log.warn(LOG_NAMESPACE_LLM, "Rate limit on first fallback; trying second fallback", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        fallback2: OPENROUTER_FALLBACK_MODEL_2,
+        ...error.toLogMeta(context),
+      });
+    } else if (error instanceof LlmCallError) {
       fallbackFailure = error;
       log.warn(LOG_NAMESPACE_LLM, "First fallback model failed; trying second fallback", {
         primary: OPENROUTER_MODEL,
@@ -554,7 +561,12 @@ async function callOpenRouterWithRetry(
     return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL_2, "fallback", context);
   } catch (error) {
     if (error instanceof RateLimitError) {
-      log.warn(LOG_NAMESPACE_LLM, "Rate limit encountered on second fallback model", error.toLogMeta(context));
+      log.error(LOG_NAMESPACE_LLM, "Rate limit on all models", {
+        primary: OPENROUTER_MODEL,
+        fallback: OPENROUTER_FALLBACK_MODEL,
+        fallback2: OPENROUTER_FALLBACK_MODEL_2,
+        ...error.toLogMeta(context),
+      });
       throw error;
     }
     if (error instanceof LlmCallError) {
@@ -564,12 +576,16 @@ async function callOpenRouterWithRetry(
         fallback: OPENROUTER_FALLBACK_MODEL,
         fallback2: OPENROUTER_FALLBACK_MODEL_2,
         ...context,
-        primaryError: primaryFailure.describe(),
-        fallbackError: fallbackFailure.describe(),
+        primaryError: primaryFailure instanceof LlmCallError ? primaryFailure.describe() : primaryFailure.message,
+        fallbackError: fallbackFailure instanceof LlmCallError ? fallbackFailure.describe() : fallbackFailure.message,
         fallback2Error: fallback2Failure.describe(),
       });
       throw new AggregateError(
-        [primaryFailure.toError(), fallbackFailure.toError(), fallback2Failure.toError()],
+        [
+          primaryFailure instanceof LlmCallError ? primaryFailure.toError() : primaryFailure,
+          fallbackFailure instanceof LlmCallError ? fallbackFailure.toError() : fallbackFailure,
+          fallback2Failure.toError(),
+        ].filter(Boolean),
         `LLM call failed for primary model ${OPENROUTER_MODEL}, fallback model ${OPENROUTER_FALLBACK_MODEL}, and second fallback model ${OPENROUTER_FALLBACK_MODEL_2}`
       );
     }
