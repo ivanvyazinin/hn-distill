@@ -1,5 +1,13 @@
 [
   {
+    "id": 45577893,
+    "by": "pachico",
+    "timeISO": "2025-10-14T09:19:37.000Z",
+    "textPlain": "I shared this article internally and my peers were impressed about how similar it is to our final implementation. (It differs in the fact that we use Redis as queue.)Happy to exchange notes about our journey too.Cheers",
+    "parent": 45514213,
+    "depth": 1
+  },
+  {
     "id": 45571920,
     "by": "rozenmd",
     "timeISO": "2025-10-13T18:45:27.000Z",
@@ -16,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45576116,
-    "by": "est",
-    "timeISO": "2025-10-14T03:57:27.000Z",
-    "textPlain": "can you just buffer some writes in Vector and eliminate Kafka?I setup some Vector to buffer ElasticSearch writes years ago, also for logs, it ran so well without any problems that I almost fogot about it.",
-    "parent": 45514213,
-    "depth": 1
-  },
-  {
     "id": 45572165,
     "by": "nasretdinov",
     "timeISO": "2025-10-13T19:10:27.000Z",
     "textPlain": "BTW you could've used e.g. kittenhouse (https://github.com/YuriyNasretdinov/kittenhouse, my fork) or just a simpler buffer table, with 2 layers and a larger aggregation period than in the example.Alternatively, you could've used async insert functionality built into ClickHouse: https://clickhouse.com/docs/optimize/asynchronous-inserts . All of these solutions are operationally simpler than Kafka + Vector, although obviously it's all tradeoffs.",
+    "parent": 45514213,
+    "depth": 1
+  },
+  {
+    "id": 45576116,
+    "by": "est",
+    "timeISO": "2025-10-14T03:57:27.000Z",
+    "textPlain": "can you just buffer some writes in Vector and eliminate Kafka?I setup some Vector to buffer ElasticSearch writes years ago, also for logs, it ran so well without any problems that I almost fogot about it.",
     "parent": 45514213,
     "depth": 1
   },
@@ -64,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45574790,
-    "by": "ch2026",
-    "timeISO": "2025-10-14T00:14:41.000Z",
-    "textPlain": "1) clickhouse async_insert would have solved all your issues: https://clickhouse.com/docs/optimize/asynchronous-inserts1a) If you’re still having too many files/parts, then fix your partition by, and mergetree primary key.2) why are you writing to kafka when vector dev does buffering / batching?3) if you insist on kafka, https://clickhouse.com/docs/engines/table-engines/integratio... consumes directly from kafka (or since you’re on CHC, use clickhouse pipes) — what’s the point of vector here?Your current solution is unnecessarily complex. I’m guessing the core problem is your merge tree primary key is wrong.",
-    "parent": 45514213,
-    "depth": 1
-  },
-  {
     "id": 45572883,
     "by": "fnord77",
     "timeISO": "2025-10-13T20:17:35.000Z",
     "textPlain": "How does Clickhouse compare to Druid, Pinot or Star Tree?",
+    "parent": 45514213,
+    "depth": 1
+  },
+  {
+    "id": 45574790,
+    "by": "ch2026",
+    "timeISO": "2025-10-14T00:14:41.000Z",
+    "textPlain": "1) clickhouse async_insert would have solved all your issues: https://clickhouse.com/docs/optimize/asynchronous-inserts1a) If you’re still having too many files/parts, then fix your partition by, and mergetree primary key.2) why are you writing to kafka when vector dev does buffering / batching?3) if you insist on kafka, https://clickhouse.com/docs/engines/table-engines/integratio... consumes directly from kafka (or since you’re on CHC, use clickhouse pipes) — what’s the point of vector here?Your current solution is unnecessarily complex. I’m guessing the core problem is your merge tree primary key is wrong.",
     "parent": 45514213,
     "depth": 1
   },
@@ -88,6 +96,14 @@
     "depth": 2
   },
   {
+    "id": 45577231,
+    "by": "anticodon",
+    "timeISO": "2025-10-14T07:37:27.000Z",
+    "textPlain": "Or vice versa: make ClickHouse ingest batches directly from Kafka. Messages are already buffered in Kafka, I don't get why Vector is necessary here.",
+    "parent": 45576116,
+    "depth": 2
+  },
+  {
     "id": 45573836,
     "by": "SteveNuts",
     "timeISO": "2025-10-13T22:06:47.000Z",
@@ -96,19 +112,19 @@
     "depth": 2
   },
   {
-    "id": 45574983,
-    "by": "momothereal",
-    "timeISO": "2025-10-14T00:49:00.000Z",
-    "textPlain": "Writing to Kafka allowed them to continue their current ingestion process into MariaDB at the same time as ClickHouse. Kafka consumer groups allow the data to be consumed twice by different consumer pools that have different throughput without introducing bottlenecks.From experience the Kafka tables in ClickHouse are not stable at a high volumes, and harder to debug when things go sideways. It is also easier to mutate your data before ingestion using Vector's VRL scripting language vs. ClickHouse table views (SQL) when dealing with complex data that needs to be denormalized into a flat table.",
-    "parent": 45574790,
-    "depth": 2
-  },
-  {
     "id": 45573268,
     "by": "jamesblonde",
     "timeISO": "2025-10-13T20:57:12.000Z",
     "textPlain": "Here's a good performance study by OneHouse comparing Clickhouse, StarRocks, Trino:https://www.onehouse.ai/blog/apache-spark-vs-clickhouse-vs-p...Druid is real-time analytics, similar to Clickhouse.\nStarRocks is best at Joins - Clickhouse is not good for joins.",
     "parent": 45572883,
+    "depth": 2
+  },
+  {
+    "id": 45574983,
+    "by": "momothereal",
+    "timeISO": "2025-10-14T00:49:00.000Z",
+    "textPlain": "Writing to Kafka allowed them to continue their current ingestion process into MariaDB at the same time as ClickHouse. Kafka consumer groups allow the data to be consumed twice by different consumer pools that have different throughput without introducing bottlenecks.From experience the Kafka tables in ClickHouse are not stable at a high volumes, and harder to debug when things go sideways. It is also easier to mutate your data before ingestion using Vector's VRL scripting language vs. ClickHouse table views (SQL) when dealing with complex data that needs to be denormalized into a flat table.",
+    "parent": 45574790,
     "depth": 2
   }
 ]
