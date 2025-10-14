@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45584729,
+    "by": "solatic",
+    "timeISO": "2025-10-14T20:54:53.000Z",
+    "textPlain": "I don't really understand why you think this tool is needed and what exact problem/risk it's trying to solve.Most people should start with a single-zone setup and just accept that there's a risk associated with zone failure. If you have a single-zone setup, you have a node group in that one zone, you have the managed database in the same zone, and you're done. Zone-wide failure is extremely rare in practice and you would be surprised at the number (and size of) companies that run single-zone production setups to save on cloud bills. Just write the zone label selector into the node affinity section by hand, you don't need a fancy admission webhook if you want to reduce chance's factor.If you decide that you want to handle the additional complexity of supporting failover in case of zone failure, the easiest approach is to just setup another node group in the secondary zone. If the primary zone fails, manually scale up the node pool in the secondary zone. Kubernetes will automatically schedule all the pods on the scaled up node pool (remember: primary zone failure, no healthy nodes in the primary zone), and you're done.If you want to handle zone failover completely automatically, this tool represents additional cost, because it forces you to have nodes running in the secondary zone during normal usage. Hopefully you are not running a completely empty, redundant set of service VMs in normal operation, because that would be a colossal waste of money. So you are presuming that, when RDS automatically fails over to zone b to account for zone a failure, that you will certainly be able to scale up a full scale production environment in zone b as well, in spite of nearly every other AWS customer attempting more or less the same strategy; roughly half of zone a traffic will spill over to zone b, roughly half to zone c, minus all the traffic that is zone-locked to a (e.g. single-zone databases without failover mechanisms). That is a big assumption to make and you run a serious ",
+    "parent": 45512351,
+    "depth": 1
+  },
+  {
     "id": 45584043,
     "by": "pikdum",
     "timeISO": "2025-10-14T19:55:37.000Z",
@@ -72,10 +80,26 @@
     "depth": 2
   },
   {
+    "id": 45585000,
+    "by": "dilyevsky",
+    "timeISO": "2025-10-14T21:14:04.000Z",
+    "textPlain": "They also charge you like 1c/GB for traffic egress between the zones. To top it off there are issues with AWS loadbalancers in multi-zone setups. Ultimately i've come to the conclusion that large multi-zonal clusters is a mistake. Do several single-zone disposable clusters if you want zone redundancy.",
+    "parent": 45584043,
+    "depth": 2
+  },
+  {
     "id": 45584235,
     "by": "toredash",
     "timeISO": "2025-10-14T20:14:27.000Z",
     "textPlain": "I was surprised to. Of course it makes sense when you look at it hard enough, two seperate DCs won't have the same latency than internal DC communication. It might have the same physical wire-speed, but physical distance matter.",
+    "parent": 45584043,
+    "depth": 2
+  },
+  {
+    "id": 45584460,
+    "by": "stackskipton",
+    "timeISO": "2025-10-14T20:32:15.000Z",
+    "textPlain": "It's generally sub 2MS. Most people take slight latency increase for higher availability, but I guess in this case, that was not acceptable.",
     "parent": 45584043,
     "depth": 2
   },
@@ -96,14 +120,6 @@
     "depth": 2
   },
   {
-    "id": 45584221,
-    "by": "kentm",
-    "timeISO": "2025-10-14T20:13:29.000Z",
-    "textPlain": "Sure, but there are scenarios and architectures where you do want the workload to jump around, but just to a subset of hosts matching certain criteria.  Kubernetes does solve that problem.",
-    "parent": 45582520,
-    "depth": 2
-  },
-  {
     "id": 45583441,
     "by": "glennpratt",
     "timeISO": "2025-10-14T18:52:33.000Z",
@@ -116,6 +132,14 @@
     "by": "mystifyingpoi",
     "timeISO": "2025-10-14T17:30:15.000Z",
     "textPlain": "> The lack of controlThis project literally sets the affinity. That's precisely the control you seem to negate.",
+    "parent": 45582520,
+    "depth": 2
+  },
+  {
+    "id": 45584221,
+    "by": "kentm",
+    "timeISO": "2025-10-14T20:13:29.000Z",
+    "textPlain": "Sure, but there are scenarios and architectures where you do want the workload to jump around, but just to a subset of hosts matching certain criteria.  Kubernetes does solve that problem.",
     "parent": 45582520,
     "depth": 2
   },

@@ -1,17 +1,17 @@
 [
   {
-    "id": 45583828,
-    "by": "Galanwe",
-    "timeISO": "2025-10-14T19:31:56.000Z",
-    "textPlain": "While the results look impressive, I can't help but think \"yeah but had you stored an absolute value every X deltas instead of just a stream of deltas, you would have had a perfectly scalable parallel decoding\"",
-    "parent": 45582268,
-    "depth": 1
-  },
-  {
     "id": 45583466,
     "by": "yogishbaliga",
     "timeISO": "2025-10-14T18:54:35.000Z",
     "textPlain": "Way back in time, I used delta encoding for storing posting list (inverted index for search index). I experimented with using GPUs for decoding the posting list. It turned out that, as another reply mentioned copying posting list from CPU memory to GPU memory was taking way too long. If posting list is static, it can be copied to GPU memory once. This will make the decoding faster. But still there is a bottle neck of copying the result back into CPU memory.Nvidia's unified memory architecture may make it better as same memory can be shared between CPU and GPU.",
+    "parent": 45582268,
+    "depth": 1
+  },
+  {
+    "id": 45583828,
+    "by": "Galanwe",
+    "timeISO": "2025-10-14T19:31:56.000Z",
+    "textPlain": "While the results look impressive, I can't help but think \"yeah but had you stored an absolute value every X deltas instead of just a stream of deltas, you would have had a perfectly scalable parallel decoding\"",
     "parent": 45582268,
     "depth": 1
   },
@@ -32,19 +32,11 @@
     "depth": 1
   },
   {
-    "id": 45584100,
-    "by": "ashtonsix",
-    "timeISO": "2025-10-14T20:00:36.000Z",
-    "textPlain": "I just did a mini-ablation study for this (prefix sum). By getting rid of the cross-block carry (16 values), you can increase perf from 19.85 to 23.45 GB/s: the gain is modest as most performance is lost on accumulator carry within the block.An absolute value every 16 deltas would undermine compression: a greater interval would lose even the modest performance gain, while a smaller interval would completely lose the compressibility benefits of delta coding.It's a different matter, although there is definitely plausible motivation for absolute values every X deltas: query/update locality (mini-partition-level). You wouldn't want to transcode a huge number of values to access/modify a small subset.",
-    "parent": 45583828,
-    "depth": 2
-  },
-  {
-    "id": 45584137,
-    "by": "jdonaldson",
-    "timeISO": "2025-10-14T20:04:40.000Z",
-    "textPlain": "While that sounds like a dealbreaker, I can't help think \"yeah but if a decoding method took advantage of prefix in a similarly scalable way, one would reap the same benefits\".",
-    "parent": 45583828,
+    "id": 45584525,
+    "by": "hughw",
+    "timeISO": "2025-10-14T20:37:48.000Z",
+    "textPlain": "The shared memory architecture doesn't eliminate copying the data across to the device. Edit: or back.",
+    "parent": 45583466,
     "depth": 2
   },
   {
@@ -61,6 +53,22 @@
     "timeISO": "2025-10-14T19:04:18.000Z",
     "textPlain": "Oh neat. I have some related unpublished SOTA results I want to release soon: PEF/BIC-like compression ratios, with faster boolean algebra than Roaring Bitsets.",
     "parent": 45583466,
+    "depth": 2
+  },
+  {
+    "id": 45584100,
+    "by": "ashtonsix",
+    "timeISO": "2025-10-14T20:00:36.000Z",
+    "textPlain": "I just did a mini-ablation study for this (prefix sum). By getting rid of the cross-block carry (16 values), you can increase perf from 19.85 to 23.45 GB/s: the gain is modest as most performance is lost on accumulator carry within the block.An absolute value every 16 deltas would undermine compression: a greater interval would lose even the modest performance gain, while a smaller interval would completely lose the compressibility benefits of delta coding.It's a different matter, although there is definitely plausible motivation for absolute values every X deltas: query/update locality (mini-partition-level). You wouldn't want to transcode a huge number of values to access/modify a small subset.",
+    "parent": 45583828,
+    "depth": 2
+  },
+  {
+    "id": 45584137,
+    "by": "jdonaldson",
+    "timeISO": "2025-10-14T20:04:40.000Z",
+    "textPlain": "While that sounds like a dealbreaker, I can't help think \"yeah but if a decoding method took advantage of prefix in a similarly scalable way, one would reap the same benefits\".",
+    "parent": 45583828,
     "depth": 2
   },
   {
