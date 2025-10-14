@@ -48,6 +48,14 @@
     "depth": 2
   },
   {
+    "id": 45585777,
+    "by": "shoo",
+    "timeISO": "2025-10-14T22:25:45.000Z",
+    "textPlain": "fgiesen has a 3 part series of blog posts from 2018, \"reading bits in far too many ways\", focusing on the problem of reading data encoded a variable-bit-length codePart 3 explores a straightforward idea that can be used to improve performance of bitstream decoding - decode multiple streams at once.> if decoding from a single bitstream is too serial, then why not decode from multiple bitstreams at once?> So how many streams should you use? It depends. At this point, for anything that is even remotely performance-sensitive, I would recommend trying at least N=2 streams. Even if your decoder has a lot of other stuff going on (computations with the decoded values etc.), bitstream decoding tends to be serial enough that there’s many wasted cycles otherwise, even on something relatively narrow like a dual-issue in-order machine.> If you’re using multiple streams, you need to decide how these multiple streams get assembled into the final output bitstream. If you don’t have any particular reason to go with a fine-grained interleaving, the easiest and most straightforward option is to concatenate the sub-streamsFor delta coding, perhaps instead of resetting the delta encoding stream with an absolute value every X deltas, for a small value of X, this suggests we could use a much larger value of X, i.e. partition the input into coarse chunks and delta encode each, and then rewrite our decoder to decode a pair (or more) of the resulting streams at once.Unclear if that would help at all here, or if there's already enough independent work for the CPU to keep busy with.Part 1  https://fgiesen.wordpress.com/2018/02/19/reading-bits-in-far...Part 2  https://fgiesen.wordpress.com/2018/02/20/reading-bits-in-far...Part 3  https://fgiesen.wordpress.com/2018/09/27/reading-bits-in-far...",
+    "parent": 45583828,
+    "depth": 2
+  },
+  {
     "id": 45584137,
     "by": "jdonaldson",
     "timeISO": "2025-10-14T20:04:40.000Z",
@@ -80,18 +88,18 @@
     "depth": 2
   },
   {
-    "id": 45583051,
-    "by": "ashtonsix",
-    "timeISO": "2025-10-14T18:13:13.000Z",
-    "textPlain": "The weirdness probably comes from heavy use of \"SIMD intrinsics\" (Googleable term). These are functions with a 1:1 correspondence to assembly instructions, used for processing multiple values per instruction.",
-    "parent": 45583017,
-    "depth": 2
-  },
-  {
     "id": 45584118,
     "by": "mananaysiempre",
     "timeISO": "2025-10-14T20:02:46.000Z",
     "textPlain": "SIMD intrinsics are less C and more assembly with overlong mnemonics and a register allocator, so even reading them is something of a separate skill. Unlike the skill of achieving meaningful speedups by writing them (i.e. low-level optimization), it’s nothing special, but expect to spend a lot of time jumping between the code and the reference manuals[1,2] at first.[1] https://www.intel.com/content/www/us/en/docs/intrinsics-guid...[2] https://developer.arm.com/architectures/instruction-sets/int...",
+    "parent": 45583017,
+    "depth": 2
+  },
+  {
+    "id": 45583051,
+    "by": "ashtonsix",
+    "timeISO": "2025-10-14T18:13:13.000Z",
+    "textPlain": "The weirdness probably comes from heavy use of \"SIMD intrinsics\" (Googleable term). These are functions with a 1:1 correspondence to assembly instructions, used for processing multiple values per instruction.",
     "parent": 45583017,
     "depth": 2
   },
@@ -108,6 +116,14 @@
     "by": "bassp",
     "timeISO": "2025-10-14T19:23:53.000Z",
     "textPlain": "Yes! There’s a canonical algorithm called the “Blelloch scan” for prefix sum (aka prefix scan, because you can generalize “sum” to “any binary associative function”) that’s very gpu friendly. I have… fond is the wrong word, but “strong” memories of implementing in a parallel programming class :)Here’s a link to a pretty accessible writeup, if you’re curious about the details: https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-co...",
+    "parent": 45582825,
+    "depth": 2
+  },
+  {
+    "id": 45585939,
+    "by": "TinkersW",
+    "timeISO": "2025-10-14T22:45:51.000Z",
+    "textPlain": "Your average none shared memory GPU communicates with the CPU over PCIe which is dogshit slow, like 100x slower than DRAM.I can upload about an average of 3.7 MBs per millisecond to my GPU(PCIe gen 3, x8), but it can be spiky and sometimes take longer than you might expect.By comparison a byte based AVX2 prefix scan can pretty much run at the speed of DRAM, so there is never any reason to transfer to the GPU.",
     "parent": 45582825,
     "depth": 2
   },
