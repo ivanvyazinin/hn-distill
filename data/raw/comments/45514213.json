@@ -1,9 +1,9 @@
 [
   {
-    "id": 45577893,
-    "by": "pachico",
-    "timeISO": "2025-10-14T09:19:37.000Z",
-    "textPlain": "I shared this article internally and my peers were impressed about how similar it is to our final implementation. (It differs in the fact that we use Redis as queue.)Happy to exchange notes about our journey too.Cheers",
+    "id": 45578021,
+    "by": "solatic",
+    "timeISO": "2025-10-14T09:41:58.000Z",
+    "textPlain": "Geocodio offers a pay-as-you-go metered plan where users get 2,500 free geocoding lookups per day. This means we need to:\n  Track the 2,500 free tier requests\n  Continue tracking above that threshold for billing\n  Let users view their usage in real-time on their dashboard\n  Give admins the ability to query this data for support and debugging\n  Store request details so we can replay customer requests when debugging issues\n\nJust on the basis of what you wrote here, I'm not convinced ClickHouse is the right tool. ClickHouse very much would help with helping you crunch statistics for latencies etc., but just for billing and getting individual query data? 1) push the request to Kafka/Pub Sub/etc. 2) one consumer pushing to TigerBeetle for tracking request usage within the free tier and other billing 3) one consumer to push individual requests to object storage, which scales out infinitely-ish, allows you to get full request details for an individual request, lifecycle rules will automatically async delete old requests for you. If request statistics is important for business analysis, then instead of (boring) object storage you could look at one of the newer Iceberg-based options on top of object storage, e.g. S3 tables; as long as querying an individual request remains fast and getting statistics can be generated, say, for a nightly report. Another cheap approach could hook up another consumer to the PubSub, any request with too-high latency above a reasonable threshold, dump it into a Slack channel with a reference to the request ID so someone can look into debugging it.",
     "parent": 45514213,
     "depth": 1
   },
@@ -20,6 +20,14 @@
     "by": "saisrirampur",
     "timeISO": "2025-10-13T20:39:14.000Z",
     "textPlain": "Sai from ClickHouse here. Very compelling story! Really love your emphasis on using the right tool for the right job - power of row vs column stores.We recently added a MySQL/MariaDB CDC connector in ClickPipes on ClickHouse Cloud. This would have simplified your migration from MariaDB.https://clickhouse.com/docs/integrations/clickpipes/mysql\nhttps://clickhouse.com/docs/integrations/clickpipes/mysql/so...",
+    "parent": 45514213,
+    "depth": 1
+  },
+  {
+    "id": 45577893,
+    "by": "pachico",
+    "timeISO": "2025-10-14T09:19:37.000Z",
+    "textPlain": "I shared this article internally and my peers were impressed about how similar it is to our final implementation. (It differs in the fact that we use Redis as queue.)Happy to exchange notes about our journey too.Cheers",
     "parent": 45514213,
     "depth": 1
   },
