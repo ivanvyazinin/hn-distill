@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45575615,
-    "by": "zeroimpl",
-    "timeISO": "2025-10-14T02:26:27.000Z",
-    "textPlain": "I couldn’t find a library like this in PHP, but realized for my use case I could easily hack something together. Algorithm is simply:- trim off all trailing delimiters: },\"- then add on a fixed suffix: \"]}- then try parsing as a standard json. Ignore results if fails to parse.This works since the schema I’m parsing had a fairly simple structure where everything of interest was at a specific depth in the hierarchy and values were all strings.",
+    "id": 45575904,
+    "by": "saidinesh5",
+    "timeISO": "2025-10-14T03:20:42.000Z",
+    "textPlain": "I wrote something similar in my last job where we had to parse and query data from huge (50+ GB? I remember they weren't even fitting in my laptop) json files that were stored in an S3 Bucket..We used the streaming parser to create an index of the file locally {json key: (byte offset, byte size)} and then simply used http range queries to access the data we needed.Here is the full write up about it:https://dinesh.cloud/2022/streaming-json-for-fun-and-profit/And here is the open sourced code:https://github.com/multiversal-ventures/json-buffet",
     "parent": 45518033,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "simonw",
     "timeISO": "2025-10-13T17:02:30.000Z",
     "textPlain": "If anyone needs to do this in Python I've had success with both ijson and jiter - notes here: https://til.simonwillison.net/json/ijson-stream and https://simonwillison.net/2024/Sep/22/jiter/",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45575615,
+    "by": "zeroimpl",
+    "timeISO": "2025-10-14T02:26:27.000Z",
+    "textPlain": "I couldn’t find a library like this in PHP, but realized for my use case I could easily hack something together. Algorithm is simply:- trim off all trailing delimiters: },\"- then add on a fixed suffix: \"]}- then try parsing as a standard json. Ignore results if fails to parse.This works since the schema I’m parsing had a fairly simple structure where everything of interest was at a specific depth in the hierarchy and values were all strings.",
     "parent": 45518033,
     "depth": 1
   },
@@ -64,26 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45575025,
-    "by": "hk1337",
-    "timeISO": "2025-10-14T00:54:20.000Z",
-    "textPlain": "This looks really nice. I think I could find a use for this.The title made me think of Star Trek DS9 and Nog talking about The Great Material Continuum.“Nog: The river will provide”",
-    "parent": 45518033,
-    "depth": 1
-  },
-  {
     "id": 45572410,
     "by": "Xmd5a",
     "timeISO": "2025-10-13T19:33:10.000Z",
     "textPlain": "I wrote something similar that can also produce JSON incrementally from other streaming data sources. It combines a streaming JSON parser with streaming strings and a streaming regex engine.Concretely, it means I can call an LLM, wrap its output stream in a streaming string, and treat it like a regular string. No need for print loops, it’s all handled behind the scenes. I can chain transformations (joining strings, splitting them with regexes, capturing substrings, etc.) and serialize the results into JSON progressively, building lazy sequences or maps on the fly.The benefit is that I can start processing and emitting structured data immediately, without waiting for the LLM’s full response. Filtered output can be shown to users as it arrives, with near-zero added latency (aside from regex lookaheads).",
-    "parent": 45518033,
-    "depth": 1
-  },
-  {
-    "id": 45572077,
-    "by": "chrchr",
-    "timeISO": "2025-10-13T19:01:48.000Z",
-    "textPlain": "I did something like this for Python [1]. The application I worked on at the time had a feature allowing users to import and export their data as a JSON document, and users often had enough data to make this cumbersome, especially with serialization and deserialization overhead. My implementation can also generate JSON documents as they stream out, from Python generators. The incremental JSON parsing was a little difficult to use, but incremental generation was an immediate win. We generated JSON documents from database results row-by-row and streamed the output to the web server, never producing the entire document in memory.[1] https://github.com/chrchr/flojay",
     "parent": 45518033,
     "depth": 1
   },
@@ -96,10 +88,26 @@
     "depth": 1
   },
   {
+    "id": 45572077,
+    "by": "chrchr",
+    "timeISO": "2025-10-13T19:01:48.000Z",
+    "textPlain": "I did something like this for Python [1]. The application I worked on at the time had a feature allowing users to import and export their data as a JSON document, and users often had enough data to make this cumbersome, especially with serialization and deserialization overhead. My implementation can also generate JSON documents as they stream out, from Python generators. The incremental JSON parsing was a little difficult to use, but incremental generation was an immediate win. We generated JSON documents from database results row-by-row and streamed the output to the web server, never producing the entire document in memory.[1] https://github.com/chrchr/flojay",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
     "id": 45570782,
     "by": "AaronFriel",
     "timeISO": "2025-10-13T17:08:22.000Z",
     "textPlain": "Oh, this is quite similar to an online parser I'd written a few years ago[1]. I have some worked examples on how to use it with the now-standard Chat Completions API for LLMs to stream and filter structured outputs (aka JSON). This is the underlying technology for a \"Copilot\" or \"AI\" application I worked on in my last role.Like yours, I'm sure, these incremental or online parser libraries are orders of magnitude faster[2] than alternatives for parsing LLM tool calls for the very simple reason that alternative approaches repeatedly parse the entire concatenated response, which requires buffering the entire payload, repeatedly allocating new objects, and for an N token response, you parse the first token N times! All of the \"industry standard\" approaches here are quadratic, which is going to scale quite poorly as LLMs generate larger and larger responses to meet application needs, and users want low latency outputs.One of the most useful features of this approach is filtering LLM tool calls on the server and passing through a subset of the parse events to the client. This makes it relatively easy to put moderation, metadata capture, and other requirements in a single tool call, while still providing low latency streaming UI. It also avoids the problem with many moderation APIs where for cost or speed reasons, one might delegate to a smaller, cheaper model to generate output in a side-channel of the normal output stream. This not only doesn't scale, but it also means the more powerful model is unaware of these requirements, or you end up with a \"flash of unapproved content\" due to moderation delays, etc.I found that it was extremely helpful to work at the level of parse events, but recognize that building partial values is also important, so I'm working on something similar in Rust[3], but taking a more holistic view and building more of an \"AI SDK\" akin to Vercel's, but written in Rust.[1] https://github.com/aaronfriel/fn-stream[2] https://github.com/vercel/ai/pull/18",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45575025,
+    "by": "hk1337",
+    "timeISO": "2025-10-14T00:54:20.000Z",
+    "textPlain": "This looks really nice. I think I could find a use for this.The title made me think of Star Trek DS9 and Nog talking about The Great Material Continuum.“Nog: The river will provide”",
     "parent": 45518033,
     "depth": 1
   },
@@ -120,18 +128,18 @@
     "depth": 1
   },
   {
-    "id": 45571803,
-    "by": "keleftheriou",
-    "timeISO": "2025-10-13T18:35:47.000Z",
-    "textPlain": "Thanks for sharing!Roughly how does it compare with https://github.com/promplate/partial-json-parser-js ?",
-    "parent": 45518033,
-    "depth": 1
-  },
-  {
     "id": 45570618,
     "by": "seanalltogether",
     "timeISO": "2025-10-13T16:56:07.000Z",
     "textPlain": "Maybe I'm wrong but it seems like you would only want to parse partial values for objects and arrays, but not strings or numbers. Objects and arrays can be unbounded so it makes sense to process what you can, when you can, whereas a string or number usually is not.",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45571803,
+    "by": "keleftheriou",
+    "timeISO": "2025-10-13T18:35:47.000Z",
+    "textPlain": "Thanks for sharing!Roughly how does it compare with https://github.com/promplate/partial-json-parser-js ?",
     "parent": 45518033,
     "depth": 1
   },
@@ -144,18 +152,18 @@
     "depth": 1
   },
   {
-    "id": 45573527,
-    "by": "rixed",
-    "timeISO": "2025-10-13T21:27:36.000Z",
-    "textPlain": "So SAX, but for json?Plus ça change, et plus c'est la même chose.",
-    "parent": 45518033,
-    "depth": 1
-  },
-  {
     "id": 45570380,
     "by": "alganet",
     "timeISO": "2025-10-13T16:36:59.000Z",
     "textPlain": "Interesting approach.I would expect an object JSON stream to be more like a SAX parser though. It's familiar, fast and simple.Any thougts on not chosing the SAX approach?",
+    "parent": 45518033,
+    "depth": 1
+  },
+  {
+    "id": 45573527,
+    "by": "rixed",
+    "timeISO": "2025-10-13T21:27:36.000Z",
+    "textPlain": "So SAX, but for json?Plus ça change, et plus c'est la même chose.",
     "parent": 45518033,
     "depth": 1
   },
@@ -280,14 +288,6 @@
     "depth": 2
   },
   {
-    "id": 45575055,
-    "by": "sholladay",
-    "timeISO": "2025-10-14T00:58:59.000Z",
-    "textPlain": "“Oh, that river. It can be very treacherous.” - Rom",
-    "parent": 45575025,
-    "depth": 2
-  },
-  {
     "id": 45572237,
     "by": "xg15",
     "timeISO": "2025-10-13T19:17:23.000Z",
@@ -309,6 +309,14 @@
     "timeISO": "2025-10-13T16:59:42.000Z",
     "textPlain": "If you're building a UI that renders output from a streaming LLM you might get back something which looks like this:  {\"role\": \"assistant\", \"text\": \"Here's that Python code you aske\n\nIncomplete parsing with incomplete strings is still useful in order to render that to your end user while it's still streaming in.",
     "parent": 45570635,
+    "depth": 2
+  },
+  {
+    "id": 45575055,
+    "by": "sholladay",
+    "timeISO": "2025-10-14T00:58:59.000Z",
+    "textPlain": "“Oh, that river. It can be very treacherous.” - Rom",
+    "parent": 45575025,
     "depth": 2
   },
   {
@@ -389,14 +397,6 @@
     "timeISO": "2025-10-13T17:52:46.000Z",
     "textPlain": "Is true. I wrote a ton of tests, testing just about everything I can think of, including using a reverse parser I wrote to exhaustively generate the simplest 65k json values, ensuring that it succeeds with the same values and fails on the same cases as JSON.parse.Then added benchmarks and started doing optimization, getting it ~10x faster than my initial naive implementation. Then I threw agents at it, and between Claude, Gemini, and Codex we were able to make it an additional 2x faster.",
     "parent": 45570547,
-    "depth": 2
-  },
-  {
-    "id": 45570812,
-    "by": "Supermancho",
-    "timeISO": "2025-10-13T17:12:08.000Z",
-    "textPlain": "When you want to pull multi-gig JSON files and not wait for the full file before processing is where I first used this.",
-    "parent": 45570522,
     "depth": 2
   }
 ]
