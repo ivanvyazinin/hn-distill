@@ -1,9 +1,9 @@
 [
   {
-    "id": 45577890,
-    "by": "alexey-salmin",
-    "timeISO": "2025-10-14T09:19:29.000Z",
-    "textPlain": "The article seems to assume that containers appeared to solve the software distribution problem and then somehow got repurposed into virtualization, isolation and management of production services. I think this view is very far from truth.The virtualization/isolation aspect came first, the SWSoft Virtuozzo was doing that quite well in early 2000s. They even had [some] IO isolation which I think took around a decade to support elsewhere. Then gradually pieces of Virtuozzo/OpenVZ reached the mainline in a form of cgroups/LXC and the whole thing slowly brewed for a while until the Docker added the two missing pieces: the fast image rebuilds and the out-of-the-box user experience.Docker of course was the revolution, but by then sufficiently advanced companies have been already using containers for isolation for a full decade.",
+    "id": 45579687,
+    "by": "rdsubhas",
+    "timeISO": "2025-10-14T13:19:14.000Z",
+    "textPlain": "I used cgroups, lxc, chroots, self-extracting executables. I built rugged, portable applications for UNICEF laptops and camps before docker was a thing.And I think this whole point about \"virtualization\", \"security\", making the most use of hardware, reducing costs, and so on, while true, it's an \"Enterprise pitch\" targeted at heads of tech and security. Nice side effects, but I couldn't care less.There are real, fundamental benefits to containers for a solo developer running a solo app on a solo server.Why? My application needs 2 or 3 other folders to write or read files into, maybe 2 or 3 other runtime executables (jvm, node, convert, think of the dozens of OSS CLI tools, not compile-time libraries), maybe apt-get install or download a few other dependencies.Now I, as a indie developer, can \"mkdir\" a few files from a shell script. But that \"mkdir\" will work the first time. It will fail the second time saying \"directory already exists\". I can \"apt-get install\" a few things, but upgrading and versioning is a different story altogether. It's a matter of time before I realize I need atleast some barebones ansible or state management. I can tell you many times how I've reinvented \"smallish\" ansible in shell scripts before docker.Now if I'm in an enterprise, I need to communicate this entire State of my app – to the sysadmin teams. Forget security and virtualization and all that. I need to explain every single part of the state, versions of java and tomcat, the directories, and all those are moving targets.Containers reduce state management. A LOT. I can always \"mkdir\". I can always \"apt-get install\". It's an ephemeral image. I don't need to write half-broken shell scripts or use ansible or create mini-shell-ansible.If you use a Dockerfile with docker-compose, you've solved 95% of state management. The only 5% left is to docker-compose the right source.Skip the enterprisey parts. A normal field engineer or solo developer, like me, who's deploying a service on the field, ",
     "parent": 45567241,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "alphazard",
     "timeISO": "2025-10-13T20:36:37.000Z",
     "textPlain": "Containers (meaning Docker) happened because CGroups and namespaces were arcane and required lots of specialized knowledge to create what most of us can intuitively understand as a \"sandbox\".Cgroups and namespaces were added to Linux in an attempt to add security to a design (UNIX) which has a fundamentally poor approach to security (shared global namespace, users, etc.).It's really not going all that well, and I hope something like SEL4 can replace Linux for cloud server workloads eventually.\nMost applications use almost none of the Linux kernel's features.  We could have very secure, high performance web servers, which get capabilities to the network stack as initial arguments, and don't have access to anything more.Drivers for virtual devices are simple, we don't need Linux's vast driver support for cloud VMs.  We essentially need a virtual ethernet device driver for SEL4, a network stack that runs on SEL4, and a simple init process that loads the network stack with capabilities for the network device, and loads the application with a capability to the network stack.\nMake building an image for that as easy as compiling a binary, and you could eliminate maybe 10s of millions of lines of complexity from the deployment of most server applications.  No Linux, no docker.Because SEL4 is actually well designed, you can run a sub kernel as a process on SEL4 relatively easily.  Tada, now you can get rid of K8s too.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45577890,
+    "by": "alexey-salmin",
+    "timeISO": "2025-10-14T09:19:29.000Z",
+    "textPlain": "The article seems to assume that containers appeared to solve the software distribution problem and then somehow got repurposed into virtualization, isolation and management of production services. I think this view is very far from truth.The virtualization/isolation aspect came first, the SWSoft Virtuozzo was doing that quite well in early 2000s. They even had [some] IO isolation which I think took around a decade to support elsewhere. Then gradually pieces of Virtuozzo/OpenVZ reached the mainline in a form of cgroups/LXC and the whole thing slowly brewed for a while until the Docker added the two missing pieces: the fast image rebuilds and the out-of-the-box user experience.Docker of course was the revolution, but by then sufficiently advanced companies have been already using containers for isolation for a full decade.",
     "parent": 45567241,
     "depth": 1
   },
@@ -32,14 +40,6 @@
     "depth": 1
   },
   {
-    "id": 45578840,
-    "by": "lproven",
-    "timeISO": "2025-10-14T11:42:48.000Z",
-    "textPlain": "Money.Containers were around for a decade or more on FreeBSD and Solaris. They let you divvy up expensive big Unix iron.Same as VMs were around on mainframes from the late 1960s and expensive Unix RISC servers from the late 1980s.Linux didn't need it because it was cheap. So Linux replaced that older more expensive stuff, on cheap COTS hardware: x86.Once everything was commoditised and cost-cut, suddenly, efficiency started to matter, so VMware thrived and was copied and VMs were everywhere.Then the low usage and inefficiency of resource sharing of VMs made them look expensive, so they started to get displaced by the cheaper easier tech of containers, making \"it works on my machine, so let's ship my machine\" scale to production.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45574532,
     "by": "wucke13",
     "timeISO": "2025-10-13T23:40:38.000Z",
@@ -52,6 +52,14 @@
     "by": "bane",
     "timeISO": "2025-10-13T23:27:21.000Z",
     "textPlain": "Containers happened because nobody can be bothered to build an entire application into a single distributable executable anymore - heck even the tooling barely exists anymore. But instead of solving problems like dependency management and linking, today's engineers simply build piles of abstraction into the problem space until the thing you want to do more than anything (i.e. execute an application) becomes a single call.Of course you now need to build and maintain those abstract towers, so more jobs for everybody!",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45578840,
+    "by": "lproven",
+    "timeISO": "2025-10-14T11:42:48.000Z",
+    "textPlain": "Money.Containers were around for a decade or more on FreeBSD and Solaris. They let you divvy up expensive big Unix iron.Same as VMs were around on mainframes from the late 1960s and expensive Unix RISC servers from the late 1980s.Linux didn't need it because it was cheap. So Linux replaced that older more expensive stuff, on cheap COTS hardware: x86.Once everything was commoditised and cost-cut, suddenly, efficiency started to matter, so VMware thrived and was copied and VMs were everywhere.Then the low usage and inefficiency of resource sharing of VMs made them look expensive, so they started to get displaced by the cheaper easier tech of containers, making \"it works on my machine, so let's ship my machine\" scale to production.",
     "parent": 45567241,
     "depth": 1
   },
@@ -88,26 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45577484,
-    "by": "dilyevsky",
-    "timeISO": "2025-10-14T08:14:14.000Z",
-    "textPlain": "Linux CGroups specifically were started at Google because their cluster management system Borg (or maybe it was still Babysitter at the time) needed a way to do resource tracking and admission control. Here's a comment by one of original devs: https://news.ycombinator.com/item?id=25017753",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
-    "id": 45578548,
-    "by": "nahuel0x",
-    "timeISO": "2025-10-14T11:02:54.000Z",
-    "textPlain": "Because containers were lighter than VM's, made reproducible and modularizable how to build the VM contents, and \"solved\" Unix/POSIX process isolation / library management design flaws.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45573340,
     "by": "spullara",
     "timeISO": "2025-10-13T21:06:43.000Z",
     "textPlain": "Because dependencies on Unix are terrible for some languages that assume things are installed globally.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45577484,
+    "by": "dilyevsky",
+    "timeISO": "2025-10-14T08:14:14.000Z",
+    "textPlain": "Linux CGroups specifically were started at Google because their cluster management system Borg (or maybe it was still Babysitter at the time) needed a way to do resource tracking and admission control. Here's a comment by one of original devs: https://news.ycombinator.com/item?id=25017753",
     "parent": 45567241,
     "depth": 1
   },
@@ -128,6 +128,30 @@
     "depth": 1
   },
   {
+    "id": 45573289,
+    "by": "guigar",
+    "timeISO": "2025-10-13T20:59:42.000Z",
+    "textPlain": "I love this sentence about DevOps \"Somehow it seems easier for people to relate to technology than culture, and the technology started working against the culture.\"",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45576555,
+    "by": "coppsilgold",
+    "timeISO": "2025-10-14T05:26:04.000Z",
+    "textPlain": "When you launch a container (either through docker you manually through namespaces) you are effectively representing yourself to the kernel as a separate thing. This allows you to construct a completely separate environment when interacting with the kernel where none of your concerns are going to leak out and nothing you don't care for is going to leak in.When people say that static executables would solve the problem they are wrong, a static executable just means that you can eschew constructing a separate file-system inside your container - and you will probably need to populate some locations anyway.Properly configured containers are actually supposed to be secure sandboxes, such that any violation is a kernel exploit. However the Linux kernel attack surface is very large so no one serious who offers multi-tenant hosting can afford to rely on containers for isolation. They have to assume that a container escape 0day can be sourced. It may be more accurate to say that a general kernel 0day can be sourced since the entire kernel surface area is open for anyone to poke. seccomp can mitigate the surface area but also narrow down the usefulness.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45578548,
+    "by": "nahuel0x",
+    "timeISO": "2025-10-14T11:02:54.000Z",
+    "textPlain": "Because containers were lighter than VM's, made reproducible and modularizable how to build the VM contents, and \"solved\" Unix/POSIX process isolation / library management design flaws.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
     "id": 45578091,
     "by": "lazylizard",
     "timeISO": "2025-10-14T09:51:29.000Z",
@@ -144,34 +168,10 @@
     "depth": 1
   },
   {
-    "id": 45576555,
-    "by": "coppsilgold",
-    "timeISO": "2025-10-14T05:26:04.000Z",
-    "textPlain": "When you launch a container (either through docker you manually through namespaces) you are effectively representing yourself to the kernel as a separate thing. This allows you to construct a completely separate environment when interacting with the kernel where none of your concerns are going to leak out and nothing you don't care for is going to leak in.When people say that static executables would solve the problem they are wrong, a static executable just means that you can eschew constructing a separate file-system inside your container - and you will probably need to populate some locations anyway.Properly configured containers are actually supposed to be secure sandboxes, such that any violation is a kernel exploit. However the Linux kernel attack surface is very large so no one serious who offers multi-tenant hosting can afford to rely on containers for isolation. They have to assume that a container escape 0day can be sourced. It may be more accurate to say that a general kernel 0day can be sourced since the entire kernel surface area is open for anyone to poke. seccomp can mitigate the surface area but also narrow down the usefulness.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45573490,
     "by": "BandButcher",
     "timeISO": "2025-10-13T21:23:23.000Z",
     "textPlain": "\"The compute we are wasting is at least 10x cheaper, but we have automation to waste it at scale now.\"So much this. keep it simple, stupid (muah)",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
-    "id": 45573289,
-    "by": "guigar",
-    "timeISO": "2025-10-13T20:59:42.000Z",
-    "textPlain": "I love this sentence about DevOps \"Somehow it seems easier for people to relate to technology than culture, and the technology started working against the culture.\"",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
-    "id": 45578747,
-    "by": "yohbho",
-    "timeISO": "2025-10-14T11:31:21.000Z",
-    "textPlain": "> Docker was easy to adopt as it did not change very much about how you used software.What?! Docker images should seperate the program from the data. Something casual image maintainers fail to adhere to.\nI find docker extreme hard to use for persistent state that is not a remote DB.It is even less secure than VMs (which seem to be like swiss chess if you try to break out). (Security-wise: rkt failed five years ago, BSD jails could do it better?)Also, Docker was supposed to solve performance issues of VMs, debloating them. Instead, we got hypervisors or full VMs as hosts for Docker images, just to get the image as a de facto meta package manager to ship software.So for me, it can be convenient, but I have no idea what I am doing when adding make file like statements to a yml to run full containers just to run e.g. a web server with some dependecies. But the workflow for that was novell to me, who previously fought with ruby and python module installations on host system.",
     "parent": 45567241,
     "depth": 1
   },
@@ -188,6 +188,14 @@
     "by": "lloeki",
     "timeISO": "2025-10-14T05:46:44.000Z",
     "textPlain": "> There was one key innovation, which was Docker HubVagrant has had that for VMs long before.Dockerfiles and Docker Hub are directly inspired from Vagrantfiles and the Vagrant Box library",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45578747,
+    "by": "yohbho",
+    "timeISO": "2025-10-14T11:31:21.000Z",
+    "textPlain": "> Docker was easy to adopt as it did not change very much about how you used software.What?! Docker images should seperate the program from the data. Something casual image maintainers fail to adhere to.\nI find docker extreme hard to use for persistent state that is not a remote DB.It is even less secure than VMs (which seem to be like swiss chess if you try to break out). (Security-wise: rkt failed five years ago, BSD jails could do it better?)Also, Docker was supposed to solve performance issues of VMs, debloating them. Instead, we got hypervisors or full VMs as hosts for Docker images, just to get the image as a de facto meta package manager to ship software.So for me, it can be convenient, but I have no idea what I am doing when adding make file like statements to a yml to run full containers just to run e.g. a web server with some dependecies. But the workflow for that was novell to me, who previously fought with ruby and python module installations on host system.",
     "parent": 45567241,
     "depth": 1
   },
@@ -224,14 +232,6 @@
     "depth": 1
   },
   {
-    "id": 45578022,
-    "by": "kotaKat",
-    "timeISO": "2025-10-14T09:42:05.000Z",
-    "textPlain": "Containers happened because nobody knew what the hell they were doing and still have no clue what the hell they are doing. Software by the deranged for the deranged.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45572898,
     "by": "jmclnx",
     "timeISO": "2025-10-13T20:19:56.000Z",
@@ -244,6 +244,14 @@
     "by": "jcelerier",
     "timeISO": "2025-10-13T20:47:20.000Z",
     "textPlain": "For me the main reason to use containers is \"one-line install any linux distro userspace\". So much simpler than installing a dozen VirtualBox boxes to test $APP on various versions of ubuntu, debian, nixos, arch, fedora, suse, centos etc.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45578022,
+    "by": "kotaKat",
+    "timeISO": "2025-10-14T09:42:05.000Z",
+    "textPlain": "Containers happened because nobody knew what the hell they were doing and still have no clue what the hell they are doing. Software by the deranged for the deranged.",
     "parent": 45567241,
     "depth": 1
   },
@@ -264,22 +272,6 @@
     "depth": 1
   },
   {
-    "id": 45575071,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-10-14T01:00:32.000Z",
-    "textPlain": "Why it happened is not nearly as important as what it unveiled: that versioned immutable systems are the most powerful system design concept in history. Most people have not yet grasped what an insanely powerful concept it is. At some point in the future, maybe 50-100 years from now, someone will look back and say \"holy shit; deploying web apps are where this concept came from?\" I hope in my lifetime that people get it and start applying it to other system designs/components.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
-    "id": 45577120,
-    "by": "cyberax",
-    "timeISO": "2025-10-14T07:14:48.000Z",
-    "textPlain": "The article is just wrong. Before Docker, there was OpenVZ and Virtuozzo. They were used to provide cheaper \"dedicatd machine\" hosting back around 2005.Then the technology from OpenVZ slowly made its way into the mainline Linux, in the form of cgroups and namespaces. LWN called it a \"container puzzle\", with tens of moving pieces. And it was largely finished by early 2010-s.I built my own container system in 2012 that used cgroups to oversubscribe the RAM, with simple chroot-based file namespaces for isolation. We even used XFS projects (raise your hand if you know what this is!) for the disk quota management. I remember that I had to use systemtap to patch the kernel to be able to find out which process died as a result of the OOM killer, there were no standard ways to do that.We sold it as a part of our biotech startup to Illumina. Then we sold it again to Amazon as a part of another startup :)The genius of Docker was the layered overlayfs-based image building. This one simple innovation made it possible to build images in a constructive way, without having to waste half an hour for each minor change. I was floored with its simplicity and power when I first saw it.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45573681,
     "by": "IshKebab",
     "timeISO": "2025-10-13T21:45:15.000Z",
@@ -288,10 +280,10 @@
     "depth": 1
   },
   {
-    "id": 45573577,
-    "by": "lisbbb",
-    "timeISO": "2025-10-13T21:33:48.000Z",
-    "textPlain": "I loved the assertion that AI ate up all the budget and that K8s is now \"boring\" technology.  That's fine because it was getting pretty annoying with all the clone competitors for practically everything that were popping up every month!Do you use K8s?  No!  That's old!  I use Thrumba!  It's just a clone of K8s by some startup because people figured out that the easiest way to make gobs of money is/was to build platform products and then get people to use them.",
+    "id": 45575071,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-10-14T01:00:32.000Z",
+    "textPlain": "Why it happened is not nearly as important as what it unveiled: that versioned immutable systems are the most powerful system design concept in history. Most people have not yet grasped what an insanely powerful concept it is. At some point in the future, maybe 50-100 years from now, someone will look back and say \"holy shit; deploying web apps are where this concept came from?\" I hope in my lifetime that people get it and start applying it to other system designs/components.",
     "parent": 45567241,
     "depth": 1
   },
@@ -304,6 +296,22 @@
     "depth": 1
   },
   {
+    "id": 45577120,
+    "by": "cyberax",
+    "timeISO": "2025-10-14T07:14:48.000Z",
+    "textPlain": "The article is just wrong. Before Docker, there was OpenVZ and Virtuozzo. They were used to provide cheaper \"dedicatd machine\" hosting back around 2005.Then the technology from OpenVZ slowly made its way into the mainline Linux, in the form of cgroups and namespaces. LWN called it a \"container puzzle\", with tens of moving pieces. And it was largely finished by early 2010-s.I built my own container system in 2012 that used cgroups to oversubscribe the RAM, with simple chroot-based file namespaces for isolation. We even used XFS projects (raise your hand if you know what this is!) for the disk quota management. I remember that I had to use systemtap to patch the kernel to be able to find out which process died as a result of the OOM killer, there were no standard ways to do that.We sold it as a part of our biotech startup to Illumina. Then we sold it again to Amazon as a part of another startup :)The genius of Docker was the layered overlayfs-based image building. This one simple innovation made it possible to build images in a constructive way, without having to waste half an hour for each minor change. I was floored with its simplicity and power when I first saw it.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45573577,
+    "by": "lisbbb",
+    "timeISO": "2025-10-13T21:33:48.000Z",
+    "textPlain": "I loved the assertion that AI ate up all the budget and that K8s is now \"boring\" technology.  That's fine because it was getting pretty annoying with all the clone competitors for practically everything that were popping up every month!Do you use K8s?  No!  That's old!  I use Thrumba!  It's just a clone of K8s by some startup because people figured out that the easiest way to make gobs of money is/was to build platform products and then get people to use them.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
     "id": 45572793,
     "by": "all2",
     "timeISO": "2025-10-13T20:08:43.000Z",
@@ -312,18 +320,18 @@
     "depth": 1
   },
   {
-    "id": 45576866,
-    "by": "ksk23",
-    "timeISO": "2025-10-14T06:26:31.000Z",
-    "textPlain": "I love boring.",
-    "parent": 45567241,
-    "depth": 1
-  },
-  {
     "id": 45575987,
     "by": "forrestthewoods",
     "timeISO": "2025-10-14T03:34:03.000Z",
     "textPlain": "Containers were invented because Linux is incapable of reliably running software programs. The global pool of shared libraries is an abject failure and containers are a heavy handed workaround.",
+    "parent": 45567241,
+    "depth": 1
+  },
+  {
+    "id": 45576866,
+    "by": "ksk23",
+    "timeISO": "2025-10-14T06:26:31.000Z",
+    "textPlain": "I love boring.",
     "parent": 45567241,
     "depth": 1
   },
@@ -352,27 +360,11 @@
     "depth": 1
   },
   {
-    "id": 45579316,
-    "by": "DanielHB",
-    "timeISO": "2025-10-14T12:38:25.000Z",
-    "textPlain": "I remember hearing about all the support from Intel for \"0-cost\" virtualization at the hardware level way before I heard about containers. From what I remember it was mostly to speed up virtual machines (VMWare stuff). It was a massive market differentiator for Intel in the server space.I vaguely remember having to turn on some features in VirtualBox at the time to speed up my VMs, it was a massive uplift in performance if you had a CPU that supported it.",
-    "parent": 45577890,
-    "depth": 2
-  },
-  {
-    "id": 45578743,
-    "by": "bayindirh",
-    "timeISO": "2025-10-14T11:31:03.000Z",
-    "textPlain": "I believe BSD Jails created a \"Why don't we have this under Linux\" feeling as well.",
-    "parent": 45577890,
-    "depth": 2
-  },
-  {
-    "id": 45579013,
-    "by": "rmoriz",
-    "timeISO": "2025-10-14T12:02:56.000Z",
-    "textPlain": "To my knowledge the very first appearance was the \"ctx\" kernel patches project by linux-vserver.org by Herbert Pötzl et al. https://web.archive.org/web/20250307173707/http://linux-vser... (sadly, the domain seems to be expired just recently)I used it heavily back in the days, long before kernel namespaces went upstream and docker became a thing.",
-    "parent": 45577890,
+    "id": 45579809,
+    "by": "jiggunjer",
+    "timeISO": "2025-10-14T13:30:23.000Z",
+    "textPlain": "That's two words. How about \"deterministic\".",
+    "parent": 45579687,
     "depth": 2
   },
   {
@@ -388,6 +380,14 @@
     "by": "bombcar",
     "timeISO": "2025-10-13T20:46:08.000Z",
     "textPlain": "Is that why containers started? I seem to recall them taking off because of dependency hell, back in the weird time when easy virtualization wasn't insanely available to everyone.Trying to get the versions of software you needed to use all running on the same server was an exercise in fiddling.",
+    "parent": 45573067,
+    "depth": 2
+  },
+  {
+    "id": 45573087,
+    "by": "tptacek",
+    "timeISO": "2025-10-13T20:38:45.000Z",
+    "textPlain": "This makes sense if you look at containers as simply a means to an end of setting up a sandbox, but not really much sense at all if you think of containers as a way to make it easy to get an arbitrary application up and running on an arbitrary server without altering host system dependencies.",
     "parent": 45573067,
     "depth": 2
   },
