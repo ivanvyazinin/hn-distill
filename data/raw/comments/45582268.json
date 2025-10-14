@@ -1,9 +1,9 @@
 [
   {
-    "id": 45583466,
-    "by": "yogishbaliga",
-    "timeISO": "2025-10-14T18:54:35.000Z",
-    "textPlain": "Way back in time, I used delta encoding for storing posting list (inverted index for search index). I experimented with using GPUs for decoding the posting list. It turned out that, as another reply mentioned copying posting list from CPU memory to GPU memory was taking way too long. If posting list is static, it can be copied to GPU memory once. This will make the decoding faster. But still there is a bottle neck of copying the result back into CPU memory.Nvidia's unified memory architecture may make it better as same memory can be shared between CPU and GPU.",
+    "id": 45585292,
+    "by": "jasonthorsness",
+    "timeISO": "2025-10-14T21:34:48.000Z",
+    "textPlain": "\"We achieve 19.8 GB/s prefix sum throughput—1.8x faster than a naive implementation and 2.6x faster than FastPFoR\"\"FastPFoR is well-established in both industry and academia. However, on our target platform (Graviton4, SIMDe-compiled) it benchmarks at only ~7.7 GB/s, beneath a naive scalar loop at ~10.8 GB/s.\"I thought the first bit was a typo but it was correct; the naive approach was faster than a \"better\" method. Another demonstration of how actually benchmarking  on the target platform is important!",
     "parent": 45582268,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "Galanwe",
     "timeISO": "2025-10-14T19:31:56.000Z",
     "textPlain": "While the results look impressive, I can't help but think \"yeah but had you stored an absolute value every X deltas instead of just a stream of deltas, you would have had a perfectly scalable parallel decoding\"",
+    "parent": 45582268,
+    "depth": 1
+  },
+  {
+    "id": 45583466,
+    "by": "yogishbaliga",
+    "timeISO": "2025-10-14T18:54:35.000Z",
+    "textPlain": "Way back in time, I used delta encoding for storing posting list (inverted index for search index). I experimented with using GPUs for decoding the posting list. It turned out that, as another reply mentioned copying posting list from CPU memory to GPU memory was taking way too long. If posting list is static, it can be copied to GPU memory once. This will make the decoding faster. But still there is a bottle neck of copying the result back into CPU memory.Nvidia's unified memory architecture may make it better as same memory can be shared between CPU and GPU.",
     "parent": 45582268,
     "depth": 1
   },
@@ -32,30 +40,6 @@
     "depth": 1
   },
   {
-    "id": 45584525,
-    "by": "hughw",
-    "timeISO": "2025-10-14T20:37:48.000Z",
-    "textPlain": "The shared memory architecture doesn't eliminate copying the data across to the device. Edit: or back.",
-    "parent": 45583466,
-    "depth": 2
-  },
-  {
-    "id": 45583498,
-    "by": "Certhas",
-    "timeISO": "2025-10-14T18:58:25.000Z",
-    "textPlain": "AMD has had unified memory for ages in HPC and for a while now in the Strix Halo systems. I haven't had the chance to play with one yet, but I have high hopes for some of our complex simulation workloads.",
-    "parent": 45583466,
-    "depth": 2
-  },
-  {
-    "id": 45583550,
-    "by": "ashtonsix",
-    "timeISO": "2025-10-14T19:04:18.000Z",
-    "textPlain": "Oh neat. I have some related unpublished SOTA results I want to release soon: PEF/BIC-like compression ratios, with faster boolean algebra than Roaring Bitsets.",
-    "parent": 45583466,
-    "depth": 2
-  },
-  {
     "id": 45584100,
     "by": "ashtonsix",
     "timeISO": "2025-10-14T20:00:36.000Z",
@@ -72,11 +56,27 @@
     "depth": 2
   },
   {
-    "id": 45584118,
-    "by": "mananaysiempre",
-    "timeISO": "2025-10-14T20:02:46.000Z",
-    "textPlain": "SIMD intrinsics are less C and more assembly with overlong mnemonics and a register allocator, so even reading them is something of a separate skill. Unlike the skill of achieving meaningful speedups by writing them (i.e. low-level optimization), it’s nothing special, but expect to spend a lot of time jumping between the code and the reference manuals[1,2] at first.[1] https://www.intel.com/content/www/us/en/docs/intrinsics-guid...[2] https://developer.arm.com/architectures/instruction-sets/int...",
-    "parent": 45583017,
+    "id": 45583498,
+    "by": "Certhas",
+    "timeISO": "2025-10-14T18:58:25.000Z",
+    "textPlain": "AMD has had unified memory for ages in HPC and for a while now in the Strix Halo systems. I haven't had the chance to play with one yet, but I have high hopes for some of our complex simulation workloads.",
+    "parent": 45583466,
+    "depth": 2
+  },
+  {
+    "id": 45584525,
+    "by": "hughw",
+    "timeISO": "2025-10-14T20:37:48.000Z",
+    "textPlain": "The shared memory architecture doesn't eliminate copying the data across to the device. Edit: or back.",
+    "parent": 45583466,
+    "depth": 2
+  },
+  {
+    "id": 45583550,
+    "by": "ashtonsix",
+    "timeISO": "2025-10-14T19:04:18.000Z",
+    "textPlain": "Oh neat. I have some related unpublished SOTA results I want to release soon: PEF/BIC-like compression ratios, with faster boolean algebra than Roaring Bitsets.",
+    "parent": 45583466,
     "depth": 2
   },
   {
@@ -84,6 +84,14 @@
     "by": "ashtonsix",
     "timeISO": "2025-10-14T18:13:13.000Z",
     "textPlain": "The weirdness probably comes from heavy use of \"SIMD intrinsics\" (Googleable term). These are functions with a 1:1 correspondence to assembly instructions, used for processing multiple values per instruction.",
+    "parent": 45583017,
+    "depth": 2
+  },
+  {
+    "id": 45584118,
+    "by": "mananaysiempre",
+    "timeISO": "2025-10-14T20:02:46.000Z",
+    "textPlain": "SIMD intrinsics are less C and more assembly with overlong mnemonics and a register allocator, so even reading them is something of a separate skill. Unlike the skill of achieving meaningful speedups by writing them (i.e. low-level optimization), it’s nothing special, but expect to spend a lot of time jumping between the code and the reference manuals[1,2] at first.[1] https://www.intel.com/content/www/us/en/docs/intrinsics-guid...[2] https://developer.arm.com/architectures/instruction-sets/int...",
     "parent": 45583017,
     "depth": 2
   },
