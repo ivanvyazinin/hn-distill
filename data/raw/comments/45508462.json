@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45586287,
-    "by": "crazygringo",
-    "timeISO": "2025-10-14T23:37:34.000Z",
-    "textPlain": "While I understand that you could do this, I genuinely don't understand why.SQLite and Postgres/MySQL/etc. occupy different niches. If you need massive concurrent writes, surely that's what Postgres/MySQL/etc. is for? Their engines are built around that from the ground up.SQLite is built around a file that stores data for a single application, as opposed to being client-server with many clients. I've used it a ton for that, but the idea that your application would have so many threads needing to write concurrently that it would be slowed down by a file lock... just doesn't make sense to me.What applications need this, and why wouldn't they use Postgres/MySQL/etc. if they need such a high level of concurrent performance? This feels like trying to adapt a small sports car to tow a semi-trailer. It doesn't seem like it's what it's meant for.",
-    "parent": 45508462,
-    "depth": 1
-  },
-  {
     "id": 45583901,
     "by": "tracker1",
     "timeISO": "2025-10-14T19:40:59.000Z",
     "textPlain": "Kind of cool to see work on this.  I do hope that the final db file result is still binary compatible with SQLite 3 in whatever direction Turso moves towards though... Rust or not.I've been advocating with several projects over recent years to get SQLite3 as an archive/export/interchange format for data. Need to archive 2019 data from the database, dump it into a SQLite db with roughly the same schema...  Need to pass multiple CSVs worth of data dumps, use a SQLite file instead.As a secondary, I wonder if it's possible to actively use a SQLite interface against a database file on S3, assuming a single server/instance is the actual active connection.",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
+    "id": 45586287,
+    "by": "crazygringo",
+    "timeISO": "2025-10-14T23:37:34.000Z",
+    "textPlain": "While I understand that you could do this, I genuinely don't understand why.SQLite and Postgres/MySQL/etc. occupy different niches. If you need massive concurrent writes, surely that's what Postgres/MySQL/etc. is for? Their engines are built around that from the ground up.SQLite is built around a file that stores data for a single application, as opposed to being client-server with many clients. I've used it a ton for that, but the idea that your application would have so many threads needing to write concurrently that it would be slowed down by a file lock... just doesn't make sense to me.What applications need this, and why wouldn't they use Postgres/MySQL/etc. if they need such a high level of concurrent performance? This feels like trying to adapt a small sports car to tow a semi-trailer. It doesn't seem like it's what it's meant for.",
     "parent": 45508462,
     "depth": 1
   },
@@ -104,10 +104,34 @@
     "depth": 2
   },
   {
-    "id": 45587648,
-    "by": "solarkraft",
-    "timeISO": "2025-10-15T02:58:40.000Z",
-    "textPlain": "Why not take something that’s great and make it support more use cases? People are doing it the other way around too: https://pglite.dev/",
+    "id": 45585679,
+    "by": "ncruces",
+    "timeISO": "2025-10-14T22:11:56.000Z",
+    "textPlain": "SQLite directly against S3 is workable if you mean querying a read-only database.For example, from Go, you could use my driver, and point it to a database file stored in S3 using this: https://pkg.go.dev/github.com/ncruces/go-sqlite3/vfs/readerv...For read-write it's a terrible idea. Object storage assumes objects are immutable. There may be some support for appends, but modifying the middle of an object in place involves copying the entire thing.What is on the verge of becoming viable is to use Litestream to do asynchronous replication to S3, and have read replicas that stream the data directly from S3. But what's stored in S3 isn't a database file, but a format created for the purpose called LTX.",
+    "parent": 45583901,
+    "depth": 2
+  },
+  {
+    "id": 45585010,
+    "by": "simonw",
+    "timeISO": "2025-10-14T21:14:36.000Z",
+    "textPlain": "SQLite against S3 can work with some clever tricks. The neatest version of that I've seen is still this WebAssembly one: https://phiresky.github.io/blog/2021/hosting-sqlite-database...I also got sqlite-s3vfs working from Python a few months ago: https://simonwillison.net/2025/Feb/7/sqlite-s3vfs/Both of these are very much read-only mechanisms though.",
+    "parent": 45583901,
+    "depth": 2
+  },
+  {
+    "id": 45585401,
+    "by": "huntaub",
+    "timeISO": "2025-10-14T21:44:21.000Z",
+    "textPlain": "> As a secondary, I wonder if it's possible to actively use a SQLite interface against a database file on S3, assuming a single server/instance is the actual active connection.You could achieve this today using one of the many adapters that turn S3 into a file system, without needing to wait for any SQLite buy in.",
+    "parent": 45583901,
+    "depth": 2
+  },
+  {
+    "id": 45586870,
+    "by": "zeroq",
+    "timeISO": "2025-10-15T01:00:25.000Z",
+    "textPlain": "I'll give you an example of what I'm doing with SQLite.I have an app that organizes my movie collection. I use IMDB public datasets as data source. Because versioning is hard, data changes over time (remember who directed Matrix?) it's just easier to rebuild the database every time.A naive import of datasets is ~131M inserts.\nIt takes 10 minutes (of which 100M takes exactly 6 minutes). Another 10 minutes to further clean up the data, set up indexes, optimize and vacuum.It's fine for the use case, but still it would be nicer to be able to achieve that in half the time.The app has no dependencies, database is a single file I can store on S3 and with a little bit of magic use it as a real database - meaning I can run a complex queries over http on that whole database and exchange 50kb.The client is a standalone HTML file with some JS. No need of server for client, no need for hosting for server except of that S3 bucket.Sure, it's definitely a niche application, but, at least for me, it makes perfect sense. Start your app with zero deps and add only what you really need. There's too much projects that start with google-esque architecture, with plenty of microservices, only to reach MVP with technical debt the size of US treasury.",
     "parent": 45586287,
     "depth": 2
   },
@@ -120,10 +144,10 @@
     "depth": 2
   },
   {
-    "id": 45586870,
-    "by": "zeroq",
-    "timeISO": "2025-10-15T01:00:25.000Z",
-    "textPlain": "I'll give you an example of what I'm doing with SQLite.I have an app that organizes my movie collection. I use IMDB public datasets as data source. Because versioning is hard, data changes over time (remember who directed Matrix?) it's just easier to rebuild the database every time.A naive import of datasets is ~131M inserts.\nIt takes 10 minutes (of which 100M takes exactly 6 minutes). Another 10 minutes to further clean up the data, set up indexes, optimize and vacuum.It's fine for the use case, but still it would be nicer to be able to achieve that in half the time.The app has no dependencies, database is a single file I can store on S3 and with a little bit of magic use it as a real database - meaning I can run a complex queries over http on that whole database and exchange 50kb.The client is a standalone HTML file with some JS. No need of server for client, no need for hosting for server except of that S3 bucket.Sure, it's definitely a niche application, but, at least for me, it makes perfect sense. Start your app with zero deps and add only what you really need. There's too much projects that start with google-esque architecture, with plenty of microservices, only to reach MVP with technical debt the size of US treasury.",
+    "id": 45587648,
+    "by": "solarkraft",
+    "timeISO": "2025-10-15T02:58:40.000Z",
+    "textPlain": "Why not take something that’s great and make it support more use cases? People are doing it the other way around too: https://pglite.dev/",
     "parent": 45586287,
     "depth": 2
   },
@@ -133,30 +157,6 @@
     "timeISO": "2025-10-15T00:53:36.000Z",
     "textPlain": "Agreed, Sqlite docs specifically state that its not designed for this, or rather that the solution isn't appropriate, that database as a service is appropriate when you want multiple clients writing.The entire \"problem\" is a side-effect of using the wrong tool for the job.",
     "parent": 45586287,
-    "depth": 2
-  },
-  {
-    "id": 45585010,
-    "by": "simonw",
-    "timeISO": "2025-10-14T21:14:36.000Z",
-    "textPlain": "SQLite against S3 can work with some clever tricks. The neatest version of that I've seen is still this WebAssembly one: https://phiresky.github.io/blog/2021/hosting-sqlite-database...I also got sqlite-s3vfs working from Python a few months ago: https://simonwillison.net/2025/Feb/7/sqlite-s3vfs/Both of these are very much read-only mechanisms though.",
-    "parent": 45583901,
-    "depth": 2
-  },
-  {
-    "id": 45585679,
-    "by": "ncruces",
-    "timeISO": "2025-10-14T22:11:56.000Z",
-    "textPlain": "SQLite directly against S3 is workable if you mean querying a read-only database.For example, from Go, you could use my driver, and point it to a database file stored in S3 using this: https://pkg.go.dev/github.com/ncruces/go-sqlite3/vfs/readerv...For read-write it's a terrible idea. Object storage assumes objects are immutable. There may be some support for appends, but modifying the middle of an object in place involves copying the entire thing.What is on the verge of becoming viable is to use Litestream to do asynchronous replication to S3, and have read replicas that stream the data directly from S3. But what's stored in S3 isn't a database file, but a format created for the purpose called LTX.",
-    "parent": 45583901,
-    "depth": 2
-  },
-  {
-    "id": 45585401,
-    "by": "huntaub",
-    "timeISO": "2025-10-14T21:44:21.000Z",
-    "textPlain": "> As a secondary, I wonder if it's possible to actively use a SQLite interface against a database file on S3, assuming a single server/instance is the actual active connection.You could achieve this today using one of the many adapters that turn S3 into a file system, without needing to wait for any SQLite buy in.",
-    "parent": 45583901,
     "depth": 2
   },
   {
