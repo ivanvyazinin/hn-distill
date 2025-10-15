@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 45586626,
+    "by": "adzm",
+    "timeISO": "2025-10-15T00:25:55.000Z",
+    "textPlain": "How does the mvcc / row versioning changes that accumulate get shared among multiple processes? Is it another file like the WAL file? Or is it just local memory as part of the client? I guess with everything having to commit or entirely roll back at the end, it doesn't need to be shared.How does this compare with hctree then? It sounds similar, both using an MVCC model.Really cool though, love the technical details and would be interested to see further. I feel like there is certainly a space for sqlite+fancier features. Though it would break backwards compatibility, I've always wondered what kind of performance gains could be had by using a different varint implementation. And enforcing or always using \"strict\" for smarter column layouts.Also would be really cool to have indexed views.And columnstore seems like a logical direction as well.",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
     "id": 45585186,
     "by": "spiffytech",
     "timeISO": "2025-10-14T21:26:28.000Z",
     "textPlain": "Don't forget that the SQLite team is working on their own multi-writer mode that blows BEGIN CONCURRENT' out of the water: https://news.ycombinator.com/item?id=34434025Though this stuff moves slowly (that announcement was almost 3 years ago!), so I'm glad to see Turso giving us options today.",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
+    "id": 45586287,
+    "by": "crazygringo",
+    "timeISO": "2025-10-14T23:37:34.000Z",
+    "textPlain": "While I understand that you could do this, I genuinely don't understand why.SQLite and Postgres/MySQL/etc. occupy different niches. If you need massive concurrent writes, surely that's what Postgres/MySQL/etc. is for? Their engines are built around that from the ground up.SQLite is built around a file that stores data for a single application, as opposed to being client-server with many clients. I've used it a ton for that, but the idea that your application would have so many threads needing to write concurrently that it would be slowed down by a file lock... just doesn't make sense to me.What applications need this, and why wouldn't they use Postgres/MySQL/etc. if they need such a high level of concurrent performance? This feels like trying to adapt a small sports car to tow a semi-trailer. It doesn't seem like it's what it's meant for.",
     "parent": 45508462,
     "depth": 1
   },
@@ -24,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45586209,
+    "by": "rvitorper",
+    "timeISO": "2025-10-14T23:27:35.000Z",
+    "textPlain": "Even in the “low-performing” zone of the single threaded SQLite and Turso, we are still talking about 50k rows per second and 1000 microseconds, aka 1 ms. It is insanely fast. 1ms is just the round-trip for my Postgres on RDS. It is amazing that SQLite is so awesome. I understand it is not for every use-case, but still awesome",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
     "id": 45585084,
     "by": "asfs4fsdfadf",
     "timeISO": "2025-10-14T21:20:52.000Z",
     "textPlain": "Can someone explain what \"ecological niche\" this new Turso DB occupies in between SQLite and Postgres?",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
+    "id": 45586435,
+    "by": "jauntywundrkind",
+    "timeISO": "2025-10-14T23:59:51.000Z",
+    "textPlain": "Very excellent to see the embedded DB in the browser link at the bottom. https://shell.turso.tech/I've been thinking Turso in the browser would be some eventual addition, is something the Rust rewrite would eventually unlock. And that would require considerable extra backing to make go. But here it is now!",
     "parent": 45508462,
     "depth": 1
   },
@@ -48,6 +80,22 @@
     "depth": 1
   },
   {
+    "id": 45586839,
+    "by": "silvaadrian",
+    "timeISO": "2025-10-15T00:56:48.000Z",
+    "textPlain": "[dead]",
+    "parent": 45508462,
+    "depth": 1
+  },
+  {
+    "id": 45586174,
+    "by": "kgwxd",
+    "timeISO": "2025-10-14T23:23:12.000Z",
+    "textPlain": "Joins and Transactions are a pretty big part of SQL. I'm no expert, but if my quick search results are right, both are lost in the separate file per table scenario.",
+    "parent": 45584914,
+    "depth": 2
+  },
+  {
     "id": 45585236,
     "by": "simonw",
     "timeISO": "2025-10-14T21:30:18.000Z",
@@ -56,11 +104,19 @@
     "depth": 2
   },
   {
-    "id": 45585679,
-    "by": "ncruces",
-    "timeISO": "2025-10-14T22:11:56.000Z",
-    "textPlain": "SQLite directly against S3 is workable if you mean querying a read-only database.For example, from Go, you could use my driver, and point it to a database file stored in S3 using this: https://pkg.go.dev/github.com/ncruces/go-sqlite3/vfs/readerv...For read-write it's a terrible idea. Object storage assumes objects are immutable. There may be some support for appends, but modifying the middle of an object in place involves copying the entire thing.What is on the verge of becoming viable is to use Litestream to do asynchronous replication to S3, and have read replicas that stream the data directly from S3. But what's stored in S3 isn't a database file, but a format created for the purpose called LTX.",
-    "parent": 45583901,
+    "id": 45586870,
+    "by": "zeroq",
+    "timeISO": "2025-10-15T01:00:25.000Z",
+    "textPlain": "I'll give you an example of what I'm doing with SQLite.I have an app that organizes my movie collection. I use IMDB public datasets as data source. Because versioning is hard, data changes over time (remember who directed Matrix?) it's just easier to rebuild the database every time.A naive import of datasets is ~131M inserts.\nIt takes 10 minutes (of which 100M takes exactly 6 minutes). Another 10 minutes to further clean up the data, set up indexes, optimize and vacuum.It's fine for the use case, but still it would be nicer to be able to achieve that in half the time.The app has no dependencies, database is a single file I can store on S3 and with a little bit of magic use it as a real database - meaning I can run a complex queries over http on that whole database and exchange 50kb.The client is a standalone HTML file with some JS. No need of server for client, no need for hosting for server except of that S3 bucket.Sure, it's definitely a niche application, but, at least for me, it makes perfect sense. Start your app with zero deps and add only what you really need. There's too much projects that start with google-esque architecture, with plenty of microservices, only to reach MVP with technical debt the size of US treasury.",
+    "parent": 45586287,
+    "depth": 2
+  },
+  {
+    "id": 45586807,
+    "by": "Quarrelsome",
+    "timeISO": "2025-10-15T00:53:36.000Z",
+    "textPlain": "Agreed, Sqlite docs specifically state that its not designed for this, or rather that the solution isn't appropriate, that database as a service is appropriate when you want multiple clients writing.The entire \"problem\" is a side-effect of using the wrong tool for the job.",
+    "parent": 45586287,
     "depth": 2
   },
   {
@@ -68,6 +124,14 @@
     "by": "simonw",
     "timeISO": "2025-10-14T21:14:36.000Z",
     "textPlain": "SQLite against S3 can work with some clever tricks. The neatest version of that I've seen is still this WebAssembly one: https://phiresky.github.io/blog/2021/hosting-sqlite-database...I also got sqlite-s3vfs working from Python a few months ago: https://simonwillison.net/2025/Feb/7/sqlite-s3vfs/Both of these are very much read-only mechanisms though.",
+    "parent": 45583901,
+    "depth": 2
+  },
+  {
+    "id": 45585679,
+    "by": "ncruces",
+    "timeISO": "2025-10-14T22:11:56.000Z",
+    "textPlain": "SQLite directly against S3 is workable if you mean querying a read-only database.For example, from Go, you could use my driver, and point it to a database file stored in S3 using this: https://pkg.go.dev/github.com/ncruces/go-sqlite3/vfs/readerv...For read-write it's a terrible idea. Object storage assumes objects are immutable. There may be some support for appends, but modifying the middle of an object in place involves copying the entire thing.What is on the verge of becoming viable is to use Litestream to do asynchronous replication to S3, and have read replicas that stream the data directly from S3. But what's stored in S3 isn't a database file, but a format created for the purpose called LTX.",
     "parent": 45583901,
     "depth": 2
   },
@@ -85,6 +149,22 @@
     "timeISO": "2025-10-14T21:30:00.000Z",
     "textPlain": "TursoDB aims to be fully compatible with sqlite, so files you create with tursodb can be read by sqlite and vice-versa. Like sqlite, turso is in-process, so it runs alongside your application, which is quite different from postgres' client-server architecture.The only think turso has in common with postgres is mvcc, which is a rather standard concurrency control model across modern databases. Idk if I answered your question :)",
     "parent": 45585084,
+    "depth": 2
+  },
+  {
+    "id": 45586866,
+    "by": "glommer",
+    "timeISO": "2025-10-15T01:00:11.000Z",
+    "textPlain": "It's very easy to do given the async model. It is one of the new features that is working the best so far.",
+    "parent": 45586435,
+    "depth": 2
+  },
+  {
+    "id": 45586358,
+    "by": "glommer",
+    "timeISO": "2025-10-14T23:48:56.000Z",
+    "textPlain": "why not? Turso is a fully local database, you can just download the shell and use it as you would use sqlite.",
+    "parent": 45583589,
     "depth": 2
   },
   {
@@ -116,6 +196,14 @@
     "by": "Permik",
     "timeISO": "2025-10-14T21:27:45.000Z",
     "textPlain": "I'd still give them the benefit of the doubt as most (all?) of the contributors are Finns who you can almost guarantee to have a \"no bullshit\" type of mentality to essentially everything. And what I'd guess, the team most probably has quite an academic background because of the local culture.",
+    "parent": 45583607,
+    "depth": 2
+  },
+  {
+    "id": 45586331,
+    "by": "glommer",
+    "timeISO": "2025-10-14T23:45:21.000Z",
+    "textPlain": "Author of Turso here. Couple of points* You are right not to rush. You should keep using SQLite until Turso matures. Some use cases are more tolerant to new tech than others. It will take time for us to reach the level of trust SQLite has for broad use cases, but we are hoping to add value for some use cases right away. Never rush, tech matters!* I have never met Hipp, but only heard great things about him.* We never had a fight with SQLite over their contribution model (or about anything for that matter, I never even met Hipp or anybody else from SQLite). We just disagree with it - in the sense that we believe in different things. We don't think what they do is fundamentally wrong. Different projects take different paths.* We are not using the SQLite name. We compare ourselves to SQLite because we are file and API compatible, and we do aspire to raise the very high bar they have set. It is hard to do this without drawing the comparison, but we are a different project and state it very clearly. I am not a lawyer (and neither you seem to be), but we believe we are doing is okay. If we ever have any valid reason to believe we crossed a line here, we will of course change course.* We are not \"startup bros\". We spent 20+ years of our lives building databases and operating systems.",
     "parent": 45583607,
     "depth": 2
   }
