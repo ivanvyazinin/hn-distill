@@ -21,10 +21,9 @@ describe("digestHash", () => {
         timeISO: "2024-01-02T00:00:00.000Z",
       },
     ];
-    const updatedISO = "2024-01-01T00:00:00.000Z";
 
-    const hash1 = await digestHash(items, updatedISO);
-    const hash2 = await digestHash(items, updatedISO);
+    const hash1 = await digestHash(items);
+    const hash2 = await digestHash(items);
 
     expect(hash1).toBe(hash2);
     expect(hash1).toMatch(/^[0-9a-f]{64}$/u); // SHA256 hex string
@@ -49,15 +48,14 @@ describe("digestHash", () => {
         timeISO: "2024-01-01T00:00:00.000Z",
       },
     ];
-    const updatedISO = "2024-01-01T00:00:00.000Z";
 
-    const hash1 = await digestHash(items1, updatedISO);
-    const hash2 = await digestHash(items2, updatedISO);
+    const hash1 = await digestHash(items1);
+    const hash2 = await digestHash(items2);
 
     expect(hash1).not.toBe(hash2);
   });
 
-  test("should generate different hash for different updatedISO", async () => {
+  test("should generate same hash regardless of updatedISO (content-based only)", async () => {
     const items = [
       {
         id: 1,
@@ -68,14 +66,14 @@ describe("digestHash", () => {
       },
     ];
 
-    const hash1 = await digestHash(items, "2024-01-01T00:00:00.000Z");
-    const hash2 = await digestHash(items, "2024-01-02T00:00:00.000Z");
+    const hash1 = await digestHash(items);
+    const hash2 = await digestHash(items);
 
-    expect(hash1).not.toBe(hash2);
+    expect(hash1).toBe(hash2);
   });
 
   test("should handle empty items array", async () => {
-    const hash = await digestHash([], "2024-01-01T00:00:00.000Z");
+    const hash = await digestHash([]);
     expect(hash).toMatch(/^[0-9a-f]{64}$/u);
   });
 
@@ -99,8 +97,8 @@ describe("digestHash", () => {
       },
     ];
 
-    const hash1 = await digestHash(items1, "2024-01-01T00:00:00.000Z");
-    const hash2 = await digestHash(items2, "2024-01-01T00:00:00.000Z");
+    const hash1 = await digestHash(items1);
+    const hash2 = await digestHash(items2);
 
     expect(hash1).not.toBe(hash2);
   });

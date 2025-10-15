@@ -20,16 +20,14 @@ export class Telegram {
       text: p.text,
       parse_mode: p.parseMode ?? "HTML",
       disable_web_page_preview: p.disableWebPagePreview ?? true,
-      // eslint-disable-next-line @typescript-eslint/strict-boolean-expressions
       ...(p.disableNotification !== undefined && { disable_notification: p.disableNotification }),
-      ...(p.messageThreadId && { message_thread_id: p.messageThreadId }),
+      ...(p.messageThreadId !== undefined && p.messageThreadId !== 0 && { message_thread_id: p.messageThreadId }),
     };
 
     const response = await this.http.json<{ ok: boolean; result?: { message_id: number } }>(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
-      retryOnStatuses: [429],
     });
 
     if (!response.ok) {
@@ -111,10 +109,9 @@ export type SeenCache = {
   };
 };
 
-export async function digestHash(items: TelegramDigestItem[], updatedISO: string): Promise<string> {
+export async function digestHash(items: TelegramDigestItem[]): Promise<string> {
   const { createHash } = await import("node:crypto");
   const payload = {
-    updatedISO,
     ids: items.map((i: TelegramDigestItem) => i.id),
     titles: items.map((i: TelegramDigestItem) => i.title),
     summaries: items.map((i: TelegramDigestItem) => i.postSummary ?? i.commentsSummary ?? ""),
@@ -131,4 +128,72 @@ export async function readSeenCache(cachePath: string): Promise<SeenCache> {
 export async function writeSeenCache(cachePath: string, next: SeenCache): Promise<void> {
   const { writeJsonFile } = await import("@utils/json");
   await writeJsonFile(cachePath, next);
+}
+
+export type TelegramProgress = {
+  hash: string;
+  startedAt: string;
+  sentItems: Array<{ id: number; messageId: number; sentAt: string }>;
+};
+
+export async function readProgress(progressPath: string): Promise<TelegramProgress | undefined> {
+  const { readJsonSafeOr } = await import("@utils/json");
+  const { z } = await import("zod");
+  const schema = z.object({
+    hash: z.string(),
+    startedAt: z.string(),
+    sentItems: z.array(z.object({ id: z.number(), messageId: z.number(), sentAt: z.string() })),
+  });
+  type ResultType = TelegramProgress | undefined;
+  const fallback: ResultType = undefined;
+  return await readJsonSafeOr<ResultType>(progressPath, schema, fallback);
+}
+
+export async function writeProgress(progressPath: string, progress: TelegramProgress): Promise<void> {
+  const { writeJsonFile } = await import("@utils/json");
+  await writeJsonFile(progressPath, progress);
+}
+
+export async function deleteProgress(progressPath: string): Promise<void> {
+  try {
+    const { unlink } = await import("node:fs/promises");
+    await unlink(progressPath);
+  } catch {
+    // Ignore if file doesn't exist
+  }
+}
+
+export function parseTelegramError(errorMessage: string): { retryAfter?: number; description?: string } {
+  try {
+    const openBrace = errorMessage.indexOf("{");
+    const closeBrace = errorMessage.indexOf("}", openBrace);
+    if (openBrace !== -1 && closeBrace !== -1) {
+      const matchedJson = errorMessage.slice(openBrace, closeBrace + 1);
+      const parsed = JSON.parse(matchedJson) as { retry_after?: number; description?: string };
+      const result: { retryAfter?: number; description?: string } = {};
+      if (parsed.retry_after !== undefined) {
+        result.retryAfter = parsed.retry_after;
+      }
+      if (parsed.description !== undefined) {
+        result.description = parsed.description;
+      }
+      return result;
+    }
+  } catch {
+    // Fall back to regex
+  }
+
+  const retryAfterRegex = /"retry_after":?\s*(?<seconds>\d+)/u;
+  const match = retryAfterRegex.exec(errorMessage);
+  const result: { retryAfter?: number; description?: string } = {};
+  if (match?.groups) {
+    const { groups } = match;
+    if ("seconds" in groups) {
+      const { seconds } = groups;
+      if (seconds) {
+        result.retryAfter = Number.parseInt(seconds, 10);
+      }
+    }
+  }
+  return result;
 }

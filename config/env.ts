@@ -72,7 +72,9 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
-  TELEGRAM_MAX_ITEMS: z.coerce.number().int().min(1).max(20).default(10),
+  TELEGRAM_MAX_ITEMS: z.coerce.number().int().min(1).max(100).default(10),
+  TELEGRAM_MESSAGE_DELAY_MS: z.coerce.number().int().min(500).max(10_000).default(2000),
+  TELEGRAM_MAX_RATE_LIMIT_RETRIES: z.coerce.number().int().min(1).max(10).default(5),
   TELEGRAM_ENABLE: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
