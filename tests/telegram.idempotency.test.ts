@@ -4,7 +4,7 @@ import { unlinkSync, writeFileSync } from "node:fs";
 import { digestHash, readSeenCache, writeSeenCache } from "@utils/telegram";
 
 describe("digestHash", () => {
-  test("should generate consistent hash for same input", () => {
+  test("should generate consistent hash for same input", async () => {
     const items = [
       {
         id: 1,
@@ -23,14 +23,14 @@ describe("digestHash", () => {
     ];
     const updatedISO = "2024-01-01T00:00:00.000Z";
 
-    const hash1 = digestHash(items, updatedISO);
-    const hash2 = digestHash(items, updatedISO);
+    const hash1 = await digestHash(items, updatedISO);
+    const hash2 = await digestHash(items, updatedISO);
 
     expect(hash1).toBe(hash2);
     expect(hash1).toMatch(/^[0-9a-f]{64}$/u); // SHA256 hex string
   });
 
-  test("should generate different hash for different input", () => {
+  test("should generate different hash for different input", async () => {
     const items1 = [
       {
         id: 1,
@@ -51,13 +51,13 @@ describe("digestHash", () => {
     ];
     const updatedISO = "2024-01-01T00:00:00.000Z";
 
-    const hash1 = digestHash(items1, updatedISO);
-    const hash2 = digestHash(items2, updatedISO);
+    const hash1 = await digestHash(items1, updatedISO);
+    const hash2 = await digestHash(items2, updatedISO);
 
     expect(hash1).not.toBe(hash2);
   });
 
-  test("should generate different hash for different updatedISO", () => {
+  test("should generate different hash for different updatedISO", async () => {
     const items = [
       {
         id: 1,
@@ -68,18 +68,18 @@ describe("digestHash", () => {
       },
     ];
 
-    const hash1 = digestHash(items, "2024-01-01T00:00:00.000Z");
-    const hash2 = digestHash(items, "2024-01-02T00:00:00.000Z");
+    const hash1 = await digestHash(items, "2024-01-01T00:00:00.000Z");
+    const hash2 = await digestHash(items, "2024-01-02T00:00:00.000Z");
 
     expect(hash1).not.toBe(hash2);
   });
 
-  test("should handle empty items array", () => {
-    const hash = digestHash([], "2024-01-01T00:00:00.000Z");
+  test("should handle empty items array", async () => {
+    const hash = await digestHash([], "2024-01-01T00:00:00.000Z");
     expect(hash).toMatch(/^[0-9a-f]{64}$/u);
   });
 
-  test("should prioritize postSummary over commentsSummary", () => {
+  test("should prioritize postSummary over commentsSummary", async () => {
     const items1 = [
       {
         id: 1,
@@ -99,8 +99,8 @@ describe("digestHash", () => {
       },
     ];
 
-    const hash1 = digestHash(items1, "2024-01-01T00:00:00.000Z");
-    const hash2 = digestHash(items2, "2024-01-01T00:00:00.000Z");
+    const hash1 = await digestHash(items1, "2024-01-01T00:00:00.000Z");
+    const hash2 = await digestHash(items2, "2024-01-01T00:00:00.000Z");
 
     expect(hash1).not.toBe(hash2);
   });

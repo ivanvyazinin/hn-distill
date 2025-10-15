@@ -3,7 +3,7 @@ import { PATHS } from "@config/paths";
 import { HttpClient } from "@utils/http-client";
 import { loadAggregated } from "@utils/load-aggregated";
 import { log } from "@utils/log";
-import { Telegram, chunkTelegramText, digestHash, escapeHtml, readSeenCache, writeSeenCache } from "@utils/telegram";
+import { Telegram, digestHash, escapeHtml, readSeenCache, writeSeenCache } from "@utils/telegram";
 
 import type { AggregatedItem } from "@config/schemas";
 
@@ -29,11 +29,8 @@ async function main(): Promise<void> {
   // Select and prepare items for digest
   const items = pickTop(aggregated.items, env.TELEGRAM_MAX_ITEMS);
 
-  // Build message content
-  const message = buildMessage(items, aggregated.updatedISO);
-
   // Check idempotency
-  const hash = digestHash(items, aggregated.updatedISO);
+  const hash = await digestHash(items, aggregated.updatedISO);
   const seen = await readSeenCache(PATHS.seenCache);
 
   if (seen.telegram?.lastHash && hash === seen.telegram.lastHash) {
@@ -44,7 +41,6 @@ async function main(): Promise<void> {
   log.info("telegram", "Publishing new digest", {
     hash,
     itemCount: items.length,
-    messageLength: message.length,
   });
 
   // Initialize HTTP client and Telegram API
@@ -57,24 +53,36 @@ async function main(): Promise<void> {
 
   const telegram = new Telegram(http, env.TELEGRAM_BOT_TOKEN);
 
-  // Chunk message if needed and send
-  const chunks = chunkTelegramText(message);
+  // Build individual messages for each news item
+  const messages = buildMessages(items, aggregated.updatedISO);
   const messageIds: number[] = [];
 
-  for (let i = 0; i < chunks.length; i++) {
-    const chunk = chunks[i];
-    if (!chunk) {
-      throw new Error(`Chunk ${i} is undefined`);
+  for (let i = 0; i < messages.length; i++) {
+    let message = messages[i];
+    if (!message) {
+      throw new Error(`Message ${i} is undefined`);
     }
 
-    log.debug("telegram", `Sending chunk ${i + 1}/${chunks.length}`, {
-      chunkLength: chunk.length,
+    // Check Telegram message length limit (4096 characters)
+    const TELEGRAM_LIMIT = 4096;
+    if (message.length > TELEGRAM_LIMIT) {
+      log.warn("telegram", `Message ${i + 1} exceeds Telegram limit, truncating`, {
+        originalLength: message.length,
+        limit: TELEGRAM_LIMIT,
+      });
+      // Truncate to fit within limit, trying to end at a sentence or word boundary
+      message = message.slice(0, TELEGRAM_LIMIT - 3) + "...";
+    }
+
+    log.debug("telegram", `Sending news item ${i + 1}/${messages.length}`, {
+      messageLength: message.length,
+      title: items[i]?.title?.slice(0, 50) + (items[i]?.title?.length > 50 ? "..." : ""),
     });
 
     try {
       const messageId = await telegram.sendMessage({
         chatId: env.TELEGRAM_CHAT_ID,
-        text: chunk,
+        text: message,
         parseMode: "HTML",
         disableWebPagePreview: true,
         disableNotification: env.TELEGRAM_DISABLE_NOTIFICATIONS,
@@ -83,12 +91,12 @@ async function main(): Promise<void> {
 
       messageIds.push(messageId);
 
-      // Add delay between chunks to be conservative
-      if (i < chunks.length - 1) {
+      // Add delay between messages to be conservative
+      if (i < messages.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
     } catch (error) {
-      log.error("telegram", "Failed to send message chunk", { error, chunkIndex: i });
+      log.error("telegram", "Failed to send news item", { error, itemIndex: i, title: items[i]?.title });
       throw error;
     }
   }
@@ -106,7 +114,7 @@ async function main(): Promise<void> {
 
   log.info("telegram", "Digest published successfully", {
     messageIds,
-    chunksSent: chunks.length,
+    messagesSent: messages.length,
   });
 }
 
@@ -148,7 +156,7 @@ function pickTop(
   }>;
 }
 
-function buildMessage(
+function buildMessages(
   items: Array<{
     id: number;
     title: string;
@@ -160,19 +168,17 @@ function buildMessage(
     timeISO: string;
   }>,
   updatedISO: string
-): string {
+): string[] {
   const dateFormatter = new Intl.DateTimeFormat(env.SUMMARY_LANG, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
-  const header = `🧾 HN digest — ${dateFormatter.format(new Date(updatedISO))}`;
+  const header = `🧾 HN — ${dateFormatter.format(new Date(updatedISO))}\n\n`;
 
-  const itemLines = items.map((item) => {
+  return items.map((item) => {
     // Prefer postSummary, fallback to commentsSummary, or empty string
     const summary = item.postSummary ?? item.commentsSummary ?? "";
-    // Truncate summary to ~240 chars to control message size
-    const truncatedSummary = summary.length > 240 ? `${summary.slice(0, 240)}...` : summary;
 
     // Build canonical URL: prefer site page if SITE is set, else external URL or HN URL
     const itemLink = env.SITE ? `${env.SITE.replace(/\/$/u, "")}/item/${item.id}` : item.url ?? item.hnUrl ?? "";
@@ -180,11 +186,12 @@ function buildMessage(
     const domainText = item.domain ? ` (${item.domain})` : "";
     const hnLink = item.hnUrl ? ` · <a href="${item.hnUrl}">HN</a>` : "";
 
-    const line = `• <b>${escapeHtml(item.title)}</b>${domainText}\n  <a href="${itemLink}">Read</a>${hnLink}`;
-    return truncatedSummary ? `${line}\n${escapeHtml(truncatedSummary)}` : line;
-  });
+    const titleLine = `<b>${escapeHtml(item.title)}</b>${domainText}`;
+    const linkLine = `  <a href="${itemLink}">Read</a>${hnLink}`;
+    const summaryLine = summary ? `\n\n${escapeHtml(summary)}` : "";
 
-  return [header, ...itemLines].join("\n\n");
+    return `${header}${titleLine}\n${linkLine}${summaryLine}`;
+  });
 }
 
 // Run main function and handle errors

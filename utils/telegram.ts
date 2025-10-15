@@ -111,16 +111,14 @@ export type SeenCache = {
   };
 };
 
-export function digestHash(items: TelegramDigestItem[], updatedISO: string): string {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef, @typescript-eslint/no-unsafe-assignment
-  const { createHash } = require("node:crypto");
+export async function digestHash(items: TelegramDigestItem[], updatedISO: string): Promise<string> {
+  const { createHash } = await import("node:crypto");
   const payload = {
     updatedISO,
     ids: items.map((i: TelegramDigestItem) => i.id),
     titles: items.map((i: TelegramDigestItem) => i.title),
     summaries: items.map((i: TelegramDigestItem) => i.postSummary ?? i.commentsSummary ?? ""),
   };
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 

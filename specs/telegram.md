@@ -1,8 +1,8 @@
-# Plan: Telegram digest integration for hourly scheduler
+# Plan: Telegram news publication for hourly scheduler
 
 ## Scope decisions
 
-Add a **standalone post-aggregation script** `scripts/publish-telegram.mts` that reads `data/aggregated.json`, formats a digest, and posts to Telegram. Keep the aggregator unchanged to avoid side-effects on site output. Wire it into CI as a separate step after `make run`. Support idempotency via a small cache in `PATHS.seenCache`. Reuse `utils/http-client.ts` for Telegram API with existing retry/backoff.
+Add a **standalone post-aggregation script** `scripts/publish-telegram.mts` that reads `data/aggregated.json`, formats individual news messages, and posts to Telegram. Each news item is sent as a separate message (not as a digest). Keep the aggregator unchanged to avoid side-effects on site output. Wire it into CI as a separate step after `make run`. Support idempotency via a small cache in `PATHS.seenCache`. Reuse `utils/http-client.ts` for Telegram API with existing retry/backoff.
 
 ## Config & env
 
@@ -200,7 +200,9 @@ Entry-point that reads aggregated data, builds the digest, checks idempotency, a
 
 ## Message and formatting decisions
 
-Use `parse_mode="HTML"` to avoid MarkdownV2 escaping complexity. Escape user/content-derived text with `escapeHtml`. Disable link previews to keep messages compact and avoid rate-limiting on page fetches. Include both site link and HN link when available to drive traffic and provide context. Truncate summaries to a per-item limit to ensure the final message stays within 4096 characters and chunk when necessary.
+Use `parse_mode="HTML"` to avoid MarkdownV2 escaping complexity. Escape user/content-derived text with `escapeHtml`. Disable link previews to keep messages compact and avoid rate-limiting on page fetches. Include both site link and HN link when available to drive traffic and provide context.
+
+**Publication format:** Each news item is sent as a separate Telegram message (not grouped in a digest). Long messages are automatically truncated to fit within Telegram's 4096 character limit.
 
 ## Idempotency and duplicate avoidance
 
