@@ -197,3 +197,20 @@ export function parseTelegramError(errorMessage: string): { retryAfter?: number;
   }
   return result;
 }
+
+export type TelegramLedger = { sentIds: number[]; lastUpdatedISO?: string };
+
+export async function readTelegramLedger(path: string): Promise<TelegramLedger> {
+  const { readJsonSafeOr } = await import("@utils/json");
+  const { z } = await import("zod");
+  const schema = z.object({
+    sentIds: z.array(z.number()).default([]),
+    lastUpdatedISO: z.string().optional(),
+  });
+  return (await readJsonSafeOr(path, schema, { sentIds: [] })) as TelegramLedger;
+}
+
+export async function writeTelegramLedger(path: string, ledger: TelegramLedger): Promise<void> {
+  const { writeJsonFile } = await import("@utils/json");
+  await writeJsonFile(path, ledger);
+}

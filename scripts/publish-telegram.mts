@@ -13,6 +13,8 @@ import {
   parseTelegramError,
   readProgress,
   readSeenCache,
+  readTelegramLedger,
+  writeTelegramLedger,
   writeProgress,
   writeSeenCache,
 } from "@utils/telegram";
@@ -50,6 +52,9 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
+  // Read persistent ledger of sent IDs
+  const ledger = await readTelegramLedger(PATHS.telegramSent);
+
   // Check for existing progress from previous run
   const progressPath = join(PATHS.cache, "telegram-progress.json");
   let progress = await readProgress(progressPath);
@@ -64,8 +69,11 @@ async function main(): Promise<void> {
     progress = undefined;
   }
 
-  // Resume from progress or start fresh
-  const alreadySentIds = new Set(progress?.sentItems.map((item) => item.id) ?? []);
+  // Resume from progress or start fresh, using both local progress and persistent ledger
+  const alreadySentIds = new Set([
+    ...(progress?.sentItems.map((item) => item.id) ?? []),
+    ...(ledger.sentIds ?? []),
+  ]);
   const itemsToSend = items.filter((item) => !alreadySentIds.has(item.id));
 
   if (itemsToSend.length === 0 && progress !== undefined) {
@@ -83,7 +91,21 @@ async function main(): Promise<void> {
         sentAtISO: new Date().toISOString(),
       },
     });
+    // Update ledger even when resuming
+    const sentIdsThisRun = progress.sentItems.map((si) => si.id);
+    const nextIds = Array.from(new Set([...(ledger.sentIds ?? []), ...sentIdsThisRun]));
+    await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
     await deleteProgress(progressPath);
+    process.exit(0);
+  }
+
+  // If all items already sent (from ledger), skip early
+  if (itemsToSend.length === 0) {
+    log.info("telegram", "All items already sent (from ledger), skipping", {
+      hash,
+      totalItems: items.length,
+      ledgerSize: ledger.sentIds?.length ?? 0,
+    });
     process.exit(0);
   }
 
@@ -231,12 +253,18 @@ async function main(): Promise<void> {
     },
   });
 
+  // Update persistent ledger with all sent IDs
+  const sentIdsThisRun = progress.sentItems.map((si) => si.id);
+  const nextIds = Array.from(new Set([...(ledger.sentIds ?? []), ...sentIdsThisRun]));
+  await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
+
   await deleteProgress(progressPath);
 
   log.info("telegram", "Digest published successfully", {
     messageIds: allMessageIds,
     messagesSent: items.length,
     newlySent: messages.length,
+    totalSentEver: nextIds.length,
     hash,
   });
 }

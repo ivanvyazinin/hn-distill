@@ -10,6 +10,7 @@ export const PATHS = {
   aggregated: "data/aggregated.json",
   cache: "data/cache",
   seenCache: "data/cache/seen.json",
+  telegramSent: "data/telegram-sent.json",
   grouped: {
     daily: "data/by-date/daily.json",
     weekly: "data/by-date/weekly.json",
