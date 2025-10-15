@@ -74,3 +74,7 @@ local-test:
 .PHONY: cleanup
 cleanup:
 	bun run tsx scripts/cleanup.mts
+
+.PHONY: publish-telegram
+publish-telegram:
+	bun run tsx scripts/publish-telegram.mts

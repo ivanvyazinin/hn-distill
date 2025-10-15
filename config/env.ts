@@ -63,6 +63,20 @@ const EnvironmentSchema = z.object({
         : []
     )
     .optional(),
+
+  // Telegram publishing (optional)
+  TELEGRAM_BOT_TOKEN: z.string().optional(),
+  TELEGRAM_CHAT_ID: z.string().optional(), // channel @handle or numeric ID
+  TELEGRAM_MESSAGE_THREAD_ID: z.coerce.number().optional(), // topic ID for forum supergroups
+  TELEGRAM_DISABLE_NOTIFICATIONS: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
+  TELEGRAM_MAX_ITEMS: z.coerce.number().int().min(1).max(20).default(10),
+  TELEGRAM_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
 });
 
 export const env = EnvironmentSchema.parse(process.env);

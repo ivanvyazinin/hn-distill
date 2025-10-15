@@ -32,6 +32,20 @@ jobs:
           CONCURRENCY: ${{ vars.CONCURRENCY || 8 }}
         run: make run
 
+      - name: Publish Telegram digest
+        if: ${{ env.TELEGRAM_ENABLE == 'true' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
+        env:
+          TELEGRAM_ENABLE: ${{ vars.TELEGRAM_ENABLE || 'true' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || vars.TELEGRAM_CHAT_ID }}
+          TELEGRAM_MESSAGE_THREAD_ID: ${{ vars.TELEGRAM_MESSAGE_THREAD_ID }}
+          TELEGRAM_DISABLE_NOTIFICATIONS: ${{ vars.TELEGRAM_DISABLE_NOTIFICATIONS || 'true' }}
+          TELEGRAM_MAX_ITEMS: ${{ vars.TELEGRAM_MAX_ITEMS || 10 }}
+          HTTP_TIMEOUT_MS: ${{ vars.HTTP_TIMEOUT_MS || 15000 }}
+          HTTP_RETRIES: ${{ vars.HTTP_RETRIES || 3 }}
+          HTTP_BACKOFF_MS: ${{ vars.HTTP_BACKOFF_MS || 600 }}
+        run: make publish-telegram
+
       - name: Commit data
         run: |
           set -e
