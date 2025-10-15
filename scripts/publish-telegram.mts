@@ -54,7 +54,7 @@ async function main(): Promise<void> {
   const telegram = new Telegram(http, env.TELEGRAM_BOT_TOKEN);
 
   // Build individual messages for each news item
-  const messages = buildMessages(items, aggregated.updatedISO);
+  const messages = buildMessages(items);
   const messageIds: number[] = [];
 
   for (let i = 0; i < messages.length; i++) {
@@ -71,12 +71,13 @@ async function main(): Promise<void> {
         limit: TELEGRAM_LIMIT,
       });
       // Truncate to fit within limit, trying to end at a sentence or word boundary
-      message = message.slice(0, TELEGRAM_LIMIT - 3) + "...";
+      message = `${message.slice(0, TELEGRAM_LIMIT - 3)}...`;
     }
 
+    const item = items[i];
     log.debug("telegram", `Sending news item ${i + 1}/${messages.length}`, {
       messageLength: message.length,
-      title: items[i]?.title?.slice(0, 50) + (items[i]?.title?.length > 50 ? "..." : ""),
+      title: item ? `${item.title.slice(0, 50)}${item.title.length > 50 ? "..." : ""}` : "",
     });
 
     try {
@@ -166,16 +167,8 @@ function buildMessages(
     postSummary?: string;
     commentsSummary?: string;
     timeISO: string;
-  }>,
-  updatedISO: string
+  }>
 ): string[] {
-  const dateFormatter = new Intl.DateTimeFormat(env.SUMMARY_LANG, {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-
-  const header = `🧾 HN — ${dateFormatter.format(new Date(updatedISO))}\n\n`;
-
   return items.map((item) => {
     // Prefer postSummary, fallback to commentsSummary, or empty string
     const summary = item.postSummary ?? item.commentsSummary ?? "";
@@ -183,14 +176,20 @@ function buildMessages(
     // Build canonical URL: prefer site page if SITE is set, else external URL or HN URL
     const itemLink = env.SITE ? `${env.SITE.replace(/\/$/u, "")}/item/${item.id}` : item.url ?? item.hnUrl ?? "";
 
-    const domainText = item.domain ? ` (${item.domain})` : "";
-    const hnLink = item.hnUrl ? ` · <a href="${item.hnUrl}">HN</a>` : "";
+    // Build links section
+    const links: string[] = [];
+    if (itemLink) {
+      links.push(`<a href="${itemLink}">источник</a>`);
+    }
+    if (item.hnUrl) {
+      links.push(`<a href="${item.hnUrl}">комментарии на HN</a>`);
+    }
+    const linksLine = links.length > 0 ? `\n\n(${links.join(" | ")})` : "";
 
-    const titleLine = `<b>${escapeHtml(item.title)}</b>${domainText}`;
-    const linkLine = `  <a href="${itemLink}">Read</a>${hnLink}`;
+    const titleLine = `<b>${escapeHtml(item.title)}</b>`;
     const summaryLine = summary ? `\n\n${escapeHtml(summary)}` : "";
 
-    return `${header}${titleLine}\n${linkLine}${summaryLine}`;
+    return `${titleLine}${summaryLine}${linksLine}`;
   });
 }
 
