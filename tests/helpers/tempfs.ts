@@ -19,6 +19,11 @@ export function makeTmpPATHS(
   summaries: string;
   index: string;
   aggregated: string;
+  cache: string;
+  seenCache: string;
+  telegramSent: string;
+  grouped: { daily: string; weekly: string };
+  search: string;
 } {
   return {
     dataDir: base,
@@ -30,6 +35,14 @@ export function makeTmpPATHS(
     summaries: join(base, "summaries"),
     index: join(base, "index.json"),
     aggregated: join(base, "aggregated.json"),
+    cache: join(base, "cache"),
+    seenCache: join(base, "cache", "seen.json"),
+    telegramSent: join(base, "telegram-sent.json"),
+    grouped: {
+      daily: join(base, "by-date", "daily.json"),
+      weekly: join(base, "by-date", "weekly.json"),
+    },
+    search: join(base, "search.json"),
   };
 }
 
