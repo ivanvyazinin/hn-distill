@@ -1,7 +1,7 @@
 import { log } from "@utils/log";
 
-import type { HttpClient } from "./http-client";
 import type { z } from "zod";
+import type { HttpClient } from "./http-client";
 
 export type ChatMessage = {
   role: "assistant" | "system" | "user";
@@ -63,7 +63,7 @@ export class OpenRouter {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/hn-distill",
+        "HTTP-Referer": "https://hckr.top/",
         "X-Title": "hn-distill",
       },
       body: JSON.stringify({
@@ -109,7 +109,7 @@ export class OpenRouter {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://github.com/hn-distill",
+        "HTTP-Referer": "https://hckr.top/",
         "X-Title": "hn-distill",
       },
       body: requestBody,
