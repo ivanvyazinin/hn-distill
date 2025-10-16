@@ -79,8 +79,16 @@ const t = i18n[lang as "ru" | "en"];
       };
 
       // Prefer absolute root path (site uses absolute links); swap to base-aware if needed later.
-      const data = await fetch("/data/search.json").then((r) => (r.ok ? r.json() : []));
-      const rows = Array.isArray(data) ? data : [];
+      let rows = [];
+      try {
+        const response = await fetch("/data/search.json");
+        if (response.ok) {
+          const payload = await response.json();
+          rows = Array.isArray(payload) ? payload : [];
+        }
+      } catch {
+        rows = [];
+      }
 
       const tagCounts = new Map();
       for (const r of rows) {
