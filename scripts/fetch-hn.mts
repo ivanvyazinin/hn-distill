@@ -200,15 +200,15 @@ async function processCommentItem(
   }
   visitedThisRun.add(id);
 
-  allSeenByDepth[depth] ??= [];
-  allSeenByDepth[depth].push(id);
-
   const item = await fetchItem(services, id).catch(() => {
     // Ignore fetch errors and continue
   });
   if (!item || item.type !== "comment") {
     return;
   }
+
+  allSeenByDepth[depth] ??= [];
+  allSeenByDepth[depth].push(id);
 
   const kids = Array.isArray(item.kids) ? item.kids : [];
 

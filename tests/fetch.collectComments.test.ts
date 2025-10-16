@@ -156,4 +156,26 @@ describe("scripts/fetch-hn collectComments", () => {
     expect(allSeenByDepth[1]).toEqual([100]);
     expect(allSeenByDepth[2]).toEqual([5]);
   });
+
+  test("does not record seen entries when fetch fails", async () => {
+    const services = makeMockHttp({}) as unknown as Services;
+    const seenByDepth = { "2": [7] };
+
+    const { comments, allSeenByDepth } = await collectComments(services, [999], {
+      maxDepth: 3,
+      maxCount: 5,
+      concurrency: 1,
+      seenByDepth,
+    });
+
+    expect(comments).toEqual([]);
+    expect(allSeenByDepth).toEqual({});
+    expect(seenByDepth).toEqual({ "2": [7] });
+
+    const aggregated: Record<string, number[]> = {};
+    for (const [depth, ids] of Object.entries(allSeenByDepth)) {
+      aggregated[String(depth)] = [...new Set(ids)];
+    }
+    expect(aggregated).toEqual({});
+  });
 });
