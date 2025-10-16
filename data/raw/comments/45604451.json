@@ -1,9 +1,41 @@
 [
   {
+    "id": 45605412,
+    "by": "bogdanoff_2",
+    "timeISO": "2025-10-16T13:58:14.000Z",
+    "textPlain": "Asking here because it seems related: I'm trying to use cursor to work on a webapp. It gets frustrating because vanilla Cursor is \"coding blind\" and can't actually see the result of what it is doing, and whether or not it works.I ask it to fix something. It claims to know what the problem is, changes the code, and then claims it's fixed. I open app, and it's still broken. I have to continuously and way to often repeatedly tell it what it broken.Now, supposing I'm \"vibe coding\" and don't really care about the obvious fact that the AI doesn't actually know what it is doing, it's still frustrating that I have to be in the loop just to provide very basic information like that.Are there any agentic coding setups that allow the agent to interact with the app it's working on to check if it actually works?",
+    "parent": 45604451,
+    "depth": 1
+  },
+  {
+    "id": 45605169,
+    "by": "tnolet",
+    "timeISO": "2025-10-16T13:35:32.000Z",
+    "textPlain": "This is, as far as I understand, self healing ONLY if the name of a CSS class changes. Not for anything else. That seems like a very very very very narrow definition of \"self healing\": there are 9999 other subtle or not so subtle things that can change per session or per update version of a page.If you run this against let's say a typical e-commerce page where the navigation and all screen elements are super dynamic — user specific data, language etc. — this problems becomes even harder.",
+    "parent": 45604451,
+    "depth": 1
+  },
+  {
+    "id": 45605286,
+    "by": "simpaticoder",
+    "timeISO": "2025-10-16T13:47:36.000Z",
+    "textPlain": "Couldn't you solve this by having the agent do a first pass through a page and generate a (java)script that interacts with the interesting parts of the page, and then prepend the script (if it's short enough) or a list of entry points (if it's not) to the prompt such that subsequent interactions invoke the script rather than interact directly with the page?",
+    "parent": 45604451,
+    "depth": 1
+  },
+  {
     "id": 45604701,
     "by": "philo23",
     "timeISO": "2025-10-16T12:50:12.000Z",
     "textPlain": "Maybe this is a lack of understanding on my part, but this bit of the explanation sets off alarm bells for me:> Under the hood, we're building a client-sourced RAG for the DOM. An agent's first move on a page is to check a vector DB for a known \"map.\" ... This creates a wild side-effect: the system is self-healing for everyone. One person's failed automation accidentally fixes it for the next hundred users.I think I'd like to know exactly what kind of data is extracted from the DOM to build that shared map.",
+    "parent": 45604451,
+    "depth": 1
+  },
+  {
+    "id": 45605410,
+    "by": "arkmm",
+    "timeISO": "2025-10-16T13:58:08.000Z",
+    "textPlain": "Neat approach, but seems like the eventual goal of caching DOM maps for all users would be a privacy nightmare?",
     "parent": 45604451,
     "depth": 1
   },
@@ -16,11 +48,75 @@
     "depth": 1
   },
   {
+    "id": 45605574,
+    "by": "JimDabell",
+    "timeISO": "2025-10-16T14:10:54.000Z",
+    "textPlain": "You can use things like Browser Use and Playwright to hook things like that up, but you’re right, this is a very underdeveloped area. Armin Ronacher has a talk that covers some of this, such as unifying console.log, server logs, SQL, etc. to feed back to the LLM.https://www.youtube.com/watch?v=nfOVgz_omlU",
+    "parent": 45605412,
+    "depth": 2
+  },
+  {
+    "id": 45605466,
+    "by": "tomashubelbauer",
+    "timeISO": "2025-10-16T14:01:56.000Z",
+    "textPlain": "Look into the Playwright MCP server, it allows coding agents to scrutinize the results of their work in the web browser. There is also an MCP server for the Chrome DevTools protocol AFAIK but I haven't tried it.",
+    "parent": 45605412,
+    "depth": 2
+  },
+  {
+    "id": 45605560,
+    "by": "artpar",
+    "timeISO": "2025-10-16T14:09:53.000Z",
+    "textPlain": "So actually I have this setup (of a bridge server) which I use for agent4 itself (so claude code can talk to agent4), It makes a lot of sense to publish that bridge as well in the MCP form.",
+    "parent": 45605412,
+    "depth": 2
+  },
+  {
+    "id": 45605546,
+    "by": "shardullavekar",
+    "timeISO": "2025-10-16T14:07:58.000Z",
+    "textPlain": "a built-in mcp server that takes a look at what's broken and communicates with cursor is on our roadmap. Join discord and we will keep you posted there.",
+    "parent": 45605412,
+    "depth": 2
+  },
+  {
+    "id": 45605254,
+    "by": "artpar",
+    "timeISO": "2025-10-16T13:43:04.000Z",
+    "textPlain": "Everyone thinks of typical e-commerce pages when its comes \"browser agent doing something\", but our real use cases are far from shopping for the user. But your point still stands valid. The idea is that maybe there are websites where generating stable selectors/hierarchy maps wouldn't solve, but 80% (from 80-20) of websites are not like that (including a lot of internal dashboard/interfaces) (there will also be issues for websites with proper i18n implementations if the selectors are aria label based)Self healing css selectors is also only 1 part of the story. The other part is the cohesive interface for the agent itself to use these selectors.",
+    "parent": 45605169,
+    "depth": 2
+  },
+  {
+    "id": 45605372,
+    "by": "artpar",
+    "timeISO": "2025-10-16T13:54:42.000Z",
+    "textPlain": "If I am reading you correctly, you captured the whole essence of agent4.So it does the first pass (based on your goals) makes memories (and these are local)Now you tell the agent you want to do this repeatedly, so it will make a workflow (these workflows are saved on server, currently all public for now but we are working out permissions/group based access) for you based on these memories and interactions.The problem is many times that the agent thinks is stable isn't really, so there a feedback loop for the agent to test out the workflow and improve them. (its basically claude code/codex sitting in the browser)Workflow details are appended to prompt based on user query match/opened tabs match.",
+    "parent": 45605286,
+    "depth": 2
+  },
+  {
     "id": 45604721,
     "by": "artpar",
     "timeISO": "2025-10-16T12:52:50.000Z",
     "textPlain": "Agent4 is going to store \"stable selectors\" that worked (when it performs a task first time most of the time is spent in identifying these css/xpath selectors). Memories are pretty straighforward at this point, they are stored locally in your browser's IndexedDB (you can inspect from chrome inspector).",
     "parent": 45604701,
+    "depth": 2
+  },
+  {
+    "id": 45605530,
+    "by": "artpar",
+    "timeISO": "2025-10-16T14:06:29.000Z",
+    "textPlain": "Yes I can imagine PI somehow being stored in the workflow. I frequently see llms hardcoding tests just to make user happy and this can also happen in the browser version where if something is too hard to scrape but agent is able to infer from screenshot so it might end up making a workflow that seems correct but is just hardcoded with data. We are thinking of multiple guards/blocks to not let user create such a workflow, but the risks that come with an open ended agent are still going to be present.",
+    "parent": 45605410,
+    "depth": 2
+  },
+  {
+    "id": 45605601,
+    "by": "phgn",
+    "timeISO": "2025-10-16T14:13:02.000Z",
+    "textPlain": "Nope. Their entire website shows up with a white screen for me in the latest Chrome.There's this error in the console: Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of \"text/html\". Strict MIME type checking is enforced for module scripts per HTML spec.",
+    "parent": 45604630,
     "depth": 2
   },
   {
