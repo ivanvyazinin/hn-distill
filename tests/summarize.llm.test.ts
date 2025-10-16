@@ -158,6 +158,16 @@ describe("summarizeComments LLM handling", () => {
     expect(calls[2]?.model).toBe(env.OPENROUTER_FALLBACK_MODEL_2);
   });
 
+  test("removes begin-of-sentence artifact from summaries", async () => {
+    const { services } = makeServices([
+      async () => `Summary text${"<｜begin▁of▁sentence｜>"}`,
+    ]);
+
+    const result = await summarizeComments(services, 130, PROMPT_TEXT, []);
+
+    expect(result.summary).toBe("Summary text");
+  });
+
   test("throws aggregate error when all three models fail", async () => {
     const ERROR_MSG = "failure";
     const { services, calls } = makeServices([
