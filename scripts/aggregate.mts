@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { formatISO } from "date-fns";
@@ -145,6 +146,10 @@ export async function readAggregates(storyIds: number[]): Promise<AggregatedItem
   return items;
 }
 
+function jsonEqual(a: unknown, b: unknown): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 const FALLBACK_SUMMARY_LENGTH = 280;
 
 export function fallbackFromRaw(
@@ -185,7 +190,7 @@ export function sortItemsDesc(a: AggregatedItem, b: AggregatedItem): number {
   return b.id - a.id; // deterministic for both invalid: by id desc
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const index = await readJsonSafeOr<{ updatedISO: string; storyIds: number[] }>(PATHS.index, IndexSchema, {
     updatedISO: new Date(0).toISOString(),
     storyIds: [],
@@ -197,14 +202,21 @@ async function main(): Promise<void> {
   });
 
   const latestItems = await readAggregates(index.storyIds);
+  const aggregatedExists = existsSync(PATHS.aggregated);
 
   // merge with previous: previous first, then overwrite with new by id
   const byId = new Map<number, AggregatedItem>();
   for (const it of previous.items) {
     byId.set(it.id, it);
   }
+  const changedIds = new Set<number>();
   for (const it of latestItems) {
+    const prev = byId.get(it.id);
+    if (prev && jsonEqual(prev, it)) {
+      continue;
+    }
     byId.set(it.id, it);
+    changedIds.add(it.id);
   }
 
   // optional purge of low-score items from history to keep it consistent with the rule
@@ -229,15 +241,26 @@ async function main(): Promise<void> {
     }
   });
 
+  const itemsEqual = jsonEqual(safeItems, previous.items);
+  const shouldWriteAggregated = !itemsEqual || !aggregatedExists;
   const payload: AggregatedFile = {
-    updatedISO: formatISO(new Date()),
-    items: safeItems,
+    updatedISO: shouldWriteAggregated ? formatISO(new Date()) : previous.updatedISO,
+    items: shouldWriteAggregated ? safeItems : previous.items,
   };
+
+  if (!shouldWriteAggregated) {
+    log.info("aggregate", "Aggregated output unchanged; skipping write", {
+      path: PATHS.aggregated,
+      items: previous.items.length,
+    });
+    return;
+  }
+
   await writeJsonFile(PATHS.aggregated, payload, { atomic: true, pretty: true });
   log.info("aggregate", "Aggregated file written", {
     path: PATHS.aggregated,
     items: payload.items.length,
-    added: latestItems.length,
+    updated: changedIds.size,
     prev: previous.items.length,
   });
 

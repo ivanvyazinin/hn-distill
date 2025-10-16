@@ -1,12 +1,17 @@
-import { dirname } from "node:path";
+import { existsSync } from "node:fs";
 
 import pLimit from "p-limit";
 import { z } from "zod";
 
 import { env, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
-import { HnItemRawSchema, type HnItemRaw, type NormalizedComment, type NormalizedStory } from "@config/schemas";
-import { ensureDir } from "@utils/fs";
+import {
+  HnItemRawSchema,
+  IndexSchema,
+  type HnItemRaw,
+  type NormalizedComment,
+  type NormalizedStory,
+} from "@config/schemas";
 import { HN } from "@utils/hn";
 import { HttpClient } from "@utils/http-client";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
@@ -128,6 +133,54 @@ export async function readSeenCache(p: string = PATHS.seenCache): Promise<SeenCa
   return migrateCache(rawCache);
 }
 
+function uniqueNumbers(values: number[]): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const value of values) {
+    if (!seen.has(value)) {
+      seen.add(value);
+      out.push(value);
+    }
+  }
+  return out;
+}
+
+function arrayShallowEqual<T>(a: readonly T[], b: readonly T[]): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let index = 0; index < a.length; index += 1) {
+    if (a[index] !== b[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function normalizeMembers(values: readonly number[]): number[] {
+  const seen = new Set<number>(values);
+  return [...seen].sort((a, b) => a - b);
+}
+
+function numberMembersEqual(a: readonly number[], b: readonly number[]): boolean {
+  return arrayShallowEqual(normalizeMembers(a), normalizeMembers(b));
+}
+
+function seenByDepthMembersEqual(
+  a: Record<string, number[]>,
+  b: Record<string, number[]>
+): boolean {
+  const keys = new Set<string>([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    const aa = a[key] ?? [];
+    const bb = b[key] ?? [];
+    if (!numberMembersEqual(aa, bb)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 type CommentFetchResult = {
   normalized?: NormalizedComment;
   kids: number[];
@@ -247,15 +300,16 @@ export async function collectComments(
   return { comments: out.slice(0, options.maxCount), allSeenByDepth };
 }
 
-async function main(): Promise<void> {
-  const services = makeServices(env);
-
-  await ensureDir(PATHS.raw.items);
-  await ensureDir(PATHS.raw.comments);
-  await ensureDir(dirname(PATHS.index));
-  await ensureDir(dirname(PATHS.seenCache));
+export async function main(servicesOverride?: Services): Promise<void> {
+  const services = servicesOverride ?? makeServices(env);
+  const runTimestamp = new Date().toISOString();
 
   const seenCache = await readSeenCache();
+  const seenCacheExists = existsSync(PATHS.seenCache);
+  let seenCacheChanged = false;
+
+  const previousIndex = await readJsonSafeOr(PATHS.index, IndexSchema);
+  const indexExists = existsSync(PATHS.index);
 
   const topIds = await readTopIds(services, env.TOP_N);
   const idsSet = new Set<number>(topIds);
@@ -294,12 +348,25 @@ async function main(): Promise<void> {
 
           const c: Record<string, number[]> = {};
           for (const [depth, array] of Object.entries(allSeenByDepth)) {
-            c[String(depth)] = [...new Set(array)];
+            c[String(depth)] = uniqueNumbers(array);
           }
-          seenCache[story.id] = {
-            seenTopLevel: [...new Set(rootIds)],
+
+          const nextEntry = {
+            seenTopLevel: uniqueNumbers(rootIds),
             seenByDepth: c,
-            updatedISO: new Date().toISOString(),
+          };
+          const prevEntry = seenCache[story.id];
+          const sameTop = prevEntry ? numberMembersEqual(prevEntry.seenTopLevel ?? [], nextEntry.seenTopLevel) : false;
+          const sameByDepth = prevEntry ? seenByDepthMembersEqual(prevEntry.seenByDepth ?? {}, nextEntry.seenByDepth) : false;
+
+          if (prevEntry && sameTop && sameByDepth) {
+            return;
+          }
+
+          seenCacheChanged = true;
+          seenCache[story.id] = {
+            ...nextEntry,
+            updatedISO: runTimestamp,
           };
         }
       })
@@ -312,13 +379,22 @@ async function main(): Promise<void> {
     await writeJsonFile(pathFor.rawComments(s.id), comments, { atomic: true, pretty: true });
   }
 
-  const index = {
-    updatedISO: new Date().toISOString(),
-    storyIds: [...idsSet],
+  const storyIds = [...idsSet];
+  const previousStoryIds = previousIndex?.storyIds ?? [];
+  const sameStoryIds = arrayShallowEqual(previousStoryIds, storyIds);
+  const indexUpdatedISO = sameStoryIds && typeof previousIndex?.updatedISO === "string" ? previousIndex.updatedISO : runTimestamp;
+  const indexPayload = {
+    updatedISO: indexUpdatedISO,
+    storyIds,
   };
-  await writeJsonFile(PATHS.index, index, { atomic: true, pretty: true });
+  const shouldWriteIndex = !sameStoryIds || !previousIndex || !indexExists;
+  if (shouldWriteIndex) {
+    await writeJsonFile(PATHS.index, indexPayload, { atomic: true, pretty: true });
+  }
 
-  await writeJsonFile(PATHS.seenCache, seenCache, { atomic: true, pretty: true });
+  if (seenCacheChanged || !seenCacheExists) {
+    await writeJsonFile(PATHS.seenCache, seenCache, { atomic: true, pretty: true });
+  }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
