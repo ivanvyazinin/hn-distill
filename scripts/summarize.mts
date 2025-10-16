@@ -453,6 +453,14 @@ export function preserveMarkdownWhitespace(content: string): string {
   return outLines.join("\n");
 }
 
+const LLM_ARTIFACT_BEGIN_OF_SENTENCE = "<｜begin▁of▁sentence｜>";
+
+function sanitizeLlmContent(content: string): string {
+  const preserved = preserveMarkdownWhitespace(content);
+  const withoutArtifacts = preserved.replaceAll(LLM_ARTIFACT_BEGIN_OF_SENTENCE, "");
+  return withoutArtifacts.trim();
+}
+
 type LlmResult = { content: string; modelUsed: string };
 
 function classifyOpenRouterError(
@@ -494,7 +502,7 @@ async function callOpenRouterAttempt(
       maxTokens: env.OPENROUTER_MAX_TOKENS,
       model,
     });
-    const cleaned = preserveMarkdownWhitespace(content).trim();
+    const cleaned = sanitizeLlmContent(content);
     if (attempt === "primary") {
       log.debug(LOG_NAMESPACE_LLM, "LLM response received", {
         summaryChars: cleaned.length,

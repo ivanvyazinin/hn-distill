@@ -103,13 +103,16 @@ export function buildAggregatedItem(
   );
   const tags = [...new Set(rawTags)];
 
+  const rawPostSummary = (postSummary as { summary?: string } | undefined)?.summary;
+  const cleanedPostSummary = sanitizePostSummary(rawPostSummary);
+
   return {
     id: story.id,
     title: story.title,
     url: story.url,
     by: story.by,
     timeISO: story.timeISO,
-    postSummary: (postSummary as { summary?: string } | undefined)?.summary,
+    postSummary: cleanedPostSummary,
     commentsSummary: (commentsSummary as { summary?: string } | undefined)?.summary ?? fb.commentsSummary,
     score: story.score,
     commentsCount: story.descendants ?? comments.length,
@@ -117,6 +120,16 @@ export function buildAggregatedItem(
     domain,
     ...(tags.length > 0 ? { tags } : {}),
   };
+}
+
+const POST_SUMMARY_ARTIFACT = "<｜begin▁of▁sentence｜>";
+
+function sanitizePostSummary(summary?: string): string | undefined {
+  if (!summary) {
+    return summary;
+  }
+  const cleaned = summary.replaceAll(POST_SUMMARY_ARTIFACT, "").trim();
+  return cleaned.length > 0 ? cleaned : undefined;
 }
 
 export async function readAggregates(storyIds: number[]): Promise<AggregatedItem[]> {
