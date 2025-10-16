@@ -127,25 +127,29 @@ async function tagsOnlyWorkflow(services: Services, storyIds: number[], customEn
 }
 
 // Model rotation configuration - using models that support structured outputs
-const FALLBACK_MODELS = TAGS_FALLBACK_MODELS;
-
 const DEFAULT_MODEL = env.TAGS_MODEL;
+const FALLBACK_MODELS = Array.from(
+  new Set(TAGS_FALLBACK_MODELS.filter((model) => model !== DEFAULT_MODEL))
+);
+
 let currentModelIndex = -1; // -1 means using default model
 
 function getNextModel(): string {
-  if (currentModelIndex === -1) {
-    // First fallback
-    currentModelIndex = 0;
-    return FALLBACK_MODELS[0];
+  if (FALLBACK_MODELS.length === 0) {
+    throw new Error("No fallback models configured for tags");
   }
 
-  // Cycle through fallback models
-  currentModelIndex = (currentModelIndex + 1) % FALLBACK_MODELS.length;
-  const model = FALLBACK_MODELS.at(currentModelIndex);
-  if (!model) {
-    throw new Error("Invalid fallback model index");
+  let attempts = 0;
+  while (attempts < FALLBACK_MODELS.length) {
+    currentModelIndex = currentModelIndex === -1 ? 0 : (currentModelIndex + 1) % FALLBACK_MODELS.length;
+    const model = FALLBACK_MODELS.at(currentModelIndex);
+    if (model && model !== DEFAULT_MODEL) {
+      return model;
+    }
+    attempts += 1;
   }
-  return model;
+
+  throw new Error("Unable to select a fallback model different from the default");
 }
 
 function getCurrentModel(): string {
@@ -159,7 +163,11 @@ function getCurrentModel(): string {
   return model;
 }
 
-async function runTagsWorkflowWithFallback(storyIds: number[]): Promise<void> {
+type TagsWorkflowRunner = (services: Services, storyIds: number[], customEnv: Env) => Promise<void>;
+
+let workflowRunner: TagsWorkflowRunner = tagsOnlyWorkflow;
+
+export async function runTagsWorkflowWithFallback(storyIds: number[]): Promise<void> {
   let completed = false;
   while (!completed) {
     const currentModel = getCurrentModel();
@@ -170,7 +178,7 @@ async function runTagsWorkflowWithFallback(storyIds: number[]): Promise<void> {
     const services = makeServices(customEnv);
 
     try {
-      await tagsOnlyWorkflow(services, storyIds, customEnv);
+      await workflowRunner(services, storyIds, customEnv);
       log.info("tags-bulk", "Successfully completed with model", { model: currentModel });
       completed = true;
     } catch (error) {
@@ -195,6 +203,15 @@ async function runTagsWorkflowWithFallback(storyIds: number[]): Promise<void> {
       }
     }
   }
+}
+
+export function __setTagsWorkflowRunnerForTests(fn: TagsWorkflowRunner | null): void {
+  workflowRunner = fn ?? tagsOnlyWorkflow;
+}
+
+export function __resetTagsModelRotationForTests(): void {
+  currentModelIndex = -1;
+  workflowRunner = tagsOnlyWorkflow;
 }
 
 async function getAllStoryIds(): Promise<number[]> {
