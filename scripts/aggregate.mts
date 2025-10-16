@@ -119,28 +119,35 @@ export function buildAggregatedItem(
 }
 
 export async function readAggregates(storyIds: number[]): Promise<AggregatedItem[]> {
+  const results = await Promise.all(
+    storyIds.map(async (id) => {
+      log.debug("aggregate", "Aggregating story", { id });
+
+      const { story, comments, postSummary, commentsSummary, tagsSummary } = await loadStoryData(id);
+      if (!story) {
+        log.warn("aggregate", "Missing story; skipping", { id });
+        return undefined;
+      }
+
+      const score = typeof story.score === "number" ? story.score : 0;
+      if (score < SCORE_MIN_AGGREGATE) {
+        log.debug("aggregate", "Skipping story due to low score", { id, score, min: SCORE_MIN_AGGREGATE });
+        return undefined;
+      }
+
+      const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);
+      if (!item.postSummary) {
+        log.info("aggregate", "No postSummary for story (will render placeholder)", { id: story.id });
+      }
+      return item;
+    })
+  );
+
   const items: AggregatedItem[] = [];
-
-  for (const id of storyIds) {
-    log.debug("aggregate", "Aggregating story", { id });
-
-    const { story, comments, postSummary, commentsSummary, tagsSummary } = await loadStoryData(id);
-    if (!story) {
-      log.warn("aggregate", "Missing story; skipping", { id });
-      continue;
+  for (const item of results) {
+    if (item) {
+      items.push(item);
     }
-
-    const score = typeof story.score === "number" ? story.score : 0;
-    if (score < SCORE_MIN_AGGREGATE) {
-      log.debug("aggregate", "Skipping story due to low score", { id, score, min: SCORE_MIN_AGGREGATE });
-      continue;
-    }
-
-    const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);
-    if (!item.postSummary) {
-      log.info("aggregate", "No postSummary for story (will render placeholder)", { id: story.id });
-    }
-    items.push(item);
   }
   return items;
 }
