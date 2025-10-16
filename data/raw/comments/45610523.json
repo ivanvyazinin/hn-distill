@@ -1,5 +1,37 @@
 [
   {
+    "id": 45611027,
+    "by": "simonw",
+    "timeISO": "2025-10-16T21:39:57.000Z",
+    "textPlain": "Looks like there's one feature missing from this that I care about: I'd like more finely grained control over what outbound internet connections code running on the box can make.As far as I can tell it's all or nothing right now:  this.ctx.container.start({\n    enableInternet: false,\n  });\n\nI want to run untrusted code (from users or LLMs) in these containers, and I'd like to avoid someone malicious using my container to launch attacks against other sites from them.As such, I'd like to be able to allow-list just specific network points. Maybe I'm OK with the container talking to an API I provide but not to the world at wide. Or perhaps I'm OK with it fetching data from npm and PyPI but I don't want it to be able to access anything else (a common pattern these days, e.g. Claude's Code Interpreter does this.)",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45611318,
+    "by": "jasonriddle",
+    "timeISO": "2025-10-16T22:13:23.000Z",
+    "textPlain": "This looks interesting.Instead of having to code this up using typescript, is there an MCP server or API endpoint I can use? Basically, I want to connect an MCP server to an agent, tell it it can run typescript code in order to solve a problem or verify something.",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45611301,
+    "by": "alooPotato",
+    "timeISO": "2025-10-16T22:11:39.000Z",
+    "textPlain": "There is an open question about how file persistence works.The docs claim they persist the filesystem even when they move the container to an idle state but its unclear exactly what that means - https://github.com/cloudflare/sandbox-sdk/issues/102",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45610926,
+    "by": "whoiskatrin",
+    "timeISO": "2025-10-16T21:31:29.000Z",
+    "textPlain": "If anyone is curious, more details on our SDK can be found here actually https://github.com/cloudflare/sandbox-sdk",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
     "id": 45610762,
     "by": "_pdp_",
     "timeISO": "2025-10-16T21:17:52.000Z",
@@ -8,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45610681,
-    "by": "nickandbro",
-    "timeISO": "2025-10-16T21:08:25.000Z",
-    "textPlain": "Amazing, I can use this immediately for my vim site at:\nhttps://vimgolf.aiGreat work CF building off of the containers platform and making it more tailored towards a common problem.",
+    "id": 45611237,
+    "by": "eis",
+    "timeISO": "2025-10-16T22:03:37.000Z",
+    "textPlain": "Cloudflare Containers (and therefore Sandbox) pricing is way too expensive. The pricing is a bit cumbersome to understand by being inconsistent with pricing of other Cloudflare products in terms of units and split between memory, cpu and disk instead of combined per instance. The worst is that it is given in these tiny fractions per second.Memory: $0.0000025 per additional GiB-second\nvCPU: $0.000020 per additional vCPU-second\nDisk: $0.00000007 per additional GB-secondThe smaller instance types have super low processing power by getting a fraction of a vCPU. But if you calculate the monthly cost then it comes to:Memory: $6.48 per GB\nvCPU: $51.84 per vCPU (!!!)\nDisk: $0.18 per GBThese prices are more expensive than the already expensive prices of the big cloud providers. For example a t2d-standard-2 on GCP with 2 vCPUs and 8GB with 16GB storage would cost $63.28 per month while the standard-3 instance on CF would cost a whopping $51.84 + $103.68 + $2.90 = $158.42, about 2.5x the price.Cloudflare Containers also don't have peristent storage and are by design intended to shut down if not used but I could then also go for a spot vm on GCP which would bring the price down to $9.27 which is less than 6% of the CF container cost and I get persistent storage plus a ton of other features on top.What am I missing?",
     "parent": 45610523,
     "depth": 1
   },
@@ -24,11 +56,91 @@
     "depth": 1
   },
   {
+    "id": 45610831,
+    "by": "fidotron",
+    "timeISO": "2025-10-16T21:23:02.000Z",
+    "textPlain": "Does this relate to workerd in any way or is it something else entirely?",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45610961,
+    "by": "ChrisArchitect",
+    "timeISO": "2025-10-16T21:34:19.000Z",
+    "textPlain": "These CF website relaunches are just that right? Workers last week (https://workers.cloudflare.com) and now this one yesterday. I mean, if CF has something newsworthy here they should do a blog post announcing it because otherwise it's just a refreshed website. It's hard to tell if there's anything new here.It's the same SDK stuff from earlier this year right? https://developers.cloudflare.com/changelog/2025-06-24-annou...",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45610681,
+    "by": "nickandbro",
+    "timeISO": "2025-10-16T21:08:25.000Z",
+    "textPlain": "Amazing, I can use this immediately for my vim site at:\nhttps://vimgolf.aiGreat work CF building off of the containers platform and making it more tailored towards a common problem.",
+    "parent": 45610523,
+    "depth": 1
+  },
+  {
+    "id": 45611100,
+    "by": "ashishbijlani",
+    "timeISO": "2025-10-16T21:49:39.000Z",
+    "textPlain": "I’m extending Packj sandbox for agentic code execution [1]. You can specify allowlist for network/fs.1. https://github.com/ossillate-inc/packj/blob/main/packj/sandb...",
+    "parent": 45611027,
+    "depth": 2
+  },
+  {
+    "id": 45611068,
+    "by": "paxys",
+    "timeISO": "2025-10-16T21:45:07.000Z",
+    "textPlain": "This simple feature bumps up the complexity of such a firewall by several orders of magnitude, which is why no similar runtime (like Deno) offers it.Networking as a whole can easily be controlled by the OS or any intermediate layer. For controlling access to specific sites you need to either filter it at the DNS level, which can be trivially bypassed, or bake something into the application binary itself. But if you are enabling untrusted code and giving that code access to a TCP channel then it is effectively impossible to restrict what it can or cannot access.",
+    "parent": 45611027,
+    "depth": 2
+  },
+  {
+    "id": 45610992,
+    "by": "ATechGuy",
+    "timeISO": "2025-10-16T21:36:17.000Z",
+    "textPlain": ">  It does take 1-5 seconds to boot the environment (firecracker vms).I'd say 1-5 secs is fast. Curious to know what use cases require faster boot up, and today suffer from this latency?",
+    "parent": 45610762,
+    "depth": 2
+  },
+  {
+    "id": 45610832,
+    "by": "_pdp_",
+    "timeISO": "2025-10-16T21:23:04.000Z",
+    "textPlain": "I browsed through the documents but it does not seem to be possible to auto destroy a sandbox after certain amount of idle time. This forces who ever is implementing this to do their own cleanup. It is kind of missed opportunity if you ask me as this is a big pain. It is sold as fire and forget but it seems that more serious workflows will require also a lot of supporting infrastructure.",
+    "parent": 45610762,
+    "depth": 2
+  },
+  {
+    "id": 45611288,
+    "by": "ATechGuy",
+    "timeISO": "2025-10-16T22:09:54.000Z",
+    "textPlain": "Startups would build on big tech, so are likely to add their margins. Have you looked into (bulk) discounts from GCP/AWS?",
+    "parent": 45611237,
+    "depth": 2
+  },
+  {
+    "id": 45610845,
+    "by": "fidotron",
+    "timeISO": "2025-10-16T21:24:38.000Z",
+    "textPlain": "This bizarre anti-aesthetic has been pushed in the web devex space for a few years now to appeal to other web devex companies.",
+    "parent": 45610655,
+    "depth": 2
+  },
+  {
     "id": 45610664,
     "by": "Svoka",
     "timeISO": "2025-10-16T21:06:48.000Z",
     "textPlain": "I thought it was cute and easy to read.",
     "parent": 45610655,
+    "depth": 2
+  },
+  {
+    "id": 45611154,
+    "by": "whoiskatrin",
+    "timeISO": "2025-10-16T21:54:12.000Z",
+    "textPlain": "it barely had any features then, this version is full of new functionality: streaming logs, long running processes, code interpreter and lots of other things and full docs site as well",
+    "parent": 45610961,
     "depth": 2
   }
 ]
