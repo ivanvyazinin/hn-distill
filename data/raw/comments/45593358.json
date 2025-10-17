@@ -1,1 +1,138 @@
-[]
+[
+  {
+    "id": 45622045,
+    "by": "crazygringo",
+    "timeISO": "2025-10-17T21:03:56.000Z",
+    "textPlain": "> Using UUIDv7 is generally discouraged for security when the primary key is exposed to end users in external-facing applications or APIs. The main issue is that UUIDv7 incorporates a 48-bit Unix timestamp as its most significant part, meaning the identifier itself leaks the record's creation time... Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So this basically defeats the entire performance improvement of UUIDv7. Because anything coming from the user will need to look up a UUIDv4, which means every new row needs to create an extra random UUIDv4 which gets inserted into a second B-tree index, which recreates the very performance problem UUIDv7 is supposedly solving.In other words, you can only use UUIDv7 for rows that never need to be looked up by any data coming from the user. And maybe that exists sometimes for certain data in JOINs... but it seems like it might be more the exception than the rule, and you never know when an internal ID might need to become an external one in the future.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45621860,
+    "by": "pqdbr",
+    "timeISO": "2025-10-17T20:46:44.000Z",
+    "textPlain": "Great article, specially for this part:> What can go wrong with using UUIDv7\nUsing UUIDv7 is generally discouraged for security when the primary key is exposed to end users in external-facing applications or APIs. The main issue is that UUIDv7 incorporates a 48-bit Unix timestamp as its most significant part, meaning the identifier itself leaks the record's creation time.> This leakage is primarily a privacy concern. Attackers can use the timing data as metadata for de-anonymization or account correlation, potentially revealing activity patterns or growth rates within an organization. While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approach. Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45621714,
+    "by": "gopalv",
+    "timeISO": "2025-10-17T20:34:01.000Z",
+    "textPlain": "UUIDv7 is only bad for range partitioning and privacy concerns.The \"naturally sortable\" is a good thing for postgres and for most people who want to use UUID, because there is no sorted distribution buckets where the last bucket always grows when inserting.I want to see something like HBase or S3 paths when UUIDv7 gets used.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45621700,
+    "by": "morshu9001",
+    "timeISO": "2025-10-17T20:32:52.000Z",
+    "textPlain": "The article compares UUIDv7 vs v4, but doesn't say why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45621754,
+    "by": "6r17",
+    "timeISO": "2025-10-17T20:37:09.000Z",
+    "textPlain": "Great read - short, effective ; I know what I learned. Very good job",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45622211,
+    "by": "hexbin010",
+    "timeISO": "2025-10-17T21:19:03.000Z",
+    "textPlain": "[dead]",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45622129,
+    "by": "tracker1",
+    "timeISO": "2025-10-17T21:11:20.000Z",
+    "textPlain": "This is only really true if leaking the creation time of the record is itself a security concern.",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45622081,
+    "by": "hn_throwaway_99",
+    "timeISO": "2025-10-17T21:07:37.000Z",
+    "textPlain": "> Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So then what's the point? How I always did things in the past was use an auto increment big int as the internal primary key, and then use a separate random UUID for the external facing key. I think this recommendation from \"experts\" is pretty dumb because you get very little benefit using UUIDV7 (beyond some portability improvements) if you're still using a separate internal key.While I wouldn't use UUIDV7 as a secure token like I would UUIDV4, I don't see anything wrong with using UUIDV7 as externally exposed object keys - you're still going to need permissions checks anyway.",
+    "parent": 45621860,
+    "depth": 2
+  },
+  {
+    "id": 45622020,
+    "by": "andy_ppp",
+    "timeISO": "2025-10-17T21:01:59.000Z",
+    "textPlain": "I wish Postgres would just allow you look up records by the random component of the field, what are the chances of collisions with 80 bits of randomness? My guess is it’s still enough.",
+    "parent": 45621860,
+    "depth": 2
+  },
+  {
+    "id": 45621864,
+    "by": "vlovich123",
+    "timeISO": "2025-10-17T20:47:10.000Z",
+    "textPlain": "> UUIDv7 is only bad for range partitioning and privacy concerns.It's no worse for privacy than other UUID variants if the \"privacy\" you're worried about leaking is the creation time of the UUID.As for range partitioning, you can of course choose to partition on the hash of the UUIDv7 at the cost of giving up cheaper rights / faster indices. On the other hand, that of course gives up locality which is a common challenge of partitioning schemes. It depends on the end-to-end design of the system but I wouldn't say that UUIDv7 is inherently good or bad or better/worse than other UUID schemes.",
+    "parent": 45621714,
+    "depth": 2
+  },
+  {
+    "id": 45621804,
+    "by": "edoceo",
+    "timeISO": "2025-10-17T20:41:18.000Z",
+    "textPlain": "So the client side can create the ID before insert - that's the case that (mostly) drives it for me.  The other is where you have distributed systems and then later want to merge the data and not have any ID conflicts.",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45622073,
+    "by": "ibejoeb",
+    "timeISO": "2025-10-17T21:06:47.000Z",
+    "textPlain": "If you need an opaque ID like a uuid because, for example, you need the capability to generate non-colliding IDs generated by disparate systems, the best way I've found is to separate these two concerns. Use a UUIDv4 for public purposes and a bigint internally. You don't need to worry about exposing creation time, and you can still manage your data in the home system with all the properties that a total ordering affords.",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621823,
+    "by": "Deadron",
+    "timeISO": "2025-10-17T20:43:06.000Z",
+    "textPlain": "For when you inevitably need to expose the ids to the public the uuids prevent a number of attacks that sequential numbers are vulnerable to. In theory they can also be faster/convenient in a certain view as you can generate a UUID without needing something like a central index to coordinate how they are created.  They can also be treated as globally unique which can be useful in certain contexts.  I don't think anyone would argue that their performance overall is better than serial/bigserial though as they take up more space in indexes.",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621834,
+    "by": "nextaccountic",
+    "timeISO": "2025-10-17T20:44:14.000Z",
+    "textPlain": "uuids can be generated by multiple services across your stackbigserial must by generated by the db",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621876,
+    "by": "simongr3dal",
+    "timeISO": "2025-10-17T20:48:11.000Z",
+    "textPlain": "I believe the concern is if your primary key in the database is a serial number it might be exposed to users unless you do extra work to hide that ID from any external APIs and if there are any flaws in your authorization checks it can allow enumeration attacks exposing private or semi-private info. With UUIDs being virtually unguessable that makes it less of a concern.",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621815,
+    "by": "martinky24",
+    "timeISO": "2025-10-17T20:42:00.000Z",
+    "textPlain": "You don’t scale horizontally, do you?",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621873,
+    "by": "mhuffman",
+    "timeISO": "2025-10-17T20:48:03.000Z",
+    "textPlain": ">why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?So the common response is sequential ID crawling by bad actors. UUIDs are generally un-guessable and you can throw them into slop DBs like Mongo or storage like S3 as primary identifiers without worrying about permissions or having a clever interested party pwn your whole database. A common case of security through obscurity.",
+    "parent": 45621700,
+    "depth": 2
+  }
+]
