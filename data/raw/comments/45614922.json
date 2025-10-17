@@ -1,5 +1,13 @@
 [
   {
+    "id": 45615867,
+    "by": "adamcharnock",
+    "timeISO": "2025-10-17T12:16:07.000Z",
+    "textPlain": "I cannot overstate the performance improvement of deploying onto bare metal. We typically see a doubling of performance, as well as extremely predictable baseline performance.This is down to several things:- Latency - having your own local network, rather than sharing some larger datacenter network fabric, gives around of order of magnitude reduced latency- Caches – right-sizing a deployment for the underlying hardware, and so actually allowing a modern CPU to do its job, makes a huge difference- Disk IO – Dedicated NVMe access is _fast_.And with it comes a whole bunch of other benefits:- Auto-scalers becomes less important, partly because you have 10x the hardware for the same price, partly because everything runs 2x the speed anyway, and partly because you have a fixed pool of hardware. This makes the whole system more stable and easier to reason about.- No more sweating the S3 costs. Put a 15TB NVMe drive in each server and run your own MinIO/Garage cluster (alongside your other workloads). We're doing about 20GiB/s sustained on a 10 node cluster, 50k API calls per second (on S3 that is $20-$250 _per second_ on API calls!).- You get the same bill every month.- UPDATE: more benefits - cheap fast storage, run huge Postgresql instances at minimal cost, less engineering time spend working around hardware limitations and cloud vagaries.And, if chose to invest in the above, it all costs 10x less than AWS.Pitch: If you don't want to do this yourself, then we'll do it for you for half the price of AWS (and we'll be your DevOps team too):https://lithus.euEmail: adam@ above domain",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
     "id": 45615090,
     "by": "lisperforlife",
     "timeISO": "2025-10-17T10:34:50.000Z",
@@ -16,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45615379,
-    "by": "kachapopopow",
-    "timeISO": "2025-10-17T11:16:47.000Z",
-    "textPlain": "This is pretty bad still, with colocation you can get the costs down to 1/100th with good deals at datacenters especially ones that are struggling to attract customers.In terms of networking many offer no-headache solutions with some kind of transit blend.",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
     "id": 45615296,
     "by": "jwr",
     "timeISO": "2025-10-17T11:05:00.000Z",
     "textPlain": "I've been running my SaaS on Hetzner servers for over 10 years now. Dedicated hardware, clusters in DE and FI, managed through ansible. I use vpncloud to set up a private VPN between the servers (excellent software, btw).My hosting bill is a fraction of what people pay at AWS or other similar providers, and my servers are much faster. This lets me use a simpler architecture and fewer servers.When I need to scale, I can always add servers. The only difference is that with physical servers you don't scale up/down on demand within minutes, you have to plan for hours/days. But that's perfectly fine.I use a distributed database (RethinkDB, switching to FoundationDB) for fault tolerance.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615873,
+    "by": "andybak",
+    "timeISO": "2025-10-17T12:16:43.000Z",
+    "textPlain": "I love how few comments on this and similar posts give much context along with their advice. Are you hosting a church newsletter in your spare time or a resource intensive web app with millions of paying enterprise customers and a dedicated dev ops team in 3 continents?Any advice on price / performance / availability is meaningless unless you explain where you're coming from. The reason we see people overcomplicating everything to do with the web is that they follow advice from people with radically different requirements.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45616036,
+    "by": "whstl",
+    "timeISO": "2025-10-17T12:35:32.000Z",
+    "textPlain": "After being immersed in cloud-native hell for a few years, I'll say it:This setup is probably also easier to reason about and easier to make secure than the messy garbage pushed by Amazon and other cloud providers.People see Cloud providers with rose-colored glasses, but even something like RDS requires VPCs, subnets, route tables, security groups, Internet/NAT gateways, lots of IAM roles, and CloudWatch to be usable. And to make it properly secure (meaning: not just sharing the main DB password with the team) you need way more as well, and it's hard to orchestrate, it's not just an option in a CloudFormation script.Sure securing a server is hard too, but people 1. actually share this info and 2. don't have illusions about it.",
     "parent": 45614922,
     "depth": 1
   },
@@ -40,22 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45615075,
-    "by": "CuriouslyC",
-    "timeISO": "2025-10-17T10:32:55.000Z",
-    "textPlain": "I use Hetzner for this reason, but there are caveats. They're great but their uptime isn't as good as AWS and they don't have great region coverage.  I strongly advise people to pair them with Cloudflare. Use Hetzner for your core with K8s, and use R2/D1/KV with Container Durable Objects to add edge coprocessing. I also like to shard customer data to individual DOs, this takes a ton of scaling pressure off your data layer, while being more secure/private.",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
-    "id": 45615338,
-    "by": "naiv",
-    "timeISO": "2025-10-17T11:11:12.000Z",
-    "textPlain": "Just yesterday they released a new 'Shared regular performance' offering https://www.hetzner.com/cloud/",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
     "id": 45615121,
     "by": "breadislove",
     "timeISO": "2025-10-17T10:39:06.000Z",
@@ -64,18 +64,34 @@
     "depth": 1
   },
   {
-    "id": 45615054,
-    "by": "geenat",
-    "timeISO": "2025-10-17T10:28:31.000Z",
-    "textPlain": "Yup. It's very good for the ecosystem for AWS to have good competition.Amazon gets far too greedy- particularly bad when you need egress.Also an \"amazon core\" is like 1/8th of a physical cpu core.",
+    "id": 45616049,
+    "by": "alberth",
+    "timeISO": "2025-10-17T12:36:20.000Z",
+    "textPlain": "There's a value curve for infrastructure, I'll use an analogy...  Low Cost                                           High Cost\n  ==============================================================\n  FARM WHOLESALER     GROCERY     RESTAURANT     DOORDASH    \n  BUILD CO-LOCATION    HETZNER     AWS            VERCEL           \n\nWhile it's not a perfect analogy, in principle it holds true.As such, it should come as no surprise that eating at a restaurant every day is going to be way more expensive.",
     "parent": 45614922,
     "depth": 1
   },
   {
-    "id": 45615135,
-    "by": "spinningslate",
-    "timeISO": "2025-10-17T10:41:38.000Z",
-    "textPlain": "Related: Michael Kennedy moved TalkPython [0] hosting to Hetner in 2024.  There's a blog about the move here [1] and a follow up after Hetzner changed some pricing policy [2].He's also just released a book on hosting scale production Python apps [3].  Haven't read yet though would assume it'll get covered there in more detail too.--[0] https://talkpython.fm/[1] https://talkpython.fm/blog/posts/we-have-moved-to-hetzner/[2] https://talkpython.fm/blog/posts/update-on-hetzner-changes-p...[3] https://talkpython.fm/books/python-in-production",
+    "id": 45615075,
+    "by": "CuriouslyC",
+    "timeISO": "2025-10-17T10:32:55.000Z",
+    "textPlain": "I use Hetzner for this reason, but there are caveats. They're great but their uptime isn't as good as AWS and they don't have great region coverage.  I strongly advise people to pair them with Cloudflare. Use Hetzner for your core with K8s, and use R2/D1/KV with Container Durable Objects to add edge coprocessing. I also like to shard customer data to individual DOs, this takes a ton of scaling pressure off your data layer, while being more secure/private.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615409,
+    "by": "sergioisidoro",
+    "timeISO": "2025-10-17T11:21:20.000Z",
+    "textPlain": "I really liked Hetzner but I got burned by one issue. I had some personal projects running there and the payment method failed. Automated email communications also failed among so much spam and email notifications I receive, and when I noticed the problem they had wiped all my data without possibility of recovery.It was a wake up moment for me about keeping billing in shape, but also made me understand that a cloud provider is as good as their support and communications when things go south. Like an automated SMS would be great before you destroy my entire work. But because they are so cheap, they probably can't do that for every 100$/month account.I've had similar issues with AWS, but they will have much friendlier grace periods.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615950,
+    "by": "ants_everywhere",
+    "timeISO": "2025-10-17T12:25:16.000Z",
+    "textPlain": "The public cloud is priced as if availability, reliability, durability, and latency matter to your business. If they don't, you can get far with just a single machine.A great deal of the work in cloud engineering is ensuring the abstractions meet the service guarantees. Similarly you can make a car much cheaper if you don't need to guarantee the driver will survive a collision. The cost of providing a safety guarantee is much higher than providing a hand-wavy \"good enough\" feeling.If your business isn't critical then \"good enough\" vibes may be all you need, and you can save some money.",
     "parent": 45614922,
     "depth": 1
   },
@@ -88,10 +104,74 @@
     "depth": 1
   },
   {
-    "id": 45615302,
-    "by": "DoctorOW",
-    "timeISO": "2025-10-17T11:06:13.000Z",
-    "textPlain": "I use Hetzner for personal projects and love it, the one thing stopping me from pushing it up the chain at work, is that we're based out of the US exclusively and AZs are pretty sparse.",
+    "id": 45615966,
+    "by": "stego-tech",
+    "timeISO": "2025-10-17T12:27:05.000Z",
+    "textPlain": "Really digging these post-mortems on major public cloud migrations of late, either to smaller providers like Hetzner or privately-owned solutions in data centers. It gives me more ammo when an organization tasks me with saving them money, by showing that these are, in fact, perfectly viable options whose tradeoffs may be worthwhile for specific organizational needs.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615999,
+    "by": "natnat",
+    "timeISO": "2025-10-17T12:31:01.000Z",
+    "textPlain": "Are there decent US based alternatives to Hetzner? I'd like to have my servers located in the US for a variety of reasons, but most of the alternatives I've seen to Hetzner seem to be pretty fly-by-night shops.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615379,
+    "by": "kachapopopow",
+    "timeISO": "2025-10-17T11:16:47.000Z",
+    "textPlain": "This is pretty bad still, with colocation you can get the costs down to 1/100th with good deals at datacenters especially ones that are struggling to attract customers. Most of your bill is power so if you rack efficiency optimized servers you can have a lot of compute for very cheap.In terms of networking many offer no-headache solutions with some kind of transit blend.<rant>I recently had to switch away from hetzner due to random dhclient failures causing connectivity loss once ip's expired, complete failure of the loadbalancer - stopped forwarding traffic for around 6 hours and the worst part is that there was no acknoledgement from hetzner about any of these issues so at some point I was going insane over trying to find what is the issue when in the end it was hetzner. (US VA region)",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615869,
+    "by": "liendolucas",
+    "timeISO": "2025-10-17T12:16:28.000Z",
+    "textPlain": "What is an actual and solid reason to choose or stay AWS these days?The topic of paying hefty amounts of money to AWS when other options are available has been discussed many times before.My view of AWS is that you have bazillions of things that you might never use, need to learn about it, you are tied to a company across the Atlantic that can basically shut you down anytime they want for whatever reason and finally the cost.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615135,
+    "by": "spinningslate",
+    "timeISO": "2025-10-17T10:41:38.000Z",
+    "textPlain": "Related: Michael Kennedy moved TalkPython [0] hosting to Hetner in 2024.  There's a blog about the move here [1] and a follow up after Hetzner changed some pricing policy [2].He's also just released a book on hosting scale production Python apps [3].  Haven't read yet though would assume it'll get covered there in more detail too.--[0] https://talkpython.fm/[1] https://talkpython.fm/blog/posts/we-have-moved-to-hetzner/[2] https://talkpython.fm/blog/posts/update-on-hetzner-changes-p...[3] https://talkpython.fm/books/python-in-production",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615648,
+    "by": "Qasaur",
+    "timeISO": "2025-10-17T11:51:28.000Z",
+    "textPlain": "Hetzner is great for dedicated servers, but for those of us who need smaller-scale secure/confidential VMs I'm afraid that there isn't really any other choice than hyperscalers.Does anyone know if there is a VM vendor that sits somewhere in between a dedicated server host like Hetzner in terms of performance + cost-effectiveness and AWS/GCP in terms of security?Basically TPM/vTPM + AMD SEV/SEV-SNP + UEFI Secure Boot support. I've scoured the internet and can't seem to find anyone who provides virtualised trusted computing other than AWS/GCP. Hetzner does not provide a TPM for their VMs, they do not mention any data-in-use encryption, and they explicitly state that they do not support UEFI secure boot - all of these are critical requirements for high-assurance use cases.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615054,
+    "by": "geenat",
+    "timeISO": "2025-10-17T10:28:31.000Z",
+    "textPlain": "Yup. It's very good for the ecosystem for AWS to have good competition.Amazon gets far too greedy- particularly bad when you need egress.Also an \"amazon core\" is like 1/8th of a physical cpu core.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615631,
+    "by": "webprofusion",
+    "timeISO": "2025-10-17T11:49:22.000Z",
+    "textPlain": "Context is important for stuff like this, I've served 350M requests (with db interaction) for $49 via cloudflare before, but it all depends what you're trying to do.Abstracted infrastructure like Kubernetes is expensive by default, so design has an impact.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615746,
+    "by": "slig",
+    "timeISO": "2025-10-17T12:02:42.000Z",
+    "textPlain": "Anyone here usinghttps://github.com/vitobotta/hetzner-k3sOrhttps://github.com/kube-hetzner/terraform-hcloud-kube-hetzne...For a K3S cluster? Would love to hear any experience. Thanks!",
     "parent": 45614922,
     "depth": 1
   },
@@ -104,26 +184,58 @@
     "depth": 1
   },
   {
+    "id": 45615891,
+    "by": "faizshah",
+    "timeISO": "2025-10-17T12:19:34.000Z",
+    "textPlain": "Can anyone recommend a good cloud for GPU instances?Was trying to find a good one for 30B quants but there’s so many now and the pricing is all over the place.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615474,
+    "by": "tmdetect",
+    "timeISO": "2025-10-17T11:31:30.000Z",
+    "textPlain": "+1 to running services on physical servers, OVH in my case. I'm really enjoying CI pushing to servers and having managed database provided by a 3rd party like Mongo Atlas.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615425,
+    "by": "futurecat",
+    "timeISO": "2025-10-17T11:24:33.000Z",
+    "textPlain": "Questions for people who migrate off-cloud:1. How many nodes do you have?\n2. Did you install anything to monitor your node(s) and the app deployed on these nodes? If so, which software?",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615521,
+    "by": "krowek",
+    "timeISO": "2025-10-17T11:38:14.000Z",
+    "textPlain": "I tried my best to start using Hetzner, but they wouldn't let me.I got my account validation rejected despite having everything \"in norm\" and tried 3 times, they wouldn't give me a reason why it ended up rejected.I think it's better that way, I wouldn't like to get the surprise my account was terminated at some point after that.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615407,
+    "by": "e12e",
+    "timeISO": "2025-10-17T11:21:08.000Z",
+    "textPlain": "Very interesting and detailed article!I'd love to hear more about how you use terraform and helm together.Currently our major friction in ops is using tofu (terraform) to manage K8s resources. Avoiding yaml is great - but both terraform and K8s maintaining state makes the deployment of helm from terraform feel fragile; and vice-versa depending on helm directly in a mostly terraform setup also feels fragile.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45616028,
+    "by": "lunias",
+    "timeISO": "2025-10-17T12:34:31.000Z",
+    "textPlain": "The world is healing.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
     "id": 45615187,
     "by": "eric_khun",
     "timeISO": "2025-10-17T10:50:04.000Z",
     "textPlain": "AWS won't raise the limits on our new account (we're stuck at 1GB RAM in Lightsail after 2 months, even though we need to launch this month).Looking at Hetzner or Vultr as alternatives. A few folks mentioned me Infomaniak has great service and uptime, but I haven't heard much about them otherwise.Anyone used Infomaniak in production? How do they compare to Hetzner/Vultr?",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
-    "id": 45615242,
-    "by": "Havoc",
-    "timeISO": "2025-10-17T10:57:01.000Z",
-    "textPlain": "Makes sense. If you don't need the redundancy, certification/legals or the big cloud 100s of integrated other lego blocks then big cloud vps prices just are a rip off.",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
-    "id": 45615260,
-    "by": "Havoc",
-    "timeISO": "2025-10-17T11:00:26.000Z",
-    "textPlain": "Their Storage box offerings are great too. Think like a big ftp drive except supports lots of transfer protocols",
     "parent": 45614922,
     "depth": 1
   },
@@ -136,18 +248,50 @@
     "depth": 1
   },
   {
-    "id": 45615091,
-    "by": "piokoch",
-    "timeISO": "2025-10-17T10:35:08.000Z",
-    "textPlain": "Well, from what see the authors exchanged AWS managed Kubernetes cluster with self-hosted Kubernetes cluster on Talos Linux. Question is if $449.50/month paid for AWS will cover additional work needed for self-hosting.",
+    "id": 45615338,
+    "by": "naiv",
+    "timeISO": "2025-10-17T11:11:12.000Z",
+    "textPlain": "Just yesterday they released a new 'Shared regular performance' offering https://www.hetzner.com/cloud/",
     "parent": 45614922,
     "depth": 1
   },
   {
-    "id": 45615295,
-    "by": "nodesocket",
-    "timeISO": "2025-10-17T11:04:55.000Z",
-    "textPlain": "Saving $426/mo for a business seems like a waste of time and resources. The excessive frugal developer complex. How many hours did it take to do the migration?",
+    "id": 45615302,
+    "by": "DoctorOW",
+    "timeISO": "2025-10-17T11:06:13.000Z",
+    "textPlain": "I use Hetzner for personal projects and love it, the one thing stopping me from pushing it up the chain at work, is that we're based out of the US exclusively and AZs are pretty sparse.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615242,
+    "by": "Havoc",
+    "timeISO": "2025-10-17T10:57:01.000Z",
+    "textPlain": "Makes sense. If you don't need the redundancy, certification/legals or the big cloud 100s of integrated other lego blocks then big cloud vps prices just are a rip off.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615783,
+    "by": "JCM9",
+    "timeISO": "2025-10-17T12:06:44.000Z",
+    "textPlain": "As competition heats up, the relative “enshitifcation” of AWS is real.There just isn’t a compelling story to go “all in on AWS” anymore. For anything beyond raw storage and compute the experience elsewhere is consistently better, faster, cheaper.It seems AWS leadership got caught up trying to have an answer for every possible computing use case and broadly ended up with a bloated mess of expensive below-bar products. The recent panicked flood of meh AI slop products as AWS tries to make up for its big miss on AI is one such example.Would like to see AWS just focus on doing core infrastructure and doing it well. Others are simply better at everything that then layers on top of that.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615997,
+    "by": "dboreham",
+    "timeISO": "2025-10-17T12:30:52.000Z",
+    "textPlain": "Quick note that while I hear nothing but good things about Hetzner, the approach is generic -- applies to the many other bare metal \"SmallCo\" providers. For example we use Hivelocity and have been very happy. Perhaps also worth mentioning that you can literally buy computers and rent space to plug them in and hook up to the internet in a place we call a data center. That's even cheaper when you know your workload long term and have access to capital.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615260,
+    "by": "Havoc",
+    "timeISO": "2025-10-17T11:00:26.000Z",
+    "textPlain": "Their Storage box offerings are great too. Think like a big ftp drive except supports lots of transfer protocols",
     "parent": 45614922,
     "depth": 1
   },
@@ -160,10 +304,26 @@
     "depth": 1
   },
   {
-    "id": 45615213,
-    "by": "OutOfHere",
-    "timeISO": "2025-10-17T10:53:53.000Z",
-    "textPlain": "The part they never tell you is how Hetzner has 12x the unfair risk of account termination without warning. If you are okay with your account being terminated like that with zero notice or reason, then Hetzner is cheap.",
+    "id": 45615848,
+    "by": "YetAnotherNick",
+    "timeISO": "2025-10-17T12:14:02.000Z",
+    "textPlain": "You are doing calculations all wrong if you think saving $500/month is 75% of your cost.Also first three lines of new stack is a sure shot way to get PTSD. You shouldn't manage database in your plane, unless you really know the internals of the tools you are using. Once you get off AWS then you really start to see the value of things like documentation.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615477,
+    "by": "dvfjsdhgfv",
+    "timeISO": "2025-10-17T11:32:03.000Z",
+    "textPlain": "3x seems quite low, I routinely get 7-11x higher performance on Hetzner when compared to AWS. Also the conclusion of this old benchmark is still partially true: https://jan.rychter.com/enblog/cloud-server-cpu-performance-...",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615392,
+    "by": "jedisct1",
+    "timeISO": "2025-10-17T11:19:20.000Z",
+    "textPlain": "Of course.A dedicated server or VPS from OVH, Hetzner, Scaleway, etc., or even Docker containers on Koyeb, will give you way more bang for your buck.Call me a dinosaur, but I’ve never used any of the big cloud providers like AWS. They’re super expensive, and it’s hard to know what you’ll actually end up paying at the end of the month.",
     "parent": 45614922,
     "depth": 1
   },
@@ -176,10 +336,10 @@
     "depth": 1
   },
   {
-    "id": 45615239,
-    "by": "ed_mercer",
-    "timeISO": "2025-10-17T10:56:50.000Z",
-    "textPlain": "Great! Now if you go full homelab, you can get 1/30th of the price ;)",
+    "id": 45615588,
+    "by": "silexia",
+    "timeISO": "2025-10-17T11:44:11.000Z",
+    "textPlain": "At my home, I have the PUD fiber Internet with Starlink as the backup WAN. I have two non mission critical servers we were using on AWS for and I set up two old laptops locally to run. Saving $1,000 a month now. I am looking at my $4,000 a month of mission critical servers now.",
     "parent": 45614922,
     "depth": 1
   },
@@ -192,6 +352,30 @@
     "depth": 1
   },
   {
+    "id": 45615091,
+    "by": "piokoch",
+    "timeISO": "2025-10-17T10:35:08.000Z",
+    "textPlain": "Well, from what see the authors exchanged AWS managed Kubernetes cluster with self-hosted Kubernetes cluster on Talos Linux. Question is if $449.50/month paid for AWS will cover additional work needed for self-hosting.",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615239,
+    "by": "ed_mercer",
+    "timeISO": "2025-10-17T10:56:50.000Z",
+    "textPlain": "Great! Now if you go full homelab, you can get 1/30th of the price ;)",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
+    "id": 45615295,
+    "by": "nodesocket",
+    "timeISO": "2025-10-17T11:04:55.000Z",
+    "textPlain": "Saving $426/mo for a business seems like a waste of time and resources. The excessive frugal developer complex. How many hours did it take to do the migration?",
+    "parent": 45614922,
+    "depth": 1
+  },
+  {
     "id": 45615163,
     "by": "axus",
     "timeISO": "2025-10-17T10:46:00.000Z",
@@ -200,10 +384,10 @@
     "depth": 1
   },
   {
-    "id": 45615088,
-    "by": "rs_rs_rs_rs_rs",
-    "timeISO": "2025-10-17T10:34:27.000Z",
-    "textPlain": "You got me with the title and I was curious at first but then I got to the part where it shows the bill and realized this is just toy project.",
+    "id": 45615213,
+    "by": "OutOfHere",
+    "timeISO": "2025-10-17T10:53:53.000Z",
+    "textPlain": "The part they never tell you is how Hetzner has a substantially higher unfair risk of account termination without warning. If you are okay with your account being terminated like that with zero notice or reason, then Hetzner is cheap.",
     "parent": 45614922,
     "depth": 1
   },
@@ -214,189 +398,5 @@
     "textPlain": "aws and azure are massively overpriced.  there is no reason to use them.",
     "parent": 45614922,
     "depth": 1
-  },
-  {
-    "id": 45615172,
-    "by": "cisophrene",
-    "timeISO": "2025-10-17T10:48:07.000Z",
-    "textPlain": "Dedicated servers on a host like Hetzer and OVH surely beats any virtualization based cloud offering on price and performance. The tradeoff is availability. It's a great choice for entities that are optimizing on cost, but not a great choice if your business cannot tolerate downtime.A good example is a the big lichess outage from last year [1]. Lichess is a non-profit, and also must serve a huge user base. Given their financials, they have to go the cheap dedicated server route (they host on OVH). They publish an Excel sheet somewhere with every resources they use to run the services and last year, I had fun calculating how much it would cost them if they were using an hyperscaler cloud offering instead. I don't remember exactly but it was 5 or 6x the price they currently pay OVH.The downside, is that when you have an outage, your stuff is tied to physical servers and they can't easily be migrated, when cloud provider on the opposite can easily move around your workload. In the case of Lichess outage, it was some network device they had no control of that went bad, and lichess was down until OVH could fix it, that is many hours.So, yes you get a great deal, but for a lot of businesses, uptime is more important than cost optimization and the physicality of dedicated servers is actually a serious liability.[1]: https://lichess.org/@/Lichess/blog/post-mortem-of-our-longes...",
-    "parent": 45614922,
-    "depth": 1
-  },
-  {
-    "id": 45615353,
-    "by": "jwr",
-    "timeISO": "2025-10-17T11:12:40.000Z",
-    "textPlain": "I actually benchmarked this and wrote an article several years back, still very much applicable: https://jan.rychter.com/enblog/cloud-server-cpu-performance-...",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615191,
-    "by": "eahm",
-    "timeISO": "2025-10-17T10:50:22.000Z",
-    "textPlain": "I recently rediscovered this website that might help: https://vpspricetracker.comToo cool to not share, most of the providers listed there have dedicated servers too.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615331,
-    "by": "yread",
-    "timeISO": "2025-10-17T11:10:34.000Z",
-    "textPlain": "I used GTHost in the US. Performance is not bad but you do end up paying more if you need 1gbit/s link.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615255,
-    "by": "shrubble",
-    "timeISO": "2025-10-17T10:59:07.000Z",
-    "textPlain": "I have used wholesaleinternet.net and they are centrally located in the USA.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615112,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:38:26.000Z",
-    "textPlain": "> . I know of OVH but I would love to know others in the same space.When I've needed dedicated servers in the US I've used Vultr in the past, relatively nice pricing, only missing unmetered bandwidth for it to be my go-to. But all those US-specific cases been others paying for it, so hasn't bothered me, compared to personal/community stuff I host at Hetzner and pay for myself.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615273,
-    "by": "zakki",
-    "timeISO": "2025-10-17T11:01:56.000Z",
-    "textPlain": "Try www.wowrack.com or www.serverstadium.com.\n(I work for them).",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615113,
-    "by": "michalsustr",
-    "timeISO": "2025-10-17T10:38:32.000Z",
-    "textPlain": "Interserver. But I don’t have personal experience (yet)",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615128,
-    "by": "hshdhdhehd",
-    "timeISO": "2025-10-17T10:40:00.000Z",
-    "textPlain": "It can affect system design. Just chuck it all on one box! And it will be crazy fast.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615164,
-    "by": "bakugo",
-    "timeISO": "2025-10-17T10:46:39.000Z",
-    "textPlain": "Be warned though that, when renting dedicated servers, there are certain issues you might have to deal with that usually aren't a factor when renting a VPS.For example, I got a dedicated server from Hetzner earlier this year with a consumer Ryzen CPU that had unstable SIMD (ZFS checksums would randomly fail, and mprime also reported errors). Opened a ticket about it and they basically told me it wasn't an issue because their diagnostics couldn't detect it.",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615111,
-    "by": "tonyhart7",
-    "timeISO": "2025-10-17T10:38:13.000Z",
-    "textPlain": "Yeah this is what they do in \"high perfomance\" server, they just use gaming cpu",
-    "parent": 45615090,
-    "depth": 2
-  },
-  {
-    "id": 45615116,
-    "by": "geenat",
-    "timeISO": "2025-10-17T10:38:44.000Z",
-    "textPlain": "AWS has certainly had some pretty public facing downtime ;) I'd say its been roughly the same in my experience- the only way to avoid it IMHO is multi-region.",
-    "parent": 45615075,
-    "depth": 2
-  },
-  {
-    "id": 45615101,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:36:23.000Z",
-    "textPlain": "I do this too. Hetzner dedicated servers for the \"core\" and data-storage basically, and thin/tiny edge-nodes hosted at OVH across the globe as my homebrew CDN.",
-    "parent": 45615075,
-    "depth": 2
-  },
-  {
-    "id": 45615373,
-    "by": "jwr",
-    "timeISO": "2025-10-17T11:15:15.000Z",
-    "textPlain": "Note that we might be talking about two different things here: some of us use physical servers from Hetzner, which are crazy fast, and a great value. And some of us prefer virtual servers, which (IMHO) are not that revolutionary, even though still much less expensive than the competition.",
-    "parent": 45615121,
-    "depth": 2
-  },
-  {
-    "id": 45615199,
-    "by": "jakewins",
-    "timeISO": "2025-10-17T10:52:09.000Z",
-    "textPlain": "> Also at one point there were no VMs available anymore in our region, which caused a lot of issues.I'm not sure if this is a difference between other clouds, at least a few years ago this was a weekly or even daily problem in GCP; my experience is if you request hundreds of VMs rapidly during peak hours, all the clouds struggle.",
-    "parent": 45615121,
-    "depth": 2
-  },
-  {
-    "id": 45615154,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:44:33.000Z",
-    "textPlain": "Worth noting that this seems to be about Hetzners cloud product, not the dedicated servers. The cloud product is relatively new, and most of the people who move to Hetzner do so because of the dedicated instances, not to use their cloud.",
-    "parent": 45615121,
-    "depth": 2
-  },
-  {
-    "id": 45615132,
-    "by": "croes",
-    "timeISO": "2025-10-17T10:40:51.000Z",
-    "textPlain": "Blacklisted by whom?",
-    "parent": 45615121,
-    "depth": 2
-  },
-  {
-    "id": 45615083,
-    "by": "vidarh",
-    "timeISO": "2025-10-17T10:33:22.000Z",
-    "textPlain": "My favorite Jeff Bezos quote is one that applies very much to AWS: \"your margin is my opportunity\".Clearly when Amazon realised the enormous potential in AWS, they scrapped that principle. But the idea behind it - that an organisation used to fat margins will not be able to adapt in the face of a competitor built from the ground to live of razor thing margins - still applies.AWS is ripe for the picking. They \"can't\" drop prices much, because their big competitors have similar margins, and a price war with them would devastate the earnings of all of them no matter how much extra market share they were to win.The challenge is the enormous mindshare they have, and how many people are emotionally invested even in believing AWS is actually cost effective.",
-    "parent": 45615054,
-    "depth": 2
-  },
-  {
-    "id": 45615071,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:31:37.000Z",
-    "textPlain": "Using a dedicated server for the first time after using VPSes or similar since learning programming and infrastructure is like a whole new world. Suddenly, you feel like the application is running in molasses, and the whole idea of \"We need 10 VPS instances\" seems so stupid...",
-    "parent": 45615054,
-    "depth": 2
-  },
-  {
-    "id": 45615165,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:46:46.000Z",
-    "textPlain": "> EC2 machines with the same spec perform much worse than Hetzner machinesYeah, even when you move to \"EC2 Dedicated Instances\" you end up sharing the hardware with other instances, unless you go for \"EC2 Dedicated Hosts\", and even then the performance seems worse than other providers.Not sure how they managed to do so for even the dedicated stuff, would require some dedicated effort.",
-    "parent": 45615143,
-    "depth": 2
-  },
-  {
-    "id": 45615313,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T11:07:36.000Z",
-    "textPlain": "Just curious, what are you building/launching that requires more than 1GB of RAM at launch? 1GB is a lot of memory for most use cases, guessing something involving graphics or maybe simulations? In those cases, dedicated instances with proper hardware will give you enormous performance benefits, FYI.Both Vultr and Hetzner are solid options, I'd go for Hetzner if I know the users are around Europe or close to it, and I want to run tiny CDN-like nodes myself across the globe. Also, Hetzner if you don't wanna worry about bandwidth costs. Otherwise go for Vultr, they have a lot more locations.",
-    "parent": 45615187,
-    "depth": 2
-  },
-  {
-    "id": 45615087,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-17T10:33:58.000Z",
-    "textPlain": "Less biased view of \"Hetzner on HN\": https://hn.algolia.com/?dateRange=all&page=0&prefix=false&qu...In the end, Hetzner is a provider of \"cheap but not 100% uptime\" infrastructure, probably why it's so cheap in the first place.As every other provider, if you want 100% uptime (or getting close to it), you really need at least N+1 instances of everything, as every hosting provider end up fucking something up, sooner or later.",
-    "parent": 45615070,
-    "depth": 2
-  },
-  {
-    "id": 45615223,
-    "by": "mystifyingpoi",
-    "timeISO": "2025-10-17T10:54:32.000Z",
-    "textPlain": "All the effort that previously wasn't required for operating EKS, but now is required to operate self-hosted Kubernetes, will be pushed to existing engineers as a bit of extra work, with no extra pay.In the best case scenario. In the worst, some cluster f-up will eat 10x that in engineering time.",
-    "parent": 45615091,
-    "depth": 2
   }
 ]
