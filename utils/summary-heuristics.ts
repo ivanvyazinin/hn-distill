@@ -31,11 +31,23 @@ const REFUSAL_PHRASES = [
   "доступ к этой статье закрыт",
 ];
 
-const APOLOGY_PHRASES = ["i'm sorry", "извините", "к сожалению"];
 const POLICY_PHRASES = ["usage policy", "safety policy", "guidelines", "openai policy", "anthropic policy"];
 const GENERIC_PHRASES = ["this article discusses", "the content provides", "the text covers"];
 const META_PHRASES = ["for more information", "see the original article", "read the original article"];
 const CONTENT_FREE_PHRASES = ["no additional information", "information not provided"];
+
+const APOLOGY_TOKENS = ["i'm sorry", "im sorry", "sorry", "apologize", "к сожалению", "извините"];
+const REFUSAL_TOKENS = [
+  "i cannot",
+  "i can't",
+  "cannot",
+  "can't",
+  "unable to",
+  "я не могу",
+  "мы не можем",
+  "не буду",
+  "не сможем",
+];
 
 const DEFAULT_MIN_CHARS = 120;
 const MIN_WORDS = 25;
@@ -44,6 +56,25 @@ function pushIfMatch(summaryLower: string, phrases: string[], reason: string, tr
   for (const phrase of phrases) {
     if (summaryLower.includes(phrase)) {
       triggers.push({ reason, detail: phrase });
+      return;
+    }
+  }
+}
+
+function pushIfApologyRefusal(summaryLower: string, reason: string, triggers: HeuristicTrigger[]): void {
+  const sentences = summaryLower.split(/[\n!.;?]+/u);
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) {
+      continue;
+    }
+    const hasApology = APOLOGY_TOKENS.some((token) => trimmed.includes(token));
+    if (!hasApology) {
+      continue;
+    }
+    const hasRefusal = REFUSAL_TOKENS.some((token) => trimmed.includes(token));
+    if (hasRefusal) {
+      triggers.push({ reason, detail: "apology_refusal" });
       return;
     }
   }
@@ -81,7 +112,7 @@ export function checkSummaryHeuristics(
   const summaryLower = summary.toLowerCase();
 
   pushIfMatch(summaryLower, REFUSAL_PHRASES, "refusal", triggers);
-  pushIfMatch(summaryLower, APOLOGY_PHRASES, "apology", triggers);
+  pushIfApologyRefusal(summaryLower, "refusal", triggers);
   pushIfMatch(summaryLower, POLICY_PHRASES, "policy", triggers);
   pushIfMatch(summaryLower, GENERIC_PHRASES, "generic", triggers);
   pushIfMatch(summaryLower, META_PHRASES, "meta_instructions", triggers);

@@ -45,4 +45,15 @@ describe("utils/summary-heuristics", () => {
     expect(verdict.ok).toBeFalse();
     expect(verdict.triggers.some((trigger) => trigger.reason === "url_encoded_noise")).toBeTrue();
   });
+
+  test("allows benign apologies without refusals", () => {
+    const summary =
+      "Автор пишет: «Извините за задержку публикации», после чего подробно объясняет причины, приводит новые данные, " +
+      "сравнивает подходы конкурентов и завершает конкретными рекомендациями по внедрению изменений в проект.";
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 60,
+      language: "ru",
+    });
+    expect(verdict.triggers.some((trigger) => trigger.reason === "refusal")).toBeFalse();
+  });
 });
