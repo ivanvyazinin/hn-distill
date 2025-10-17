@@ -19,6 +19,11 @@ const UNIQUE_RATIO_MIN_WORDS = 80;
 const UNIQUE_RATIO_THRESHOLD = 0.2;
 const URL_ENCODED_MIN_MATCHES = 8;
 const URL_ENCODED_RATIO_THRESHOLD = 0.05;
+const BARE_BULLET_MIN_LINES = 10;
+const BARE_BULLET_RATIO_THRESHOLD = 0.9;
+const PROMPT_INSTRUCTION_SCORE_THRESHOLD = 2;
+const NUMERIC_HEADINGS_MIN_LINES = 3;
+const NUMERIC_HEADINGS_RATIO_THRESHOLD = 0.8;
 
 const REFUSAL_PHRASES = [
   "as an ai",
@@ -51,6 +56,56 @@ const REFUSAL_TOKENS = [
 
 const DEFAULT_MIN_CHARS = 120;
 const MIN_WORDS = 25;
+
+const PROMPT_INSTRUCTION_STRONG_PHRASES = [
+  "я твой переводчик",
+  "я ваш переводчик",
+  "я буду твоим переводчиком",
+  "я буду вашим переводчиком",
+  "я являюсь твоим переводчиком",
+  "я являюсь вашим переводчиком",
+  "i will be your translator",
+  "i can be your translator",
+  "i will be the translator",
+  "as your translator",
+  "as the translator",
+  "as your assistant",
+  "as the assistant",
+  "ignore previous instructions",
+];
+
+const PROMPT_INSTRUCTION_WEAK_PHRASES = [
+  "твоя задача",
+  "ваша задача",
+  "your task is",
+  "ты пишешь",
+  "вы пишете",
+  "ты должен",
+  "ты должна",
+  "вы должны",
+  "тебе нужно пересказать",
+  "вам нужно пересказать",
+  "тебе нужно перевести",
+  "вам нужно перевести",
+  "переведи на русский",
+  "перескажи на русском",
+  "you must summarize",
+  "you should summarize",
+  "you need to summarize",
+  "you must translate",
+  "you should translate",
+  "you need to translate",
+  "i will help you translate",
+  "i can help you translate",
+  "i will help you summarize",
+  "i can help you summarize",
+  "я помогу тебе перевести",
+  "я помогу вам перевести",
+  "я помогу тебе пересказать",
+  "я помогу вам пересказать",
+  "я могу тебе перевести",
+  "я могу вам перевести",
+];
 
 function pushIfMatch(summaryLower: string, phrases: string[], reason: string, triggers: HeuristicTrigger[]): void {
   for (const phrase of phrases) {
@@ -162,7 +217,7 @@ export function checkSummaryHeuristics(
     }
   }
 
-  const percentMatches = summary.match(/%[0-9a-f]{2}/giu);
+  const percentMatches = summary.match(/%[\da-f]{2}/giu);
   if (percentMatches) {
     const percentChars = percentMatches.length;
     const percentRatio = percentChars / summary.length;
@@ -171,6 +226,81 @@ export function checkSummaryHeuristics(
     }
   }
 
+  const bareBullets = lines.filter((line) => isBareBulletLine(line)).length;
+  if (bareBullets >= BARE_BULLET_MIN_LINES && bareBullets / lines.length >= BARE_BULLET_RATIO_THRESHOLD) {
+    triggers.push({ reason: "bare_bullets", detail: `ratio=${(bareBullets / lines.length).toFixed(2)}` });
+  }
+
+  const promptScore = computePromptInstructionScore(summaryLower);
+  if (promptScore >= PROMPT_INSTRUCTION_SCORE_THRESHOLD) {
+    triggers.push({ reason: "prompt_instructions", detail: `score=${promptScore}` });
+  }
+
+  const numericHeadingLines = lines.filter((line) => isNumericHeadingLine(line)).length;
+  const contentLines = lines.filter((line) => line.trim().length > 0).length;
+  if (
+    numericHeadingLines >= NUMERIC_HEADINGS_MIN_LINES &&
+    contentLines > 0 &&
+    numericHeadingLines / contentLines >= NUMERIC_HEADINGS_RATIO_THRESHOLD
+  ) {
+    triggers.push({
+      reason: "numeric_headings",
+      detail: `ratio=${(numericHeadingLines / contentLines).toFixed(2)}`,
+    });
+  }
+
   const ok = triggers.length === 0;
   return { ok, triggers };
+}
+
+function isBareBulletLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (trimmed.length === 0) {
+    return false;
+  }
+  const unescaped = trimmed.startsWith("\\") ? trimmed.slice(1) : trimmed;
+  return /^[-–—•]{1,4}$/u.test(unescaped);
+}
+
+function computePromptInstructionScore(summaryLower: string): number {
+  const normalized = summaryLower.replaceAll(/[^\s\p{L}\p{N}]/gu, " ");
+  const collapsed = normalized.replaceAll(/\s+/gu, " ").trim();
+  const padded = ` ${collapsed} `;
+  let score = 0;
+  if (PROMPT_INSTRUCTION_STRONG_PHRASES.some((phrase) => padded.includes(` ${phrase} `))) {
+    score += PROMPT_INSTRUCTION_SCORE_THRESHOLD;
+  }
+  for (const phrase of PROMPT_INSTRUCTION_WEAK_PHRASES) {
+    if (padded.includes(` ${phrase} `)) {
+      score += 1;
+      if (score >= PROMPT_INSTRUCTION_SCORE_THRESHOLD) {
+        break;
+      }
+    }
+  }
+  return score;
+}
+
+function isNumericHeadingLine(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed.startsWith("#")) {
+    return false;
+  }
+  const headingText = trimmed.replace(/^#+\s*/u, "");
+  if (headingText.length === 0 || !/\d/u.test(headingText)) {
+    return false;
+  }
+  if (/\p{L}/u.test(headingText)) {
+    return false;
+  }
+  for (const char of headingText) {
+    if (char >= "0" && char <= "9") {
+      continue;
+    }
+    if (char === "." || char === "/" || char === "-" || char === " " || char === "\t") {
+      continue;
+    }
+    return false;
+  }
+  return true;
 }

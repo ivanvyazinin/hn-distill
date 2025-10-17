@@ -13,13 +13,17 @@ mock.module("@config/env", () => ({ env: envStub }));
 mock.module("@config/openrouter", () => ({
   TAGS_FALLBACK_MODELS: [DEFAULT_MODEL, "fallback-model"] as const,
 }));
-mock.module("../scripts/summarize.mts", () => ({
-  makeServices: () => ({
-    http: {},
-    openrouter: {},
-    fetchArticleMarkdown: async () => "",
-  }),
-}));
+mock.module("../scripts/summarize.mts", async () => {
+  const actual = await import("../scripts/summarize.mts?actual");
+  return {
+    ...actual,
+    makeServices: () => ({
+      http: {},
+      openrouter: {},
+      fetchArticleMarkdown: async () => "",
+    }),
+  };
+});
 
 describe("tags bulk fallback handling", () => {
   test("switches to a different model after rate limit", async () => {

@@ -56,4 +56,60 @@ describe("utils/summary-heuristics", () => {
     });
     expect(verdict.triggers.some((trigger) => trigger.reason === "refusal")).toBeFalse();
   });
+
+  test("flags bare bullet markers without content", () => {
+    const summary = Array.from({ length: 25 }, () => "-").join("\n");
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 10,
+      language: "ru",
+    });
+    expect(verdict.ok).toBeFalse();
+    expect(verdict.triggers.some((trigger) => trigger.reason === "bare_bullets")).toBeTrue();
+  });
+
+  test("flags prompt-style instructions", () => {
+    const summary =
+      "# Ты пишешь подробные пересказы.\n" +
+      "Твоя задача — пересказать статью на русском языке.\n" +
+      "Я буду твоим переводчиком и помогу тебе перевести текст.";
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 10,
+      language: "ru",
+    });
+    expect(verdict.ok).toBeFalse();
+    expect(verdict.triggers.some((trigger) => trigger.reason === "prompt_instructions")).toBeTrue();
+  });
+
+  test("flags numeric headings only output", () => {
+    const summary = ["#3.1", "#1.1", "#2.4", "#4.0"].join("\n");
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 10,
+      language: "ru",
+    });
+    expect(verdict.ok).toBeFalse();
+    expect(verdict.triggers.some((trigger) => trigger.reason === "numeric_headings")).toBeTrue();
+  });
+
+  test("allows headings with descriptive text", () => {
+    const summary =
+      "# Release notes\n" +
+      "Новая версия улучшает производительность, исправляет критичные ошибки, перечисляет новые сценарии внедрения, уточняет график релизов и объясняет, как команда планирует сопровождать обновление после выката.";
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 10,
+      language: "ru",
+    });
+    expect(verdict.ok).toBeTrue();
+    expect(verdict.triggers.some((trigger) => trigger.reason === "numeric_headings")).toBeFalse();
+  });
+
+  test("allows instructional phrases in legitimate prose", () => {
+    const summary =
+      "Автор делится опытом по подготовке охот, объясняет, почему ваша задача как организатора — создавать решаемые, но честные головоломки, перечисляет типичные ошибки команд и завершает примером удачного события.";
+    const verdict = checkSummaryHeuristics(summary, {
+      minChars: 60,
+      language: "ru",
+    });
+    expect(verdict.ok).toBeTrue();
+    expect(verdict.triggers.some((trigger) => trigger.reason === "prompt_instructions")).toBeFalse();
+  });
 });
