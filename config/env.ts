@@ -16,14 +16,24 @@ const EnvironmentSchema = z.object({
 
   OPENROUTER_MODEL: z.string().default("moonshotai/kimi-k2:free"),
   // When primary model fails for summaries, try this model next
-  OPENROUTER_FALLBACK_MODEL: z.string().default("deepseek/deepseek-chat-v3.1:free"),
-  OPENROUTER_FALLBACK_MODEL_2: z.string().default("z-ai/glm-4.5-air:free"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("z-ai/glm-4.5-air:free"),
+  OPENROUTER_FALLBACK_MODEL_2: z.string().default("deepseek/deepseek-chat-v3.1:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
   TAGS_MODEL: z.string().default("mistralai/mistral-small-3.2-24b-instruct:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(3).max(20).default(10),
+
+  POST_GUARD_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
+  POST_GUARD_MODEL: z.string().default("mistralai/mistral-small-3.2-24b-instruct:free"),
+  POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
+  POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
+  POST_GUARD_ARTICLE_MAX_CHARS: z.coerce.number().int().min(500).max(12 * 1000).default(4 * 1000),
+  POST_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(500).default(120),
 
   LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
 

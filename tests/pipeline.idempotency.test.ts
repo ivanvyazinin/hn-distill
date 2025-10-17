@@ -9,7 +9,7 @@ async function snapshotDir(root: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
 
   async function walk(dir: string): Promise<void> {
-    let entries: import("node:fs").Dirent[];
+    let entries: Array<import("node:fs").Dirent>;
     try {
       entries = await readdir(dir, { withFileTypes: true });
     } catch {

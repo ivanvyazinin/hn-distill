@@ -1,7 +1,7 @@
 import { log } from "@utils/log";
 
-import type { z } from "zod";
 import type { HttpClient } from "./http-client";
+import type { z } from "zod";
 
 export type ChatMessage = {
   role: "assistant" | "system" | "user";

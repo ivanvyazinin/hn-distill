@@ -14,9 +14,9 @@ import {
   readProgress,
   readSeenCache,
   readTelegramLedger,
-  writeTelegramLedger,
   writeProgress,
   writeSeenCache,
+  writeTelegramLedger,
 } from "@utils/telegram";
 
 import type { AggregatedItem } from "@config/schemas";
@@ -43,7 +43,16 @@ async function main(): Promise<void> {
   // Select and prepare items for digest
   const candidates = pickTop(aggregated.items, env.TELEGRAM_MAX_ITEMS);
 
-  const skippedItems: AggregatedItem[] = [];
+  const skippedItems: Array<{
+    id: number;
+    title: string;
+    domain?: string;
+    url?: string | null;
+    hnUrl?: string;
+    postSummary?: string;
+    commentsSummary?: string;
+    timeISO: string;
+  }> = [];
   const items = candidates.filter((item) => {
     const summary = item.postSummary?.trim();
     const hasSummary = summary !== undefined && summary.length > 0;
@@ -96,7 +105,8 @@ async function main(): Promise<void> {
   // Resume from progress or start fresh, using both local progress and persistent ledger
   const alreadySentIds = new Set([
     ...(progress?.sentItems.map((item) => item.id) ?? []),
-    ...(ledger.sentIds ?? []),
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    ...(ledger.sentIds || []),
   ]);
   const itemsToSend = items.filter((item) => !alreadySentIds.has(item.id));
 
@@ -117,7 +127,8 @@ async function main(): Promise<void> {
     });
     // Update ledger even when resuming
     const sentIdsThisRun = progress.sentItems.map((si) => si.id);
-    const nextIds = Array.from(new Set([...(ledger.sentIds ?? []), ...sentIdsThisRun]));
+    // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+    const nextIds = [...new Set([...(ledger.sentIds || []), ...sentIdsThisRun])];
     await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
     await deleteProgress(progressPath);
     process.exit(0);
@@ -128,7 +139,8 @@ async function main(): Promise<void> {
     log.info("telegram", "All items already sent (from ledger), skipping", {
       hash,
       totalItems: items.length,
-      ledgerSize: ledger.sentIds?.length ?? 0,
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+      ledgerSize: ledger.sentIds ? ledger.sentIds.length : 0,
     });
     process.exit(0);
   }
@@ -279,7 +291,8 @@ async function main(): Promise<void> {
 
   // Update persistent ledger with all sent IDs
   const sentIdsThisRun = progress.sentItems.map((si) => si.id);
-  const nextIds = Array.from(new Set([...(ledger.sentIds ?? []), ...sentIdsThisRun]));
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  const nextIds = [...new Set([...(ledger.sentIds || []), ...sentIdsThisRun])];
   await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
 
   await deleteProgress(progressPath);
@@ -374,7 +387,7 @@ function buildMessages(
 }
 
 // Run main function and handle errors
-main().catch((error) => {
+main().catch((error: unknown) => {
   log.error("telegram", "Fatal error in Telegram publishing", { error });
   process.exit(1);
 });

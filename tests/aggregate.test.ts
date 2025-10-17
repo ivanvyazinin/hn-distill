@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { withTempDir, mockPaths, story as makeStory, comment as makeComment, aggItem, TEST_ISO } from "./helpers";
 import { writeJsonFile } from "@utils/json";
-import type { AggregatedItem, NormalizedComment, NormalizedStory } from "@config/schemas";
+import type { AggregatedItem, NormalizedComment, NormalizedStory, PostSummary } from "@config/schemas";
 import { SCORE_MIN_AGGREGATE } from "@config/constants";
 
 describe("Aggregation & grouping", () => {
@@ -36,16 +36,30 @@ describe("Aggregation & grouping", () => {
       const s: NormalizedStory = makeStory({ id: 1, url: null, score: 100, commentIds: [101] });
       const comments: NormalizedComment[] = [makeComment({ id: 101, textPlain: "This is a comment.", parent: s.id })];
 
-      const postSummary = undefined;
-      const commentsSummary = undefined; // LLM summary missing
-      const tagsSummary = undefined;
-
-      const item = buildAggregatedItem(s, comments, postSummary, commentsSummary, tagsSummary);
+      const item = buildAggregatedItem(s, comments, void 0, void 0, void 0);
       const fallback = fallbackFromRaw(s, comments);
 
       expect(item.postSummary).toBeUndefined();
       expect(item.commentsSummary).toBe(fallback.commentsSummary);
       expect(item.commentsSummary).toContain("This is a comment.");
+    });
+  });
+
+  test("buildAggregatedItem drops guard-failed summaries", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const { buildAggregatedItem } = await import("@scripts/aggregate.mts");
+
+      const s: NormalizedStory = makeStory({ id: 42, url: null, score: 120, commentIds: [] });
+
+      const postSummary = {
+        summary: "As an AI, I cannot comply with that request.",
+        guard: { ok: false, verdict: "refusal", reasons: ["refusal"] },
+      } satisfies Partial<PostSummary>;
+
+      const item = buildAggregatedItem(s, [], postSummary, void 0, void 0);
+
+      expect(item.postSummary).toBeUndefined();
     });
   });
 

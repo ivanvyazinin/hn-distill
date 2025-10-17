@@ -5,6 +5,7 @@ import { formatISO } from "date-fns";
 import { z } from "zod";
 
 import { SCORE_MIN_AGGREGATE } from "@config/constants";
+import { env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
   AggregatedFileSchema,
@@ -24,10 +25,28 @@ import { ensureDir } from "@utils/fs";
 import { HN } from "@utils/hn";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
+import { checkSummaryHeuristics } from "@utils/summary-heuristics";
 
 type Services = {
   noop?: true;
 };
+
+const DROP_SUMMARY_REASONS = new Set([
+  "empty",
+  "too_short",
+  "too_few_words",
+  "refusal",
+  "apology",
+  "policy",
+  "artifact",
+  "bullets_only",
+  "meta_instructions",
+  "redirects_to_article",
+  "content_free",
+  "repetition_run",
+  "low_unique_ratio",
+  "url_encoded_noise",
+]);
 
 export function makeServices(): Services {
   return {};
@@ -104,7 +123,8 @@ export function buildAggregatedItem(
   const tags = [...new Set(rawTags)];
 
   const rawPostSummary = (postSummary as { summary?: string } | undefined)?.summary;
-  const cleanedPostSummary = sanitizePostSummary(rawPostSummary);
+  const postGuard = (postSummary as { guard?: PostSummaryGuardPersisted } | undefined)?.guard;
+  const cleanedPostSummary = sanitizePostSummary(rawPostSummary, postGuard, { id: story.id });
 
   return {
     id: story.id,
@@ -124,12 +144,56 @@ export function buildAggregatedItem(
 
 const POST_SUMMARY_ARTIFACT = "<｜begin▁of▁sentence｜>";
 
-function sanitizePostSummary(summary?: string): string | undefined {
+type PostSummaryGuardPersisted = {
+  ok?: boolean;
+  verdict?: string;
+  reasons?: string[];
+  confidence?: number;
+};
+
+function sanitizePostSummary(
+  summary: string | undefined,
+  guard: PostSummaryGuardPersisted | undefined,
+  context: { id: number }
+): string | undefined {
   if (!summary) {
     return summary;
   }
   const cleaned = summary.replaceAll(POST_SUMMARY_ARTIFACT, "").trim();
-  return cleaned.length > 0 ? cleaned : undefined;
+  if (cleaned.length === 0) {
+    return undefined;
+  }
+
+  if (guard && guard.ok === false) {
+    log.warn("aggregate", "Dropping summary flagged by guard", {
+      id: context.id,
+      verdict: guard.verdict,
+      reasons: guard.reasons,
+    });
+    return undefined;
+  }
+
+  const heuristics = checkSummaryHeuristics(cleaned, {
+    minChars: env.POST_SUMMARY_MIN_CHARS,
+    language: env.SUMMARY_LANG,
+  });
+  const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS.has(trigger.reason));
+  if (blocking.length > 0) {
+    log.warn("aggregate", "Dropping summary after heuristics", {
+      id: context.id,
+      triggers: blocking.map((t) => t.reason),
+    });
+    return undefined;
+  }
+
+  if (!heuristics.ok) {
+    log.info("aggregate", "Summary passed with non-blocking triggers", {
+      id: context.id,
+      triggers: heuristics.triggers.map((t) => t.reason),
+    });
+  }
+
+  return cleaned;
 }
 
 export async function readAggregates(storyIds: number[]): Promise<AggregatedItem[]> {
@@ -140,13 +204,13 @@ export async function readAggregates(storyIds: number[]): Promise<AggregatedItem
       const { story, comments, postSummary, commentsSummary, tagsSummary } = await loadStoryData(id);
       if (!story) {
         log.warn("aggregate", "Missing story; skipping", { id });
-        return undefined;
+        return;
       }
 
       const score = typeof story.score === "number" ? story.score : 0;
       if (score < SCORE_MIN_AGGREGATE) {
         log.debug("aggregate", "Skipping story due to low score", { id, score, min: SCORE_MIN_AGGREGATE });
-        return undefined;
+        return;
       }
 
       const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);

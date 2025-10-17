@@ -23,6 +23,8 @@ import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
 import { pdfToText } from "@utils/pdf";
+import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
+import { checkSummaryHeuristics } from "@utils/summary-heuristics";
 import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
 
@@ -132,8 +134,26 @@ const LOG_NAMESPACE_LLM = "summarize/llm" as const;
 const LOG_NAMESPACE_POST = "summarize/post" as const;
 const LOG_NAMESPACE_COMMENTS = "summarize/comments" as const;
 const LOG_NAMESPACE_ARTICLE = "summarize/article" as const;
+const LOG_NAMESPACE_GUARD = "summarize/guard" as const;
 
 type LlmLogContext = Record<string, unknown>;
+
+type SummarizePostOptions = {
+  strictSystem?: boolean;
+  context?: LlmLogContext;
+};
+
+type PostSummaryValidated = {
+  summary: string;
+  modelUsed: string;
+  guard?: SummaryGuardResult;
+};
+
+const POST_SUMMARY_ATTEMPTS: Array<{ label: string; strict: boolean }> = [
+  { label: "initial", strict: false },
+  { label: "strict-1", strict: true },
+  { label: "strict-2", strict: true },
+];
 
 function ensureError(error: unknown): Error {
   if (error instanceof Error) {
@@ -338,26 +358,43 @@ function hashString(s: string): string {
   return createHash("sha256").update(s).digest("hex");
 }
 
-function buildPostSystemInstruction(): string {
+function buildPostSystemInstruction(strict?: boolean): string {
+  const isStrict = strict === true;
   if (env.SUMMARY_LANG === "en") {
-    return [
+    const base = [
       "You craft tight and concise Hacker News article distillations in Markdown. In English.",
       "Aim for roughly 170 words across two short paragraphs; add a third only if it truly helps.",
       "Spotlight the core idea plus one or two vivid facts, quotes, or numbers readers should remember.",
       "Skip titles, bylines, publication dates, and source attributions.",
       "Begin directly—no headings like 'Summary:' and no closing sign-offs.",
       "Important: mention all the key information from the article, don't lose it. Be precise and concise.",
-    ].join("\n");
+    ];
+    if (isStrict) {
+      base.push(
+        "Never apologise, mention policies, or refuse the task.",
+        "If the source lacks detail, state the concrete facts that do exist; do not speculate or say the article is unavailable.",
+        "Do not reference yourself or the request."
+      );
+    }
+    return base.join("\n");
   }
 
-  return [
+  const base = [
     "Ты пишешь точные и ёмкие пересказы статей Hacker News в Markdown на русском языке.",
     "Стремись к ~170 словам в двух коротких абзацах; третий добавляй только если он действительно помогает.",
     "Выделяй главную идею и пару ярких фактов, цитат или цифр, которые стоит запомнить.",
     "Не называй заголовок, автора, дату публикации и источники.",
     "Начинай сразу с сути, без заголовков вроде 'Саммари:' и без финальных клише.",
     "Важно: упоминай всю ключевую информацию из статьи, не теряй её. Будь точен и лаконичен.",
-  ].join("\n");
+  ];
+  if (isStrict) {
+    base.push(
+      "Никаких отказов, извинений или упоминаний политик.",
+      "Если в материале мало деталей, перескажи то, что есть, и укажи ключевые факты.",
+      "Не упоминай себя и само задание."
+    );
+  }
+  return base.join("\n");
 }
 
 function buildCommentsLanguageHeader(): string {
@@ -619,13 +656,17 @@ async function callLLM(services: Services, prompt: string): Promise<LlmResult> {
   return await callOpenRouterWithRetry(services, messages, context);
 }
 
-async function callLLMWithMessages(services: Services, messages: ChatMessage[]): Promise<LlmResult> {
-  const context: LlmLogContext = { messages: messages.length };
-  return await callOpenRouterWithRetry(services, messages, context);
+async function callLLMWithMessages(
+  services: Services,
+  messages: ChatMessage[],
+  context: LlmLogContext = {}
+): Promise<LlmResult> {
+  const ctx: LlmLogContext = { messages: messages.length, ...context };
+  return await callOpenRouterWithRetry(services, messages, ctx);
 }
 
-export function buildPostChatMessages(articleSlice: string): ChatMessage[] {
-  const system = buildPostSystemInstruction();
+export function buildPostChatMessages(articleSlice: string, options: { strict?: boolean } = {}): ChatMessage[] {
+  const system = buildPostSystemInstruction(options.strict ?? false);
   return [
     { role: "system", content: system },
     { role: "user", content: articleSlice },
@@ -635,11 +676,98 @@ export function buildPostChatMessages(articleSlice: string): ChatMessage[] {
 export async function summarizePost(
   services: Services,
   story: NormalizedStory,
-  articleSlice: string
+  articleSlice: string,
+  options: SummarizePostOptions = {}
 ): Promise<Pick<PostSummary, "id" | "lang" | "model" | "summary">> {
-  const messages = buildPostChatMessages(articleSlice);
-  const { content, modelUsed } = await callLLMWithMessages(services, messages);
+  const messages = buildPostChatMessages(articleSlice, { strict: options.strictSystem ?? false });
+  const context: LlmLogContext = { ...(options.context ?? {}) };
+  if (options.strictSystem !== undefined) {
+    context["strict"] = options.strictSystem;
+  }
+  const { content, modelUsed } = await callLLMWithMessages(services, messages, context);
   return { id: story.id, lang: env.SUMMARY_LANG, summary: content, model: modelUsed };
+}
+
+export async function generateValidatedPostSummary(
+  services: Services,
+  story: NormalizedStory,
+  articleSlice: string
+): Promise<PostSummaryValidated | undefined> {
+  const lang = env.SUMMARY_LANG;
+  const attemptContextBase = { storyId: story.id };
+
+  for (const attempt of POST_SUMMARY_ATTEMPTS) {
+    try {
+      const summaryContent = await summarizePost(services, story, articleSlice, {
+        strictSystem: attempt.strict,
+        context: { ...attemptContextBase, attempt: attempt.label },
+      });
+
+      const heuristics = checkSummaryHeuristics(summaryContent.summary, {
+        minChars: env.POST_SUMMARY_MIN_CHARS,
+        language: lang,
+      });
+
+      if (!heuristics.ok) {
+        log.warn(LOG_NAMESPACE_GUARD, "Heuristic check failed", {
+          id: story.id,
+          attempt: attempt.label,
+          triggers: heuristics.triggers,
+        });
+        continue;
+      }
+
+      let guardResult: SummaryGuardResult | undefined;
+      if (env.POST_GUARD_ENABLE) {
+        try {
+          guardResult = await runSummaryGuard(services.openrouter, {
+            summary: summaryContent.summary,
+            articleSlice,
+            envLike: {
+              SUMMARY_LANG: lang,
+              POST_GUARD_MODEL: env.POST_GUARD_MODEL,
+              POST_GUARD_MAX_TOKENS: env.POST_GUARD_MAX_TOKENS,
+              POST_GUARD_MIN_CONFIDENCE: env.POST_GUARD_MIN_CONFIDENCE,
+              POST_GUARD_ARTICLE_MAX_CHARS: env.POST_GUARD_ARTICLE_MAX_CHARS,
+            },
+          });
+        } catch (error) {
+          log.error(LOG_NAMESPACE_GUARD, "Guard call failed", {
+            id: story.id,
+            attempt: attempt.label,
+            error: String(error),
+          });
+          continue;
+        }
+
+        if (!guardResult.ok) {
+          log.warn(LOG_NAMESPACE_GUARD, "Guard rejected summary", {
+            id: story.id,
+            attempt: attempt.label,
+            verdict: guardResult.verdict,
+            reasons: guardResult.reasons,
+            confidence: guardResult.confidence,
+          });
+          continue;
+        }
+      }
+
+      return {
+        summary: summaryContent.summary,
+        modelUsed: summaryContent.model ?? env.OPENROUTER_MODEL,
+        ...(guardResult !== undefined && { guard: guardResult }),
+      };
+    } catch (error) {
+      log.error(LOG_NAMESPACE_POST, "Post summary attempt failed", {
+        id: story.id,
+        attempt: attempt.label,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  log.error(LOG_NAMESPACE_GUARD, "Exhausted summary attempts; skipping", { id: story.id });
+  return undefined;
 }
 
 export async function summarizeComments(
@@ -722,19 +850,38 @@ async function processPostSummary(services: Services, story: NormalizedStory, po
   }
 
   if (postArticleSlice.length > 0) {
-    const summaryContent = await summarizePost(services, story, postArticleSlice);
-    const modelUsed = summaryContent.model ?? env.OPENROUTER_MODEL;
+    const validated = await generateValidatedPostSummary(services, story, postArticleSlice);
+    if (!validated) {
+      log.error(LOG_NAMESPACE_POST, "Post summary rejected after all attempts", {
+        id: story.id,
+      });
+      return;
+    }
+
+    const guardPersisted = validated.guard
+      ? {
+          ok: validated.guard.ok,
+          verdict: validated.guard.verdict,
+          reasons: validated.guard.reasons,
+          confidence: validated.guard.confidence,
+        }
+      : undefined;
+
     const postSummary: PostSummary = {
-      ...summaryContent,
+      id: story.id,
+      lang: env.SUMMARY_LANG,
+      summary: validated.summary,
       inputHash: postInputHash,
-      model: modelUsed,
+      model: validated.modelUsed,
       createdISO: new Date().toISOString(),
+      ...(guardPersisted ? { guard: guardPersisted } : {}),
     };
     await writeJsonFile(postPath, postSummary, { atomic: true, pretty: true });
     log.info(LOG_NAMESPACE_POST, "Post summary written", {
       id: story.id,
       chars: postSummary.summary.length,
-      model: modelUsed,
+      model: validated.modelUsed,
+      guardVerdict: guardPersisted?.verdict,
     });
   } else {
     log.warn(LOG_NAMESPACE_POST, "Empty post prompt; skipping LLM", { id: story.id });

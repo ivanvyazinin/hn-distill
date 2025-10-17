@@ -128,9 +128,7 @@ async function tagsOnlyWorkflow(services: Services, storyIds: number[], customEn
 
 // Model rotation configuration - using models that support structured outputs
 const DEFAULT_MODEL = env.TAGS_MODEL;
-const FALLBACK_MODELS = Array.from(
-  new Set(TAGS_FALLBACK_MODELS.filter((model) => model !== DEFAULT_MODEL))
-);
+const FALLBACK_MODELS = [...new Set(TAGS_FALLBACK_MODELS.filter((model) => model !== DEFAULT_MODEL))];
 
 let currentModelIndex = -1; // -1 means using default model
 

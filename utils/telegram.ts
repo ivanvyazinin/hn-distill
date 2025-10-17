@@ -47,6 +47,7 @@ export function escapeHtml(s: string): string {
     .replaceAll("'", "&#39;");
 }
 
+// eslint-disable-next-line @typescript-eslint/typedef
 export function chunkTelegramText(s: string, limit = 4096): string[] {
   if (s.length <= limit) {
     return [s];

@@ -63,6 +63,14 @@ export const PostSummarySchema = z.object({
   inputHash: z.string().optional(),
   model: z.string().optional(),
   createdISO: z.string().optional(),
+  guard: z
+    .object({
+      ok: z.boolean(),
+      verdict: z.string().optional(),
+      reasons: z.array(z.string()).optional(),
+      confidence: z.number().min(0).max(1).optional(),
+    })
+    .optional(),
 });
 
 export const CommentsSummarySchema = z.object({

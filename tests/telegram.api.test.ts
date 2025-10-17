@@ -3,6 +3,9 @@ import { describe, expect, test } from "bun:test";
 import { Telegram } from "@utils/telegram";
 import { makeMockHttp } from "tests/helpers/http";
 
+const TEST_BOT_TOKEN = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11";
+const TEST_CHAT_ID = "@testchannel";
+
 describe("Telegram API", () => {
   test("should send message successfully", async () => {
     const mockRoutes = {
@@ -13,10 +16,10 @@ describe("Telegram API", () => {
     };
 
     const { http } = makeMockHttp(mockRoutes);
-    const telegram = new Telegram(http, "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+    const telegram = new Telegram(http, TEST_BOT_TOKEN);
 
     const messageId = await telegram.sendMessage({
-      chatId: "@testchannel",
+      chatId: TEST_CHAT_ID,
       text: "Test message",
       parseMode: "HTML",
       disableWebPagePreview: true,
@@ -34,11 +37,11 @@ describe("Telegram API", () => {
     };
 
     const { http } = makeMockHttp(mockRoutes);
-    const telegram = new Telegram(http, "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+    const telegram = new Telegram(http, TEST_BOT_TOKEN);
 
     await expect(
       telegram.sendMessage({
-        chatId: "@testchannel",
+        chatId: TEST_CHAT_ID,
         text: "Test message",
       })
     ).rejects.toThrow("Telegram API error");
@@ -53,10 +56,10 @@ describe("Telegram API", () => {
     };
 
     const { http } = makeMockHttp(mockRoutes);
-    const telegram = new Telegram(http, "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+    const telegram = new Telegram(http, TEST_BOT_TOKEN);
 
     await telegram.sendMessage({
-      chatId: "@testchannel",
+      chatId: TEST_CHAT_ID,
       text: "Test message with thread",
       messageThreadId: 123,
     });
@@ -74,10 +77,10 @@ describe("Telegram API", () => {
     };
 
     const { http } = makeMockHttp(mockRoutes);
-    const telegram = new Telegram(http, "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+    const telegram = new Telegram(http, TEST_BOT_TOKEN);
 
     await telegram.sendMessage({
-      chatId: "@testchannel",
+      chatId: TEST_CHAT_ID,
       text: "Test message with defaults",
     });
 
@@ -94,13 +97,13 @@ describe("Telegram API", () => {
     };
 
     const { http } = makeMockHttp(mockRoutes);
-    const telegram = new Telegram(http, "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11");
+    const telegram = new Telegram(http, TEST_BOT_TOKEN);
 
     // The mock doesn't actually simulate retries, but we can verify the call structure
     // In a real implementation, the HttpClient would retry on 429 status
     try {
       await telegram.sendMessage({
-        chatId: "@testchannel",
+        chatId: TEST_CHAT_ID,
         text: "Test message with retry",
       });
       // Should have thrown an error for 429 status

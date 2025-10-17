@@ -3,15 +3,18 @@ import { unlinkSync, writeFileSync } from "node:fs";
 
 import { digestHash, readSeenCache, writeSeenCache } from "@utils/telegram";
 
+const TEST_STORY_TITLE = "Test Story 1";
+const TEST_TIME_ISO = "2024-01-01T00:00:00.000Z";
+
 describe("digestHash", () => {
   test("should generate consistent hash for same input", async () => {
     const items = [
       {
         id: 1,
-        title: "Test Story 1",
+        title: TEST_STORY_TITLE,
         postSummary: "Summary 1",
         commentsSummary: "",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
       {
         id: 2,
@@ -33,19 +36,19 @@ describe("digestHash", () => {
     const items1 = [
       {
         id: 1,
-        title: "Test Story 1",
+        title: TEST_STORY_TITLE,
         postSummary: "Summary 1",
         commentsSummary: "",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
     ];
     const items2 = [
       {
         id: 1,
-        title: "Test Story 1",
+        title: TEST_STORY_TITLE,
         postSummary: "Different Summary",
         commentsSummary: "",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
     ];
 
@@ -59,10 +62,10 @@ describe("digestHash", () => {
     const items = [
       {
         id: 1,
-        title: "Test Story 1",
+        title: TEST_STORY_TITLE,
         postSummary: "Summary 1",
         commentsSummary: "",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
     ];
 
@@ -84,7 +87,7 @@ describe("digestHash", () => {
         title: "Test Story",
         postSummary: "Post summary",
         commentsSummary: "Comments summary",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
     ];
     const items2 = [
@@ -93,7 +96,7 @@ describe("digestHash", () => {
         title: "Test Story",
         postSummary: "Different post summary",
         commentsSummary: "Comments summary",
-        timeISO: "2024-01-01T00:00:00.000Z",
+        timeISO: TEST_TIME_ISO,
       },
     ];
 

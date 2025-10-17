@@ -149,8 +149,8 @@ function arrayShallowEqual<T>(a: readonly T[], b: readonly T[]): boolean {
   if (a.length !== b.length) {
     return false;
   }
-  for (let index = 0; index < a.length; index += 1) {
-    if (a[index] !== b[index]) {
+  for (const [index, value] of a.entries()) {
+    if (value !== b[index]) {
       return false;
     }
   }
@@ -166,10 +166,7 @@ function numberMembersEqual(a: readonly number[], b: readonly number[]): boolean
   return arrayShallowEqual(normalizeMembers(a), normalizeMembers(b));
 }
 
-function seenByDepthMembersEqual(
-  a: Record<string, number[]>,
-  b: Record<string, number[]>
-): boolean {
+function seenByDepthMembersEqual(a: Record<string, number[]>, b: Record<string, number[]>): boolean {
   const keys = new Set<string>([...Object.keys(a), ...Object.keys(b)]);
   for (const key of keys) {
     const aa = a[key] ?? [];
@@ -356,8 +353,8 @@ export async function main(servicesOverride?: Services): Promise<void> {
             seenByDepth: c,
           };
           const prevEntry = seenCache[story.id];
-          const sameTop = prevEntry ? numberMembersEqual(prevEntry.seenTopLevel ?? [], nextEntry.seenTopLevel) : false;
-          const sameByDepth = prevEntry ? seenByDepthMembersEqual(prevEntry.seenByDepth ?? {}, nextEntry.seenByDepth) : false;
+          const sameTop = prevEntry ? numberMembersEqual(prevEntry.seenTopLevel, nextEntry.seenTopLevel) : false;
+          const sameByDepth = prevEntry ? seenByDepthMembersEqual(prevEntry.seenByDepth, nextEntry.seenByDepth) : false;
 
           if (prevEntry && sameTop && sameByDepth) {
             return;
@@ -382,7 +379,8 @@ export async function main(servicesOverride?: Services): Promise<void> {
   const storyIds = [...idsSet];
   const previousStoryIds = previousIndex?.storyIds ?? [];
   const sameStoryIds = arrayShallowEqual(previousStoryIds, storyIds);
-  const indexUpdatedISO = sameStoryIds && typeof previousIndex?.updatedISO === "string" ? previousIndex.updatedISO : runTimestamp;
+  const indexUpdatedISO =
+    sameStoryIds && typeof previousIndex?.updatedISO === "string" ? previousIndex.updatedISO : runTimestamp;
   const indexPayload = {
     updatedISO: indexUpdatedISO,
     storyIds,
@@ -392,6 +390,7 @@ export async function main(servicesOverride?: Services): Promise<void> {
     await writeJsonFile(PATHS.index, indexPayload, { atomic: true, pretty: true });
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (seenCacheChanged || !seenCacheExists) {
     await writeJsonFile(PATHS.seenCache, seenCache, { atomic: true, pretty: true });
   }
