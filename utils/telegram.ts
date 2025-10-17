@@ -114,7 +114,7 @@ export async function digestHash(items: TelegramDigestItem[]): Promise<string> {
   const payload = {
     ids: items.map((i: TelegramDigestItem) => i.id),
     titles: items.map((i: TelegramDigestItem) => i.title),
-    summaries: items.map((i: TelegramDigestItem) => i.postSummary ?? i.commentsSummary ?? ""),
+    summaries: items.map((i: TelegramDigestItem) => i.postSummary?.trim() ?? ""),
   };
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
