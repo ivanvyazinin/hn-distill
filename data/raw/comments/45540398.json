@@ -1,9 +1,9 @@
 [
   {
-    "id": 45618474,
-    "by": "adregan",
-    "timeISO": "2025-10-17T16:17:51.000Z",
-    "textPlain": "One neat thing about the referenced chapter on macros from Practical Common Lisp is that it's chapters 7 and 8 of a 30+ chapter book. You're only learning about variables in the chapter before and then macros. I like to think about that when conversations about macros always devolve into talking about how you should never use macros.Now apologies for the aside—and I know I'm likely wading into a very expansive topic and reducing it down to something simple—but why in Rust, if the types are known:    struct Song {\n      title: String,\n      artist: String,\n      rating: i64,\n    }\n\ndo you have to call `.to_string()` on things that look a lot like strings already?    Song::new(\"Hate Me\".to_string(), \"Blue October\".to_string(), 9)\n\nCouldn't the compiler just do that for you?",
+    "id": 45619243,
+    "by": "TheSoftwareGuy",
+    "timeISO": "2025-10-17T17:16:54.000Z",
+    "textPlain": "For those interested, this blog post also has a part 2 and 3:https://hackeryarn.com/post/rust-macros-2/https://hackeryarn.com/post/rust-macros-3/",
     "parent": 45540398,
     "depth": 1
   },
@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45618248,
-    "by": "BetaDeltaAlpha",
-    "timeISO": "2025-10-17T16:00:08.000Z",
-    "textPlain": "There are so many typos in here it makes it difficult to focus on the content. Is this a deliberate signal that the article was human written?I learned a lot regardless and I'm adding this to my blogroll.",
+    "id": 45618474,
+    "by": "adregan",
+    "timeISO": "2025-10-17T16:17:51.000Z",
+    "textPlain": "One neat thing about the referenced chapter on macros from Practical Common Lisp is that it's chapters 7 and 8 of a 30+ chapter book. You're only learning about variables in the chapter before and then macros. I like to think about that when conversations about macros always devolve into talking about how you should never use macros.Now apologies for the aside—and I know I'm likely wading into a very expansive topic and reducing it down to something simple—but why in Rust, if the types are known:    struct Song {\n      title: String,\n      artist: String,\n      rating: i64,\n    }\n\ndo you have to call `.to_string()` on things that look a lot like strings already?    Song::new(\"Hate Me\".to_string(), \"Blue October\".to_string(), 9)\n\nCouldn't the compiler just do that for you?",
     "parent": 45540398,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "iambacktomyword",
     "timeISO": "2025-10-17T14:05:38.000Z",
     "textPlain": "True, macros in Rust can feel heavy, but they also enable some powerful abstractions you just can’t get otherwise. I guess the “don’t write macros” advice is more about avoiding overuse than rejecting them completely.",
+    "parent": 45540398,
+    "depth": 1
+  },
+  {
+    "id": 45618248,
+    "by": "BetaDeltaAlpha",
+    "timeISO": "2025-10-17T16:00:08.000Z",
+    "textPlain": "There are so many typos in here it makes it difficult to focus on the content. Is this a deliberate signal that the article was human written?I learned a lot regardless and I'm adding this to my blogroll.",
     "parent": 45540398,
     "depth": 1
   },
@@ -96,6 +104,38 @@
     "depth": 2
   },
   {
+    "id": 45619091,
+    "by": "estebank",
+    "timeISO": "2025-10-17T17:04:46.000Z",
+    "textPlain": "To expand on the sibling comments, this is why Rust doesn't do implicit type conversions that could allocate:https://groups.google.com/a/chromium.org/g/chromium-dev/c/EU...",
+    "parent": 45618474,
+    "depth": 2
+  },
+  {
+    "id": 45618703,
+    "by": "LtdJorge",
+    "timeISO": "2025-10-17T16:34:26.000Z",
+    "textPlain": "Because to_string allocates. And if a function requires a String (owned), it cannot accept a str reference (borrowed), it would defeat the purpose of the strong type system. String is moved, while str is passed by reference.There is the exception of Deref. If the function requires type A, and you pass it type B, which Derefs into type A, the compiler will Deref it for you. But that is zero cost and panic free, whereas allocating (and copying) an owned type from a reference isn't. In Rust you have to be explicit.Anyway, using String in function signatures is most often not the best choice. If you will internally be required to use a String, it's better to ask for a type \"impl Into<String>\", you'd call into() inside your function. And in the most common case, where you require a &str or can convert to your type from it, the best choice is an \"impl AsRef<str>\" and you can call as_ref() on it to get a str reference, which you can wrap in a Box, Rc, Arc, String, or your custom type, or pass it directly to other functions. All of those, Box<str>, Rc<str>, etc implement both traits.Using impl Trait, you avoid having to declare generic parameters.",
+    "parent": 45618474,
+    "depth": 2
+  },
+  {
+    "id": 45618729,
+    "by": "marcosdumay",
+    "timeISO": "2025-10-17T16:36:37.000Z",
+    "textPlain": "That's the price you pay for a low level language where things like memory usage are visible for you to optimize.If you don't see the gain, maybe Rust is not the right language for your use-case.",
+    "parent": 45618474,
+    "depth": 2
+  },
+  {
+    "id": 45618633,
+    "by": "throwawaymaths",
+    "timeISO": "2025-10-17T16:29:09.000Z",
+    "textPlain": "the reasons to not use macros have to do with hygeinicity? -- macros can do things like introduce code that is hard to understand, perhaps a dynamically named function, or a difficult to chase dependency or import...  moreover these can make grepping harder.",
+    "parent": 45618474,
+    "depth": 2
+  },
+  {
     "id": 45616773,
     "by": "afavour",
     "timeISO": "2025-10-17T13:46:29.000Z",
@@ -128,18 +168,18 @@
     "depth": 2
   },
   {
-    "id": 45616749,
-    "by": "IshKebab",
-    "timeISO": "2025-10-17T13:43:43.000Z",
-    "textPlain": "Maybe \"don't write your own macros\". I guess it's like C++ template meta programming. If you find yourself using that a lot, it's probably a bad sign. But also Eigen is pretty great.",
-    "parent": 45615661,
-    "depth": 2
-  },
-  {
     "id": 45615935,
     "by": "spoiler",
     "timeISO": "2025-10-17T12:23:21.000Z",
     "textPlain": "Eh. I agree there's complexity in them, and that a lot of the ecosystem indirectly use them because of derive macros, but I wouldn't call it a wart, and the \"syntax\" for writing proc macros isn't that bad if you use the syn/quote crates. I agree that decl macros usually make me sigh and open the docs though",
+    "parent": 45615661,
+    "depth": 2
+  },
+  {
+    "id": 45616749,
+    "by": "IshKebab",
+    "timeISO": "2025-10-17T13:43:43.000Z",
+    "textPlain": "Maybe \"don't write your own macros\". I guess it's like C++ template meta programming. If you find yourself using that a lot, it's probably a bad sign. But also Eigen is pretty great.",
     "parent": 45615661,
     "depth": 2
   },
