@@ -41,7 +41,31 @@ async function main(): Promise<void> {
   }
 
   // Select and prepare items for digest
-  const items = pickTop(aggregated.items, env.TELEGRAM_MAX_ITEMS);
+  const candidates = pickTop(aggregated.items, env.TELEGRAM_MAX_ITEMS);
+
+  const skippedItems: AggregatedItem[] = [];
+  const items = candidates.filter((item) => {
+    const summary = item.postSummary?.trim();
+    const hasSummary = summary !== undefined && summary.length > 0;
+    if (!hasSummary) {
+      skippedItems.push(item);
+    }
+    return hasSummary;
+  });
+
+  if (skippedItems.length > 0) {
+    log.info("telegram", "Skipping items without post summaries", {
+      skippedCount: skippedItems.length,
+      skippedIds: skippedItems.map((item) => item.id),
+    });
+  }
+
+  if (items.length === 0) {
+    log.info("telegram", "No items with post summaries available, skipping Telegram publish", {
+      considered: candidates.length,
+    });
+    process.exit(0);
+  }
 
   // Check idempotency (content-based hash only)
   const hash = await digestHash(items);
@@ -320,8 +344,8 @@ function buildMessages(
   }>
 ): string[] {
   return items.map((item) => {
-    // Prefer postSummary, fallback to commentsSummary, or empty string
-    const summary = item.postSummary ?? item.commentsSummary ?? "";
+    // Use the article summary only (items without one were filtered earlier)
+    const summary = item.postSummary?.trim() ?? "";
 
     // Build links section
     const links: string[] = [];

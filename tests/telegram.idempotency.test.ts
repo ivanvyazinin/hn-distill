@@ -102,6 +102,26 @@ describe("digestHash", () => {
 
     expect(hash1).not.toBe(hash2);
   });
+
+  test("should ignore commentsSummary when postSummary is missing", async () => {
+    const baseItem = {
+      id: 42,
+      title: "Story without summary",
+      postSummary: "",
+      commentsSummary: "First comment summary",
+      timeISO: "2024-01-03T00:00:00.000Z",
+    };
+
+    const hash1 = await digestHash([baseItem]);
+    const hash2 = await digestHash([
+      {
+        ...baseItem,
+        commentsSummary: "Updated comments summary should not matter",
+      },
+    ]);
+
+    expect(hash1).toBe(hash2);
+  });
 });
 
 describe("cache operations", () => {
