@@ -1,9 +1,25 @@
 [
   {
+    "id": 45631058,
+    "by": "sfpotter",
+    "timeISO": "2025-10-18T23:17:39.000Z",
+    "textPlain": "This is quite a complicated approach that misses out on most of the basic numerical and geometric methods that will make the problem simpler. I would recommend looking outside of recent SIGGRAPH papers. Brushing up on the basics of Bernstein polynomials, B-splines, and rootfinding methods will lead you to develop simpler algorithms which are likely faster.",
+    "parent": 45626037,
+    "depth": 1
+  },
+  {
     "id": 45627274,
     "by": "Lichtso",
     "timeISO": "2025-10-18T13:38:28.000Z",
     "textPlain": "> The next step is to work with chains of Bézier curves to make up complex shapes (such as font glyphs). It will lead us to build a signed distance field. This is not trivial at all and mandates one or several dedicated articles. We will hopefully study these subjects in the not-so-distant future.If you only want to fill a path of bezier curves (e.g. for text rendering) you can do without the \"distance\" part from \"signed distance field\" [0], leaving you with a \"signed field\" aka. an implicit curve [1].Meaning not having to calculate the exact distance but only the sign (inside or outside) can be done without all the crazy iterative root finding in an actually cheap manner with only four multiplications and one addition per pixel / fragment / sample for a rational cubic curve [3].[0]: https://en.wikipedia.org/wiki/Signed_distance_function[1]: https://en.wikipedia.org/wiki/Implicit_curve[2]: https://github.com/Lichtso/contrast_renderer/blob/a189d64a13...",
+    "parent": 45626037,
+    "depth": 1
+  },
+  {
+    "id": 45630774,
+    "by": "mmorse1217",
+    "timeISO": "2025-10-18T22:24:39.000Z",
+    "textPlain": "Hey, thanks for the nice post. I really enjoyed reading it; it’s good see this kind of thing on the front page.Since you’re interested in doing this on GPU, an approach that might be interesting to you (although not necessarily more efficient) would be to leverage the intrinsic properties of Bezier curves to feed a near-optimal initial guess to Newton. Some useful facts about Bezier curves:\ni) Bezier control points form a convex hull of the curve they define\nii) Bezier curves defined on [0,1] can be split into two bezier curves, each defined on [0,t] and [t,1] that define the same curve, with a tighter control polygon.\niii) This Bezier curve splitting can be done using repeated linear combinations of Bezier control points, so you can skip evaluating Bernstein polynomials directly.\niv) there is a mapping from Bezier control points to their corresponding value in the [0,1] parameter space (the term for this for B-Splines is greville abcissae, I’m not sure that there is an explicit name for the equivalent for Bezier curves, but basically the preimage of control point b_i of a degree d curve is i/d, i=0,…,d+1).These things together sort of imply an algorithm:\n1. Subdivide the Bezier curve c into 2 or 3 curves c_1, c_2, c_3\n2. Find the closest control point b_j to the target point x\n3. Choose the curve c_i corresponding to b_j: this subcurve contains the closest point to x\n4. Go to step 1 and repeat this loop several times with c = c_i\n5. Then, compute the preimage of the closest control point b_j to x on c (j/d plus some shift and rescaling). This value, t’, will be the initial guess to Newton’s method.\n6. Solve for the closest point on the selected subcurve c to x with Newton’s method; this should converge in very few steps because your initial guess is so good, quadratic convergence, blah, blah blah.The break-even point for this kind of algorithm vs. a derivative based algorithm is very unclear on CPU. But, for GPU, I think the computation can be structured in an arch",
     "parent": 45626037,
     "depth": 1
   },
@@ -93,6 +109,14 @@
     "timeISO": "2025-10-18T19:16:26.000Z",
     "textPlain": "I wonder which method Apple is using for their recently introduced Bézier curve primitives for real-time 3D rendering in Metal. From their WWDC 2023 presentation [1]:> Geometry such as hair, fur, and vegetation can have thousands or even millions of primitives. These are typically modeled as fine, smooth curves. Instead of using triangles to approximate these curves, you can use Metal's new curve primitives. These curves will remain smooth even as the camera zooms in. And compared to triangles, curves have a more compact memory footprint and allow faster acceleration structure builds.> A full curve is made of a series of connected curve segments. Every segment on a curve is its own primitive, and Metal assigns each segment a unique primitive ID. Each of these segments is defined by a series of control points, which control the shape of the curve. These control points are interpolated using a set of basis functions. Depending on the basis function, each curve segment can have 2, 3, or 4 control points. Metal offers four different curve basis functions: Bezier, Catmull-Rom, B-Spline, and Linear. (...)1: https://developer.apple.com/videos/play/wwdc2023/10128/?time...",
     "parent": 45627274,
+    "depth": 2
+  },
+  {
+    "id": 45630901,
+    "by": "ux",
+    "timeISO": "2025-10-18T22:47:17.000Z",
+    "textPlain": "Thank you! Do we have a guarantee that these subcurves are solvable with Newton's method? The approach with derivatives has this because we know there is one crossing, and also clipping them to the zero-derivatives makes sure there won't be multiple curve \"pits\".",
+    "parent": 45630774,
     "depth": 2
   },
   {
