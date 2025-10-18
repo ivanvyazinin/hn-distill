@@ -8,22 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45624634,
-    "by": "perrygeo",
-    "timeISO": "2025-10-18T03:20:40.000Z",
-    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45624581,
-    "by": "delifue",
-    "timeISO": "2025-10-18T03:10:20.000Z",
-    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45621860,
     "by": "pqdbr",
     "timeISO": "2025-10-17T20:46:44.000Z",
@@ -40,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45622703,
-    "by": "pmontra",
-    "timeISO": "2025-10-17T22:07:12.000Z",
-    "textPlain": "My customers return created_at attributes in all their API calls so UUIDv7 won't harm them at all. They also use sequential ids. Only one of them ever used UUIDv4 as primary key. We didn't have any performance problem but the whole production system was run by one psql insurance and one Elixir application server. Probably almost any architectural choice is good at that scale.",
+    "id": 45624581,
+    "by": "delifue",
+    "timeISO": "2025-10-18T03:10:20.000Z",
+    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
     "parent": 45593358,
     "depth": 1
   },
   {
-    "id": 45624284,
-    "by": "bearjaws",
-    "timeISO": "2025-10-18T02:05:38.000Z",
-    "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
+    "id": 45624634,
+    "by": "perrygeo",
+    "timeISO": "2025-10-18T03:20:40.000Z",
+    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45622703,
+    "by": "pmontra",
+    "timeISO": "2025-10-17T22:07:12.000Z",
+    "textPlain": "My customers return created_at attributes in all their API calls so UUIDv7 won't harm them at all. They also use sequential ids. Only one of them ever used UUIDv4 as primary key. We didn't have any performance problem but the whole production system was run by one psql insurance and one Elixir application server. Probably almost any architectural choice is good at that scale.",
     "parent": 45593358,
     "depth": 1
   },
@@ -64,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45623299,
-    "by": "mfrye0",
-    "timeISO": "2025-10-17T23:20:47.000Z",
-    "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
+    "id": 45624284,
+    "by": "bearjaws",
+    "timeISO": "2025-10-18T02:05:38.000Z",
+    "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
     "parent": 45593358,
     "depth": 1
   },
@@ -76,6 +68,14 @@
     "by": "morshu9001",
     "timeISO": "2025-10-17T20:32:52.000Z",
     "textPlain": "The article compares UUIDv7 vs v4, but doesn't say why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45623299,
+    "by": "mfrye0",
+    "timeISO": "2025-10-17T23:20:47.000Z",
+    "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
     "parent": 45593358,
     "depth": 1
   },
@@ -134,6 +134,14 @@
     "textPlain": "Great read - short, effective ; I know what I learned. Very good job",
     "parent": 45593358,
     "depth": 1
+  },
+  {
+    "id": 45624850,
+    "by": "tekne",
+    "timeISO": "2025-10-18T04:16:27.000Z",
+    "textPlain": "Question: why not use UUIDv7 but encrypt the user-facing ID you hand out? Then it's just a quick decrypt-on-lookup, and you have the added bonus of e.g. being able to give different users different IDs",
+    "parent": 45622045,
+    "depth": 2
   },
   {
     "id": 45622129,
@@ -216,14 +224,6 @@
     "depth": 2
   },
   {
-    "id": 45624647,
-    "by": "mjb",
-    "timeISO": "2025-10-18T03:23:49.000Z",
-    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
     "id": 45623513,
     "by": "SahAssar",
     "timeISO": "2025-10-17T23:55:45.000Z",
@@ -264,11 +264,19 @@
     "depth": 2
   },
   {
-    "id": 45624397,
-    "by": "sverhagen",
-    "timeISO": "2025-10-18T02:27:52.000Z",
-    "textPlain": "API responses should be limited to authenticated users. IDs are often present in hyperlinks that are included in insecure emails, or in URLs that, being routed through all sorts of networking hops may be captured and available as metadata.",
-    "parent": 45624284,
+    "id": 45624810,
+    "by": "AlotOfReading",
+    "timeISO": "2025-10-18T04:07:32.000Z",
+    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624647,
+    "by": "mjb",
+    "timeISO": "2025-10-18T03:23:49.000Z",
+    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
+    "parent": 45624634,
     "depth": 2
   },
   {
@@ -285,6 +293,14 @@
     "timeISO": "2025-10-17T23:22:53.000Z",
     "textPlain": "Leaky abstractions in databases are one of the reasons every developer should read the table of contents of the hot databases used by the things he’s working on. IME almost no one does that.",
     "parent": 45622664,
+    "depth": 2
+  },
+  {
+    "id": 45624397,
+    "by": "sverhagen",
+    "timeISO": "2025-10-18T02:27:52.000Z",
+    "textPlain": "API responses should be limited to authenticated users. IDs are often present in hyperlinks that are included in insecure emails, or in URLs that, being routed through all sorts of networking hops may be captured and available as metadata.",
+    "parent": 45624284,
     "depth": 2
   },
   {
@@ -365,14 +381,6 @@
     "timeISO": "2025-10-17T22:57:38.000Z",
     "textPlain": "> if you need a random/external ID, add a second column. Done.As others have stated, it completely defeats the performance purpose, if you need to lookup using another ID.",
     "parent": 45622823,
-    "depth": 2
-  },
-  {
-    "id": 45623293,
-    "by": "cipehr",
-    "timeISO": "2025-10-17T23:19:16.000Z",
-    "textPlain": "What database were you using? For example with SQL server, by default it clusters data on disk by primary key. Random (non-sequential) PKs like uuidv4 require random cluster shuffling to insert a row “in the middle” of a cluster, increasing io load and causing performance issues.Postgres on the other hand doesn’t do clustered indexing on the PK… if I recall correctly.",
-    "parent": 45623150,
     "depth": 2
   }
 ]
