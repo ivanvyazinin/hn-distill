@@ -1,9 +1,25 @@
 [
   {
+    "id": 45630655,
+    "by": "jeffinhat",
+    "timeISO": "2025-10-18T22:02:27.000Z",
+    "textPlain": "This is an awesome experiment and write up. I really appreciate the reproducibility.I would like to see how moving to database that scales write throughput with replicas would behave, namely FoundationDB. I think this will require more than an intermediary like kine to be efficient, as the author illustrates the apisever does a fair bit of its own watching and keeping state. I also think there's benefit, at least for blast radius, to shard the server by api group or namespace.I think years ago this would have been a non starter with the community, but given AWS has replaced etcd (or at least aspects) with their internal log service for their large cluster offering, I bet there's some appetite for making this interchangable and bringing and open source solution to market.I share the authors viewpoint that for modern cloud based deployments, you're probably best avoiding it and relying on VMs being stable and recoverable. I think reliability does matter if you want to actually realize the \"borg\" value and run it on bare metal across a serious fleet. I haven't found the business justification to work on that though!",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
     "id": 45630363,
     "by": "rixed",
     "timeISO": "2025-10-18T21:09:46.000Z",
     "textPlain": "I don't get the point of benchmarking k8s without the guarantees of etcd.\nAt some point, you are just competing with clusterssh.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45630461,
+    "by": "wppick",
+    "timeISO": "2025-10-18T21:24:42.000Z",
+    "textPlain": "If you don't need the isolation of of k8s then don't forget about erlang, which is another option to scale up to 1 million functions. Obviously k8s containers (which are fundamentally just isolated processes) and erlang processes are not interchangeable things, but when thinking about needing in the order of millions of processes erlang is pretty good prior art",
     "parent": 45611252,
     "depth": 1
   },
@@ -22,6 +38,14 @@
     "textPlain": "“Perhaps my spiciest take from this entire project: most clusters don’t actually need the level of reliability and durability that etcd provides.”This assumption is completely out of touch, and is especially funny when the goal is to build an extra large cluster.",
     "parent": 45611252,
     "depth": 1
+  },
+  {
+    "id": 45630724,
+    "by": "theptip",
+    "timeISO": "2025-10-18T22:15:52.000Z",
+    "textPlain": "This is 1m nodes, you typically run tens or hundreds of pods per node, each with one or more containers. So more like 100m+ functions if I follow the Erlang analogy correctly?",
+    "parent": 45630461,
+    "depth": 2
   },
   {
     "id": 45630242,
@@ -44,6 +68,14 @@
     "by": "itsnowandnever",
     "timeISO": "2025-10-18T20:40:19.000Z",
     "textPlain": "etcd is also the entire point of k8s. that it's a single self-contained framework and doesn't require an external backer service. there is no kubernetes without etcd. much of the \"secret sauce\" of kubernetes is the \"watch etcd\" logic that \"watches\" desired state and does the cybernetic loop to bring the observed state adhere to the desired state.",
+    "parent": 45624416,
+    "depth": 2
+  },
+  {
+    "id": 45630437,
+    "by": "kevin_nisbet",
+    "timeISO": "2025-10-18T21:21:18.000Z",
+    "textPlain": "I'm with you, I think most people might think they don't need this reliability, until they do. I'm sure there is some subset of clusters where the claim is correct.But from the article, turning off fsync and expecting to only lose a few ms of updates. I've tried to recover etcd on volumes that lied about fsync and experienced a power outage, and I don't think we managed to recover it. There might be more options now to recover and ignore corrupted WAL entries, but at that time it was very difficult and I think we ended up just reinstalling from scratch. For clusters where this doesn't matter or the SLOs for recovery account for this, I'm totally onboard, but only if you know what you're doing.And similar the point from the article that \"full control plane data loss isn’t catastrophic in some environments\" is correct, in the sense of what the author means by some environments. Because I don't think it's limited to those that are management by gitops as suggested, but where there is enough resiliency and time to redeploy and do all the cleanup.Anyways, like much advice on the internet, it's not good or bad, just highly situational, and some of the suggestions should only be applied if the implications are fully understood.",
     "parent": 45624416,
     "depth": 2
   }
