@@ -24,10 +24,26 @@
     "depth": 1
   },
   {
+    "id": 45624581,
+    "by": "delifue",
+    "timeISO": "2025-10-18T03:10:20.000Z",
+    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
     "id": 45622703,
     "by": "pmontra",
     "timeISO": "2025-10-17T22:07:12.000Z",
     "textPlain": "My customers return created_at attributes in all their API calls so UUIDv7 won't harm them at all. They also use sequential ids. Only one of them ever used UUIDv4 as primary key. We didn't have any performance problem but the whole production system was run by one psql insurance and one Elixir application server. Probably almost any architectural choice is good at that scale.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45624634,
+    "by": "perrygeo",
+    "timeISO": "2025-10-18T03:20:40.000Z",
+    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
     "parent": 45593358,
     "depth": 1
   },
@@ -64,26 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45624581,
-    "by": "delifue",
-    "timeISO": "2025-10-18T03:10:20.000Z",
-    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45624634,
-    "by": "perrygeo",
-    "timeISO": "2025-10-18T03:20:40.000Z",
-    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45624284,
     "by": "bearjaws",
     "timeISO": "2025-10-18T02:05:38.000Z",
     "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45622680,
+    "by": "gnatolf",
+    "timeISO": "2025-10-17T22:04:51.000Z",
+    "textPlain": "For me, the shear length of uuids is annoying in payloads of tokens etc. I wish there was a common way to abbreviate those, similar to the git way.",
     "parent": 45593358,
     "depth": 1
   },
@@ -100,14 +108,6 @@
     "by": "rvitorper",
     "timeISO": "2025-10-17T23:01:50.000Z",
     "textPlain": "Does anyone have performance issues with uuidv4? I worked with a db with 10s of billions of rows, no issues whatsoever. Would love to hear the mileage of fellow engineers",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45622680,
-    "by": "gnatolf",
-    "timeISO": "2025-10-17T22:04:51.000Z",
-    "textPlain": "For me, the shear length of uuids is annoying in payloads of tokens etc. I wish there was a common way to abbreviate those, similar to the git way.",
     "parent": 45593358,
     "depth": 1
   },
@@ -144,18 +144,18 @@
     "depth": 2
   },
   {
-    "id": 45622345,
-    "by": "oconnore",
-    "timeISO": "2025-10-17T21:32:35.000Z",
-    "textPlain": "If this is a concern, pass your UUIDv7 ID through an ECB block cipher with a 0 IV. 128 bit UUID, 128 bit AES block. Easy, near zero overhead way to scramble and unscramble IDs as they go in/out of your application.There is no need to put the privacy preserving ID in a database index when you can calculate the mapping on the fly",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
     "id": 45622374,
     "by": "matthew16550",
     "timeISO": "2025-10-17T21:35:30.000Z",
     "textPlain": "Using UUIDv4 as primary key has unexpected downsides because data locality matters in surprising places [1].A UUIDv7 primary key seems to reduce / eliminate those problems.If there is also an indexed UUIDv4 column for external id, I suspect it would not be used as often as the primary key index so would not cancel out the performance improvements of UUIDv7.[1] https://www.cybertec-postgresql.com/en/unexpected-downsides-...",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45622345,
+    "by": "oconnore",
+    "timeISO": "2025-10-17T21:32:35.000Z",
+    "textPlain": "If this is a concern, pass your UUIDv7 ID through an ECB block cipher with a 0 IV. 128 bit UUID, 128 bit AES block. Easy, near zero overhead way to scramble and unscramble IDs as they go in/out of your application.There is no need to put the privacy preserving ID in a database index when you can calculate the mapping on the fly",
     "parent": 45622045,
     "depth": 2
   },
@@ -240,14 +240,6 @@
     "depth": 2
   },
   {
-    "id": 45625374,
-    "by": "themafia",
-    "timeISO": "2025-10-18T06:27:24.000Z",
-    "textPlain": "> growth ratesI honestly don't see how.",
-    "parent": 45621860,
-    "depth": 2
-  },
-  {
     "id": 45622789,
     "by": "dgb23",
     "timeISO": "2025-10-17T22:17:01.000Z",
@@ -264,11 +256,43 @@
     "depth": 2
   },
   {
+    "id": 45625374,
+    "by": "themafia",
+    "timeISO": "2025-10-18T06:27:24.000Z",
+    "textPlain": "> growth ratesI honestly don't see how.",
+    "parent": 45621860,
+    "depth": 2
+  },
+  {
     "id": 45621864,
     "by": "vlovich123",
     "timeISO": "2025-10-17T20:47:10.000Z",
     "textPlain": "> UUIDv7 is only bad for range partitioning and privacy concerns.It's no worse for privacy than other UUID variants if the \"privacy\" you're worried about leaking is the creation time of the UUID.As for range partitioning, you can of course choose to partition on the hash of the UUIDv7 at the cost of giving up cheaper rights / faster indices. On the other hand, that of course gives up locality which is a common challenge of partitioning schemes. It depends on the end-to-end design of the system but I wouldn't say that UUIDv7 is inherently good or bad or better/worse than other UUID schemes.",
     "parent": 45621714,
+    "depth": 2
+  },
+  {
+    "id": 45625214,
+    "by": "inopinatus",
+    "timeISO": "2025-10-18T05:44:05.000Z",
+    "textPlain": "Symmetric encryption of IDs at the edge. Optional embedded HMAC. Optional text encoding. For monotonic bigserial values I'm somewhat fond of base58(AES_K1(id{8} || HMAC_K2(id{8})[0..7])) with purpose/table-salted HKDF subkeys from a scrypt'd system passphrase. The hot path of this is pretty fast. As with all cryptographic solutions it comes with a whole new jungle of pitfalls, caveats, and tradeoffs, but it works.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624647,
+    "by": "mjb",
+    "timeISO": "2025-10-18T03:23:49.000Z",
+    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624810,
+    "by": "AlotOfReading",
+    "timeISO": "2025-10-18T04:07:32.000Z",
+    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
+    "parent": 45624634,
     "depth": 2
   },
   {
@@ -349,30 +373,6 @@
     "timeISO": "2025-10-17T20:42:00.000Z",
     "textPlain": "You don’t scale horizontally, do you?",
     "parent": 45621700,
-    "depth": 2
-  },
-  {
-    "id": 45625214,
-    "by": "inopinatus",
-    "timeISO": "2025-10-18T05:44:05.000Z",
-    "textPlain": "Symmetric encryption of IDs at the edge. Optional embedded HMAC. Optional text encoding. For monotonic bigserial values I'm somewhat fond of base58(AES_K1(id{8} || HMAC_K2(id{8})[0..7])) with purpose/table-salted HKDF subkeys from a scrypt'd system passphrase. The hot path of this is pretty fast. As with all cryptographic solutions it comes with a whole new jungle of pitfalls, caveats, and tradeoffs, but it works.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45624647,
-    "by": "mjb",
-    "timeISO": "2025-10-18T03:23:49.000Z",
-    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45624810,
-    "by": "AlotOfReading",
-    "timeISO": "2025-10-18T04:07:32.000Z",
-    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
-    "parent": 45624634,
     "depth": 2
   },
   {
