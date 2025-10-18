@@ -24,26 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45624581,
-    "by": "delifue",
-    "timeISO": "2025-10-18T03:10:20.000Z",
-    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45624634,
-    "by": "perrygeo",
-    "timeISO": "2025-10-18T03:20:40.000Z",
-    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45622703,
     "by": "pmontra",
     "timeISO": "2025-10-17T22:07:12.000Z",
     "textPlain": "My customers return created_at attributes in all their API calls so UUIDv7 won't harm them at all. They also use sequential ids. Only one of them ever used UUIDv4 as primary key. We didn't have any performance problem but the whole production system was run by one psql insurance and one Elixir application server. Probably almost any architectural choice is good at that scale.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45624581,
+    "by": "delifue",
+    "timeISO": "2025-10-18T03:10:20.000Z",
+    "textPlain": "I disagree with this> While UUIDv7 still contains random data, relying on the primary key for security is considered a flawed approachThe correct way is 1. generate ID on server side, not client side 2. always validate data access permission of all IDs sent from clientPredictable ID is only unsafe if you don't validate data access permission of IDs sent from client. Also, UUIDv7 is much less predictable than auto-increment ID.But I do agree that having create time in public-facing ID can leak analytical information.",
     "parent": 45593358,
     "depth": 1
   },
@@ -56,10 +48,26 @@
     "depth": 1
   },
   {
-    "id": 45624284,
-    "by": "bearjaws",
-    "timeISO": "2025-10-18T02:05:38.000Z",
-    "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
+    "id": 45623299,
+    "by": "mfrye0",
+    "timeISO": "2025-10-17T23:20:47.000Z",
+    "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45624634,
+    "by": "perrygeo",
+    "timeISO": "2025-10-18T03:20:40.000Z",
+    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45623039,
+    "by": "caymanjim",
+    "timeISO": "2025-10-17T22:49:10.000Z",
+    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
     "parent": 45593358,
     "depth": 1
   },
@@ -72,18 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45623299,
-    "by": "mfrye0",
-    "timeISO": "2025-10-17T23:20:47.000Z",
-    "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45623039,
-    "by": "caymanjim",
-    "timeISO": "2025-10-17T22:49:10.000Z",
-    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
+    "id": 45624284,
+    "by": "bearjaws",
+    "timeISO": "2025-10-18T02:05:38.000Z",
+    "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
     "parent": 45593358,
     "depth": 1
   },
@@ -136,14 +136,6 @@
     "depth": 1
   },
   {
-    "id": 45624850,
-    "by": "tekne",
-    "timeISO": "2025-10-18T04:16:27.000Z",
-    "textPlain": "Question: why not use UUIDv7 but encrypt the user-facing ID you hand out? Then it's just a quick decrypt-on-lookup, and you have the added bonus of e.g. being able to give different users different IDs",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
     "id": 45622129,
     "by": "tracker1",
     "timeISO": "2025-10-17T21:11:20.000Z",
@@ -168,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 45624850,
+    "by": "tekne",
+    "timeISO": "2025-10-18T04:16:27.000Z",
+    "textPlain": "Question: why not use UUIDv7 but encrypt the user-facing ID you hand out? Then it's just a quick decrypt-on-lookup, and you have the added bonus of e.g. being able to give different users different IDs",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
     "id": 45622414,
     "by": "macote",
     "timeISO": "2025-10-17T21:38:50.000Z",
@@ -184,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45624408,
-    "by": "sverhagen",
-    "timeISO": "2025-10-18T02:30:05.000Z",
-    "textPlain": "When you see v7 vs. V4, you'd expect the higher number to be better, hopefully better in all aspects, I wouldn't have expected such a thoughtful consideration to be required before upgrading. UUID-b would've been a better name then ;)",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
     "id": 45622445,
     "by": "lukebechtel",
     "timeISO": "2025-10-17T21:41:41.000Z",
     "textPlain": "how risky is exposing creation time really though? I feel like for most applications this is uncritical",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45624408,
+    "by": "sverhagen",
+    "timeISO": "2025-10-18T02:30:05.000Z",
+    "textPlain": "When you see v7 vs. V4, you'd expect the higher number to be better, hopefully better in all aspects, I wouldn't have expected such a thoughtful consideration to be required before upgrading. UUID-b would've been a better name then ;)",
     "parent": 45622045,
     "depth": 2
   },
@@ -232,18 +232,18 @@
     "depth": 2
   },
   {
-    "id": 45622081,
-    "by": "hn_throwaway_99",
-    "timeISO": "2025-10-17T21:07:37.000Z",
-    "textPlain": "> Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So then what's the point? How I always did things in the past was use an auto increment big int as the internal primary key, and then use a separate random UUID for the external facing key. I think this recommendation from \"experts\" is pretty dumb because you get very little benefit using UUIDV7 (beyond some portability improvements) if you're still using a separate internal key.While I wouldn't use UUIDV7 as a secure token like I would UUIDV4, I don't see anything wrong with using UUIDV7 as externally exposed object keys - you're still going to need permissions checks anyway.",
-    "parent": 45621860,
-    "depth": 2
-  },
-  {
     "id": 45622789,
     "by": "dgb23",
     "timeISO": "2025-10-17T22:17:01.000Z",
     "textPlain": "Or just generate them in bulk and take them from a list?",
+    "parent": 45621860,
+    "depth": 2
+  },
+  {
+    "id": 45622081,
+    "by": "hn_throwaway_99",
+    "timeISO": "2025-10-17T21:07:37.000Z",
+    "textPlain": "> Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So then what's the point? How I always did things in the past was use an auto increment big int as the internal primary key, and then use a separate random UUID for the external facing key. I think this recommendation from \"experts\" is pretty dumb because you get very little benefit using UUIDV7 (beyond some portability improvements) if you're still using a separate internal key.While I wouldn't use UUIDV7 as a secure token like I would UUIDV4, I don't see anything wrong with using UUIDV7 as externally exposed object keys - you're still going to need permissions checks anyway.",
     "parent": 45621860,
     "depth": 2
   },
@@ -264,22 +264,6 @@
     "depth": 2
   },
   {
-    "id": 45624810,
-    "by": "AlotOfReading",
-    "timeISO": "2025-10-18T04:07:32.000Z",
-    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45624647,
-    "by": "mjb",
-    "timeISO": "2025-10-18T03:23:49.000Z",
-    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
     "id": 45623629,
     "by": "chuckadams",
     "timeISO": "2025-10-18T00:15:05.000Z",
@@ -296,11 +280,19 @@
     "depth": 2
   },
   {
-    "id": 45624397,
-    "by": "sverhagen",
-    "timeISO": "2025-10-18T02:27:52.000Z",
-    "textPlain": "API responses should be limited to authenticated users. IDs are often present in hyperlinks that are included in insecure emails, or in URLs that, being routed through all sorts of networking hops may be captured and available as metadata.",
-    "parent": 45624284,
+    "id": 45624647,
+    "by": "mjb",
+    "timeISO": "2025-10-18T03:23:49.000Z",
+    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624810,
+    "by": "AlotOfReading",
+    "timeISO": "2025-10-18T04:07:32.000Z",
+    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
+    "parent": 45624634,
     "depth": 2
   },
   {
@@ -336,18 +328,18 @@
     "depth": 2
   },
   {
-    "id": 45621876,
-    "by": "simongr3dal",
-    "timeISO": "2025-10-17T20:48:11.000Z",
-    "textPlain": "I believe the concern is if your primary key in the database is a serial number it might be exposed to users unless you do extra work to hide that ID from any external APIs and if there are any flaws in your authorization checks it can allow enumeration attacks exposing private or semi-private info. With UUIDs being virtually unguessable that makes it less of a concern.",
-    "parent": 45621700,
-    "depth": 2
-  },
-  {
     "id": 45621834,
     "by": "nextaccountic",
     "timeISO": "2025-10-17T20:44:14.000Z",
     "textPlain": "uuids can be generated by multiple services across your stackbigserial must by generated by the db",
+    "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45621876,
+    "by": "simongr3dal",
+    "timeISO": "2025-10-17T20:48:11.000Z",
+    "textPlain": "I believe the concern is if your primary key in the database is a serial number it might be exposed to users unless you do extra work to hide that ID from any external APIs and if there are any flaws in your authorization checks it can allow enumeration attacks exposing private or semi-private info. With UUIDs being virtually unguessable that makes it less of a concern.",
     "parent": 45621700,
     "depth": 2
   },
@@ -365,6 +357,14 @@
     "timeISO": "2025-10-17T20:42:00.000Z",
     "textPlain": "You don’t scale horizontally, do you?",
     "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45624397,
+    "by": "sverhagen",
+    "timeISO": "2025-10-18T02:27:52.000Z",
+    "textPlain": "API responses should be limited to authenticated users. IDs are often present in hyperlinks that are included in insecure emails, or in URLs that, being routed through all sorts of networking hops may be captured and available as metadata.",
+    "parent": 45624284,
     "depth": 2
   },
   {
