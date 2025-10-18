@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45626201,
-    "by": "MaKey",
-    "timeISO": "2025-10-18T10:13:18.000Z",
-    "textPlain": "Interesting that aiven is still around after they've lost customer data a few years back.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45621860,
     "by": "pqdbr",
     "timeISO": "2025-10-17T20:46:44.000Z",
@@ -36,6 +28,14 @@
     "by": "pilif",
     "timeISO": "2025-10-18T08:46:29.000Z",
     "textPlain": "One thing that’s not quite clear to me is how safe it is to generate v7 uuids on the client.That’s one of the nice properties of v4 uuids: you can make up a primary key of a new entity directly on the client and the database can use it directly. Sure: there is tiny collision risk, but it’s so small, you can get away with mostly ignoring itWith v7 however, such a large chunk of the uuid is based on the time, so I’m not sure whether it’s still safe to ignore collisions in any application, especially when you consider client’s clocks to probably be very inaccurate.Am I overthinking things here?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45626201,
+    "by": "MaKey",
+    "timeISO": "2025-10-18T10:13:18.000Z",
+    "textPlain": "Interesting that aiven is still around after they've lost customer data a few years back.",
     "parent": 45593358,
     "depth": 1
   },
@@ -72,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45624634,
-    "by": "perrygeo",
-    "timeISO": "2025-10-18T03:20:40.000Z",
-    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45623299,
     "by": "mfrye0",
     "timeISO": "2025-10-17T23:20:47.000Z",
     "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45624634,
+    "by": "perrygeo",
+    "timeISO": "2025-10-18T03:20:40.000Z",
+    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
     "parent": 45593358,
     "depth": 1
   },
@@ -176,22 +176,6 @@
     "depth": 2
   },
   {
-    "id": 45625978,
-    "by": "djantje",
-    "timeISO": "2025-10-18T09:05:12.000Z",
-    "textPlain": "DB multi-master, or the DB not being responsible for primary key generation, is the use case, I think.And then having uuidv7 as primary and foreign keys, can give you a performance gain.",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
-    "id": 45624850,
-    "by": "tekne",
-    "timeISO": "2025-10-18T04:16:27.000Z",
-    "textPlain": "Question: why not use UUIDv7 but encrypt the user-facing ID you hand out? Then it's just a quick decrypt-on-lookup, and you have the added bonus of e.g. being able to give different users different IDs",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
     "id": 45622414,
     "by": "macote",
     "timeISO": "2025-10-17T21:38:50.000Z",
@@ -208,10 +192,18 @@
     "depth": 2
   },
   {
-    "id": 45625829,
-    "by": "ownagefool",
-    "timeISO": "2025-10-18T08:28:13.000Z",
-    "textPlain": "Meh.You probably shouldn't / don't need to use v7 for your Users table because the age of your User probably has limted to no bearing on the look up patterns.  For example, our Steam and Amazon accounts are pretty old, but we likely still use them.However, your Orders table is significantly more likely to be looked up based on time, so a v7 makes a lot of sense here.Now I'd argue the security implications are overblown, but in general tems you might also allow someone to look up a user, i.e. you can view my Steam profile, or maybe my Amazon wishlist.  You probably don't need to be looking up another Users Order.Alternativly, if your building an Enterprise Risk Solution, you could take a view that you don't want people knowing how old the risk is, but most solutions would show you some history and would believe that to be pertinent information.There will be instances of getting it wrong, but it isn't actually _that_ complicated.",
+    "id": 45624850,
+    "by": "tekne",
+    "timeISO": "2025-10-18T04:16:27.000Z",
+    "textPlain": "Question: why not use UUIDv7 but encrypt the user-facing ID you hand out? Then it's just a quick decrypt-on-lookup, and you have the added bonus of e.g. being able to give different users different IDs",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45625978,
+    "by": "djantje",
+    "timeISO": "2025-10-18T09:05:12.000Z",
+    "textPlain": "DB multi-master, or the DB not being responsible for primary key generation, is the use case, I think.And then having uuidv7 as primary and foreign keys, can give you a performance gain.",
     "parent": 45622045,
     "depth": 2
   },
@@ -228,6 +220,14 @@
     "by": "lukebechtel",
     "timeISO": "2025-10-17T21:41:41.000Z",
     "textPlain": "how risky is exposing creation time really though? I feel like for most applications this is uncritical",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45625829,
+    "by": "ownagefool",
+    "timeISO": "2025-10-18T08:28:13.000Z",
+    "textPlain": "Meh.You probably shouldn't / don't need to use v7 for your Users table because the age of your User probably has limted to no bearing on the look up patterns.  For example, our Steam and Amazon accounts are pretty old, but we likely still use them.However, your Orders table is significantly more likely to be looked up based on time, so a v7 makes a lot of sense here.Now I'd argue the security implications are overblown, but in general tems you might also allow someone to look up a user, i.e. you can view my Steam profile, or maybe my Amazon wishlist.  You probably don't need to be looking up another Users Order.Alternativly, if your building an Enterprise Risk Solution, you could take a view that you don't want people knowing how old the risk is, but most solutions would show you some history and would believe that to be pertinent information.There will be instances of getting it wrong, but it isn't actually _that_ complicated.",
     "parent": 45622045,
     "depth": 2
   },
@@ -252,6 +252,14 @@
     "by": "jongjong",
     "timeISO": "2025-10-18T00:14:56.000Z",
     "textPlain": "Great point. Also, having to support multiple IDs is a maintenance headache.IMO, a major problem solved by UUIDs is the ability to create IDs on the client-side, hence, they are inherently user-facing. A major reason why this is an important use case for UUIDs is because it allows clients to avoid accidental duplication of records when an insertion fails due to network issues. It provides insertion idempotence.For example, when the user clicks on a button on a form to insert a record into a database, the client can generate the UUID on the client-side, then attach it to a JSON object, then send the object to the server for insertion; in the meantime, if there is a network issue and it's unclear whether or not the record was inserted, the code can automatically retry (or user can manually retry) and there is no risk of duplication of data if you use the same UUID.This is impossible to do with auto-incrementing IDs because those are generated by the database in a centralized way so the user cannot know the ID head of time and thus, if there is a network failure while submitting a form, the client cannot automatically know whether or not the record was successfully inserted; if they retry, they may create a duplicate record in the database. There is no way to make the operation idempotent without relying on some kind of fixed ID which has a uniqueness constraint on the database side.",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45626264,
+    "by": "tonyhart7",
+    "timeISO": "2025-10-18T10:29:33.000Z",
+    "textPlain": "Yeah, just use uuidv4 and another \"ULID\" if thats the casewhich is pointless",
     "parent": 45622045,
     "depth": 2
   },
@@ -360,14 +368,6 @@
     "depth": 2
   },
   {
-    "id": 45621876,
-    "by": "simongr3dal",
-    "timeISO": "2025-10-17T20:48:11.000Z",
-    "textPlain": "I believe the concern is if your primary key in the database is a serial number it might be exposed to users unless you do extra work to hide that ID from any external APIs and if there are any flaws in your authorization checks it can allow enumeration attacks exposing private or semi-private info. With UUIDs being virtually unguessable that makes it less of a concern.",
-    "parent": 45621700,
-    "depth": 2
-  },
-  {
     "id": 45623629,
     "by": "chuckadams",
     "timeISO": "2025-10-18T00:15:05.000Z",
@@ -392,11 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45624647,
-    "by": "mjb",
-    "timeISO": "2025-10-18T03:23:49.000Z",
-    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
-    "parent": 45624634,
+    "id": 45623373,
+    "by": "nikisweeting",
+    "timeISO": "2025-10-17T23:30:35.000Z",
+    "textPlain": "ULID is the best balance imo, it's more compact, can be double clicked to select, and case-insensitive so it can be saved on macOS filesystems without conflicts.Now someone should make a UUIDv7 -> ULID adapter lib that 1:1 translates UUIDv7 <-> ULID preserving all the timestamp resolution and randomness bits so we can use the db-level UUIDv7 support to store ULIDs.",
+    "parent": 45622617,
     "depth": 2
   }
 ]
