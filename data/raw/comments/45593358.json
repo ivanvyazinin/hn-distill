@@ -24,34 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45623150,
-    "by": "rvitorper",
-    "timeISO": "2025-10-17T23:01:50.000Z",
-    "textPlain": "Does anyone have performance issues with uuidv4? I worked with a db with 10s of billions of rows, no issues whatsoever. Would love to hear the mileage of fellow engineers",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45622703,
     "by": "pmontra",
     "timeISO": "2025-10-17T22:07:12.000Z",
     "textPlain": "My customers return created_at attributes in all their API calls so UUIDv7 won't harm them at all. They also use sequential ids. Only one of them ever used UUIDv4 as primary key. We didn't have any performance problem but the whole production system was run by one psql insurance and one Elixir application server. Probably almost any architectural choice is good at that scale.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45623039,
-    "by": "caymanjim",
-    "timeISO": "2025-10-17T22:49:10.000Z",
-    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45622823,
-    "by": "lucasyvas",
-    "timeISO": "2025-10-17T22:20:15.000Z",
-    "textPlain": "These are all non-issues - don’t allow an end user to determine a serial primary key as always.And the amount of information it leaks is negligible - they might know the oldest and the newest and there’s an infinite gulf in between.It’s better and more practical than SERIAL or BIGSERIAL in every way - if you need a random/external ID, add a second column. Done.",
     "parent": 45593358,
     "depth": 1
   },
@@ -64,10 +40,42 @@
     "depth": 1
   },
   {
+    "id": 45623299,
+    "by": "mfrye0",
+    "timeISO": "2025-10-17T23:20:47.000Z",
+    "textPlain": "I can confirm on the performance benefits. I wanted to start with uuidv7 for a new DB earlier this year, so I put together a function to use in the meantime. Once the function is available natively, we'll just migrate to use it instead.For anyone interested:CREATE FUNCTION uuidv7() RETURNS uuid\nAS $$\n  -- Get base random UUID and overlay timestamp\n  select encode(\n    set_bit(\n      set_bit(\n        overlay(uuid_send(gen_random_uuid()) placing\n          substring(int8send((extract(epoch from clock_timestamp())*1000)::bigint) from 3)\n          from 1 for 6),\n      52, 1),  -- Set version bits to 0111\n    53, 1), 'hex')::uuid;\n$$ LANGUAGE sql volatile;",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45623039,
+    "by": "caymanjim",
+    "timeISO": "2025-10-17T22:49:10.000Z",
+    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
     "id": 45621700,
     "by": "morshu9001",
     "timeISO": "2025-10-17T20:32:52.000Z",
     "textPlain": "The article compares UUIDv7 vs v4, but doesn't say why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45622823,
+    "by": "lucasyvas",
+    "timeISO": "2025-10-17T22:20:15.000Z",
+    "textPlain": "These are all non-issues - don’t allow an end user to determine a serial primary key as always.And the amount of information it leaks is negligible - they might know the oldest and the newest and there’s an infinite gulf in between.It’s better and more practical than SERIAL or BIGSERIAL in every way - if you need a random/external ID, add a second column. Done.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45623150,
+    "by": "rvitorper",
+    "timeISO": "2025-10-17T23:01:50.000Z",
+    "textPlain": "Does anyone have performance issues with uuidv4? I worked with a db with 10s of billions of rows, no issues whatsoever. Would love to hear the mileage of fellow engineers",
     "parent": 45593358,
     "depth": 1
   },
@@ -88,20 +96,20 @@
     "depth": 1
   },
   {
+    "id": 45623306,
+    "by": "burnt-resistor",
+    "timeISO": "2025-10-17T23:21:51.000Z",
+    "textPlain": "Sequential primary keys are pretty important for scalable, stable sorting by record creation time using the primary keys' index similar to serial (int) but avoids the guessing vulnerability. For this use-case, an UUID \"v9\"-like approach can be a better option: https://uuidv9.jhunt.dev",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
     "id": 45621754,
     "by": "6r17",
     "timeISO": "2025-10-17T20:37:09.000Z",
     "textPlain": "Great read - short, effective ; I know what I learned. Very good job",
     "parent": 45593358,
     "depth": 1
-  },
-  {
-    "id": 45622345,
-    "by": "oconnore",
-    "timeISO": "2025-10-17T21:32:35.000Z",
-    "textPlain": "If this is a concern, pass your UUIDv7 ID through an ECB block cipher with a 0 IV. 128 bit UUID, 128 bit AES block. Easy, near zero overhead way to scramble and unscramble IDs as they go in/out of your application.There is no need to put the privacy preserving ID in a database index when you can calculate the mapping on the fly",
-    "parent": 45622045,
-    "depth": 2
   },
   {
     "id": 45622129,
@@ -112,26 +120,10 @@
     "depth": 2
   },
   {
-    "id": 45622414,
-    "by": "macote",
-    "timeISO": "2025-10-17T21:38:50.000Z",
-    "textPlain": "You don't need to add a UUIDv4 column, you could just encrypt your UUIDv7 with format-preserving encryption (FPE).",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
-    "id": 45623046,
-    "by": "Illniyar",
-    "timeISO": "2025-10-17T22:50:14.000Z",
-    "textPlain": "If leaking creation time is a concern, can we not just fake the timestamp?\nWe can do so in a way that most performance benefits remain - so like starting with a base time of 1970 and then adding base time to it intermittently, having random months and days to new records (or maybe based on the user's id - so the user's record are temporally consistent but they aren't with other user records).I'm sure there might be a middle ground where most of the performance gains remain but the deanonymizing risk is greatly reduced.Edit: encrypting the value in transit seems a simpler solution really",
-    "parent": 45622045,
-    "depth": 2
-  },
-  {
-    "id": 45622406,
-    "by": "gigatexal",
-    "timeISO": "2025-10-17T21:38:21.000Z",
-    "textPlain": "In a well normalized setup idk maybe not. Uuidv4 for your external ids and then have a mapping table to correspond that to something you’d use internally. Then you can torch an exposed uuid update the mapping table and generate a new one and none of your pointers and foreign keys need to change internally.",
+    "id": 45622345,
+    "by": "oconnore",
+    "timeISO": "2025-10-17T21:32:35.000Z",
+    "textPlain": "If this is a concern, pass your UUIDv7 ID through an ECB block cipher with a 0 IV. 128 bit UUID, 128 bit AES block. Easy, near zero overhead way to scramble and unscramble IDs as they go in/out of your application.There is no need to put the privacy preserving ID in a database index when you can calculate the mapping on the fly",
     "parent": 45622045,
     "depth": 2
   },
@@ -144,6 +136,30 @@
     "depth": 2
   },
   {
+    "id": 45622414,
+    "by": "macote",
+    "timeISO": "2025-10-17T21:38:50.000Z",
+    "textPlain": "You don't need to add a UUIDv4 column, you could just encrypt your UUIDv7 with format-preserving encryption (FPE).",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45623861,
+    "by": "saaspirant",
+    "timeISO": "2025-10-18T00:53:47.000Z",
+    "textPlain": "I am using it in a table where sorting by id (primary key) should also sort it by created time (newer records should have \"bigger\" id).The id would be exposed to users.\nAn integer would expose the number of records in it.Am I using right guys?",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45622406,
+    "by": "gigatexal",
+    "timeISO": "2025-10-17T21:38:21.000Z",
+    "textPlain": "In a well normalized setup idk maybe not. Uuidv4 for your external ids and then have a mapping table to correspond that to something you’d use internally. Then you can torch an exposed uuid update the mapping table and generate a new one and none of your pointers and foreign keys need to change internally.",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
     "id": 45622445,
     "by": "lukebechtel",
     "timeISO": "2025-10-17T21:41:41.000Z",
@@ -152,18 +168,34 @@
     "depth": 2
   },
   {
-    "id": 45622081,
-    "by": "hn_throwaway_99",
-    "timeISO": "2025-10-17T21:07:37.000Z",
-    "textPlain": "> Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So then what's the point? How I always did things in the past was use an auto increment big int as the internal primary key, and then use a separate random UUID for the external facing key. I think this recommendation from \"experts\" is pretty dumb because you get very little benefit using UUIDV7 (beyond some portability improvements) if you're still using a separate internal key.While I wouldn't use UUIDV7 as a secure token like I would UUIDV4, I don't see anything wrong with using UUIDV7 as externally exposed object keys - you're still going to need permissions checks anyway.",
+    "id": 45623046,
+    "by": "Illniyar",
+    "timeISO": "2025-10-17T22:50:14.000Z",
+    "textPlain": "If leaking creation time is a concern, can we not just fake the timestamp?\nWe can do so in a way that most performance benefits remain - so like starting with a base time of 1970 and then adding base time to it intermittently, having random months and days to new records (or maybe based on the user's id - so the user's record are temporally consistent but they aren't with other user records).I'm sure there might be a middle ground where most of the performance gains remain but the deanonymizing risk is greatly reduced.Edit: encrypting the value in transit seems a simpler solution really",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45623628,
+    "by": "jongjong",
+    "timeISO": "2025-10-18T00:14:56.000Z",
+    "textPlain": "Great point. Also, having to support multiple IDs is a maintenance headache.IMO, a major problem solved by UUIDs is the ability to create IDs on the client-side, hence, they are inherently user-facing. A major reason why this is an important use case for UUIDs is because it allows clients to avoid accidental duplication of records when an insertion fails due to network issues. It provides insertion idempotence.For example, when the user clicks on a button on a form to insert a record into a database, the client can generate the UUID on the client-side, then attach it to a JSON object, then send the object to the server for insertion; in the meantime, if there is a network issue and it's unclear whether or not the record was inserted, the code can automatically retry (or user can manually retry) and there is no risk of duplication of data if you use the same UUID.This is impossible to do with auto-incrementing IDs because those are generated by the database in a centralized way so the user cannot know the ID head of time and thus, if there is a network failure while submitting a form, the client cannot automatically know whether or not the record was successfully inserted; if they retry, they may create a duplicate record in the database. There is no way to make the operation idempotent without relying on some kind of fixed ID which has a uniqueness constraint on the database side.",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45623513,
+    "by": "SahAssar",
+    "timeISO": "2025-10-17T23:55:45.000Z",
+    "textPlain": "> Experts recommendWhat experts? For what scenarios specifically? When do they consider time-of-creation to be sensitive?",
     "parent": 45621860,
     "depth": 2
   },
   {
-    "id": 45622020,
-    "by": "andy_ppp",
-    "timeISO": "2025-10-17T21:01:59.000Z",
-    "textPlain": "I wish Postgres would just allow you look up records by the random component of the field, what are the chances of collisions with 80 bits of randomness? My guess is it’s still enough.",
+    "id": 45622081,
+    "by": "hn_throwaway_99",
+    "timeISO": "2025-10-17T21:07:37.000Z",
+    "textPlain": "> Experts recommend using UUIDv7 only for internal keys and exposing a separate, truly random UUIDv4 as an external identifier.So then what's the point? How I always did things in the past was use an auto increment big int as the internal primary key, and then use a separate random UUID for the external facing key. I think this recommendation from \"experts\" is pretty dumb because you get very little benefit using UUIDV7 (beyond some portability improvements) if you're still using a separate internal key.While I wouldn't use UUIDV7 as a secure token like I would UUIDV4, I don't see anything wrong with using UUIDV7 as externally exposed object keys - you're still going to need permissions checks anyway.",
     "parent": 45621860,
     "depth": 2
   },
@@ -176,6 +208,14 @@
     "depth": 2
   },
   {
+    "id": 45622020,
+    "by": "andy_ppp",
+    "timeISO": "2025-10-17T21:01:59.000Z",
+    "textPlain": "I wish Postgres would just allow you look up records by the random component of the field, what are the chances of collisions with 80 bits of randomness? My guess is it’s still enough.",
+    "parent": 45621860,
+    "depth": 2
+  },
+  {
     "id": 45621864,
     "by": "vlovich123",
     "timeISO": "2025-10-17T20:47:10.000Z",
@@ -184,27 +224,19 @@
     "depth": 2
   },
   {
-    "id": 45623293,
-    "by": "cipehr",
-    "timeISO": "2025-10-17T23:19:16.000Z",
-    "textPlain": "What database were you using? For example with SQL server, by default it clusters data on disk by primary key. Random (non-sequential) PKs like uuidv4 require random cluster shuffling to insert a row “in the middle” of a cluster, increasing io load and causing performance issues.Postgres on the other hand doesn’t do clustered indexing on the PK… if I recall correctly.",
-    "parent": 45623150,
+    "id": 45623629,
+    "by": "chuckadams",
+    "timeISO": "2025-10-18T00:15:05.000Z",
+    "textPlain": "It's the nature of B+ trees, multiplied by the nature of clustered indexes: if you use a UUIDv4 as a primary key, your entire row gets moved to random locations, which really sucks when you normally retrieve them sequentially.  With a non-clustered index (say, your UUIDv4 id you use for public APIs when you don't want to leak the v7 info) then you'll still get more fragmentation with the random data, but it's something autovacuum can usually keep up with.  But it's more work it has to do on top of everything else it does.",
+    "parent": 45622664,
     "depth": 2
   },
   {
-    "id": 45623109,
-    "by": "Biganon",
-    "timeISO": "2025-10-17T22:57:38.000Z",
-    "textPlain": "> if you need a random/external ID, add a second column. Done.As others have stated, it completely defeats the performance purpose, if you need to lookup using another ID.",
-    "parent": 45622823,
-    "depth": 2
-  },
-  {
-    "id": 45622954,
-    "by": "morshu9001",
-    "timeISO": "2025-10-17T22:38:09.000Z",
-    "textPlain": "Why not serial PK with uuid4 secondary? Every join uses your PK and will be faster.",
-    "parent": 45622823,
+    "id": 45623311,
+    "by": "baq",
+    "timeISO": "2025-10-17T23:22:53.000Z",
+    "textPlain": "Leaky abstractions in databases are one of the reasons every developer should read the table of contents of the hot databases used by the things he’s working on. IME almost no one does that.",
+    "parent": 45622664,
     "depth": 2
   },
   {
@@ -272,11 +304,51 @@
     "depth": 2
   },
   {
+    "id": 45622954,
+    "by": "morshu9001",
+    "timeISO": "2025-10-17T22:38:09.000Z",
+    "textPlain": "Why not serial PK with uuid4 secondary? Every join uses your PK and will be faster.",
+    "parent": 45622823,
+    "depth": 2
+  },
+  {
+    "id": 45623109,
+    "by": "Biganon",
+    "timeISO": "2025-10-17T22:57:38.000Z",
+    "textPlain": "> if you need a random/external ID, add a second column. Done.As others have stated, it completely defeats the performance purpose, if you need to lookup using another ID.",
+    "parent": 45622823,
+    "depth": 2
+  },
+  {
+    "id": 45623293,
+    "by": "cipehr",
+    "timeISO": "2025-10-17T23:19:16.000Z",
+    "textPlain": "What database were you using? For example with SQL server, by default it clusters data on disk by primary key. Random (non-sequential) PKs like uuidv4 require random cluster shuffling to insert a row “in the middle” of a cluster, increasing io load and causing performance issues.Postgres on the other hand doesn’t do clustered indexing on the PK… if I recall correctly.",
+    "parent": 45623150,
+    "depth": 2
+  },
+  {
+    "id": 45623314,
+    "by": "crazygringo",
+    "timeISO": "2025-10-17T23:23:15.000Z",
+    "textPlain": "Honestly not really. Yes random keys make inserts slower. But if inserts are only 1% of your database load, then yeah it's basically no issues whatsoever.On the other hand, if you're basically logging to your database so inserts are like 99% of the load, then it's something to consider.",
+    "parent": 45623150,
+    "depth": 2
+  },
+  {
     "id": 45622875,
     "by": "pmontra",
     "timeISO": "2025-10-17T22:27:26.000Z",
     "textPlain": "It's a 128 bit number. If you express that number in base 62 (26 upper case letters + 26 downcase letters + 10 digits) you need only a bit more than 20 characters. You can compress it further by increasing the base and using other 8 bit ASCII characters.",
     "parent": 45622680,
+    "depth": 2
+  },
+  {
+    "id": 45623373,
+    "by": "nikisweeting",
+    "timeISO": "2025-10-17T23:30:35.000Z",
+    "textPlain": "ULID is the best balance imo, it's more compact, can be double clicked to select, and case-insensitive so it can be saved on macOS filesystems without conflicts.Now someone should make a UUIDv7 -> ULID adapter lib that 1:1 translates UUIDv7 <-> ULID preserving all the timestamp resolution and randomness bits so we can use the db-level UUIDv7 support to store ULIDs.",
+    "parent": 45622617,
     "depth": 2
   },
   {
