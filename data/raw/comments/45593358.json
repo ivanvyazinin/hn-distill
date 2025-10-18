@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45625920,
+    "by": "pilif",
+    "timeISO": "2025-10-18T08:46:29.000Z",
+    "textPlain": "One thing that’s not quite clear to me is how safe it is to generate v7 uuids on the client.That’s one of the nice properties of v4 uuids: you can make up a primary key of a new entity directly on the client and the database can use it directly. Sure: there is tiny collision risk, but it’s so small, you can get away with mostly ignoring itWith v7 however, such a large chunk of the uuid is based on the time, so I’m not sure whether it’s still safe to ignore collisions in any application, especially when you consider client’s clocks to probably be very inaccurate.Am I overthinking things here?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
     "id": 45621860,
     "by": "pqdbr",
     "timeISO": "2025-10-17T20:46:44.000Z",
@@ -40,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45624634,
-    "by": "perrygeo",
-    "timeISO": "2025-10-18T03:20:40.000Z",
-    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
+    "id": 45621700,
+    "by": "morshu9001",
+    "timeISO": "2025-10-17T20:32:52.000Z",
+    "textPlain": "The article compares UUIDv7 vs v4, but doesn't say why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?",
     "parent": 45593358,
     "depth": 1
   },
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45624634,
+    "by": "perrygeo",
+    "timeISO": "2025-10-18T03:20:40.000Z",
+    "textPlain": "Is there an unavoidable tradeoff here? Keys that order nicely (auto-incrementing integers, UUIDv7) naturally leak information. Keys that are more secure (UUIDv4) can have performance problems because they have poor locality.Or are there any random id generators that can compromise, remain sequential-ish without leaking exact timestamps and global ordering?",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
     "id": 45623299,
     "by": "mfrye0",
     "timeISO": "2025-10-17T23:20:47.000Z",
@@ -64,26 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45623039,
-    "by": "caymanjim",
-    "timeISO": "2025-10-17T22:49:10.000Z",
-    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
-    "id": 45621700,
-    "by": "morshu9001",
-    "timeISO": "2025-10-17T20:32:52.000Z",
-    "textPlain": "The article compares UUIDv7 vs v4, but doesn't say why you'd do either instead of just serial/bigserial, which has always been my goto. Did I miss something?",
-    "parent": 45593358,
-    "depth": 1
-  },
-  {
     "id": 45624284,
     "by": "bearjaws",
     "timeISO": "2025-10-18T02:05:38.000Z",
     "textPlain": "I really disagree that the privacy risk is enough to not use it at all, even in a healthcare setting.There are wild scenarios you can come up with where you may leak something, but that assumes the information isn't coming over anyway.\"Reveals account creation time\" - most APIs return this in API responses by default.When have you seen just a list of UUIDs and no other more revealing metadata?Meanwhile what pwns 99% of companies? Phishing.",
+    "parent": 45593358,
+    "depth": 1
+  },
+  {
+    "id": 45623039,
+    "by": "caymanjim",
+    "timeISO": "2025-10-17T22:49:10.000Z",
+    "textPlain": "Tangential, but I'm grateful to this article for teaching me that Postgres has \"table foo\" as shorthand for \"select * from foo\". I won't use that in code, but I'll happily use it for interactive queries.",
     "parent": 45593358,
     "depth": 1
   },
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45625978,
+    "by": "djantje",
+    "timeISO": "2025-10-18T09:05:12.000Z",
+    "textPlain": "DB multi-master, or the DB not being responsible for primary key generation, is the use case, I think.And then having uuidv7 as primary and foreign keys, can give you a performance gain.",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
     "id": 45622374,
     "by": "matthew16550",
     "timeISO": "2025-10-17T21:35:30.000Z",
@@ -156,6 +172,14 @@
     "by": "oconnore",
     "timeISO": "2025-10-17T21:32:35.000Z",
     "textPlain": "If this is a concern, pass your UUIDv7 ID through an ECB block cipher with a 0 IV. 128 bit UUID, 128 bit AES block. Easy, near zero overhead way to scramble and unscramble IDs as they go in/out of your application.There is no need to put the privacy preserving ID in a database index when you can calculate the mapping on the fly",
+    "parent": 45622045,
+    "depth": 2
+  },
+  {
+    "id": 45625829,
+    "by": "ownagefool",
+    "timeISO": "2025-10-18T08:28:13.000Z",
+    "textPlain": "Meh.You probably shouldn't / don't need to use v7 for your Users table because the age of your User probably has limted to no bearing on the look up patterns.  For example, our Steam and Amazon accounts are pretty old, but we likely still use them.However, your Orders table is significantly more likely to be looked up based on time, so a v7 makes a lot of sense here.Now I'd argue the security implications are overblown, but in general tems you might also allow someone to look up a user, i.e. you can view my Steam profile, or maybe my Amazon wishlist.  You probably don't need to be looking up another Users Order.Alternativly, if your building an Enterprise Risk Solution, you could take a view that you don't want people knowing how old the risk is, but most solutions would show you some history and would believe that to be pertinent information.There will be instances of getting it wrong, but it isn't actually _that_ complicated.",
     "parent": 45622045,
     "depth": 2
   },
@@ -272,46 +296,6 @@
     "depth": 2
   },
   {
-    "id": 45625214,
-    "by": "inopinatus",
-    "timeISO": "2025-10-18T05:44:05.000Z",
-    "textPlain": "Symmetric encryption of IDs at the edge. Optional embedded HMAC. Optional text encoding. For monotonic bigserial values I'm somewhat fond of base58(AES_K1(id{8} || HMAC_K2(id{8})[0..7])) with purpose/table-salted HKDF subkeys from a scrypt'd system passphrase. The hot path of this is pretty fast. As with all cryptographic solutions it comes with a whole new jungle of pitfalls, caveats, and tradeoffs, but it works.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45624647,
-    "by": "mjb",
-    "timeISO": "2025-10-18T03:23:49.000Z",
-    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45624810,
-    "by": "AlotOfReading",
-    "timeISO": "2025-10-18T04:07:32.000Z",
-    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
-    "parent": 45624634,
-    "depth": 2
-  },
-  {
-    "id": 45623629,
-    "by": "chuckadams",
-    "timeISO": "2025-10-18T00:15:05.000Z",
-    "textPlain": "It's the nature of B+ trees, multiplied by the nature of clustered indexes: if you use a UUIDv4 as a primary key, your entire row gets moved to random locations, which really sucks when you normally retrieve them sequentially.  With a non-clustered index (say, your UUIDv4 id you use for public APIs when you don't want to leak the v7 info) then you'll still get more fragmentation with the random data, but it's something autovacuum can usually keep up with.  But it's more work it has to do on top of everything else it does.",
-    "parent": 45622664,
-    "depth": 2
-  },
-  {
-    "id": 45623311,
-    "by": "baq",
-    "timeISO": "2025-10-17T23:22:53.000Z",
-    "textPlain": "Leaky abstractions in databases are one of the reasons every developer should read the table of contents of the hot databases used by the things he’s working on. IME almost no one does that.",
-    "parent": 45622664,
-    "depth": 2
-  },
-  {
     "id": 45622515,
     "by": "molf",
     "timeISO": "2025-10-17T21:50:04.000Z",
@@ -373,6 +357,30 @@
     "timeISO": "2025-10-17T20:42:00.000Z",
     "textPlain": "You don’t scale horizontally, do you?",
     "parent": 45621700,
+    "depth": 2
+  },
+  {
+    "id": 45625214,
+    "by": "inopinatus",
+    "timeISO": "2025-10-18T05:44:05.000Z",
+    "textPlain": "Symmetric encryption of IDs at the edge. Optional embedded HMAC. Optional text encoding. For monotonic bigserial values I'm somewhat fond of base58(AES_K1(id{8} || HMAC_K2(id{8})[0..7])) with purpose/table-salted HKDF subkeys from a scrypt'd system passphrase. The hot path of this is pretty fast. As with all cryptographic solutions it comes with a whole new jungle of pitfalls, caveats, and tradeoffs, but it works.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624647,
+    "by": "mjb",
+    "timeISO": "2025-10-18T03:23:49.000Z",
+    "textPlain": "Yes. The spatial locality benefits drop off quite quickly. A hashed uuidv7-like scheme with a rotating salt, for example, would keep short term locality and it's performance benefits while not having long term locality and it's downsides.",
+    "parent": 45624634,
+    "depth": 2
+  },
+  {
+    "id": 45624810,
+    "by": "AlotOfReading",
+    "timeISO": "2025-10-18T04:07:32.000Z",
+    "textPlain": "The tradeoff is unavoidable. At one end is UUIDv4. At the far end is a gray code with excellent locality, but inherently allows you to know which half of the indices the record is from (even without inverting it). UUIDv7 is a pretty good middle ground.",
+    "parent": 45624634,
     "depth": 2
   },
   {
