@@ -16,10 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45628609,
-    "by": "btilly",
-    "timeISO": "2025-10-18T16:41:49.000Z",
-    "textPlain": "The biggest SQL antipattern is failing to recognize that SQL is actually a programming language.Therefore you should create a consistent indentation style for SQL. See https://bentilly.blogspot.com/2011/02/sql-formatting-style.h... for mine. Second, you should try to group logical things together. This is why people should move subqueries into common table expressions. And finally, don't be afraid of commenting wisely.",
+    "id": 45631934,
+    "by": "spprashant",
+    "timeISO": "2025-10-19T03:38:58.000Z",
+    "textPlain": "Not all of these are \"anti-patterns\", your query clause not matching your index is a problem of not understanding how indexes work.Some of these have nothing to do with SQL the language itself, and more to do with database schema design. If you have to do a DISTINCT, it means your primary key design is likely not right. If you are layering too many views, something is broken in the base table design, requiring the creation of all these views.A good database model goes a long way to avoiding all this.",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
+    "id": 45632360,
+    "by": "chuliomartinez",
+    "timeISO": "2025-10-19T06:23:11.000Z",
+    "textPlain": "SQL makes it very hard to express real world requirements.1. No easy way to limit child records count in joins - find all orders with orderproduct.amount is greater than X. Obviously this will genereate duplicates for orders that have more than one such orderproduct. So you slap a distinct on it… but what if you need an aggregation?The possible fixes are highly non-trivial: subqueries, window functions, or vendor specific: outer apply.2. Or queries, that is when you group where conditions with OR are very hard (impossible) to optimize.Apart from the trivial case where the conditions are all on the same column, you are better of leaving the declarative world and imperatively tell sql to do a union.I wrote a bit about it here: https://www.inuko.net/blog/platform_sql_or_conditions_on_joi...",
     "parent": 45626985,
     "depth": 1
   },
@@ -32,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45630712,
-    "by": "FuriouslyAdrift",
-    "timeISO": "2025-10-18T22:13:31.000Z",
-    "textPlain": "The single biggest thing that helped me speed up my queries and lower resource usage on the server was focusing on making my queries more sargable.https://en.wikipedia.org/wiki/Sargablehttps://www.brentozar.com/blitzcache/non-sargable-predicates...",
+    "id": 45632170,
+    "by": "CuriousRose",
+    "timeISO": "2025-10-19T05:07:29.000Z",
+    "textPlain": "I don’t fully agree with the nested view argument. In our context (POS software) we use them heavily to have a single source of truth for a clean transaction view, joining common tables like product, category, etc and then using that as the backbone for all user reporting that might be more/less complex. Not doing this means that we need to accommodate for each where clause in each table on each report. For example eliminating voided lines, voided transactions, returned transactions, etc. Not having this means that a single logic change would need to update 20+ views/stored procs so for our case I think its valid to nest.",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
+    "id": 45628609,
+    "by": "btilly",
+    "timeISO": "2025-10-18T16:41:49.000Z",
+    "textPlain": "The biggest SQL antipattern is failing to recognize that SQL is actually a programming language.Therefore you should create a consistent indentation style for SQL. See https://bentilly.blogspot.com/2011/02/sql-formatting-style.h... for mine. Second, you should try to group logical things together. This is why people should move subqueries into common table expressions. And finally, don't be afraid of commenting wisely.",
     "parent": 45626985,
     "depth": 1
   },
@@ -48,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45630712,
+    "by": "FuriouslyAdrift",
+    "timeISO": "2025-10-18T22:13:31.000Z",
+    "textPlain": "The single biggest thing that helped me speed up my queries and lower resource usage on the server was focusing on making my queries more sargable.https://en.wikipedia.org/wiki/Sargablehttps://www.brentozar.com/blitzcache/non-sargable-predicates...",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
     "id": 45629242,
     "by": "thehours",
     "timeISO": "2025-10-18T18:03:34.000Z",
@@ -56,18 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45631039,
-    "by": "bambax",
-    "timeISO": "2025-10-18T23:13:23.000Z",
-    "textPlain": "> Excessive View Layer StackingGuilty as charged. I love to do this. Materialized views aren't really possible on sqlite, and so I find stacking views on top of one another very readable and manageable. But it's true other people find it a little obscure and weird.",
-    "parent": 45626985,
-    "depth": 1
-  },
-  {
     "id": 45627773,
     "by": "wmonk",
     "timeISO": "2025-10-18T14:41:03.000Z",
     "textPlain": "The section of using functions on indexes could do with more explicit and deeper explanation. When you use the function on the index it becomes a full scan of the data instead as the query runner has to run the function on every row and column, effectively removing any benefit of the index.Unfortunately I learned this the hard way!",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
+    "id": 45631039,
+    "by": "bambax",
+    "timeISO": "2025-10-18T23:13:23.000Z",
+    "textPlain": "> Excessive View Layer StackingGuilty as charged. I love to do this. Materialized views aren't really possible on sqlite, and so I find stacking views on top of one another very readable and manageable. But it's true other people find it a little obscure and weird.",
     "parent": 45626985,
     "depth": 1
   },
@@ -104,14 +128,6 @@
     "depth": 1
   },
   {
-    "id": 45630034,
-    "by": "ddxv",
-    "timeISO": "2025-10-18T20:09:39.000Z",
-    "textPlain": "I've built myself a few problems that I haven't fixed yet:Many materialized views that rely on materialized views. When one at the bottom, or a table, needs a changed all views need to be dropped and recreated.Using a warm standby for production. I love having a read only production database, but since it's not the primary, it always feels like it's on the losing end of the system. Recently upgraded to Postgres 18 and forgot that means I need to rm rf the standby and pg_basebackup to rebuild... That wasn't fun.",
-    "parent": 45626985,
-    "depth": 1
-  },
-  {
     "id": 45627711,
     "by": "chongli",
     "timeISO": "2025-10-18T14:34:51.000Z",
@@ -120,10 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45630015,
-    "by": "seanhunter",
-    "timeISO": "2025-10-18T20:06:14.000Z",
-    "textPlain": "I can’t take any article like this seriously if it doesn’t lead with the #1 sql antipattern which kills performance all the time - doing things row-by-row instead of understanding that databases operate on relations, so you need to do operations over whole relations.Very often I have seen this problem buried in code design and it always sucks.  Sometimes an orm obscures this but the basic antipattern looks like   Select some stuff\n   For each row in stuff:\n      … do some important things …\n      Select a thing to do with this row\n      … maybe do some other things …\n\nEarly on in my career an old-hand sql guru said to me “any time you are doing sql in a loop, you are probably doing it wrong”.The non-sucky version of the code above is   Select some stuff, joining on all the things you need for the rows because databases are great\n   For each row in stuff:\n      … do some important things …\n      … maybe do some other things …",
+    "id": 45630034,
+    "by": "ddxv",
+    "timeISO": "2025-10-18T20:09:39.000Z",
+    "textPlain": "I've built myself a few problems that I haven't fixed yet:Many materialized views that rely on materialized views. When one at the bottom, or a table, needs a changed all views need to be dropped and recreated.Using a warm standby for production. I love having a read only production database, but since it's not the primary, it always feels like it's on the losing end of the system. Recently upgraded to Postgres 18 and forgot that means I need to rm rf the standby and pg_basebackup to rebuild... That wasn't fun.",
     "parent": 45626985,
     "depth": 1
   },
@@ -132,6 +148,14 @@
     "by": "BrenBarn",
     "timeISO": "2025-10-18T19:09:27.000Z",
     "textPlain": "> SQL is one of those languages that looks simple on the surface but grows in complexity as teams and systems scale.The funny thing is it's actually several of those languages.  :-)",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
+    "id": 45630015,
+    "by": "seanhunter",
+    "timeISO": "2025-10-18T20:06:14.000Z",
+    "textPlain": "I can’t take any article like this seriously if it doesn’t lead with the #1 sql antipattern which kills performance all the time - doing things row-by-row instead of understanding that databases operate on relations, so you need to do operations over whole relations.Very often I have seen this problem buried in code design and it always sucks.  Sometimes an orm obscures this but the basic antipattern looks like   Select some stuff\n   For each row in stuff:\n      … do some important things …\n      Select a thing to do with this row\n      … maybe do some other things …\n\nEarly on in my career an old-hand sql guru said to me “any time you are doing sql in a loop, you are probably doing it wrong”.The non-sucky version of the code above is   Select some stuff, joining on all the things you need for the rows because databases are great\n   For each row in stuff:\n      … do some important things …\n      … maybe do some other things …",
     "parent": 45626985,
     "depth": 1
   },
@@ -184,6 +208,14 @@
     "depth": 1
   },
   {
+    "id": 45628303,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-10-18T15:55:14.000Z",
+    "textPlain": "At this point it's malpractice not to use AI to analyze your SQL statements and tables for optimizations",
+    "parent": 45626985,
+    "depth": 1
+  },
+  {
     "id": 45627689,
     "by": "jacknews",
     "timeISO": "2025-10-18T14:32:28.000Z",
@@ -196,14 +228,6 @@
     "by": "JohnHaugeland",
     "timeISO": "2025-10-18T14:29:15.000Z",
     "textPlain": "these aren’t anti patterns.  these are just things you shouldn’t do",
-    "parent": 45626985,
-    "depth": 1
-  },
-  {
-    "id": 45628303,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-10-18T15:55:14.000Z",
-    "textPlain": "At this point it's malpractice not to use AI to analyze your SQL statements and tables for optimizations",
     "parent": 45626985,
     "depth": 1
   },
@@ -248,6 +272,14 @@
     "depth": 2
   },
   {
+    "id": 45631963,
+    "by": "fipar",
+    "timeISO": "2025-10-19T03:48:00.000Z",
+    "textPlain": "I'm not sure I understand the part about set theory. If anything, a valid use of DISTINCT is if you want the result to be (closer to) a set, as otherwise (to your point, depending on the data model) you may get a bag instead.In fact, IIRC, using DISTINCT (usually bad for performance, btw) is an SQL advice by CJ Date in https://www.oreilly.com/library/view/sql-and-relational/9781...",
+    "parent": 45627850,
+    "depth": 2
+  },
+  {
     "id": 45628351,
     "by": "jmull",
     "timeISO": "2025-10-18T16:00:09.000Z",
@@ -256,10 +288,10 @@
     "depth": 2
   },
   {
-    "id": 45630868,
-    "by": "kpcyrd",
-    "timeISO": "2025-10-18T22:40:03.000Z",
-    "textPlain": "SQL is somehow \"ask two people, get three different opinions\" for something as basic as:\"given a BTreeMap<String, Vec<String>>, how do I do .keys() and .len()\".",
+    "id": 45628537,
+    "by": "dragonwriter",
+    "timeISO": "2025-10-18T16:30:37.000Z",
+    "textPlain": "In my experience, its nearly as often a problem with the design of the database as the query author.",
     "parent": 45627850,
     "depth": 2
   },
@@ -272,10 +304,10 @@
     "depth": 2
   },
   {
-    "id": 45628537,
-    "by": "dragonwriter",
-    "timeISO": "2025-10-18T16:30:37.000Z",
-    "textPlain": "In my experience, its nearly as often a problem with the design of the database as the query author.",
+    "id": 45630868,
+    "by": "kpcyrd",
+    "timeISO": "2025-10-18T22:40:03.000Z",
+    "textPlain": "SQL is somehow \"ask two people, get three different opinions\" for something as basic as:\"given a BTreeMap<String, Vec<String>>, how do I do .keys() and .len()\".",
     "parent": 45627850,
     "depth": 2
   },
@@ -336,11 +368,11 @@
     "depth": 2
   },
   {
-    "id": 45629123,
-    "by": "xyzzy_plugh",
-    "timeISO": "2025-10-18T17:47:59.000Z",
-    "textPlain": "Style opinions are borderline irrelevant without appropriate linters.",
-    "parent": 45628609,
+    "id": 45632470,
+    "by": "dfe",
+    "timeISO": "2025-10-19T06:54:18.000Z",
+    "textPlain": "Your own article points out that exists handles the first case. Exists is not actually implemented as a subquery, it is merely syntactically a subquery.",
+    "parent": 45632360,
     "depth": 2
   },
   {
@@ -360,43 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45631495,
-    "by": "jdnier",
-    "timeISO": "2025-10-19T01:22:25.000Z",
-    "textPlain": "Looking up the etymology of \"sargeable\", I found this StackOverflow answer: https://dba.stackexchange.com/a/217983And Google explains \"The term 'sargable' is a portmanteau of \"Search ARGument ABLE,\" formed by combining the words from a SQL database context.\"",
-    "parent": 45630712,
-    "depth": 2
-  },
-  {
-    "id": 45630409,
-    "by": "mkeedlinger",
-    "timeISO": "2025-10-18T21:17:56.000Z",
-    "textPlain": "Hey, this looks really cool! Best wishes and I’ll try to watch out for when this is more ready",
-    "parent": 45628760,
-    "depth": 2
-  },
-  {
-    "id": 45629545,
-    "by": "andersmurphy",
-    "timeISO": "2025-10-18T18:48:49.000Z",
-    "textPlain": "Non sargability easy to solve with expression indexes. At least in sqlite.",
-    "parent": 45629242,
-    "depth": 2
-  },
-  {
-    "id": 45627790,
-    "by": "LikesPwsh",
-    "timeISO": "2025-10-18T14:43:45.000Z",
-    "textPlain": "Some well known docs on the topic- https://use-the-index-luke.com/sql/where-clause/obfuscation",
-    "parent": 45627773,
-    "depth": 2
-  },
-  {
-    "id": 45627982,
-    "by": "tremon",
-    "timeISO": "2025-10-18T15:09:51.000Z",
-    "textPlain": "The given solution (create an indexed UPPER(name) column) is not the best way to solve this, at least not on MS SQL Server. Not sure if this is equally supported in other databases, but the better solution is to create a case-insensitive computed column:  ALTER TABLE example ADD name_ci AS name COLLATE SQL_Latin1_General_CI_AS;\n\n(season to taste)",
-    "parent": 45627773,
+    "id": 45629123,
+    "by": "xyzzy_plugh",
+    "timeISO": "2025-10-18T17:47:59.000Z",
+    "textPlain": "Style opinions are borderline irrelevant without appropriate linters.",
+    "parent": 45628609,
     "depth": 2
   }
 ]
