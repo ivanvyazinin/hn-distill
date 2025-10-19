@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45632862,
-    "by": "czhu12",
-    "timeISO": "2025-10-19T08:49:15.000Z",
-    "textPlain": "If anyone is looking for a gentler, Heroku like onramp to Kubernetes, its exactly why I built Canine [1].In retrospect, at my previous company, what we really needed in the early days was something that was Heroku-like (don't make me think about infra (!)) but could be easily added to and scaled up over time, as our service grew. We eventually grew to about 10M users, using the site monthly, and had to do a huge effort to migrate to Kubernetes.Canine's philosophy is: full Kubernetes, with a deployment layer on top. If you ever out grow it, just dump Canine entirely, and work directly with the Kubernetes system it's operating. It even gives you all the K8s YAML config needed to offboard.It's also similar to how the dev infra works at Airbnb (where I worked before that) -- Kubernetes underneath, a user friendly interface on top.",
-    "parent": 45611252,
-    "depth": 1
-  },
-  {
     "id": 45630655,
     "by": "jeffinhat",
     "timeISO": "2025-10-18T22:02:27.000Z",
     "textPlain": "This is an awesome experiment and write up. I really appreciate the reproducibility.I would like to see how moving to database that scales write throughput with replicas would behave, namely FoundationDB. I think this will require more than an intermediary like kine to be efficient, as the author illustrates the apisever does a fair bit of its own watching and keeping state. I also think there's benefit, at least for blast radius, to shard the server by api group or namespace.I think years ago this would have been a non starter with the community, but given AWS has replaced etcd (or at least aspects) with their internal log service for their large cluster offering, I bet there's some appetite for making this interchangable and bringing and open source solution to market.I share the authors viewpoint that for modern cloud based deployments, you're probably best avoiding it and relying on VMs being stable and recoverable. I think reliability does matter if you want to actually realize the \"borg\" value and run it on bare metal across a serious fleet. I haven't found the business justification to work on that though!",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45632862,
+    "by": "czhu12",
+    "timeISO": "2025-10-19T08:49:15.000Z",
+    "textPlain": "If anyone is looking for a gentler, Heroku like onramp to Kubernetes, its exactly why I built Canine [1].In retrospect, at my previous company, what we really needed in the early days was something that was Heroku-like (don't make me think about infra (!)) but could be easily added to and scaled up over time, as our service grew. We eventually grew to about 10M users, using the site monthly, and had to do a huge effort to migrate to Kubernetes.Canine's philosophy is: full Kubernetes, with a deployment layer on top. If you ever out grow it, just dump Canine entirely, and work directly with the Kubernetes system it's operating. It even gives you all the K8s YAML config needed to offboard.It's also similar to how the dev infra works at Airbnb (where I worked before that) -- Kubernetes underneath, a user friendly interface on top.",
     "parent": 45611252,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "kawsper",
     "timeISO": "2025-10-19T07:48:25.000Z",
     "textPlain": "That's really impressive and an interesting experiment.I was about to say that Nomad did something similar, but that was 2 million Docker containers across 6100 nodes, https://www.hashicorp.com/en/c2m",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631781,
+    "by": "vebgen",
+    "timeISO": "2025-10-19T02:54:35.000Z",
+    "textPlain": "This is an absolutely incredible technical deep-dive. The section on \nreplacing etcd with mem_etcd resonates with challenges we've been tackling \nat a much smaller scale building an AI agent system.A few thoughts:*On watch streams and caching*: Your observation about the B-Tree vs \nhashmap cache tradeoff is fascinating. We hit similar contention issues \nwith our agent's context manager - switched from a simple dict to a more \ncomplex indexed structure for faster \"list all relevant context\" queries, \nbut update performance suffered. The lesson about O(1) writes vs O(log n) \nreads being the wrong tradeoff for high-write workloads is universal.*On optimistic concurrency for scheduling*: The scatter-gather scheduler \ndesign is elegant. We use a similar pattern for our dual-agent system \n(TARS planner + CASE executor) where both agents operate semi-independently \nbut need coordination. Your point about \"presuming no conflicts, but \nhandling them when they occur\" is exactly what we learned - pessimistic \nlocking kills throughput far worse than occasional retries.*The spicy take on durability*: \"Most clusters don't need etcd's \nreliability\" is provocative but I suspect correct for many use cases. \nFor our Django development agent, we keep execution history in SQLite with \nWAL mode (no fsync), betting that if the host crashes, we'd rather rebuild \nfrom Git than wait on every write. Similar philosophy.The mem_etcd implementation in Rust is particularly interesting - curious \nif you considered using FoundationDB's storage engine or something similar \nvs rolling your own? The per-prefix file approach is clever for reducing \nwrite amplification.Fantastic work - this kind of empirical systems research is exactly what \nthe community needs more of. The \"what are the REAL limits\" approach vs \n\"conventional wisdom says X\" is refreshing.",
     "parent": 45611252,
     "depth": 1
   },
@@ -88,14 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45631781,
-    "by": "vebgen",
-    "timeISO": "2025-10-19T02:54:35.000Z",
-    "textPlain": "This is an absolutely incredible technical deep-dive. The section on \nreplacing etcd with mem_etcd resonates with challenges we've been tackling \nat a much smaller scale building an AI agent system.A few thoughts:*On watch streams and caching*: Your observation about the B-Tree vs \nhashmap cache tradeoff is fascinating. We hit similar contention issues \nwith our agent's context manager - switched from a simple dict to a more \ncomplex indexed structure for faster \"list all relevant context\" queries, \nbut update performance suffered. The lesson about O(1) writes vs O(log n) \nreads being the wrong tradeoff for high-write workloads is universal.*On optimistic concurrency for scheduling*: The scatter-gather scheduler \ndesign is elegant. We use a similar pattern for our dual-agent system \n(TARS planner + CASE executor) where both agents operate semi-independently \nbut need coordination. Your point about \"presuming no conflicts, but \nhandling them when they occur\" is exactly what we learned - pessimistic \nlocking kills throughput far worse than occasional retries.*The spicy take on durability*: \"Most clusters don't need etcd's \nreliability\" is provocative but I suspect correct for many use cases. \nFor our Django development agent, we keep execution history in SQLite with \nWAL mode (no fsync), betting that if the host crashes, we'd rather rebuild \nfrom Git than wait on every write. Similar philosophy.The mem_etcd implementation in Rust is particularly interesting - curious \nif you considered using FoundationDB's storage engine or something similar \nvs rolling your own? The per-prefix file approach is clever for reducing \nwrite amplification.Fantastic work - this kind of empirical systems research is exactly what \nthe community needs more of. The \"what are the REAL limits\" approach vs \n\"conventional wisdom says X\" is refreshing.",
-    "parent": 45611252,
-    "depth": 1
-  },
-  {
     "id": 45615563,
     "by": "ktpsns",
     "timeISO": "2025-10-17T11:42:06.000Z",
@@ -120,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45632806,
-    "by": "jamesblonde",
-    "timeISO": "2025-10-19T08:32:41.000Z",
-    "textPlain": "Is it throughput and latency that are the etcd bottlenecks?\nOur database, RonDB, is an in-memory open-source database (a fork of MySQL Cluster). We have scaled it to 100m reads/sec on AWS hardware (not even top of the line). Might be an interesting project to implement an open-source etcd shim on top of it?Reference:\nhttps://www.rondb.com/post/100m-key-lookups-sec-with-rest-ap...",
-    "parent": 45631353,
-    "depth": 2
-  },
-  {
     "id": 45631716,
     "by": "femiagbabiaka",
     "timeISO": "2025-10-19T02:31:04.000Z",
     "textPlain": "Yep, every cluster approaching 10k I know of has either pared back etcd's durability guarantees or rewritten and replaced it in some manner. Actually the post goes into detail about doing this exactly, the Alibaba paper they reference says about the same.> Sharding total compute capacity compute capacity into multiple isolated k8s clusters reduces the likelihood that a software bug is going to take down everything as you can carefully upgrade only a single cell at a time with bake periods between each cell.Yeah, I've been meaning to try out something like Armada to simplify things on the cluster-user side. Cluster-providers have lots of tools to make managing multiple clusters easier but if it means having to rewrite every batch job..",
+    "parent": 45631353,
+    "depth": 2
+  },
+  {
+    "id": 45632806,
+    "by": "jamesblonde",
+    "timeISO": "2025-10-19T08:32:41.000Z",
+    "textPlain": "Is it throughput and latency that are the etcd bottlenecks?\nOur database, RonDB, is an in-memory open-source database (a fork of MySQL Cluster). We have scaled it to 100m reads/sec on AWS hardware (not even top of the line). Might be an interesting project to implement an open-source etcd shim on top of it?Reference:\nhttps://www.rondb.com/post/100m-key-lookups-sec-with-rest-ap...",
     "parent": 45631353,
     "depth": 2
   },
