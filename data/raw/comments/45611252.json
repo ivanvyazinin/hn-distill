@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45630655,
-    "by": "jeffinhat",
-    "timeISO": "2025-10-18T22:02:27.000Z",
-    "textPlain": "This is an awesome experiment and write up. I really appreciate the reproducibility.I would like to see how moving to database that scales write throughput with replicas would behave, namely FoundationDB. I think this will require more than an intermediary like kine to be efficient, as the author illustrates the apisever does a fair bit of its own watching and keeping state. I also think there's benefit, at least for blast radius, to shard the server by api group or namespace.I think years ago this would have been a non starter with the community, but given AWS has replaced etcd (or at least aspects) with their internal log service for their large cluster offering, I bet there's some appetite for making this interchangable and bringing and open source solution to market.I share the authors viewpoint that for modern cloud based deployments, you're probably best avoiding it and relying on VMs being stable and recoverable. I think reliability does matter if you want to actually realize the \"borg\" value and run it on bare metal across a serious fleet. I haven't found the business justification to work on that though!",
+    "id": 45632635,
+    "by": "kawsper",
+    "timeISO": "2025-10-19T07:48:25.000Z",
+    "textPlain": "That's really impressive and an interesting experiment.I was about to say that Nomad did something similar, but that was 2 million Docker containers across 6100 nodes, https://www.hashicorp.com/en/c2m",
     "parent": 45611252,
     "depth": 1
   },
   {
-    "id": 45631781,
-    "by": "vebgen",
-    "timeISO": "2025-10-19T02:54:35.000Z",
-    "textPlain": "This is an absolutely incredible technical deep-dive. The section on \nreplacing etcd with mem_etcd resonates with challenges we've been tackling \nat a much smaller scale building an AI agent system.A few thoughts:*On watch streams and caching*: Your observation about the B-Tree vs \nhashmap cache tradeoff is fascinating. We hit similar contention issues \nwith our agent's context manager - switched from a simple dict to a more \ncomplex indexed structure for faster \"list all relevant context\" queries, \nbut update performance suffered. The lesson about O(1) writes vs O(log n) \nreads being the wrong tradeoff for high-write workloads is universal.*On optimistic concurrency for scheduling*: The scatter-gather scheduler \ndesign is elegant. We use a similar pattern for our dual-agent system \n(TARS planner + CASE executor) where both agents operate semi-independently \nbut need coordination. Your point about \"presuming no conflicts, but \nhandling them when they occur\" is exactly what we learned - pessimistic \nlocking kills throughput far worse than occasional retries.*The spicy take on durability*: \"Most clusters don't need etcd's \nreliability\" is provocative but I suspect correct for many use cases. \nFor our Django development agent, we keep execution history in SQLite with \nWAL mode (no fsync), betting that if the host crashes, we'd rather rebuild \nfrom Git than wait on every write. Similar philosophy.The mem_etcd implementation in Rust is particularly interesting - curious \nif you considered using FoundationDB's storage engine or something similar \nvs rolling your own? The per-prefix file approach is clever for reducing \nwrite amplification.Fantastic work - this kind of empirical systems research is exactly what \nthe community needs more of. The \"what are the REAL limits\" approach vs \n\"conventional wisdom says X\" is refreshing.",
+    "id": 45630655,
+    "by": "jeffinhat",
+    "timeISO": "2025-10-18T22:02:27.000Z",
+    "textPlain": "This is an awesome experiment and write up. I really appreciate the reproducibility.I would like to see how moving to database that scales write throughput with replicas would behave, namely FoundationDB. I think this will require more than an intermediary like kine to be efficient, as the author illustrates the apisever does a fair bit of its own watching and keeping state. I also think there's benefit, at least for blast radius, to shard the server by api group or namespace.I think years ago this would have been a non starter with the community, but given AWS has replaced etcd (or at least aspects) with their internal log service for their large cluster offering, I bet there's some appetite for making this interchangable and bringing and open source solution to market.I share the authors viewpoint that for modern cloud based deployments, you're probably best avoiding it and relying on VMs being stable and recoverable. I think reliability does matter if you want to actually realize the \"borg\" value and run it on bare metal across a serious fleet. I haven't found the business justification to work on that though!",
     "parent": 45611252,
     "depth": 1
   },
@@ -48,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45631602,
-    "by": "wb14123",
-    "timeISO": "2025-10-19T01:56:49.000Z",
-    "textPlain": "Instead of giving up the good guarantee of etcd, a better approach maybe grouping some nodes together to create a tree like structure with sub clusters.",
+    "id": 45631836,
+    "by": "rememberlenny",
+    "timeISO": "2025-10-19T03:10:16.000Z",
+    "textPlain": "People don’t realize how crucial Ben was in the forming of OpenAI as it is known today. This is an extremely underrated post.",
     "parent": 45611252,
     "depth": 1
   },
@@ -64,10 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45631836,
-    "by": "rememberlenny",
-    "timeISO": "2025-10-19T03:10:16.000Z",
-    "textPlain": "People don’t realize how crucial Ben was in the forming of OpenAI as it is known today. This is an extremely underrated post.",
+    "id": 45631602,
+    "by": "wb14123",
+    "timeISO": "2025-10-19T01:56:49.000Z",
+    "textPlain": "Instead of giving up the good guarantee of etcd, a better approach maybe grouping some nodes together to create a tree like structure with sub clusters.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631781,
+    "by": "vebgen",
+    "timeISO": "2025-10-19T02:54:35.000Z",
+    "textPlain": "This is an absolutely incredible technical deep-dive. The section on \nreplacing etcd with mem_etcd resonates with challenges we've been tackling \nat a much smaller scale building an AI agent system.A few thoughts:*On watch streams and caching*: Your observation about the B-Tree vs \nhashmap cache tradeoff is fascinating. We hit similar contention issues \nwith our agent's context manager - switched from a simple dict to a more \ncomplex indexed structure for faster \"list all relevant context\" queries, \nbut update performance suffered. The lesson about O(1) writes vs O(log n) \nreads being the wrong tradeoff for high-write workloads is universal.*On optimistic concurrency for scheduling*: The scatter-gather scheduler \ndesign is elegant. We use a similar pattern for our dual-agent system \n(TARS planner + CASE executor) where both agents operate semi-independently \nbut need coordination. Your point about \"presuming no conflicts, but \nhandling them when they occur\" is exactly what we learned - pessimistic \nlocking kills throughput far worse than occasional retries.*The spicy take on durability*: \"Most clusters don't need etcd's \nreliability\" is provocative but I suspect correct for many use cases. \nFor our Django development agent, we keep execution history in SQLite with \nWAL mode (no fsync), betting that if the host crashes, we'd rather rebuild \nfrom Git than wait on every write. Similar philosophy.The mem_etcd implementation in Rust is particularly interesting - curious \nif you considered using FoundationDB's storage engine or something similar \nvs rolling your own? The per-prefix file approach is clever for reducing \nwrite amplification.Fantastic work - this kind of empirical systems research is exactly what \nthe community needs more of. The \"what are the REAL limits\" approach vs \n\"conventional wisdom says X\" is refreshing.",
     "parent": 45611252,
     "depth": 1
   },
@@ -128,19 +136,19 @@
     "depth": 2
   },
   {
-    "id": 45631647,
-    "by": "AlphaSite",
-    "timeISO": "2025-10-19T02:11:08.000Z",
-    "textPlain": "That was the whole concept behind KCP iirc. It was designed to provide tenancy atop 1 or more clusters.",
-    "parent": 45631602,
-    "depth": 2
-  },
-  {
     "id": 45632156,
     "by": "cyberax",
     "timeISO": "2025-10-19T05:01:05.000Z",
     "textPlain": "How often do you have sudden host failures? Especially if you use a half-decent server with redundant components for the DB node?Once in maybe 10 years?",
     "parent": 45630363,
+    "depth": 2
+  },
+  {
+    "id": 45631647,
+    "by": "AlphaSite",
+    "timeISO": "2025-10-19T02:11:08.000Z",
+    "textPlain": "That was the whole concept behind KCP iirc. It was designed to provide tenancy atop 1 or more clusters.",
+    "parent": 45631602,
     "depth": 2
   },
   {
