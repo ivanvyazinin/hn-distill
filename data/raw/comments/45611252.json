@@ -1,17 +1,25 @@
 [
   {
-    "id": 45630461,
-    "by": "wppick",
-    "timeISO": "2025-10-18T21:24:42.000Z",
-    "textPlain": "If you don't need the isolation of of k8s then don't forget about erlang, which is another option to scale up to 1 million functions. Obviously k8s containers (which are fundamentally just isolated processes) and erlang processes are not interchangeable things, but when thinking about needing in the order of millions of processes erlang is pretty good prior art",
+    "id": 45631353,
+    "by": "__turbobrew__",
+    "timeISO": "2025-10-19T00:41:07.000Z",
+    "textPlain": "I feel like etcd is one of the few use cases where Intel Optane would actually make sense. I build and run several bare metal clusters with over 10k nodes and etcd is by and large the biggest pain for us. Sometimes an etcd node just randomly stops accepting any proposals which halts the entire cluster until you can remove the bad etcd node.From what I remember, GKE has implemented an etcd shim on top of spanner as a way to get around the scalability issues, but unfortunately for the rest of us who do not have spanner there aren’t any great options.I feel like at a fundamental level that pod affinity, antiaffinity, and topology spreads are not compatible with very large clusters due to the complexity explosion in large clusters.Another thing to consider is that the larger a cluster becomes, the larger the blast radius is. I have had clusters of 10k nodes spectacularly fail due to code bugs within k8s. Sharding total compute capacity compute capacity into multiple isolated k8s clusters reduces the likelihood that a software bug is going to take down everything as you can carefully upgrade only a single cell at a time with bake periods between each cell.",
     "parent": 45611252,
     "depth": 1
   },
   {
-    "id": 45631025,
-    "by": "halayli",
-    "timeISO": "2025-10-18T23:09:59.000Z",
-    "textPlain": "without publishing mem_etcd code, and without telling us what happens when one of the etcd/mem_etcd node dies to compare, this write up doesn't provide much information.",
+    "id": 45631836,
+    "by": "rememberlenny",
+    "timeISO": "2025-10-19T03:10:16.000Z",
+    "textPlain": "People don’t realize how crucial Ben was in the forming of OpenAI as it is known today. This is an extremely underrated post.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631781,
+    "by": "vebgen",
+    "timeISO": "2025-10-19T02:54:35.000Z",
+    "textPlain": "This is an absolutely incredible technical deep-dive. The section on \nreplacing etcd with mem_etcd resonates with challenges we've been tackling \nat a much smaller scale building an AI agent system.A few thoughts:*On watch streams and caching*: Your observation about the B-Tree vs \nhashmap cache tradeoff is fascinating. We hit similar contention issues \nwith our agent's context manager - switched from a simple dict to a more \ncomplex indexed structure for faster \"list all relevant context\" queries, \nbut update performance suffered. The lesson about O(1) writes vs O(log n) \nreads being the wrong tradeoff for high-write workloads is universal.*On optimistic concurrency for scheduling*: The scatter-gather scheduler \ndesign is elegant. We use a similar pattern for our dual-agent system \n(TARS planner + CASE executor) where both agents operate semi-independently \nbut need coordination. Your point about \"presuming no conflicts, but \nhandling them when they occur\" is exactly what we learned - pessimistic \nlocking kills throughput far worse than occasional retries.*The spicy take on durability*: \"Most clusters don't need etcd's \nreliability\" is provocative but I suspect correct for many use cases. \nFor our Django development agent, we keep execution history in SQLite with \nWAL mode (no fsync), betting that if the host crashes, we'd rather rebuild \nfrom Git than wait on every write. Similar philosophy.The mem_etcd implementation in Rust is particularly interesting - curious \nif you considered using FoundationDB's storage engine or something similar \nvs rolling your own? The per-prefix file approach is clever for reducing \nwrite amplification.Fantastic work - this kind of empirical systems research is exactly what \nthe community needs more of. The \"what are the REAL limits\" approach vs \n\"conventional wisdom says X\" is refreshing.",
     "parent": 45611252,
     "depth": 1
   },
@@ -20,6 +28,38 @@
     "by": "jeffinhat",
     "timeISO": "2025-10-18T22:02:27.000Z",
     "textPlain": "This is an awesome experiment and write up. I really appreciate the reproducibility.I would like to see how moving to database that scales write throughput with replicas would behave, namely FoundationDB. I think this will require more than an intermediary like kine to be efficient, as the author illustrates the apisever does a fair bit of its own watching and keeping state. I also think there's benefit, at least for blast radius, to shard the server by api group or namespace.I think years ago this would have been a non starter with the community, but given AWS has replaced etcd (or at least aspects) with their internal log service for their large cluster offering, I bet there's some appetite for making this interchangable and bringing and open source solution to market.I share the authors viewpoint that for modern cloud based deployments, you're probably best avoiding it and relying on VMs being stable and recoverable. I think reliability does matter if you want to actually realize the \"borg\" value and run it on bare metal across a serious fleet. I haven't found the business justification to work on that though!",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631739,
+    "by": "skeptrune",
+    "timeISO": "2025-10-19T02:39:18.000Z",
+    "textPlain": "I read this as napkin math[1] for Kube and thoroughly enjoyed. You can only find the important numbers relative to performance and scaling by trying to accomplish some kind of goal. Benchmarks are mostly bikeshedding.[1]: https://sirupsen.com/napkin",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631580,
+    "by": "ai-christianson",
+    "timeISO": "2025-10-19T01:47:28.000Z",
+    "textPlain": "Love this. There's no reason k8s shouldn't scale much further.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45631602,
+    "by": "wb14123",
+    "timeISO": "2025-10-19T01:56:49.000Z",
+    "textPlain": "Instead of giving up the good guarantee of etcd, a better approach maybe grouping some nodes together to create a tree like structure with sub clusters.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
+    "id": 45630461,
+    "by": "wppick",
+    "timeISO": "2025-10-18T21:24:42.000Z",
+    "textPlain": "If you don't need the isolation of of k8s then don't forget about erlang, which is another option to scale up to 1 million functions. Obviously k8s containers (which are fundamentally just isolated processes) and erlang processes are not interchangeable things, but when thinking about needing in the order of millions of processes erlang is pretty good prior art",
     "parent": 45611252,
     "depth": 1
   },
@@ -40,6 +80,14 @@
     "depth": 1
   },
   {
+    "id": 45631025,
+    "by": "halayli",
+    "timeISO": "2025-10-18T23:09:59.000Z",
+    "textPlain": "without publishing mem_etcd code, and without telling us what happens when one of the etcd/mem_etcd node dies to compare, this write up doesn't provide much information.",
+    "parent": 45611252,
+    "depth": 1
+  },
+  {
     "id": 45624416,
     "by": "up2isomorphism",
     "timeISO": "2025-10-18T02:32:04.000Z",
@@ -48,11 +96,43 @@
     "depth": 1
   },
   {
+    "id": 45631716,
+    "by": "femiagbabiaka",
+    "timeISO": "2025-10-19T02:31:04.000Z",
+    "textPlain": "Yep, every cluster approaching 10k I know of has either pared back etcd's durability guarantees or rewritten and replaced it in some manner. Actually the post goes into detail about doing this exactly, the Alibaba paper they reference says about the same.> Sharding total compute capacity compute capacity into multiple isolated k8s clusters reduces the likelihood that a software bug is going to take down everything as you can carefully upgrade only a single cell at a time with bake periods between each cell.Yeah, I've been meaning to try out something like Armada to simplify things on the cluster-user side. Cluster-providers have lots of tools to make managing multiple clusters easier but if it means having to rewrite every batch job..",
+    "parent": 45631353,
+    "depth": 2
+  },
+  {
+    "id": 45631647,
+    "by": "AlphaSite",
+    "timeISO": "2025-10-19T02:11:08.000Z",
+    "textPlain": "That was the whole concept behind KCP iirc. It was designed to provide tenancy atop 1 or more clusters.",
+    "parent": 45631602,
+    "depth": 2
+  },
+  {
     "id": 45630724,
     "by": "theptip",
     "timeISO": "2025-10-18T22:15:52.000Z",
     "textPlain": "This is 1m nodes, you typically run tens or hundreds of pods per node, each with one or more containers. So more like 100m+ functions if I follow the Erlang analogy correctly?",
     "parent": 45630461,
+    "depth": 2
+  },
+  {
+    "id": 45631721,
+    "by": "femiagbabiaka",
+    "timeISO": "2025-10-19T02:33:22.000Z",
+    "textPlain": "This post is just about a reference architecture, but last I knew OpenAI ran VMs on Azure.https://openai.com/index/scaling-kubernetes-to-7500-nodes/",
+    "parent": 45615563,
+    "depth": 2
+  },
+  {
+    "id": 45616821,
+    "by": "stackskipton",
+    "timeISO": "2025-10-17T13:50:09.000Z",
+    "textPlain": "I doubt any Hyperscalers are running 1M Node clusters either. They probably just have groups of clusters at each datacenter and some overall scheduler that determines which cluster is best suited for workload during deployment then connects to that cluster and schedules the workload.",
+    "parent": 45615563,
     "depth": 2
   },
   {
@@ -64,11 +144,11 @@
     "depth": 2
   },
   {
-    "id": 45616821,
-    "by": "stackskipton",
-    "timeISO": "2025-10-17T13:50:09.000Z",
-    "textPlain": "I doubt any Hyperscalers are running 1M Node clusters either. They probably just have groups of clusters at each datacenter and some overall scheduler that determines which cluster is best suited for workload during deployment then connects to that cluster and schedules the workload.",
-    "parent": 45615563,
+    "id": 45631399,
+    "by": "Brybry",
+    "timeISO": "2025-10-19T00:53:45.000Z",
+    "textPlain": "I believe the code is here:https://github.com/bchess/k8s-1m/tree/main/mem_etcdhttps://github.com/bchess/k8s-1m/blob/main/RUNNING.adoc#mem_...",
+    "parent": 45631025,
     "depth": 2
   },
   {
