@@ -1,17 +1,17 @@
 [
   {
-    "id": 45645756,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-20T16:28:13.000Z",
-    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run on the other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645320,
     "by": "leeter",
     "timeISO": "2025-10-20T15:53:31.000Z",
     "textPlain": "I'm reminded of Raymond Chen's many many blogs[1][2][3](there are a lot more) on why TerminateThread is a bad idea. Not surprised at all the same is true elsewhere. I will say in my own code this is why I tend to prefer cancellable system calls that are alertable. That way the thread can wake up, check if it needs to die and then GTFO.[1] https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91...[2] https://devblogs.microsoft.com/oldnewthing/20191101-00/?p=10...[3] https://devblogs.microsoft.com/oldnewthing/20140808-00/?p=29...there are a lot more, I'm not linking them all here.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45646339,
+    "by": "the_duke",
+    "timeISO": "2025-10-20T17:08:31.000Z",
+    "textPlain": "For interrupting long-running syscalls there is another solution:Install an empty SIGINT signal handler (without SA_RESTART), then run the loop.When the thread should stop:* Set stop flag* Send a SIGINT to the thread, using pthread_kill or tgkill* Syscalls will fail with EINTR* check for EINTR & stop flag , then we know we have to clean up and stopOf course a lot of code will just retry on EINTR, so that requires having control over all the code that does syscalls, which isn't really feasible when using any libraries.",
     "parent": 45589156,
     "depth": 1
   },
@@ -24,18 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45645283,
-    "by": "loeg",
-    "timeISO": "2025-10-20T15:50:21.000Z",
-    "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
+    "id": 45645895,
+    "by": "dathinab",
+    "timeISO": "2025-10-20T16:39:50.000Z",
+    "textPlain": "If your threads run \"cooperative multi threading\" task (e.g. rust tokio runtime, JS in general etc.) then this kinda is a non problem.Due to task frequently returning to the scheduler the scheduler can do \"should stop\" check there (also as it might be possible to squeeze it into other atomic state bit maps it might have 0 relevant performance overhead (a single is-bit-set check)). And then properly shut down tasks. Now \"properly shut down tasks\" isn't as trivial, like the \"cleaning up local resources\" part normally is, but for graceful shutdown you normally also want to allow cleaning up remote resources, e.g. transaction state. But this comes from the difference of \"somewhat forced shutdown\" and \"grace full shutdown\". And in very many cases you want \"grace full shutdown\" and only if it doesn't work force it. Another reason not to use \"naive\" forced only shutdown...Interpreter languages can do something similar in a very transparent manner (if they want to). But run into similar issues wrt. locking and forced unwinding/panics from arbitrary places as C.Sure a very broken task might block long term. But in that case you often are better of to kill it as part of process termination instead and if that doesn't seem an option for \"resilience\" reasons than you are already in better use \"multiple processes for resilience\" (potentially across different servers) territory IMHO.So as much as forced thread termination looks tempting I found that any time I thought I needed it it was because I did something very wrong else where.",
     "parent": 45589156,
     "depth": 1
   },
   {
-    "id": 45645392,
-    "by": "a-dub",
-    "timeISO": "2025-10-20T15:58:29.000Z",
-    "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
+    "id": 45646293,
+    "by": "ibejoeb",
+    "timeISO": "2025-10-20T17:04:24.000Z",
+    "textPlain": "libcurl dealt with this a few months ago, and the sentiment is about the same: thread cancellation in glibc is hairy. The short summary (which I think is accurate) is that an hostname query via libnss ultimately had to read a config file, and glibc's `open` is a thead cancellation point, so if it's canceled, it'll won't free memory that was allocated before the `open`.The write-up is on how they're dealing with it starts at https://eissing.org/icing/posts/pthread_cancel/.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645283,
+    "by": "loeg",
+    "timeISO": "2025-10-20T15:50:21.000Z",
+    "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
     "parent": 45589156,
     "depth": 1
   },
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45645434,
-    "by": "harvie",
-    "timeISO": "2025-10-20T16:01:29.000Z",
-    "textPlain": "while (true) {\n  if (stop) { break; }\n}If there only was a way to stop while loop without having to use extra conditional with break...",
+    "id": 45645392,
+    "by": "a-dub",
+    "timeISO": "2025-10-20T15:58:29.000Z",
+    "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
     "parent": 45589156,
     "depth": 1
   },
@@ -64,6 +72,38 @@
     "depth": 1
   },
   {
+    "id": 45645434,
+    "by": "harvie",
+    "timeISO": "2025-10-20T16:01:29.000Z",
+    "textPlain": "while (true) {\n  if (stop) { break; }\n}If there only was a way to stop while loop without having to use extra conditional with break...",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645884,
+    "by": "f1shy",
+    "timeISO": "2025-10-20T16:39:07.000Z",
+    "textPlain": "Should this code:  while (true) {\n    if (stop) { break; }\n    // Perform some work completing in a reasonable time\n  }\n\nBe just:  While(!stop){\n    Do-the-thing;\n  }\n\nAnyway, the last part:>> It’s quite frustrating that there’s no agreed upon way to interrupt and stack unwind a Linux thread and to protect critical sections from such unwinding. There are no technical obstacles to such facilities existing, but clean teardown is often a neglected part of software.I think it is a “design feature”. In C everything is low level, so I have no expectation of a high level feature like “stop this thread and cleanup the mess” IMHO asking that is similar to asking for GC in C.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645756,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T16:28:13.000Z",
+    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45646478,
+    "by": "asveikau",
+    "timeISO": "2025-10-20T17:18:54.000Z",
+    "textPlain": "Relying heavily on a check for an atomic bool is prone to race conditions. I think it's cleaner to structure the event loop as a message queue and have a queued message that indicates it's time to stop.",
+    "parent": 45645388,
+    "depth": 2
+  },
+  {
     "id": 45645584,
     "by": "OskarS",
     "timeISO": "2025-10-20T16:14:24.000Z",
@@ -72,11 +112,35 @@
     "depth": 2
   },
   {
+    "id": 45646479,
+    "by": "PaulDavisThe1st",
+    "timeISO": "2025-10-20T17:18:56.000Z",
+    "textPlain": "user-space threads have entirely different semantics from kernel threads. both have their uses, but should generally not be conflated.",
+    "parent": 45645895,
+    "depth": 2
+  },
+  {
     "id": 45645558,
     "by": "OskarS",
     "timeISO": "2025-10-20T16:11:32.000Z",
     "textPlain": "Feel free to read the article before commenting.",
     "parent": 45645434,
+    "depth": 2
+  },
+  {
+    "id": 45645948,
+    "by": "dathinab",
+    "timeISO": "2025-10-20T16:43:23.000Z",
+    "textPlain": "yes, maybe except if you don't have a single tight loop and stop checks are not just done once in the loop body but manually sprinkled through various places of your code (e.g. thing a long running compute task split into part 1,2(tight loop),3(loop),4 then you probably want a stop check between each of them and in each inner iteration of 3 but probably not in each inner iteration of 2 (as each check is an atomic load).",
+    "parent": 45645884,
+    "depth": 2
+  },
+  {
+    "id": 45645875,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T16:38:26.000Z",
+    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
+    "parent": 45645756,
     "depth": 2
   }
 ]
