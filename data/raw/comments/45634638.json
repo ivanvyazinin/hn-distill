@@ -1,5 +1,21 @@
 [
   {
+    "id": 45650422,
+    "by": "lioeters",
+    "timeISO": "2025-10-20T22:50:21.000Z",
+    "textPlain": "Oh how interesting, there are related database projects built on the same foundation library/tech called Data Substrate.- EloqSQL - MySQL-compatible, high performance, elastic, distributed SQL database https://github.com/eloqdata/eloqsql- EloqKV - Redis/Valkey Compatible Distributed Transactional Key-Value Store https://github.com/eloqdata/eloqkv",
+    "parent": 45634638,
+    "depth": 1
+  },
+  {
+    "id": 45634829,
+    "by": "fluxkernel",
+    "timeISO": "2025-10-19T15:20:32.000Z",
+    "textPlain": "There is a discussion on Reddit for a 5TB data volume but very low throughput, I think Object Storage based document database would help in this case.\n https://www.reddit.com/r/mongodb/comments/1o41dta/is_there_a...",
+    "parent": 45634638,
+    "depth": 1
+  },
+  {
     "id": 45650036,
     "by": "akshayshah",
     "timeISO": "2025-10-20T22:06:38.000Z",
@@ -12,14 +28,6 @@
     "by": "matharmin",
     "timeISO": "2025-10-20T21:42:10.000Z",
     "textPlain": "The project looks great! Object storage is often so much better in terms of cost efficiency than a database on EBS. It's often 10-20x more expensive for EBS after taking into account that you need 3x replicas for a typical MongoDB deployment, and need to over-provision the storage. And being able to scale compute independently from storage is great.The biggest things I'm missing from the docs (checked the github page and the site) is seeing what MongoDB features are supported or not. I've worked with Azure CosmosDB before, and even though it claims MongoDB compatibility, it has many compatibility issues as soon as you have more than a basic CRUD application. Some examples include proper ChangeStream support, partial index support, multi-key index support, set of supported aggregation pipeline operations, tailable cursor support, snapshot queries.Another thing that's not clear: What does multi-master/multi-write mean in practice? What happens if you write to the same data at the same time on different nodes?",
-    "parent": 45634638,
-    "depth": 1
-  },
-  {
-    "id": 45634829,
-    "by": "fluxkernel",
-    "timeISO": "2025-10-19T15:20:32.000Z",
-    "textPlain": "There is a discussion on Reddit for a 5TB data volume but very low throughput, I think Object Storage based document database would help in this case.\n https://www.reddit.com/r/mongodb/comments/1o41dta/is_there_a...",
     "parent": 45634638,
     "depth": 1
   },
@@ -56,14 +64,6 @@
     "depth": 1
   },
   {
-    "id": 45649913,
-    "by": "iamlintaoz",
-    "timeISO": "2025-10-20T21:54:32.000Z",
-    "textPlain": "That's exactly the reason. S3 is better in almost all aspects compared with EBS, except the performance part, and I am glad that our Data Substrate technology solved this issue gracefully [1].As for the compatibility, we are leveraging some of the code from 4.03 version (the last AGPL version), and we have a very good compatibility (we will show some results in later blog posts). As I mentioned in another reply post, the Mongo APIs are reasonably stable over the last few years, only seeing very minor changes. Most of the later versions improved upon performance and transaction supports, which we support natively with our underlying data substrate technologies. Still, if you have any specific API that you feel is needed, we'd be happy to implement and we welcome community contributions.Multi-master/multi-writer means it is a fully distributed database. Of course you can run it in single node configurations and get all the single node benefits, but if deployed in a cluster, you do not need to worry about which node to write to, or how data are sharded. If you writes potentially can cause conflicts (i.e. write to the same data at the same time on different nodes), the concurrency-control will handle that for you. In fact, you will encounter the same issue even in a single node configuration, since a single node is still multi-threaded.[1] https://www.eloqdata.com/blog/2025/07/16/data-substrate-bene...",
-    "parent": 45649779,
-    "depth": 2
-  },
-  {
     "id": 45635028,
     "by": "iamlintaoz",
     "timeISO": "2025-10-19T15:44:27.000Z",
@@ -77,6 +77,22 @@
     "timeISO": "2025-10-19T15:25:20.000Z",
     "textPlain": "Mongo Atlas also supports using archive database to store infrequently accessed cold data. It’s also object storage based.",
     "parent": 45634829,
+    "depth": 2
+  },
+  {
+    "id": 45650248,
+    "by": "iamlintaoz",
+    "timeISO": "2025-10-20T22:30:12.000Z",
+    "textPlain": "These are great questions. I appreciate you carefully reading through the documents. For the first question, we have detailed benchmark on EloqKV, with the same architecture (but with Redis API) in our blog, and we will soon publish more about the performance characteristics of EloqDoc. Overall, we achieve about the same performance as using local NVME SSD, even when we use S3 as the primary storage, and the performance often exceed the original database implementation (in the case of EloqDoc, original MongoDB).As for the durability part, our key innovations is to split state into 3 parts: in memory, in WAL, and in data storage. We use a small EBS volume for WAL, and storage is in S3. So, durability is guaranteed by [Storage AND (WAL OR Mem)). Unless Storage (S3) fails, or Both WAL (i.e. EBS lost) AND Mem fail (i.e. node crash), persistence is guaranteed. You can see the explanation in [1][1] https://www.eloqdata.com/blog/2025/07/16/data-substrate-bene...",
+    "parent": 45650036,
+    "depth": 2
+  },
+  {
+    "id": 45649913,
+    "by": "iamlintaoz",
+    "timeISO": "2025-10-20T21:54:32.000Z",
+    "textPlain": "That's exactly the reason. S3 is better in almost all aspects compared with EBS, except the performance part, and I am glad that our Data Substrate technology solved this issue gracefully [1].As for the compatibility, we are leveraging some of the code from 4.03 version (the last AGPL version), and we have a very good compatibility (we will show some results in later blog posts). As I mentioned in another reply post, the Mongo APIs are reasonably stable over the last few years, only seeing very minor changes. Most of the later versions improved upon performance and transaction supports, which we support natively with our underlying data substrate technologies. Still, if you have any specific API that you feel is needed, we'd be happy to implement and we welcome community contributions.Multi-master/multi-writer means it is a fully distributed database. Of course you can run it in single node configurations and get all the single node benefits, but if deployed in a cluster, you do not need to worry about which node to write to, or how data are sharded. If you writes potentially can cause conflicts (i.e. write to the same data at the same time on different nodes), the concurrency-control will handle that for you. In fact, you will encounter the same issue even in a single node configuration, since a single node is still multi-threaded.[1] https://www.eloqdata.com/blog/2025/07/16/data-substrate-bene...",
+    "parent": 45649779,
     "depth": 2
   },
   {

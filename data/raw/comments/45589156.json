@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45646339,
-    "by": "the_duke",
-    "timeISO": "2025-10-20T17:08:31.000Z",
-    "textPlain": "For interrupting long-running syscalls there is another solution:Install an empty SIGINT signal handler (without SA_RESTART), then run the loop.When the thread should stop:* Set stop flag* Send a SIGINT to the thread, using pthread_kill or tgkill* Syscalls will fail with EINTR* check for EINTR & stop flag , then we know we have to clean up and stopOf course a lot of code will just retry on EINTR, so that requires having control over all the code that does syscalls, which isn't really feasible when using any libraries.EDIT: The post describes exactly this method, and what the problem with it is, I just missed it.",
+    "id": 45650334,
+    "by": "scottlamb",
+    "timeISO": "2025-10-20T22:39:34.000Z",
+    "textPlain": "This article does a nice job of explaining why pthread cancellation is hopeless.> If we could know that no signal handler is ran between the flag check and the syscall, then we’d be safe.If you're willing to write assembly, you can accomplish this without rseq. I got it working many years ago on a bunch of platforms. [1] It's similar to what they did in this article: define a \"critical region\" between the initial flag check and the actual syscall. If the signal happens here, ensure the instruction pointer gets adjusted in such a way that the syscall is bypassed and EINTR returned immediately. But it doesn't need any special kernel support that's Linux-only and didn't exist at the time, just async signal handlers.(rseq is a very cool facility, btw, just not necessary for this.)[1] Here's the Linux/x86_64 syscall wrapper: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-... and the signal handler: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-...",
     "parent": 45589156,
     "depth": 1
   },
@@ -20,6 +20,14 @@
     "by": "kazinator",
     "timeISO": "2025-10-20T21:22:40.000Z",
     "textPlain": "> Well, since thread cancellation is implemented using exceptions, and thread cancellation can happen in arbitrary placesNo, thread cancelation cannot happen in arbitrary places. Or doesn't have to.There are two kinds of cancelation: asynchronous and deferred.POSIX provides an API to configure this for a thread, dynamically: pthread_setcanceltype.Furthermore, cancelation can be enabled and disabled also.  int pthread_setcancelstate(int state, int *oldstate); // PTHREAD_CANCEL_ENABLE, PTHREAD_CANCEL_DISABLE\n  int pthread_setcanceltype(int type, int *oldtype);    // PTHREAD_CANCEL_DEFERRED, PTHREAD_CANCEL_ASYNCHRONOUS\n\nNeedless to say, a thread would only turn on asynchronous cancelation over some code where it is safe to do so, where it won't be caught in the middle of allocating resources, or manipulating data structures that will be in a bad state, and such.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45646339,
+    "by": "the_duke",
+    "timeISO": "2025-10-20T17:08:31.000Z",
+    "textPlain": "For interrupting long-running syscalls there is another solution:Install an empty SIGINT signal handler (without SA_RESTART), then run the loop.When the thread should stop:* Set stop flag* Send a SIGINT to the thread, using pthread_kill or tgkill* Syscalls will fail with EINTR* check for EINTR & stop flag , then we know we have to clean up and stopOf course a lot of code will just retry on EINTR, so that requires having control over all the code that does syscalls, which isn't really feasible when using any libraries.EDIT: The post describes exactly this method, and what the problem with it is, I just missed it.",
     "parent": 45589156,
     "depth": 1
   },
@@ -56,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45648298,
-    "by": "Asmod4n",
-    "timeISO": "2025-10-20T19:41:33.000Z",
-    "textPlain": "When you are on Linux the easiest way is to use signalfd. No unsafe async signal handling, just handling signals by reading from a fd.",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45647783,
     "by": "HarHarVeryFunny",
     "timeISO": "2025-10-20T19:00:29.000Z",
     "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45648298,
+    "by": "Asmod4n",
+    "timeISO": "2025-10-20T19:41:33.000Z",
+    "textPlain": "When you are on Linux the easiest way is to use signalfd. No unsafe async signal handling, just handling signals by reading from a fd.",
     "parent": 45589156,
     "depth": 1
   },
@@ -80,18 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45649812,
-    "by": "EbEsacAig",
-    "timeISO": "2025-10-20T21:44:50.000Z",
-    "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45646912,
     "by": "teddyh",
     "timeISO": "2025-10-20T17:51:30.000Z",
     "textPlain": "Off-Topic: I surprised myself by liking the web site design.  Especially the font.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45649812,
+    "by": "EbEsacAig",
+    "timeISO": "2025-10-20T21:44:50.000Z",
+    "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
     "parent": 45589156,
     "depth": 1
   },
@@ -152,19 +160,19 @@
     "depth": 1
   },
   {
-    "id": 45646809,
-    "by": "rostayob",
-    "timeISO": "2025-10-20T17:43:34.000Z",
-    "textPlain": "This option is described in detail in the blog posts, with its associated problems, see this section: https://mazzo.li/posts/stopping-linux-threads.html#homegrown... .",
-    "parent": 45646339,
-    "depth": 2
-  },
-  {
     "id": 45649963,
     "by": "rostayob",
     "timeISO": "2025-10-20T21:59:04.000Z",
     "textPlain": "I talk about the cancelability state and how it can help us shortly after that statement: https://mazzo.li/posts/stopping-linux-threads.html#controlle... . In hindsight I should have made a forward reference to that section when talking about C++. My broad point was that combining C++ exceptions and thread cancellation is fraught with danger and imo best avoided.",
     "parent": 45649547,
+    "depth": 2
+  },
+  {
+    "id": 45646809,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T17:43:34.000Z",
+    "textPlain": "This option is described in detail in the blog posts, with its associated problems, see this section: https://mazzo.li/posts/stopping-linux-threads.html#homegrown... .",
+    "parent": 45646339,
     "depth": 2
   },
   {
