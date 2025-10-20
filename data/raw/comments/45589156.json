@@ -1,1 +1,82 @@
-[]
+[
+  {
+    "id": 45645756,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T16:28:13.000Z",
+    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run on the other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645320,
+    "by": "leeter",
+    "timeISO": "2025-10-20T15:53:31.000Z",
+    "textPlain": "I'm reminded of Raymond Chen's many many blogs[1][2][3](there are a lot more) on why TerminateThread is a bad idea. Not surprised at all the same is true elsewhere. I will say in my own code this is why I tend to prefer cancellable system calls that are alertable. That way the thread can wake up, check if it needs to die and then GTFO.[1] https://devblogs.microsoft.com/oldnewthing/20150814-00/?p=91...[2] https://devblogs.microsoft.com/oldnewthing/20191101-00/?p=10...[3] https://devblogs.microsoft.com/oldnewthing/20140808-00/?p=29...there are a lot more, I'm not linking them all here.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645388,
+    "by": "loeg",
+    "timeISO": "2025-10-20T15:58:11.000Z",
+    "textPlain": "If you can swing it (don't need to block on IO indefinitely), I'd suggest just the simple coordination model.  * Some atomic bool controls if the thread should stop or not;\n  * The thread doesn't make any unbounded wait syscalls;\n  * And the thread uses pthread_cond_wait (or equivalent C++ std wrappers) in place of sleeping while idle.\n\nTo kill the thread, set the stop flag and cond_signal the condvar.  (Under the hood on Linux, this uses futex.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645283,
+    "by": "loeg",
+    "timeISO": "2025-10-20T15:50:21.000Z",
+    "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645392,
+    "by": "a-dub",
+    "timeISO": "2025-10-20T15:58:29.000Z",
+    "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645249,
+    "by": "ethin",
+    "timeISO": "2025-10-20T15:47:42.000Z",
+    "textPlain": "This was a fun read, I didn't know about rseq until today! And before this I reasonably assumed that the naive busy-wait thing would typically be what you'd do in a thread in most circumstances. Or that at least most threads do loop in that manner. I knew that signals and such were a problem but I didn't think just wanting to stop a thread would be so hard! :)Hopefully this improves eventually? Who knows?",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645434,
+    "by": "harvie",
+    "timeISO": "2025-10-20T16:01:29.000Z",
+    "textPlain": "while (true) {\n  if (stop) { break; }\n}If there only was a way to stop while loop without having to use extra conditional with break...",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645572,
+    "by": "hulitu",
+    "timeISO": "2025-10-20T16:12:50.000Z",
+    "textPlain": "> How to stop Linux threads cleanlykill -HUP ?",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645584,
+    "by": "OskarS",
+    "timeISO": "2025-10-20T16:14:24.000Z",
+    "textPlain": "The tricky part is really point 2 there, that can be harder than it looks (e.g. even simple file I/O can be network drives). Async IO can really shine here, though it’s not exactly trivial designing async cancelletion either.",
+    "parent": 45645388,
+    "depth": 2
+  },
+  {
+    "id": 45645558,
+    "by": "OskarS",
+    "timeISO": "2025-10-20T16:11:32.000Z",
+    "textPlain": "Feel free to read the article before commenting.",
+    "parent": 45645434,
+    "depth": 2
+  }
+]
