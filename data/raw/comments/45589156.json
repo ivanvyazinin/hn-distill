@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45647783,
-    "by": "HarHarVeryFunny",
-    "timeISO": "2025-10-20T19:00:29.000Z",
-    "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45646293,
     "by": "ibejoeb",
     "timeISO": "2025-10-20T17:04:24.000Z",
@@ -40,18 +32,34 @@
     "depth": 1
   },
   {
-    "id": 45647155,
-    "by": "vlovich123",
-    "timeISO": "2025-10-20T18:11:32.000Z",
-    "textPlain": "This seems like a lot of work to do when you have signalfd, no? That + async and non blocking I/O should create the basis of a simple thread cancellation mechanism that exits pretty immediately, no?",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645283,
     "by": "loeg",
     "timeISO": "2025-10-20T15:50:21.000Z",
     "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45648298,
+    "by": "Asmod4n",
+    "timeISO": "2025-10-20T19:41:33.000Z",
+    "textPlain": "When you are on Linux the easiest way is to use signalfd. No unsafe async signal handling, just handling signals by reading from a fd.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45647783,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-10-20T19:00:29.000Z",
+    "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45647155,
+    "by": "vlovich123",
+    "timeISO": "2025-10-20T18:11:32.000Z",
+    "textPlain": "This seems like a lot of work to do when you have signalfd, no? That + async and non blocking I/O should create the basis of a simple thread cancellation mechanism that exits pretty immediately, no?",
     "parent": 45589156,
     "depth": 1
   },
@@ -112,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45645756,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-20T16:28:13.000Z",
-    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645895,
     "by": "dathinab",
     "timeISO": "2025-10-20T16:39:50.000Z",
     "textPlain": "If your threads run \"cooperative multi threading\" task (e.g. rust tokio runtime, JS in general etc.) then this kinda is a non problem.Due to task frequently returning to the scheduler the scheduler can do \"should stop\" check there (also as it might be possible to squeeze it into other atomic state bit maps it might have 0 relevant performance overhead (a single is-bit-set check)). And then properly shut down tasks. Now \"properly shut down tasks\" isn't as trivial, like the \"cleaning up local resources\" part normally is, but for graceful shutdown you normally also want to allow cleaning up remote resources, e.g. transaction state. But this comes from the difference of \"somewhat forced shutdown\" and \"grace full shutdown\". And in very many cases you want \"grace full shutdown\" and only if it doesn't work force it. Another reason not to use \"naive\" forced only shutdown...Interpreter languages can do something similar in a very transparent manner (if they want to). But run into similar issues wrt. locking and forced unwinding/panics from arbitrary places as C.Sure a very broken task might block long term. But in that case you often are better of to kill it as part of process termination instead and if that doesn't seem an option for \"resilience\" reasons than you are already in better use \"multiple processes for resilience\" (potentially across different servers) territory IMHO.So as much as forced thread termination looks tempting I found that any time I thought I needed it it was because I did something very wrong else where.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645756,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T16:28:13.000Z",
+    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
     "parent": 45589156,
     "depth": 1
   },
@@ -152,19 +160,19 @@
     "depth": 2
   },
   {
-    "id": 45647900,
-    "by": "eptcyka",
-    "timeISO": "2025-10-20T19:10:23.000Z",
-    "textPlain": "Yeah, and leave mutexes locked indefinitely.",
-    "parent": 45647783,
-    "depth": 2
-  },
-  {
     "id": 45647921,
     "by": "quietbritishjim",
     "timeISO": "2025-10-20T19:12:08.000Z",
     "textPlain": "Note that the situation with libcurl is very specific: lookup with libnss is only available as a synchronous call. All other syscalls they make can be done with async APIs, which can easily be cancelled without any of the trickery discussed here.",
     "parent": 45646293,
+    "depth": 2
+  },
+  {
+    "id": 45647900,
+    "by": "eptcyka",
+    "timeISO": "2025-10-20T19:10:23.000Z",
+    "textPlain": "Yeah, and leave mutexes locked indefinitely.",
+    "parent": 45647783,
     "depth": 2
   },
   {
@@ -181,6 +189,14 @@
     "timeISO": "2025-10-20T18:42:48.000Z",
     "textPlain": "IIRC rseq was originally proposed by Google to support their pure-userspace read-copy-update (RCU) implementation, which relied on per-CPU not per-thread data.",
     "parent": 45645249,
+    "depth": 2
+  },
+  {
+    "id": 45648010,
+    "by": "inglor_cz",
+    "timeISO": "2025-10-20T19:19:12.000Z",
+    "textPlain": "Me too. It is pretty rare for anyone to take so much care. The only other person I can think of now is Gwern Branwen.",
+    "parent": 45646912,
     "depth": 2
   },
   {
@@ -208,19 +224,19 @@
     "depth": 2
   },
   {
-    "id": 45645875,
-    "by": "rostayob",
-    "timeISO": "2025-10-20T16:38:26.000Z",
-    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
-    "parent": 45645756,
-    "depth": 2
-  },
-  {
     "id": 45646479,
     "by": "PaulDavisThe1st",
     "timeISO": "2025-10-20T17:18:56.000Z",
     "textPlain": "user-space threads have entirely different semantics from kernel threads. both have their uses, but should generally not be conflated.",
     "parent": 45645895,
+    "depth": 2
+  },
+  {
+    "id": 45645875,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T16:38:26.000Z",
+    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
+    "parent": 45645756,
     "depth": 2
   }
 ]
