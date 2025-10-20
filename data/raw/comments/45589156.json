@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45649547,
+    "by": "kazinator",
+    "timeISO": "2025-10-20T21:22:40.000Z",
+    "textPlain": "> Well, since thread cancellation is implemented using exceptions, and thread cancellation can happen in arbitrary placesNo, thread cancelation cannot happen in arbitrary places. Or doesn't have to.There are two kinds of cancelation: asynchronous and deferred.POSIX provides an API to configure this for a thread, dynamically: pthread_setcanceltype.Furthermore, cancelation can be enabled and disabled also.  int pthread_setcancelstate(int state, int *oldstate); // PTHREAD_CANCEL_ENABLE, PTHREAD_CANCEL_DISABLE\n  int pthread_setcanceltype(int type, int *oldtype);    // PTHREAD_CANCEL_DEFERRED, PTHREAD_CANCEL_ASYNCHRONOUS\n\nNeedless to say, a thread would only turn on asynchronous cancelation over some code where it is safe to do so, where it won't be caught in the middle of allocating resources, or manipulating data structures that will be in a bad state, and such.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
     "id": 45645388,
     "by": "loeg",
     "timeISO": "2025-10-20T15:58:11.000Z",
@@ -32,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45645283,
-    "by": "loeg",
-    "timeISO": "2025-10-20T15:50:21.000Z",
-    "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645249,
     "by": "ethin",
     "timeISO": "2025-10-20T15:47:42.000Z",
     "textPlain": "This was a fun read, I didn't know about rseq until today! And before this I reasonably assumed that the naive busy-wait thing would typically be what you'd do in a thread in most circumstances. Or that at least most threads do loop in that manner. I knew that signals and such were a problem but I didn't think just wanting to stop a thread would be so hard! :)Hopefully this improves eventually? Who knows?",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645283,
+    "by": "loeg",
+    "timeISO": "2025-10-20T15:50:21.000Z",
+    "textPlain": "Previously: https://news.ycombinator.com/item?id=38908556And somehow just a day ago: https://news.ycombinator.com/item?id=45589156",
     "parent": 45589156,
     "depth": 1
   },
@@ -68,6 +76,14 @@
     "by": "vlovich123",
     "timeISO": "2025-10-20T18:11:32.000Z",
     "textPlain": "This seems like a lot of work to do when you have signalfd, no? That + async and non blocking I/O should create the basis of a simple thread cancellation mechanism that exits pretty immediately, no?",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45649812,
+    "by": "EbEsacAig",
+    "timeISO": "2025-10-20T21:44:50.000Z",
+    "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
     "parent": 45589156,
     "depth": 1
   },
@@ -141,6 +157,14 @@
     "timeISO": "2025-10-20T17:43:34.000Z",
     "textPlain": "This option is described in detail in the blog posts, with its associated problems, see this section: https://mazzo.li/posts/stopping-linux-threads.html#homegrown... .",
     "parent": 45646339,
+    "depth": 2
+  },
+  {
+    "id": 45649963,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T21:59:04.000Z",
+    "textPlain": "I talk about the cancelability state and how it can help us shortly after that statement: https://mazzo.li/posts/stopping-linux-threads.html#controlle... . In hindsight I should have made a forward reference to that section when talking about C++. My broad point was that combining C++ exceptions and thread cancellation is fraught with danger and imo best avoided.",
+    "parent": 45649547,
     "depth": 2
   },
   {

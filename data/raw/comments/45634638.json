@@ -1,9 +1,33 @@
 [
   {
+    "id": 45650036,
+    "by": "akshayshah",
+    "timeISO": "2025-10-20T22:06:38.000Z",
+    "textPlain": "Very cool! Using “object storage for primary durability” seems difficult for any OLTP workload that’s latency-sensitive - there’s a fundamental tradeoff between larger batch sizes to control write costs and smaller batches to reduce latency. This hurts OLTP workloads especially badly because applications often make multiple small writes to serve a single user-facing request. How does EloqKV navigate this tradeoff?Also, I’d love to see:- A benchmark that digs into latency, throughput, and cost for a single workload. Most of the benchmarks I saw are throughput-only.- Some explanation of the “patented 1PC protocol.” Your website [1] suggests that you treat single EBS volumes as high-durability, replicated storage, which seems unusual to me - apart from io2 volumes, EBS is designed for less than 3 nines of durability [2].[1]: http://www.eloqdata.com/blog/2025/07/15/data-substrate-detai...[2]: https://aws.amazon.com/ebs/features/",
+    "parent": 45634638,
+    "depth": 1
+  },
+  {
+    "id": 45649779,
+    "by": "matharmin",
+    "timeISO": "2025-10-20T21:42:10.000Z",
+    "textPlain": "The project looks great! Object storage is often so much better in terms of cost efficiency than a database on EBS. It's often 10-20x more expensive for EBS after taking into account that you need 3x replicas for a typical MongoDB deployment, and need to over-provision the storage. And being able to scale compute independently from storage is great.The biggest things I'm missing from the docs (checked the github page and the site) is seeing what MongoDB features are supported or not. I've worked with Azure CosmosDB before, and even though it claims MongoDB compatibility, it has many compatibility issues as soon as you have more than a basic CRUD application. Some examples include proper ChangeStream support, partial index support, multi-key index support, set of supported aggregation pipeline operations, tailable cursor support, snapshot queries.Another thing that's not clear: What does multi-master/multi-write mean in practice? What happens if you write to the same data at the same time on different nodes?",
+    "parent": 45634638,
+    "depth": 1
+  },
+  {
     "id": 45634829,
     "by": "fluxkernel",
     "timeISO": "2025-10-19T15:20:32.000Z",
     "textPlain": "There is a discussion on Reddit for a 5TB data volume but very low throughput, I think Object Storage based document database would help in this case.\n https://www.reddit.com/r/mongodb/comments/1o41dta/is_there_a...",
+    "parent": 45634638,
+    "depth": 1
+  },
+  {
+    "id": 45649624,
+    "by": "iamlintaoz",
+    "timeISO": "2025-10-20T21:30:20.000Z",
+    "textPlain": "For full transparency, I am the CEO of EloqData and I am happy to answer any questions you have. EloqDoc has been open-sourced for awhile, and we are glad to announce that the current code is stable for you to test on your workload.",
     "parent": 45634638,
     "depth": 1
   },
@@ -30,6 +54,14 @@
     "textPlain": "FerretDB and DocumentDB seem to be the only other two Mongo-compatible open source database implementations. Both are based on PostgreSQL.",
     "parent": 45634638,
     "depth": 1
+  },
+  {
+    "id": 45649913,
+    "by": "iamlintaoz",
+    "timeISO": "2025-10-20T21:54:32.000Z",
+    "textPlain": "That's exactly the reason. S3 is better in almost all aspects compared with EBS, except the performance part, and I am glad that our Data Substrate technology solved this issue gracefully [1].As for the compatibility, we are leveraging some of the code from 4.03 version (the last AGPL version), and we have a very good compatibility (we will show some results in later blog posts). As I mentioned in another reply post, the Mongo APIs are reasonably stable over the last few years, only seeing very minor changes. Most of the later versions improved upon performance and transaction supports, which we support natively with our underlying data substrate technologies. Still, if you have any specific API that you feel is needed, we'd be happy to implement and we welcome community contributions.Multi-master/multi-writer means it is a fully distributed database. Of course you can run it in single node configurations and get all the single node benefits, but if deployed in a cluster, you do not need to worry about which node to write to, or how data are sharded. If you writes potentially can cause conflicts (i.e. write to the same data at the same time on different nodes), the concurrency-control will handle that for you. In fact, you will encounter the same issue even in a single node configuration, since a single node is still multi-threaded.[1] https://www.eloqdata.com/blog/2025/07/16/data-substrate-bene...",
+    "parent": 45649779,
+    "depth": 2
   },
   {
     "id": 45635028,
@@ -68,6 +100,14 @@
     "by": "iamlintaoz",
     "timeISO": "2025-10-19T16:05:00.000Z",
     "textPlain": "That’s correct. FerretDB and DocumentDB both pursue PostgreSQL-based document models.EloqDoc follows a fundamentally different architectural path. Instead of executing in Postgres, we leverage the existing MongoDB parser and executor to ensure maximum compatibility. Our main contribution is to replace the single-writer WiredTiger storage engine entirely with Data Substrate.The Data Substrate is an abstract layer built specifically to handle distributed database fundamentals: scalable buffer pooling, concurrency control, durability, elasticity, and fault tolerance. You can read more: https://www.eloqdata.com/blog/2025/07/14/technologyThis architectural choice is what enables EloqDoc to deliver features that Postgres-based solutions cannot easily match, including: full compatibility, native Multi-Writer capability, Object Storage First and extremely low-latency distributed transactions.",
+    "parent": 45634924,
+    "depth": 2
+  },
+  {
+    "id": 45649804,
+    "by": "matharmin",
+    "timeISO": "2025-10-20T21:44:08.000Z",
+    "textPlain": "FoundationDB also has a Mongo-compatible document layer, but it seems like the last release was 6 years ago, so probably doesn't count anymore.",
     "parent": 45634924,
     "depth": 2
   }
