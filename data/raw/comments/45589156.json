@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45647783,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-10-20T19:00:29.000Z",
+    "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
     "id": 45646293,
     "by": "ibejoeb",
     "timeISO": "2025-10-20T17:04:24.000Z",
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45645756,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-20T16:28:13.000Z",
-    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645884,
     "by": "f1shy",
     "timeISO": "2025-10-20T16:39:07.000Z",
     "textPlain": "Should this code:  while (true) {\n    if (stop) { break; }\n    // Perform some work completing in a reasonable time\n  }\n\nBe just:  While(!stop){\n    Do-the-thing;\n  }\n\nAnyway, the last part:>> It’s quite frustrating that there’s no agreed upon way to interrupt and stack unwind a Linux thread and to protect critical sections from such unwinding. There are no technical obstacles to such facilities existing, but clean teardown is often a neglected part of software.I think it is a “design feature”. In C everything is low level, so I have no expectation of a high level feature like “stop this thread and cleanup the mess” IMHO asking that is similar to asking for GC in C.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645756,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T16:28:13.000Z",
+    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
     "parent": 45589156,
     "depth": 1
   },
@@ -144,11 +152,35 @@
     "depth": 2
   },
   {
+    "id": 45647900,
+    "by": "eptcyka",
+    "timeISO": "2025-10-20T19:10:23.000Z",
+    "textPlain": "Yeah, and leave mutexes locked indefinitely.",
+    "parent": 45647783,
+    "depth": 2
+  },
+  {
+    "id": 45647921,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T19:12:08.000Z",
+    "textPlain": "Note that the situation with libcurl is very specific: lookup with libnss is only available as a synchronous call. All other syscalls they make can be done with async APIs, which can easily be cancelled without any of the trickery discussed here.",
+    "parent": 45646293,
+    "depth": 2
+  },
+  {
     "id": 45647312,
     "by": "rostayob",
     "timeISO": "2025-10-20T18:23:52.000Z",
     "textPlain": "As I note in the blog post in various places if one can organize the code so that cancellation is explicit things are indeed easier. I also cite eventfd as one way of doing so. What I meant to convey is that there's no easy way to cancel arbitrary code safely.",
     "parent": 45647155,
+    "depth": 2
+  },
+  {
+    "id": 45647546,
+    "by": "kccqzy",
+    "timeISO": "2025-10-20T18:42:48.000Z",
+    "textPlain": "IIRC rseq was originally proposed by Google to support their pure-userspace read-copy-update (RCU) implementation, which relied on per-CPU not per-thread data.",
+    "parent": 45645249,
     "depth": 2
   },
   {
@@ -168,19 +200,19 @@
     "depth": 2
   },
   {
-    "id": 45645875,
-    "by": "rostayob",
-    "timeISO": "2025-10-20T16:38:26.000Z",
-    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
-    "parent": 45645756,
-    "depth": 2
-  },
-  {
     "id": 45645948,
     "by": "dathinab",
     "timeISO": "2025-10-20T16:43:23.000Z",
     "textPlain": "yes, maybe except if you don't have a single tight loop and stop checks are not just done once in the loop body but manually sprinkled through various places of your code (e.g. thing a long running compute task split into part 1,2(tight loop),3(loop),4 then you probably want a stop check between each of them and in each inner iteration of 3 but probably not in each inner iteration of 2 (as each check is an atomic load).",
     "parent": 45645884,
+    "depth": 2
+  },
+  {
+    "id": 45645875,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T16:38:26.000Z",
+    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
+    "parent": 45645756,
     "depth": 2
   },
   {
