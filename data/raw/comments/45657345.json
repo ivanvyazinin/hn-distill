@@ -8,6 +8,22 @@
     "depth": 1
   },
   {
+    "id": 45659367,
+    "by": "CaptainOfCoit",
+    "timeISO": "2025-10-21T18:09:45.000Z",
+    "textPlain": "Is it possible that people who already managed to get access (that they confirmed) has been waiting for any hiccups in AWS infrastructure in order to hide among the chaos when it happens? So maybe the access token was exposed weeks/months ago, but instead of going ahead directly, idle until there is something big going on.Certainly feels like an strategy I'd explore if I was on that side of the aisle.",
+    "parent": 45657345,
+    "depth": 1
+  },
+  {
+    "id": 45659636,
+    "by": "geor9e",
+    "timeISO": "2025-10-21T18:27:26.000Z",
+    "textPlain": "If I was a burgler holding a stolen key to a house, waiting to pick a good day, a city-wide blackout would probably feel like a good day.",
+    "parent": 45657345,
+    "depth": 1
+  },
+  {
     "id": 45657872,
     "by": "ThreatSystems",
     "timeISO": "2025-10-21T16:36:16.000Z",
@@ -24,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45657814,
+    "by": "yfiapo",
+    "timeISO": "2025-10-21T16:30:52.000Z",
+    "textPlain": "Highly likely to be coincidence. Typically an exposed access key. Exposed password for non-MFA protected console access happens but is less common.",
+    "parent": 45657345,
+    "depth": 1
+  },
+  {
     "id": 45658133,
     "by": "itsnowandnever",
     "timeISO": "2025-10-21T16:55:33.000Z",
@@ -32,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45657814,
-    "by": "yfiapo",
-    "timeISO": "2025-10-21T16:30:52.000Z",
-    "textPlain": "Highly likely to be coincidence. Typically an exposed access key. Exposed password for non-MFA protected console access happens but is less common.",
+    "id": 45659413,
+    "by": "AtNightWeCode",
+    "timeISO": "2025-10-21T18:12:11.000Z",
+    "textPlain": "Not uncommon that machines get exposed during trouble-shooting. Just look at the Crowdstrike incident just the other year. People enabled RDP on a lot machines to \"implement the fix\" and now many of these machines are more vulnerable than if if they never installed that garbage security software in the first place.",
     "parent": 45657345,
     "depth": 1
   },
@@ -56,6 +80,22 @@
     "depth": 1
   },
   {
+    "id": 45659427,
+    "by": "tcdent",
+    "timeISO": "2025-10-21T18:13:17.000Z",
+    "textPlain": "Smells like a phishing attack to me.Receive an email that says AWS is experiencing an outage. Log into your console to view the status, authenticate through a malicious wrapper, and compromise your account security.",
+    "parent": 45658257,
+    "depth": 2
+  },
+  {
+    "id": 45659025,
+    "by": "ThreatSystems",
+    "timeISO": "2025-10-21T17:48:38.000Z",
+    "textPlain": "I'm officially off of AWS so don't have any consoles to check against, but back on  a laptop.Based on docs and some of the concerns about this happening to someone else, I would probably start with the following:1. Check who/what created those EC2s[0] using the console to query: eventSource:ec2.amazonaws.com eventName:RunInstances2. Based on the userIdentity field, query the following actions.3. Check if someone manually logged into Console (identity dependent) [1]: eventSource:signin.amazonaws.com userIdentity.type:[Root/IAMUser/AssumedRole/FederatedUser/AWSLambda] eventName:ConsoleLogin4. Check if someone authenticated against Security Token Service (STS) [2]: eventSource:sts.amazonaws.com eventName:GetSessionToken5. Check if someone used a valid STS Session to AssumeRole: eventSource:sts.amazonaws.com eventName:AssumeRole  userIdentity.arn (or other identifier)6. Check for any new IAM Roles/Accounts made for persistence: eventSource:iam.amazonaws.com (eventName:CreateUser OR eventName:DeleteUser)7.  Check if any already vulnerable IAM Roles/Accounts modified to be more permissive [3]: eventSource:iam.amazonaws.com (eventName:CreateRole OR eventName:DeleteRole OR eventName:AttachRolePolicy OR eventName:DetachRolePolicy)8. Check for any access keys made [4][5]: eventSource:iam.amazonaws.com (eventName:CreateAccessKey OR eventName:DeleteAccessKey)9. Check if any production / persistent EC2s have had their IAMInstanceProfile changed, to allow for a backdoor using EC2 permissions from a webshell/backdoor they could have placed on your public facing infra. [6]etc. etc.But if you have had a compromise based on initial investigations, probably worth while getting professional support to do a thorough audit of your environment.[0] https://docs.aws.amazon.com/awscloudtrail/latest/userguide/c...[1] https://docs.aws.amazon.com/awscloudtrail/latest/userguide/c...[2] https://docs.aws.amazon.com/IAM/latest/UserGuide/cloudtrail-...[3] https://docs.aws.amazon.com/awscloudtrail/la",
+    "parent": 45657872,
+    "depth": 2
+  },
+  {
     "id": 45658322,
     "by": "sylens",
     "timeISO": "2025-10-21T17:07:40.000Z",
@@ -64,11 +104,51 @@
     "depth": 2
   },
   {
+    "id": 45659578,
+    "by": "gwbas1c",
+    "timeISO": "2025-10-21T18:23:22.000Z",
+    "textPlain": "Years ago I worked for a company where customers started seeing other customers' data.The cause was a bad hire decided to do a live debugging session in the production environment. (I stress bad hire because after I interviewed them, my feedback was that we shouldn't hire them.)It was kind of a mess to track down and clean up, too.",
+    "parent": 45657982,
+    "depth": 2
+  },
+  {
+    "id": 45658884,
+    "by": "__turbobrew__",
+    "timeISO": "2025-10-21T17:41:06.000Z",
+    "textPlain": "Maybe dynamodb was inconsistent for a period and as that backs IAM credentials were scrambled? Do you have references to this, because if it is true that is really really bad.",
+    "parent": 45657982,
+    "depth": 2
+  },
+  {
     "id": 45658079,
     "by": "afandian",
     "timeISO": "2025-10-21T16:51:53.000Z",
     "textPlain": "Got references? This is crazy.",
     "parent": 45657982,
+    "depth": 2
+  },
+  {
+    "id": 45659047,
+    "by": "CaptainOfCoit",
+    "timeISO": "2025-10-21T17:49:35.000Z",
+    "textPlain": "> couple folks on reddit said while they were refreshing during the outage, they were briefly logged in as a whole different userDidn't ChatGPT have a similar issue recently? Would sound awfully similar.",
+    "parent": 45657982,
+    "depth": 2
+  },
+  {
+    "id": 45659106,
+    "by": "liviux",
+    "timeISO": "2025-10-21T17:53:00.000Z",
+    "textPlain": "A friend of a friend knows a friend who logged in to Netflix root account. Source: trust me bro",
+    "parent": 45657982,
+    "depth": 2
+  },
+  {
+    "id": 45659037,
+    "by": "jddj",
+    "timeISO": "2025-10-21T17:49:11.000Z",
+    "textPlain": "You say that, but azure and okta have had a handful of these and life over there has more or less gone on.Inertia is a hell of a drug",
+    "parent": 45658133,
     "depth": 2
   }
 ]
