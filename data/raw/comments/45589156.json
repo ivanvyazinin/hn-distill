@@ -120,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45645392,
-    "by": "a-dub",
-    "timeISO": "2025-10-20T15:58:29.000Z",
-    "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45649812,
     "by": "EbEsacAig",
     "timeISO": "2025-10-20T21:44:50.000Z",
     "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645392,
+    "by": "a-dub",
+    "timeISO": "2025-10-20T15:58:29.000Z",
+    "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
     "parent": 45589156,
     "depth": 1
   },
