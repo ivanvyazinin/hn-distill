@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45656953,
-    "by": "gbxk",
-    "timeISO": "2025-10-21T15:22:25.000Z",
-    "textPlain": "I've built this to make it easy to host your own infra for lightweight VMs at large scale.Intended for exec of AI-generated code, for CICD runners, or for off-chain AI DApps. Mainly to avoid Docker-in-Docker dangers and mess.Super easy to use with CLI / Python SDK, friendly to AI engs who usually don't like to mess with VM orchestration and networking too much.Defense-in-depth philosophy.Would love to get feedback (and contributors: clear & exciting roadmap!), thx",
+    "id": 45658355,
+    "by": "alexeldeib",
+    "timeISO": "2025-10-21T17:09:36.000Z",
+    "textPlain": "as someone in the space this ticks a lot of boxes: kubernetes-native, strong isolation, python sdk (ideal for ML scenarios). devmapper is a nice ootb approach.Glancing at the readme, is your business model technical support? Or what's your plan with this?Anything interesting to share around startup time for large artifacts, scaling, passing through persistent storage (or GPUs) to these sandboxes?Curious what things like 'Multi-node cluster capabilities for distributed workloads' mean exactly? inter-VM networking?",
     "parent": 45656952,
     "depth": 1
   },
@@ -24,18 +24,34 @@
     "depth": 1
   },
   {
-    "id": 45659517,
-    "by": "elric",
-    "timeISO": "2025-10-21T18:19:39.000Z",
-    "textPlain": "Are there any such solutions that can adequately protect against side-channel attacks (à la rowhammer, meltdown, spectre, ...)? I mean protecting local file access and network access is pretty easy, but side-channels and VM escaping attacks seem like a bigger concern.",
-    "parent": 45657697,
-    "depth": 2
+    "id": 45659109,
+    "by": "empath75",
+    "timeISO": "2025-10-21T17:53:06.000Z",
+    "textPlain": "This seems like an amazing stack that ticks a lot of boxes for me, but I really dislike cli or a custom api as the UX for this and would prefer to manage all of this with CRDs so i can just use the k8s client for everything.",
+    "parent": 45656952,
+    "depth": 1
+  },
+  {
+    "id": 45660087,
+    "by": "whalesalad",
+    "timeISO": "2025-10-21T19:00:33.000Z",
+    "textPlain": "From an outside perspective, this looks silly. Like fitting a square peg in a round hole. But I do ack \"what if we could run vm's as easily as we run containers\" use case and atm it seems like things like this (and katacontainers) are the only ways to do it. Wondering a few things: do all the layers of abstraction make things brittle and how is performance impacted?",
+    "parent": 45656952,
+    "depth": 1
   },
   {
     "id": 45658204,
     "by": "dloss",
     "timeISO": "2025-10-21T17:00:19.000Z",
     "textPlain": "Anthropic recently released a sandboxing tool based on bubblewrap (Linux, quite lightweight) and sandbox-exec (macOS). \nhttps://github.com/anthropic-experimental/sandbox-runtimeI wonder if nsjails or gVisor may be useful as well.\nHere's a more comprehensive list of sandboxing solutions:\nhttps://github.com/restyler/awesome-sandbox",
+    "parent": 45657697,
+    "depth": 2
+  },
+  {
+    "id": 45659517,
+    "by": "elric",
+    "timeISO": "2025-10-21T18:19:39.000Z",
+    "textPlain": "Are there any such solutions that can adequately protect against side-channel attacks (à la rowhammer, meltdown, spectre, ...)? I mean protecting local file access and network access is pretty easy, but side-channels and VM escaping attacks seem like a bigger concern.",
     "parent": 45657697,
     "depth": 2
   },
@@ -48,19 +64,11 @@
     "depth": 2
   },
   {
-    "id": 45658355,
-    "by": "alexeldeib",
-    "timeISO": "2025-10-21T17:09:36.000Z",
-    "textPlain": "as someone in the space this ticks a lot of boxes: kubernetes-native, strong isolation, python sdk (ideal for ML scenarios). devmapper is a nice ootb approach.Glancing at the readme, is your business model technical support? Or what's your plan with this?Anything interesting to share around startup time for large artifacts, scaling, passing through persistent storage (or GPUs) to these sandboxes?Curious what things like 'Multi-node cluster capabilities for distributed workloads' mean exactly? inter-VM networking?",
-    "parent": 45656953,
-    "depth": 2
-  },
-  {
-    "id": 45659109,
-    "by": "empath75",
-    "timeISO": "2025-10-21T17:53:06.000Z",
-    "textPlain": "This seems like an amazing stack that ticks a lot of boxes for me, but I really dislike cli or a custom api as the UX for this and would prefer to manage all of this with CRDs so i can just use the k8s client for everything.",
-    "parent": 45656953,
+    "id": 45658623,
+    "by": "gbxk",
+    "timeISO": "2025-10-21T17:26:09.000Z",
+    "textPlain": "No business model short-term. My goal is broad adoption, 100% open-source.By multi-node I mean so far I only support 1 k8s node, i.e. 1 machine, but soon adding support for multiple. Still, on 20 CPUs I can run +50 VM pods with fractional vCPU limits.For GPU passthrough: not possible today because I use Firecracker as VMM. On roadmap: Add support for Qemu, then GPU passthrough possible.Inter-VM networking: it's already possible on single-node: 1 VM = 1 pod. Can have multiple pods per node (have a look at utils/stress-test.sh). Right now I default deny-all ingress for safety (because by default k8s allows inter pod communication), but can make ingress configurable.Startup time: a second, or a few seconds, depending on which base image (alpine, ubuntu, etc...) and whether you use a before_script or not (what I execute before the network lockdown)Large artifacts: you can configure resource allocated to a VM pod in the sandbox config and it basically uses k8s resource limits.Let me know if any other question! Happy to help",
+    "parent": 45658355,
     "depth": 2
   },
   {
@@ -69,6 +77,30 @@
     "timeISO": "2025-10-21T18:23:36.000Z",
     "textPlain": "It is well known that containers do not provide you safe isolation. It is not their purpose. They share kernel and page cache with the host. Any kernel exploit gives to someone in a container potential root control of the host (see DirtyPipe, DirtyCow). That's why you need VM-level isolation.",
     "parent": 45659530,
+    "depth": 2
+  },
+  {
+    "id": 45659145,
+    "by": "gbxk",
+    "timeISO": "2025-10-21T17:55:54.000Z",
+    "textPlain": "Actually you can! After you run \"k7 install\" you'll have a k3s cluster up and running, with Kata as a runtime class, and Firecracker specified in Kata config. So nothing prevents you from hitting the Kubernetes API! kubectl will work.Note: I use k3s' internal kubectl and containerd, to avoid messing with your own if you have some already installed. That means you can run commands like \"k3s kubectl ...\"And thank you for the compliments on the stack.",
+    "parent": 45659109,
+    "depth": 2
+  },
+  {
+    "id": 45659189,
+    "by": "gbxk",
+    "timeISO": "2025-10-21T17:59:39.000Z",
+    "textPlain": "If you have any suggestion on how I can make this more friendly UX-wise to your personal usage, I am most interested to hear! And this will shape my roadmap.",
+    "parent": 45659109,
+    "depth": 2
+  },
+  {
+    "id": 45660211,
+    "by": "gbxk",
+    "timeISO": "2025-10-21T19:08:21.000Z",
+    "textPlain": "It uses Kata with Firecracker which gives you as light of a boot as it gets. Subsecond booting for instance is accessible with a lighter rootfs, which is also on the roadmap (one of the easiest items, actually). The k8s layer doesn't add overhead either compared to any other VM. If you want to compare to bare containers, depending on workload, you could see a 5% overhead due to virtualization. Exact overhead would depend on workload.",
+    "parent": 45660087,
     "depth": 2
   }
 ]
