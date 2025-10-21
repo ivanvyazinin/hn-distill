@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45652701,
+    "by": "kgeist",
+    "timeISO": "2025-10-21T05:20:48.000Z",
+    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45653838,
     "by": "vismit2000",
     "timeISO": "2025-10-21T08:58:26.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45652701,
-    "by": "kgeist",
-    "timeISO": "2025-10-21T05:20:48.000Z",
-    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
+    "id": 45652930,
+    "by": "witnessme",
+    "timeISO": "2025-10-21T06:05:00.000Z",
+    "textPlain": "A simple word2vec embedding with continuous bag of words (CBOW) training is enough and beats all other complex solutions at rhe performance as well as costReference: https://blog.invidelabs.com/how-invide-analyzes-deep-work/",
     "parent": 45571423,
     "depth": 1
   },
@@ -44,14 +52,6 @@
     "by": "pu_pe",
     "timeISO": "2025-10-21T06:41:40.000Z",
     "textPlain": "What about accuracy? Maybe I'm missing something, but the crucial piece of information that is missing is whether the labels produced by both methods converge nicely. The fact that OP had >6000 categories using LLMs makes me wonder whether there is any validation at all, or you just let the LLMs freestyle.",
-    "parent": 45571423,
-    "depth": 1
-  },
-  {
-    "id": 45652930,
-    "by": "witnessme",
-    "timeISO": "2025-10-21T06:05:00.000Z",
-    "textPlain": "A simple word2vec embedding with continuous bag of words (CBOW) training is enough and beats all other complex solutions at rhe performance as well as costReference: https://blog.invidelabs.com/how-invide-analyzes-deep-work/",
     "parent": 45571423,
     "depth": 1
   },
@@ -112,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 45654147,
+    "by": "TZubiri",
+    "timeISO": "2025-10-21T10:01:32.000Z",
+    "textPlain": "\"Read the following tweet and provide a classification string to categorize it.Your class label should be between 30 and 60 characters and be precise in snake_case format. For example:\n- complain_about_political_party\n- make_joke_about_zuckerberg_rebrandingNow, classify this tweet: {{tweet}}\"I stopped reading here. It's a bit obvious that you need to define your classification schema beforehand, not on a per message basis. And if you do, you need a way to remember your schema. Of course you will generate an inconsistent and non-orthogonal set of labels. I expected the next paragraphs to immediately fix this like\"Classify the tweet into one of: joke, rant, meme...\" but instead the post went on to intellectualizing with math? It's like a chess player hanging a queen and then going on about bishop pairs and the london system",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45653382,
     "by": "ur-whale",
     "timeISO": "2025-10-21T07:32:20.000Z",
@@ -160,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45654253,
+    "by": "frenchmajesty",
+    "timeISO": "2025-10-21T10:24:07.000Z",
+    "textPlain": "OP here. I agree with you. For production use we use VoyageAI which is usually 2x faster than OpenAI at similar quality levels (p90 is < 200ms) but we're looking at spinning up a local embedding in our cloud environment, that would make p95 < 100ms and make cost negligible as well.",
+    "parent": 45652701,
+    "depth": 2
+  },
+  {
     "id": 45653039,
     "by": "meander_water",
     "timeISO": "2025-10-21T06:29:49.000Z",
@@ -172,6 +188,14 @@
     "by": "copypaper",
     "timeISO": "2025-10-20T23:27:21.000Z",
     "textPlain": "I originally settled on doing this, but the problem is that you have to re-calculate everything if you ever add/remove a category. If your categories will always be static, that will work fine. But it's more than likely you'll eventually have to add another category down the line.If your categories are dynamic, the way OP handles it will be much cheaper as the number of tweets (or customer service calls in your case) grows, as long as the cache hit rate is >0%. Each tweet will get it's own label, i.e. \"joke_about_bad_technology_choices\". Each of these labels gets put into a category, i.e. \"tech_jokes\". If you add/remove a category you would still need to re-calculate everything, however you would only need to re-calculate the labels to categories as opposed to every single tweet. Since similar tweets can share the same labels, you end up with less labels than total amount of tweets. As you reach the asymptotic ceiling, as mentioned in OPs post, your cost to re-embed labels to categories also becomes an asymptotic ceiling.If the number of items you're categorizing is a couple thousand at most and you rarely add/remove categories, it's probably not worth the complexity. But in my case (and ops) it's worth it as the number of items grows infinitely.",
+    "parent": 45649675,
+    "depth": 2
+  },
+  {
+    "id": 45654154,
+    "by": "TZubiri",
+    "timeISO": "2025-10-21T10:03:36.000Z",
+    "textPlain": "I had this same idea mid 2024, but embeddings and cosine similarity is way less consistent, not even the classical king+woman=queen work. The latest embedding models from OpenAI are from like 2023. Did you actually try this? What embedding models work for this?",
     "parent": 45649675,
     "depth": 2
   },
