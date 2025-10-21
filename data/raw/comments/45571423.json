@@ -1,9 +1,25 @@
 [
   {
+    "id": 45655489,
+    "by": "rorylaitila",
+    "timeISO": "2025-10-21T13:24:53.000Z",
+    "textPlain": "When I started cataloging my vintage ad collection (https://adretro.com), I originally started with a defined set of entities (like brands, or product categories). I used OpenAI vision to extract out the categories the ad belongs to. However, I found that it would simply not be consistent in its classification. So I decided to let the model classify however it wants, and I map those results back to my desired ontology after the fact. My mapping is manually in my case. But I could see how I could use techniques to dynamically cluster.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45651001,
     "by": "minimaxir",
     "timeISO": "2025-10-21T00:14:11.000Z",
     "textPlain": "There is a flaw with the base problem: each tweet only has one label, while a tweet is often about many different things and can't be delinated so cleanly. Here's an alternate approach that both allows for multiple labels and lower marginal costs (albeit higher initial cost) for each tweet classified.1. Curate a large representative subsample of tweets.2. Feed all of them to an LLM in a single call with the prompt along the lines of \"generate N unique labels and their descriptions for the tweets provided\". This bounds the problem space.3. For each tweet, feed them to a LLM along with the prompt \"Here are labels and their corresponding descriptions: classify this tweet with up to X of those labels\". This creates a synthetic dataset for training.4. Encode each tweet as a vector as normal.5. Then train a bespoke small model (e.g. a MLP) using tweet embeddings as input to create a multilabel classification model, where the model predicts the probability for each label that it is the correct one.The small MLP will be super fast and cost effectively nothing above what it takes to create the embedding. It saves time/cost from performing a vector search or even maintaining a live vector database.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45655420,
+    "by": "pietz",
+    "timeISO": "2025-10-21T13:19:54.000Z",
+    "textPlain": "I enjoyed reading this, but it seems overly complex and at least slightly flawed.Why not embed all tweets, cluster them with an algorithm of your choice and have an LLM provide names for each cluster?Cheaper, better clusters and more accurate labels.",
     "parent": 45571423,
     "depth": 1
   },
@@ -16,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45652701,
-    "by": "kgeist",
-    "timeISO": "2025-10-21T05:20:48.000Z",
-    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
-    "parent": 45571423,
-    "depth": 1
-  },
-  {
     "id": 45654515,
     "by": "radarsat1",
     "timeISO": "2025-10-21T11:17:40.000Z",
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45654360,
-    "by": "vessenes",
-    "timeISO": "2025-10-21T10:41:10.000Z",
-    "textPlain": "Arthur, question from your GitHub + essay:In GitHub you show stats that say a \"cache hit\" is 200ms and a miss is 1-2s (LLM call).I don't think I understand how you get a cache hit off a novel tweet. My understanding is that you1) get a snake case category from an LLM2) embed that category3) check if it's close to something else in the embedding space via cosine similarity4) if it is, replace og label with the closest in embedding space5) if not, store itIs that the right sequence? If it is, it looks to me like all paths start with an LLM, and therefore are not likely to be <200ms. Do I have the sequence right?",
+    "id": 45652701,
+    "by": "kgeist",
+    "timeISO": "2025-10-21T05:20:48.000Z",
+    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
     "parent": 45571423,
     "depth": 1
   },
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45654938,
-    "by": "vladde",
-    "timeISO": "2025-10-21T12:24:13.000Z",
-    "textPlain": "could someone please explain what this means?> cluster the inconsistent labels by embedding them in a vector space",
+    "id": 45654360,
+    "by": "vessenes",
+    "timeISO": "2025-10-21T10:41:10.000Z",
+    "textPlain": "Arthur, question from your GitHub + essay:In GitHub you show stats that say a \"cache hit\" is 200ms and a miss is 1-2s (LLM call).I don't think I understand how you get a cache hit off a novel tweet. My understanding is that you1) get a snake case category from an LLM2) embed that category3) check if it's close to something else in the embedding space via cosine similarity4) if it is, replace og label with the closest in embedding space5) if not, store itIs that the right sequence? If it is, it looks to me like all paths start with an LLM, and therefore are not likely to be <200ms. Do I have the sequence right?",
     "parent": 45571423,
     "depth": 1
   },
@@ -88,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45654953,
-    "by": "deadbabe",
-    "timeISO": "2025-10-21T12:25:48.000Z",
-    "textPlain": "I just did the same thing but instead of vector space I used full text search with sufficiently  tokenized text and searched for possible existing keyword matches before assigning the label, and basically\ngot the same results or better than the article at a fraction of the cost (no need to vectorize).It’s fairly obvious tbh, an agent needs a way to search, not just expect it to produce the same labels that magically match prior results. Have we been so blinded we’ve forgotten this kind of stuff?",
+    "id": 45654938,
+    "by": "vladde",
+    "timeISO": "2025-10-21T12:24:13.000Z",
+    "textPlain": "could someone please explain what this means?> cluster the inconsistent labels by embedding them in a vector space",
     "parent": 45571423,
     "depth": 1
   },
@@ -144,6 +152,14 @@
     "depth": 1
   },
   {
+    "id": 45654953,
+    "by": "deadbabe",
+    "timeISO": "2025-10-21T12:25:48.000Z",
+    "textPlain": "I just did the same thing but instead of vector space I used full text search with sufficiently  tokenized text and searched for possible existing keyword matches before assigning the label, and basically\ngot the same results or better than the article at a fraction of the cost (no need to vectorize).It’s fairly obvious tbh, an agent needs a way to search, not just expect it to produce the same labels that magically match prior results. Have we been so blinded we’ve forgotten this kind of stuff?",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45653382,
     "by": "ur-whale",
     "timeISO": "2025-10-21T07:32:20.000Z",
@@ -160,11 +176,11 @@
     "depth": 1
   },
   {
-    "id": 45653082,
-    "by": "meander_water",
-    "timeISO": "2025-10-21T06:37:28.000Z",
-    "textPlain": "Why wouldn't you use OP's approach to build up the representative embeddings, and then train the MLP on that?That way you can effectively handle open sets and train a more accurate MLP model.With your approach I don't think you can get a representative list of N tweets which covers all possible categories. Even if you did, the LLM would be subject to context rot and token limits.",
-    "parent": 45651001,
+    "id": 45655610,
+    "by": "xyzzy_plugh",
+    "timeISO": "2025-10-21T13:34:03.000Z",
+    "textPlain": "I would love to better understand what you mean by \"classify however it wants.\" Is the output structured?",
+    "parent": 45655489,
     "depth": 2
   },
   {
@@ -172,6 +188,14 @@
     "by": "nico",
     "timeISO": "2025-10-21T01:03:16.000Z",
     "textPlain": "I just built a logistic regression classifier for emails and agreeJust using embeddings you can get really good classifiers for very cheapYou can use small embeddings models too, and can engineer different features to be embedded as wellAdditionally, with email at least, depending on the categories you need, you only need about 50-100 examples for 95-100% accuracyAnd if you build a simple CLI tool to fetch/label emails, it’s pretty easy/fast to get the data",
+    "parent": 45651001,
+    "depth": 2
+  },
+  {
+    "id": 45653082,
+    "by": "meander_water",
+    "timeISO": "2025-10-21T06:37:28.000Z",
+    "textPlain": "Why wouldn't you use OP's approach to build up the representative embeddings, and then train the MLP on that?That way you can effectively handle open sets and train a more accurate MLP model.With your approach I don't think you can get a representative list of N tweets which covers all possible categories. Even if you did, the LLM would be subject to context rot and token limits.",
     "parent": 45651001,
     "depth": 2
   },
@@ -224,14 +248,6 @@
     "depth": 2
   },
   {
-    "id": 45654397,
-    "by": "inanothertime",
-    "timeISO": "2025-10-21T10:48:30.000Z",
-    "textPlain": "From what I understood, we check whether \"snake case category\" from step (1) is already known to us (in the cache) so that we need no further processing. So that step (2) and further don't apply for categories that were already produced earlier.",
-    "parent": 45654360,
-    "depth": 2
-  },
-  {
     "id": 45654354,
     "by": "yahoozoo",
     "timeISO": "2025-10-21T10:40:22.000Z",
@@ -240,11 +256,19 @@
     "depth": 2
   },
   {
-    "id": 45654992,
-    "by": "TheTaytay",
-    "timeISO": "2025-10-21T12:30:18.000Z",
-    "textPlain": "For any label it generates, he uses an embedding model to generate the embedding vector for it. (You could say that \"embeds the label in a vector space\")\nThen, he looks at that generated embedding for that label and asks if there is another previously-generated embedding that had a _very_ similar embedding generated for it. If you set some sort of \"how close is close enough\" threshold for that, you are \"clustering\" all generated labels, by saying \"These 10 labels have slightly different words, but essentially mean the same thing.",
-    "parent": 45654938,
+    "id": 45655167,
+    "by": "frenchmajesty",
+    "timeISO": "2025-10-21T12:56:14.000Z",
+    "textPlain": "OP here. We embed both the label AND the tweet. So if tweet A is \"I love burgers\" and tweet B is \"I love cheeseburgers\", we ask in our vector DB if we have seen a tweet before that is very similar to B? If yes, we skip LLM altogether (cache hit) and just take the class label that A has.",
+    "parent": 45654360,
+    "depth": 2
+  },
+  {
+    "id": 45654397,
+    "by": "inanothertime",
+    "timeISO": "2025-10-21T10:48:30.000Z",
+    "textPlain": "From what I understood, we check whether \"snake case category\" from step (1) is already known to us (in the cache) so that we need no further processing. So that step (2) and further don't apply for categories that were already produced earlier.",
+    "parent": 45654360,
     "depth": 2
   },
   {
@@ -293,6 +317,14 @@
     "timeISO": "2025-10-21T10:03:36.000Z",
     "textPlain": "I had this same idea mid 2024, but embeddings and cosine similarity is way less consistent, not even the classical king+woman=queen work. The latest embedding models from OpenAI are from like 2023. Did you actually try this? What embedding models work for this?",
     "parent": 45649675,
+    "depth": 2
+  },
+  {
+    "id": 45654992,
+    "by": "TheTaytay",
+    "timeISO": "2025-10-21T12:30:18.000Z",
+    "textPlain": "For any label it generates, he uses an embedding model to generate the embedding vector for it. (You could say that \"embeds the label in a vector space\")\nThen, he looks at that generated embedding for that label and asks if there is another previously-generated embedding that had a _very_ similar embedding generated for it. If you set some sort of \"how close is close enough\" threshold for that, you are \"clustering\" all generated labels, by saying \"These 10 labels have slightly different words, but essentially mean the same thing.",
+    "parent": 45654938,
     "depth": 2
   },
   {
