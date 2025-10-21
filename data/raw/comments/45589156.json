@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45650334,
-    "by": "scottlamb",
-    "timeISO": "2025-10-20T22:39:34.000Z",
-    "textPlain": "This article does a nice job of explaining why pthread cancellation is hopeless.> If we could know that no signal handler is ran between the flag check and the syscall, then we’d be safe.If you're willing to write assembly, you can accomplish this without rseq. I got it working many years ago on a bunch of platforms. [1] It's similar to what they did in this article: define a \"critical region\" between the initial flag check and the actual syscall. If the signal happens here, ensure the instruction pointer gets adjusted in such a way that the syscall is bypassed and EINTR returned immediately. But it doesn't need any special kernel support that's Linux-only and didn't exist at the time, just async signal handlers.(rseq is a very cool facility, btw, just not necessary for this.)[1] Here's the Linux/x86_64 syscall wrapper: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-... and the signal handler: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-...",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45649547,
     "by": "kazinator",
     "timeISO": "2025-10-20T21:22:40.000Z",
     "textPlain": "> Well, since thread cancellation is implemented using exceptions, and thread cancellation can happen in arbitrary placesNo, thread cancelation cannot happen in arbitrary places. Or doesn't have to.There are two kinds of cancelation: asynchronous and deferred.POSIX provides an API to configure this for a thread, dynamically: pthread_setcanceltype.Furthermore, cancelation can be enabled and disabled also.  int pthread_setcancelstate(int state, int *oldstate); // PTHREAD_CANCEL_ENABLE, PTHREAD_CANCEL_DISABLE\n  int pthread_setcanceltype(int type, int *oldtype);    // PTHREAD_CANCEL_DEFERRED, PTHREAD_CANCEL_ASYNCHRONOUS\n\nNeedless to say, a thread would only turn on asynchronous cancelation over some code where it is safe to do so, where it won't be caught in the middle of allocating resources, or manipulating data structures that will be in a bad state, and such.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45650334,
+    "by": "scottlamb",
+    "timeISO": "2025-10-20T22:39:34.000Z",
+    "textPlain": "This article does a nice job of explaining why pthread cancellation is hopeless.> If we could know that no signal handler is ran between the flag check and the syscall, then we’d be safe.If you're willing to write assembly, you can accomplish this without rseq. I got it working many years ago on a bunch of platforms. [1] It's similar to what they did in this article: define a \"critical region\" between the initial flag check and the actual syscall. If the signal happens here, ensure the instruction pointer gets adjusted in such a way that the syscall is bypassed and EINTR returned immediately. But it doesn't need any special kernel support that's Linux-only and didn't exist at the time, just async signal handlers.(rseq is a very cool facility, btw, just not necessary for this.)[1] Here's the Linux/x86_64 syscall wrapper: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-... and the signal handler: https://github.com/scottlamb/sigsafe/blob/master/src/x86_64-...",
     "parent": 45589156,
     "depth": 1
   },
@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45652995,
-    "by": "Ericson2314",
-    "timeISO": "2025-10-21T06:20:12.000Z",
-    "textPlain": "Hi Francesco :)I think a good shorthand for this stuff is> One can either preemptively or cooperatively schedule threads, and one can also either preemptively or cooperatively cancel processes, but one can only cooperatively cancel threads.",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645388,
     "by": "loeg",
     "timeISO": "2025-10-20T15:58:11.000Z",
     "textPlain": "If you can swing it (don't need to block on IO indefinitely), I'd suggest just the simple coordination model.  * Some atomic bool controls if the thread should stop or not;\n  * The thread doesn't make any unbounded wait syscalls;\n  * And the thread uses pthread_cond_wait (or equivalent C++ std wrappers) in place of sleeping while idle.\n\nTo kill the thread, set the stop flag and cond_signal the condvar.  (Under the hood on Linux, this uses futex.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45652995,
+    "by": "Ericson2314",
+    "timeISO": "2025-10-21T06:20:12.000Z",
+    "textPlain": "Hi Francesco :)I think a good shorthand for this stuff is> One can either preemptively or cooperatively schedule threads, and one can also either preemptively or cooperatively cancel processes, but one can only cooperatively cancel threads.",
     "parent": 45589156,
     "depth": 1
   },
@@ -296,18 +296,18 @@
     "depth": 2
   },
   {
-    "id": 45652338,
-    "by": "AtlasBarfed",
-    "timeISO": "2025-10-21T03:59:14.000Z",
-    "textPlain": "I'm unfamiliar with this, is \"coop multithreading\" basically equivalent to Windows 3.1 style coop multitasking, where a thread can hang the whole application by ... not cooperating?Does anyone here remember Windows 3.1?",
-    "parent": 45645895,
-    "depth": 2
-  },
-  {
     "id": 45646479,
     "by": "PaulDavisThe1st",
     "timeISO": "2025-10-20T17:18:56.000Z",
     "textPlain": "user-space threads have entirely different semantics from kernel threads. both have their uses, but should generally not be conflated.",
+    "parent": 45645895,
+    "depth": 2
+  },
+  {
+    "id": 45652338,
+    "by": "AtlasBarfed",
+    "timeISO": "2025-10-21T03:59:14.000Z",
+    "textPlain": "I'm unfamiliar with this, is \"coop multithreading\" basically equivalent to Windows 3.1 style coop multitasking, where a thread can hang the whole application by ... not cooperating?Does anyone here remember Windows 3.1?",
     "parent": 45645895,
     "depth": 2
   }
