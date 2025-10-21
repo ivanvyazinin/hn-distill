@@ -1,5 +1,13 @@
 [
   {
+    "id": 45657955,
+    "by": "daxfohl",
+    "timeISO": "2025-10-21T16:42:43.000Z",
+    "textPlain": "I wonder if a linear-space, constant-time model like RWKV or S4 would work better here. For audio, I wouldn't think you'd need long range context, and all-to-all mapping seems like overkill.Maybe a transformer could be running in parallel, but much lower frequency, where the linear model feeds it \"summary\" tokens once per second, whose information would mostly be \"text\", but also some hint of emotion and other cues. Then the output of this could be fed back to the linear model so that it would know what it was saying and with what emotion. Basically the transformer would be the low frequency long range context thinker (and feeler), and the linear model would translate that to and from phonetics.They'd be trained in parallel, so those transformer tokens would attain meaning at training time, not something that would have to be pre-defined. So it'd still be purely phonetic e2e, no direct translation to text. It could even end up being a good way to compress text for LLMs, since low-value words might have smaller representation in the token.Probably would never reach the level of text based LLMs for logic and code and such, but that somewhat parallels humans anyway; it's pretty hard to explain an algorithm in detail in plain conversation.",
+    "parent": 45655161,
+    "depth": 1
+  },
+  {
     "id": 45656279,
     "by": "miki123211",
     "timeISO": "2025-10-21T14:28:35.000Z",
@@ -24,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45656005,
-    "by": "crazygringo",
-    "timeISO": "2025-10-21T14:08:14.000Z",
-    "textPlain": "This is fascinating.Obviously working directly with audio is vastly more complex than with text.But it is very exciting to see how part of making LLMs work natively with speech, is finding a codec that is maximally efficient at encoding speech.I even have to wonder if, at some point, we ultimately create a popular voice codec usable with LLMs based not on the Fourier transform or similar, but rather on some kind of set of physical parameters describing vocal cord shape, tongue position, throat/chest/mouth shape, etc.I can imagine such a model being arrived at statistically (determining the necessary number of parameters), and then almost becoming \"hard-coded\" as a standard since human anatomy doesn't change much there, beyond certain ranges.I think it's called formant speech encoding, and it would be interesting if LLMs wind up massively advancing that field. Since I think historically it's had to do more with speech synthesis than audio compression.",
-    "parent": 45655161,
-    "depth": 1
-  },
-  {
     "id": 45655853,
     "by": "robviren",
     "timeISO": "2025-10-21T13:54:38.000Z",
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45657188,
-    "by": "daxfohl",
-    "timeISO": "2025-10-21T15:43:28.000Z",
-    "textPlain": "Another interesting thing here is that the model presumably has some understanding of the passage of time. That's one thing that can be odd about chat models, in that they will respond the same no matter whether you respond a second later or a month later.I think even for text models, \"streams\" could be useful. Perhaps if the LLM sees too long of a pause after explaining something and asking a question, they could interject a \"do you need help?\" or something. Pure chat GPTs don't have that ability.",
+    "id": 45656005,
+    "by": "crazygringo",
+    "timeISO": "2025-10-21T14:08:14.000Z",
+    "textPlain": "This is fascinating.Obviously working directly with audio is vastly more complex than with text.But it is very exciting to see how part of making LLMs work natively with speech, is finding a codec that is maximally efficient at encoding speech.I even have to wonder if, at some point, we ultimately create a popular voice codec usable with LLMs based not on the Fourier transform or similar, but rather on some kind of set of physical parameters describing vocal cord shape, tongue position, throat/chest/mouth shape, etc.I can imagine such a model being arrived at statistically (determining the necessary number of parameters), and then almost becoming \"hard-coded\" as a standard since human anatomy doesn't change much there, beyond certain ranges.I think it's called formant speech encoding, and it would be interesting if LLMs wind up massively advancing that field. Since I think historically it's had to do more with speech synthesis than audio compression.",
     "parent": 45655161,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "amelius",
     "timeISO": "2025-10-21T13:26:32.000Z",
     "textPlain": "> Many LLMs have voice interfaces, but they usually work by transcribing your speech, generating the answer in text, and using text-to-speech to read the response out loud. That’s perfectly fine in many cases (...), but it’s a wrapper, not real speech understanding.But I can say the same about tokenization. LLMs first convert groups of characters to tokens, then use that to generate tokens, and then convert the tokens back to characters. That's not real understanding! If LLMs are so smart, we should be able to skip the tokenization step.",
+    "parent": 45655161,
+    "depth": 1
+  },
+  {
+    "id": 45657188,
+    "by": "daxfohl",
+    "timeISO": "2025-10-21T15:43:28.000Z",
+    "textPlain": "Another interesting thing here is that the model presumably has some understanding of the passage of time. That's one thing that can be odd about chat models, in that they will respond the same no matter whether you respond a second later or a month later.I think even for text models, \"streams\" could be useful. Perhaps if the LLM sees too long of a pause after explaining something and asking a question, they could interject a \"do you need help?\" or something. Pure chat GPTs don't have that ability.",
     "parent": 45655161,
     "depth": 1
   },
@@ -136,6 +144,14 @@
     "depth": 2
   },
   {
+    "id": 45657808,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-10-21T16:30:02.000Z",
+    "textPlain": "Audio perception is based on detecting the frequency components, which we detect via what amounts to a filter bank in the inner ear (different length hairs with different resonant frequencies).Speech perception builds upon frequencies and is based on \"formants\" - the frequency bands that are attentuated via the vocal tract resonances created by articulation when the speech was generated. More specifically, most speech information is contained in formant changes since these correspond to articulatory changes. There are also other articulatory artifacts in speech such as the onsets of speech energy corresponding to plosives (\"puh\", \"buh\"), and the high frequencies generated by fricatives like \"sss\".One problem with embedding MP3 frames as audio tokens would be that although MP3 compression is based on frequency representation, you've then got quantization, huffman encoding and the MP3 frame structure all on top of that, so the frame as a whole is going to be more of a black box. Presumably a transformer could still use MP3 frames to predict the text transcription, or any arbitrary encoding of speech audio for that matter (similar to how an LLM can predict text from Base64 representations, or vice versa), but it's certainly not making it easier if the input is obfuscating the frequency components and formants etc that correspond to the generating process.Not having direct access to the frequency/formant information is also going to make generalization more difficult since that is based around formant structure and changes. When articulating the same word, the specific formant frequencies will differ between individuals, primarily based on vocal tract length, but humans have no problem generalizing across these and understanding speech from different individuals. I'm not sure if an LLM only trained to predict MP3 speech from, say, male adults, would necessarily have generalized enough to also be able to recognize child speech or that from a speech synthesizer.",
+    "parent": 45656123,
+    "depth": 2
+  },
+  {
     "id": 45656175,
     "by": "PaulDavisThe1st",
     "timeISO": "2025-10-21T14:20:30.000Z",
@@ -147,7 +163,7 @@
     "id": 45657008,
     "by": "cubefox",
     "timeISO": "2025-10-21T15:27:22.000Z",
-    "textPlain": "Well, I believe language models usually use 2-byte (16 bit) tokens, which corresponds to an embedding dimension of 2^16=65536. With 400 bytes per token this would be 2^(400*8), which is an extremely large number. Way too large to be practical, I assume.",
+    "textPlain": "I believe language models usually use 2-byte (16 bit) tokens, which corresponds to an embedding dimension of 2^16=65536. With 400 bytes per token this would be 2^(400*8), which is an extremely large number. Way too large to be practical, I assume.",
     "parent": 45656123,
     "depth": 2
   },
