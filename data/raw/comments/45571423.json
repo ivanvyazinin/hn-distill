@@ -8,18 +8,26 @@
     "depth": 1
   },
   {
-    "id": 45652701,
-    "by": "kgeist",
-    "timeISO": "2025-10-21T05:20:48.000Z",
-    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
+    "id": 45653104,
+    "by": "pu_pe",
+    "timeISO": "2025-10-21T06:41:40.000Z",
+    "textPlain": "What about accuracy? Maybe I'm missing something, but the crucial piece of information that is missing is whether the labels produced by both methods converge nicely. The fact that OP had >6000 categories using LLMs makes me wonder whether there is any validation at all, or you just let the LLMs freestyle.",
     "parent": 45571423,
     "depth": 1
   },
   {
-    "id": 45652930,
-    "by": "witnessme",
-    "timeISO": "2025-10-21T06:05:00.000Z",
-    "textPlain": "A simple word2vec embedding with continuous bag of words (CBOW) training is enough and beats all other complex solutions at rhe performance as well as costReference: https://blog.invidelabs.com/how-invide-analyzes-deep-work/",
+    "id": 45653188,
+    "by": "rao-v",
+    "timeISO": "2025-10-21T06:59:26.000Z",
+    "textPlain": "You could probably speed this up a lot by getting the token log probs and finding your category based on the highest log prob token that is in the category (you may need multiple steps if your categories share token prefixes)",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45652701,
+    "by": "kgeist",
+    "timeISO": "2025-10-21T05:20:48.000Z",
+    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
     "parent": 45571423,
     "depth": 1
   },
@@ -36,6 +44,14 @@
     "by": "dinobones",
     "timeISO": "2025-10-20T22:55:02.000Z",
     "textPlain": "Dunno if this passes the bootstrapping test.This is sensitive to the initial candidate set of labels that the LLM generates.Meaning if you ran this a few times over the same corpus, you’ll probably get different performance depending upon the order of the way you input the data and the classification tag the LLM ultimately decided upon.Here’s an idea that is order invariant: embed first, take samples from clusters, and ask the LLM to label the 5 or so samples you’ve taken. The clusters are serving as soft candidate labels and the LLM turns them into actual interpretable explicit labels.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45652930,
+    "by": "witnessme",
+    "timeISO": "2025-10-21T06:05:00.000Z",
+    "textPlain": "A simple word2vec embedding with continuous bag of words (CBOW) training is enough and beats all other complex solutions at rhe performance as well as costReference: https://blog.invidelabs.com/how-invide-analyzes-deep-work/",
     "parent": 45571423,
     "depth": 1
   },
@@ -86,6 +102,14 @@
     "textPlain": "I think a less order biased, more straightforward way would be just to vectorize everything, perform clustering and then label the clusters with the LLM.",
     "parent": 45571423,
     "depth": 1
+  },
+  {
+    "id": 45653082,
+    "by": "meander_water",
+    "timeISO": "2025-10-21T06:37:28.000Z",
+    "textPlain": "Why wouldn't you use OP's approach to build up the representative embeddings, and then train the MLP on that?That way you can effectively handle open sets and train a more accurate MLP model.With your approach I don't think you can get a representative list of N tweets which covers all possible categories. Even if you did, the LLM would be subject to context rot and token limits.",
+    "parent": 45651001,
+    "depth": 2
   },
   {
     "id": 45651335,
