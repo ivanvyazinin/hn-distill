@@ -1,17 +1,9 @@
 [
   {
-    "id": 45650614,
-    "by": "deepsquirrelnet",
-    "timeISO": "2025-10-20T23:15:59.000Z",
-    "textPlain": "I think a less order biased, more straightforward way would be just to vectorize everything, perform clustering and then label the clusters with the LLM.",
-    "parent": 45571423,
-    "depth": 1
-  },
-  {
-    "id": 45650463,
-    "by": "dinobones",
-    "timeISO": "2025-10-20T22:55:02.000Z",
-    "textPlain": "Dunno if this passes the bootstrapping test.This is sensitive to the initial candidate set of labels that the LLM generates.Meaning if you ran this a few times over the same corpus, you’ll probably get different performance depending upon the order of the way you input the data and the classification tag the LLM ultimately decided upon.Here’s an idea that is order invariant: embed first, take samples from clusters, and ask the LLM to label the 5 or so samples you’ve taken. The clusters are serving as soft candidate labels and the LLM turns them into actual interpretable explicit labels.",
+    "id": 45651001,
+    "by": "minimaxir",
+    "timeISO": "2025-10-21T00:14:11.000Z",
+    "textPlain": "There is a flaw with the base problem: each tweet only has one label, while a tweet is often about many different things and can't be delinated so cleanly. Here's an alternate approach that both allows for multiple labels and lower marginal costs (albeit higher initial cost) for each tweet classified.1. Curate a large representative subsample of tweets.2. Feed all of them to an LLM in a single call with the prompt along the lines of \"generate N unique labels and their descriptions for the tweets provided\". This bounds the problem space.3. For each tweet, feed them to a LLM along with the prompt \"Here are labels and their corresponding descriptions: classify this tweet with up to X of those labels\". This creates a synthetic dataset for training.4. Encode each tweet as a vector as normal.5. Then train a bespoke small model (e.g. a MLP) using tweet embeddings as input to create a multilabel classification model, where the model predicts the probability for each label that it is the correct one.The small MLP will be super fast and cost effectively nothing above what it takes to create the embedding. It saves time/cost from performing a vector search or even maintaining a live vector database.",
     "parent": 45571423,
     "depth": 1
   },
@@ -24,10 +16,42 @@
     "depth": 1
   },
   {
+    "id": 45650463,
+    "by": "dinobones",
+    "timeISO": "2025-10-20T22:55:02.000Z",
+    "textPlain": "Dunno if this passes the bootstrapping test.This is sensitive to the initial candidate set of labels that the LLM generates.Meaning if you ran this a few times over the same corpus, you’ll probably get different performance depending upon the order of the way you input the data and the classification tag the LLM ultimately decided upon.Here’s an idea that is order invariant: embed first, take samples from clusters, and ask the LLM to label the 5 or so samples you’ve taken. The clusters are serving as soft candidate labels and the LLM turns them into actual interpretable explicit labels.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45651145,
+    "by": "nreece",
+    "timeISO": "2025-10-21T00:35:05.000Z",
+    "textPlain": "Am I understanding it right that for each new text (tweet) you generate its embedding first, try to match across existing vector embeddings for all other text (full text or bag of words), and then send the text to the LLM for tag classification only if no match is found or otherwise classify it to the same tag for which a match was found.Will it be any better if you sent a list of existing tags with each new text to the LLM, and asked it to classify to one of them or generate a new tag? Possibly even skipping embeddings and vector search altogether.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45650777,
+    "by": "dan_h",
+    "timeISO": "2025-10-20T23:38:52.000Z",
+    "textPlain": "This is very similar to how I've approached classifying RSS articles by topic on my personal project[1].  However to generate the embedding vector for each topic, I take the average vector of the top N articles tagged with that topic when sorted by similarity to the topic vector itself.  Since I only consider topics created in the last few months, it helps adjust topics to account for semantic changes over time.  It also helps with flagging topics that are \"too similar\" and merging them when clusters sufficiently overlap.There's certainly more tweaking that needs to be done but I've been pretty happy with the results so far.1: jesterengine.com",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45649888,
     "by": "axpy906",
     "timeISO": "2025-10-20T21:51:36.000Z",
     "textPlain": "Arthur’s classifier will only be as accurate as their retrieval. The approach depends on the candidates to be the correct ones for classification to work.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45650689,
+    "by": "kpw94",
+    "timeISO": "2025-10-20T23:27:25.000Z",
+    "textPlain": "Nice!So the cache check tries to find if a previously existing text embedding has >0.8 match with the current text.If you get a cache hit here, iiuc, you return that matched' text label right away. But do you also insert a text embedding of the current text in the text embeddings table? Or do you only insert it in case of cache miss?From reading the GitHub readme it seems you only \"store text embedding for future lookups\" in the case of cache miss. This is by design to keep the text embedding table not too big?",
     "parent": 45571423,
     "depth": 1
   },
@@ -38,6 +62,30 @@
     "textPlain": "If you already have your categories defined, you might even be able to skip a step and just compare embeddings.I wrote a categorization script that sorts customer-service calls into one of 10 categories.  Wrote descriptions of each category, then translated into embedding.Then created embeddings for the call notes and matched to closest category using cosine_similarity.",
     "parent": 45571423,
     "depth": 1
+  },
+  {
+    "id": 45650614,
+    "by": "deepsquirrelnet",
+    "timeISO": "2025-10-20T23:15:59.000Z",
+    "textPlain": "I think a less order biased, more straightforward way would be just to vectorize everything, perform clustering and then label the clusters with the LLM.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45651335,
+    "by": "nico",
+    "timeISO": "2025-10-21T01:03:16.000Z",
+    "textPlain": "I just built a logistic regression classifier for emails and agreeJust using embeddings you can get really good classifiers for very cheapYou can use small embeddings models too, and can engineer different features to be embedded as wellAdditionally, with email at least, depending on the categories you need, you only need about 50-100 examples for 95-100% accuracyAnd if you build a simple CLI tool to fetch/label emails, it’s pretty easy/fast to get the data",
+    "parent": 45651001,
+    "depth": 2
+  },
+  {
+    "id": 45651447,
+    "by": "portaouflop",
+    "timeISO": "2025-10-21T01:21:02.000Z",
+    "textPlain": "I am doing a similar thing for technical documentation, basically i want to recommend some docs at the end of each document.\nI wanted to use the same approach you outlined to generate labels for each document and thus easily find some “further reading” to recommend for each.How big should my sample size be to be representative ? It’s a fairly large list of docs across several products and deployment options. I wanted to pick a number of docs per product. \nMaybe I’ll skip the steps 4/5 as I only need to repeat it occasionally once I labelled everything once",
+    "parent": 45651001,
+    "depth": 2
   },
   {
     "id": 45650276,
@@ -56,10 +104,42 @@
     "depth": 2
   },
   {
+    "id": 45650812,
+    "by": "frenchmajesty",
+    "timeISO": "2025-10-20T23:42:52.000Z",
+    "textPlain": "Op here. Yes that's right. We do also insert the current text embedding on misses to expand the boundaries of the cluster.For instance: I love McDonalds (1). I love burgers. (0.99) I love cheeseburgers with ketchup (?).This is a bad example but in this case the last text could end up right at the boundary of the similarity to that 1st label if we did not store the 2nd, which could cause a cluster miss we don't want.We only store the text on cache misses, though you could do both. I had not considered that idea but it make sense. I'm not very concerned about the dataset size because vector storage is generally cheap (~ $2/mo for 1M vectors) and the savings in $$$ not spend generating tokens covers for that expense generously.",
+    "parent": 45650689,
+    "depth": 2
+  },
+  {
+    "id": 45650688,
+    "by": "copypaper",
+    "timeISO": "2025-10-20T23:27:21.000Z",
+    "textPlain": "I originally settled on doing this, but the problem is that you have to re-calculate everything if you ever add/remove a category. If your categories will always be static, that will work fine. But it's more than likely you'll eventually have to add another category down the line.If your categories are dynamic, the way OP handles it will be much cheaper as the number of tweets (or customer service calls in your case) grows, as long as the cache hit rate is >0%. Each tweet will get it's own label, i.e. \"joke_about_bad_technology_choices\". Each of these labels gets put into a category, i.e. \"tech_jokes\". If you add/remove a category you would still need to re-calculate everything, however you would only need to re-calculate the labels to categories as opposed to every single tweet. Since similar tweets can share the same labels, you end up with less labels than total amount of tweets. As you reach the asymptotic ceiling, as mentioned in OPs post, your cost to re-embed labels to categories also becomes an asymptotic ceiling.If the number of items you're categorizing is a couple thousand at most and you rarely add/remove categories, it's probably not worth the complexity. But in my case (and ops) it's worth it as the number of items grows infinitely.",
+    "parent": 45649675,
+    "depth": 2
+  },
+  {
+    "id": 45650875,
+    "by": "minimaxir",
+    "timeISO": "2025-10-20T23:55:35.000Z",
+    "textPlain": "This works in a pinch but is much less reliable than using a curated set of representative examples from each targeted class.",
+    "parent": 45649675,
+    "depth": 2
+  },
+  {
     "id": 45649841,
     "by": "nerdponx",
     "timeISO": "2025-10-20T21:47:06.000Z",
     "textPlain": "How did you construct the embedding? Sum of individual token vectors, or something more sophisticated?",
+    "parent": 45649675,
+    "depth": 2
+  },
+  {
+    "id": 45649818,
+    "by": "kurttheviking",
+    "timeISO": "2025-10-20T21:45:12.000Z",
+    "textPlain": "Out of curiosity, what embedding model did you use for this?",
     "parent": 45649675,
     "depth": 2
   },
@@ -72,11 +152,11 @@
     "depth": 2
   },
   {
-    "id": 45649818,
-    "by": "kurttheviking",
-    "timeISO": "2025-10-20T21:45:12.000Z",
-    "textPlain": "Out of curiosity, what embedding model did you use for this?",
-    "parent": 45649675,
+    "id": 45650733,
+    "by": "frenchmajesty",
+    "timeISO": "2025-10-20T23:32:40.000Z",
+    "textPlain": "OP here. Yes that works too and get you to the same result. Remove risks for bias but the trade-off is higher marginal cost and latency.The idea is also that this would be a classification system used in production whereby you classify data as it comes, so the \"rolling labels\" problem still exists there.In my experience though, you can dramatically reduce unwanted bias by tuning your cosine similarity filter.",
+    "parent": 45650614,
     "depth": 2
   }
 ]

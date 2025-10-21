@@ -56,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45651443,
+    "by": "kscarlet",
+    "timeISO": "2025-10-21T01:20:29.000Z",
+    "textPlain": "Ah, the eternal problem of asynch unwind!  (without-interrupts \n    (acquire-resource)\n    (unwind-protect\n        (with-local-interrupts\n          (do-jobs-might-block-or-whatever))\n      (release-resource)))\n\n... and to cancel:  (interrupt-thread thread (lambda () (abort-thread)))\n\nI think what is really needed is just exception (unwind cleanup) mechanism and a cheap way to mask interrupts. Signal deferral mechanism does exactly that -- so that with(out)-interrupts just simply set a variable and don't need to go through syscall.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
     "id": 45645283,
     "by": "loeg",
     "timeISO": "2025-10-20T15:50:21.000Z",
@@ -64,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45647783,
-    "by": "HarHarVeryFunny",
-    "timeISO": "2025-10-20T19:00:29.000Z",
-    "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
+    "id": 45651222,
+    "by": "BobbyTables2",
+    "timeISO": "2025-10-21T00:46:34.000Z",
+    "textPlain": "One does not simply stop a thread…",
     "parent": 45589156,
     "depth": 1
   },
@@ -76,6 +84,22 @@
     "by": "Asmod4n",
     "timeISO": "2025-10-20T19:41:33.000Z",
     "textPlain": "When you are on Linux the easiest way is to use signalfd. No unsafe async signal handling, just handling signals by reading from a fd.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45645756,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T16:28:13.000Z",
+    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45647783,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-10-20T19:00:29.000Z",
+    "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
     "parent": 45589156,
     "depth": 1
   },
@@ -96,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45649812,
-    "by": "EbEsacAig",
-    "timeISO": "2025-10-20T21:44:50.000Z",
-    "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645392,
     "by": "a-dub",
     "timeISO": "2025-10-20T15:58:29.000Z",
     "textPlain": "this stuff always seemed a mess. in practice i've always just used async io (non-blocking) and condition variables with shutdown flags.trying to preemptively terminate a thread in a reliable fashion under linux always seemed like a fool's errand.fwiw. it's not all that important, they get cleaned up at exit anyway. (and one should not be relying on operating system thread termination facilities for this sort of thing.)",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45649812,
+    "by": "EbEsacAig",
+    "timeISO": "2025-10-20T21:44:50.000Z",
+    "textPlain": "I claim that this is a solved problem, without rseq.1. Any given thread in an application waits for \"events of interest\", then performs computations based on those events (= keeps the CPU busy for a while), then goes back to waiting for more events.2. There are generally two kinds of events: one kind that you can wait for, possibly indefinitely, with ppoll/pselect (those cover signals, file descriptors, and timing), and another kind you can wait for, possibly indefinitely, with pthread_cond_wait (or even pthread_cond_timedwait). pthread_cond_wait cannot be interrupted by signals (by design), and that's a good thing. The first kind is generally used for interacting with the environment through non-blocking syscalls (you can even notice SIGCHLD when a child process exits, and reap it with a WNOHANG waitpid()), while the second kind is used for distributing computation between cores.3. The two kinds of waits are generally not employed together in any given thread, because while you're blocked on one kind, you cannot wait for the other kind (e.g., while you're blocked in ppoll(), you can't be blocked in pthread_cond_wait()). Put differently, you design your application in the first place such that threads wait like this.4. The fact that pthread_mutex_lock in particular is not interruptible by signals (by design!) is no problem, because no thread should block on any mutex indefinitely (or more strongly: mutex contention should be low).5. In a thread that waits for events via ppoll/pselect, use a signal to indicate a need to stop. If the CPU processing done in this kind of thread may take long, break it up into chunks, and check sigpending() every once in a while, during the CPU-intensive computation (or even unblock the signal for the thread every once in a while, to let the signal be delivered -- you can act on that too).6. In a thread that waits for events via pthread_cond_wait, relax the logical condition \"C\" that is associated with the condvar to ((C) || stop), where",
     "parent": 45589156,
     "depth": 1
   },
@@ -152,12 +176,12 @@
     "depth": 1
   },
   {
-    "id": 45645756,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-20T16:28:13.000Z",
-    "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
-    "parent": 45589156,
-    "depth": 1
+    "id": 45651399,
+    "by": "manwe150",
+    "timeISO": "2025-10-21T01:12:41.000Z",
+    "textPlain": "One of my more annoying gotchas on Windows is that despite this advice being very reasonable sounding, the runtime itself (I believe it actually happens in the kernel) essentially calls TerminateThread on all child threads before running global destructors and atexit hooks. Good luck following this advice when the kernel actively fights you when it come time to shutdown",
+    "parent": 45645320,
+    "depth": 2
   },
   {
     "id": 45649963,
@@ -205,6 +229,14 @@
     "timeISO": "2025-10-20T18:42:48.000Z",
     "textPlain": "IIRC rseq was originally proposed by Google to support their pure-userspace read-copy-update (RCU) implementation, which relied on per-CPU not per-thread data.",
     "parent": 45645249,
+    "depth": 2
+  },
+  {
+    "id": 45645875,
+    "by": "rostayob",
+    "timeISO": "2025-10-20T16:38:26.000Z",
+    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
+    "parent": 45645756,
     "depth": 2
   },
   {
@@ -261,14 +293,6 @@
     "timeISO": "2025-10-20T17:18:56.000Z",
     "textPlain": "user-space threads have entirely different semantics from kernel threads. both have their uses, but should generally not be conflated.",
     "parent": 45645895,
-    "depth": 2
-  },
-  {
-    "id": 45645875,
-    "by": "rostayob",
-    "timeISO": "2025-10-20T16:38:26.000Z",
-    "textPlain": "This is noted in the blog post, but the problem is that sometimes you don't have the freedom to do so. See this sidenote and the section next to it: https://mazzo.li/posts/stopping-linux-threads.html#fn3 .",
-    "parent": 45645756,
     "depth": 2
   }
 ]
