@@ -1,13 +1,5 @@
 [
   {
-    "id": 45654515,
-    "by": "radarsat1",
-    "timeISO": "2025-10-21T11:17:40.000Z",
-    "textPlain": "I'm curious, what is the use case for open-ended labeling like this? I can think of clustering ie finding similar tweets but that can also just be done via vector similarity. Otherwise maybe the labels contain interesting semantics but 6000 sounds like too many to analyze by hand. Maybe you are using LLMs to do further clustering and working on a graph or hierarchical \"ontology\" of tweets?",
-    "parent": 45571423,
-    "depth": 1
-  },
-  {
     "id": 45651001,
     "by": "minimaxir",
     "timeISO": "2025-10-21T00:14:11.000Z",
@@ -24,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45652701,
+    "by": "kgeist",
+    "timeISO": "2025-10-21T05:20:48.000Z",
+    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45654515,
+    "by": "radarsat1",
+    "timeISO": "2025-10-21T11:17:40.000Z",
+    "textPlain": "I'm curious, what is the use case for open-ended labeling like this? I can think of clustering ie finding similar tweets but that can also just be done via vector similarity. Otherwise maybe the labels contain interesting semantics but 6000 sounds like too many to analyze by hand. Maybe you are using LLMs to do further clustering and working on a graph or hierarchical \"ontology\" of tweets?",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
     "id": 45654360,
     "by": "vessenes",
     "timeISO": "2025-10-21T10:41:10.000Z",
@@ -32,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45652701,
-    "by": "kgeist",
-    "timeISO": "2025-10-21T05:20:48.000Z",
-    "textPlain": "I did something similar: made an LLM generate a list of \"blockers\" per transcribed customer call, calculated the blockers' embeddings, and clustered them.The OP has 6k labels and discusses time + cost, but what I found is:- a small, good enough locally hosted embedding model can be faster than OpenAI's embedding models (provided you have a fast GPU available), and it doesn't cost anything- for just 6k labels you don't need Pinecone at all, with Python it took me like a couple of seconds to do all calculations in memoryFor classification + embedding you can use locally hosted models, it's not a particularly complex task that requires huge models or huge GPUs. If you plan to do such classification tasks regularly, you can make a one-time investment (buy a GPU) and then you'll be able to run many experiments with your data without having to think about costs anymore.",
+    "id": 45650463,
+    "by": "dinobones",
+    "timeISO": "2025-10-20T22:55:02.000Z",
+    "textPlain": "Dunno if this passes the bootstrapping test.This is sensitive to the initial candidate set of labels that the LLM generates.Meaning if you ran this a few times over the same corpus, you’ll probably get different performance depending upon the order of the way you input the data and the classification tag the LLM ultimately decided upon.Here’s an idea that is order invariant: embed first, take samples from clusters, and ask the LLM to label the 5 or so samples you’ve taken. The clusters are serving as soft candidate labels and the LLM turns them into actual interpretable explicit labels.",
     "parent": 45571423,
     "depth": 1
   },
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45650463,
-    "by": "dinobones",
-    "timeISO": "2025-10-20T22:55:02.000Z",
-    "textPlain": "Dunno if this passes the bootstrapping test.This is sensitive to the initial candidate set of labels that the LLM generates.Meaning if you ran this a few times over the same corpus, you’ll probably get different performance depending upon the order of the way you input the data and the classification tag the LLM ultimately decided upon.Here’s an idea that is order invariant: embed first, take samples from clusters, and ask the LLM to label the 5 or so samples you’ve taken. The clusters are serving as soft candidate labels and the LLM turns them into actual interpretable explicit labels.",
+    "id": 45654938,
+    "by": "vladde",
+    "timeISO": "2025-10-21T12:24:13.000Z",
+    "textPlain": "could someone please explain what this means?> cluster the inconsistent labels by embedding them in a vector space",
     "parent": 45571423,
     "depth": 1
   },
@@ -80,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45653188,
-    "by": "rao-v",
-    "timeISO": "2025-10-21T06:59:26.000Z",
-    "textPlain": "You could probably speed this up a lot by getting the token log probs and finding your category based on the highest log prob token that is in the category (you may need multiple steps if your categories share token prefixes)",
+    "id": 45654953,
+    "by": "deadbabe",
+    "timeISO": "2025-10-21T12:25:48.000Z",
+    "textPlain": "I just did the same thing but instead of vector space I used full text search with sufficiently  tokenized text and searched for possible existing keyword matches before assigning the label, and basically\ngot the same results or better than the article at a fraction of the cost (no need to vectorize).It’s fairly obvious tbh, an agent needs a way to search, not just expect it to produce the same labels that magically match prior results. Have we been so blinded we’ve forgotten this kind of stuff?",
     "parent": 45571423,
     "depth": 1
   },
@@ -92,6 +100,14 @@
     "by": "axpy906",
     "timeISO": "2025-10-20T21:51:36.000Z",
     "textPlain": "Arthur’s classifier will only be as accurate as their retrieval. The approach depends on the candidates to be the correct ones for classification to work.",
+    "parent": 45571423,
+    "depth": 1
+  },
+  {
+    "id": 45653188,
+    "by": "rao-v",
+    "timeISO": "2025-10-21T06:59:26.000Z",
+    "textPlain": "You could probably speed this up a lot by getting the token log probs and finding your category based on the highest log prob token that is in the category (you may need multiple steps if your categories share token prefixes)",
     "parent": 45571423,
     "depth": 1
   },
@@ -184,19 +200,11 @@
     "depth": 2
   },
   {
-    "id": 45654397,
-    "by": "inanothertime",
-    "timeISO": "2025-10-21T10:48:30.000Z",
-    "textPlain": "From what I understood, we check whether \"snake case category\" from step (1) is already known to us (in the cache) so that we need no further processing. So that step (2) and further don't apply for categories that were already produced earlier.",
-    "parent": 45654360,
-    "depth": 2
-  },
-  {
-    "id": 45654253,
-    "by": "frenchmajesty",
-    "timeISO": "2025-10-21T10:24:07.000Z",
-    "textPlain": "OP here. I agree with you. For production use we use VoyageAI which is usually 2x faster than OpenAI at similar quality levels (p90 is < 200ms) but we're looking at spinning up a local embedding in our cloud environment, that would make p95 < 100ms and make cost negligible as well.",
-    "parent": 45652701,
+    "id": 45654751,
+    "by": "alansaber",
+    "timeISO": "2025-10-21T11:56:41.000Z",
+    "textPlain": "problem is these dont bin properly",
+    "parent": 45650018,
     "depth": 2
   },
   {
@@ -208,6 +216,22 @@
     "depth": 2
   },
   {
+    "id": 45654253,
+    "by": "frenchmajesty",
+    "timeISO": "2025-10-21T10:24:07.000Z",
+    "textPlain": "OP here. I agree with you. For production use we use VoyageAI which is usually 2x faster than OpenAI at similar quality levels (p90 is < 200ms) but we're looking at spinning up a local embedding in our cloud environment, that would make p95 < 100ms and make cost negligible as well.",
+    "parent": 45652701,
+    "depth": 2
+  },
+  {
+    "id": 45654397,
+    "by": "inanothertime",
+    "timeISO": "2025-10-21T10:48:30.000Z",
+    "textPlain": "From what I understood, we check whether \"snake case category\" from step (1) is already known to us (in the cache) so that we need no further processing. So that step (2) and further don't apply for categories that were already produced earlier.",
+    "parent": 45654360,
+    "depth": 2
+  },
+  {
     "id": 45654354,
     "by": "yahoozoo",
     "timeISO": "2025-10-21T10:40:22.000Z",
@@ -216,18 +240,18 @@
     "depth": 2
   },
   {
+    "id": 45654992,
+    "by": "TheTaytay",
+    "timeISO": "2025-10-21T12:30:18.000Z",
+    "textPlain": "For any label it generates, he uses an embedding model to generate the embedding vector for it. (You could say that \"embeds the label in a vector space\")\nThen, he looks at that generated embedding for that label and asks if there is another previously-generated embedding that had a _very_ similar embedding generated for it. If you set some sort of \"how close is close enough\" threshold for that, you are \"clustering\" all generated labels, by saying \"These 10 labels have slightly different words, but essentially mean the same thing.",
+    "parent": 45654938,
+    "depth": 2
+  },
+  {
     "id": 45650688,
     "by": "copypaper",
     "timeISO": "2025-10-20T23:27:21.000Z",
     "textPlain": "I originally settled on doing this, but the problem is that you have to re-calculate everything if you ever add/remove a category. If your categories will always be static, that will work fine. But it's more than likely you'll eventually have to add another category down the line.If your categories are dynamic, the way OP handles it will be much cheaper as the number of tweets (or customer service calls in your case) grows, as long as the cache hit rate is >0%. Each tweet will get it's own label, i.e. \"joke_about_bad_technology_choices\". Each of these labels gets put into a category, i.e. \"tech_jokes\". If you add/remove a category you would still need to re-calculate everything, however you would only need to re-calculate the labels to categories as opposed to every single tweet. Since similar tweets can share the same labels, you end up with less labels than total amount of tweets. As you reach the asymptotic ceiling, as mentioned in OPs post, your cost to re-embed labels to categories also becomes an asymptotic ceiling.If the number of items you're categorizing is a couple thousand at most and you rarely add/remove categories, it's probably not worth the complexity. But in my case (and ops) it's worth it as the number of items grows infinitely.",
-    "parent": 45649675,
-    "depth": 2
-  },
-  {
-    "id": 45654154,
-    "by": "TZubiri",
-    "timeISO": "2025-10-21T10:03:36.000Z",
-    "textPlain": "I had this same idea mid 2024, but embeddings and cosine similarity is way less consistent, not even the classical king+woman=queen work. The latest embedding models from OpenAI are from like 2023. Did you actually try this? What embedding models work for this?",
     "parent": 45649675,
     "depth": 2
   },
@@ -260,6 +284,14 @@
     "by": "svachalek",
     "timeISO": "2025-10-20T21:48:46.000Z",
     "textPlain": "That was my first thought, why even generate tags? Curious to see if anyone's proved it's worse empirically though.",
+    "parent": 45649675,
+    "depth": 2
+  },
+  {
+    "id": 45654154,
+    "by": "TZubiri",
+    "timeISO": "2025-10-21T10:03:36.000Z",
+    "textPlain": "I had this same idea mid 2024, but embeddings and cosine similarity is way less consistent, not even the classical king+woman=queen work. The latest embedding models from OpenAI are from like 2023. Did you actually try this? What embedding models work for this?",
     "parent": 45649675,
     "depth": 2
   },
