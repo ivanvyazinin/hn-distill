@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45646293,
-    "by": "ibejoeb",
-    "timeISO": "2025-10-20T17:04:24.000Z",
-    "textPlain": "libcurl dealt with this a few months ago, and the sentiment is about the same: thread cancellation in glibc is hairy. The short summary (which I think is accurate) is that an hostname query via libnss ultimately had to read a config file, and glibc's `open` is a thead cancellation point, so if it's canceled, it'll won't free memory that was allocated before the `open`.The write-up is on how they're dealing with it starts at https://eissing.org/icing/posts/pthread_cancel/.",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645249,
     "by": "ethin",
     "timeISO": "2025-10-20T15:47:42.000Z",
     "textPlain": "This was a fun read, I didn't know about rseq until today! And before this I reasonably assumed that the naive busy-wait thing would typically be what you'd do in a thread in most circumstances. Or that at least most threads do loop in that manner. I knew that signals and such were a problem but I didn't think just wanting to stop a thread would be so hard! :)Hopefully this improves eventually? Who knows?",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45646293,
+    "by": "ibejoeb",
+    "timeISO": "2025-10-20T17:04:24.000Z",
+    "textPlain": "libcurl dealt with this a few months ago, and the sentiment is about the same: thread cancellation in glibc is hairy. The short summary (which I think is accurate) is that an hostname query via libnss ultimately had to read a config file, and glibc's `open` is a thead cancellation point, so if it's canceled, it'll won't free memory that was allocated before the `open`.The write-up is on how they're dealing with it starts at https://eissing.org/icing/posts/pthread_cancel/.",
     "parent": 45589156,
     "depth": 1
   },
@@ -72,26 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45651443,
-    "by": "kscarlet",
-    "timeISO": "2025-10-21T01:20:29.000Z",
-    "textPlain": "Ah, the eternal problem of asynch unwind!  (without-interrupts \n    (acquire-resource)\n    (unwind-protect\n        (with-local-interrupts\n          (do-jobs-might-block-or-whatever))\n      (release-resource)))\n\n... and to cancel:  (interrupt-thread thread (lambda () (abort-thread)))\n\nI think what is really needed is just exception (unwind cleanup) mechanism and a cheap way to mask interrupts. Signal deferral mechanism does exactly that -- so that with(out)-interrupts just simply set a variable and don't need to go through syscall.",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
     "id": 45645756,
     "by": "quietbritishjim",
     "timeISO": "2025-10-20T16:28:13.000Z",
     "textPlain": "This is just doubling down on the wrong approach.The right approach is to avoid simple syscalls like sleep() or recv(), and instead call use multiplexing calls like epoll() or io_uring(). These natively support being interrupted by some other thread because you can pass, at minimum, two things for them to wait for: the thing you're actually interested in, and some token that can be signalled from another thread. For example, you could start a unix socket pair which you do a read wait on alongside the real work, then write to it from another thread to signal cancellation. Of course, by the time you're doing that you really could multiplex useful IO too.You also need to manually check this mechanism from time to time even if you're doing CPU bound work.If you're using an async framework like asyncio/Trio in Python or ASIO in C++, you can request a callback to be run from another other thread (this is the real foothold because it's effectively interrupting a long sleep/recv/whatever to do other work in the thread) at which point you can call cancellation on whatever IO is still outstanding (e.g. call task.cancel() in asyncio). Then you're effectively allowing this cancellation to happen at every await point.(In C# you can pass around a CancellationToken, which you can cancel directly from another thread to save that extra bit of indirection.)",
-    "parent": 45589156,
-    "depth": 1
-  },
-  {
-    "id": 45651222,
-    "by": "BobbyTables2",
-    "timeISO": "2025-10-21T00:46:34.000Z",
-    "textPlain": "One does not simply stop a thread…",
     "parent": 45589156,
     "depth": 1
   },
@@ -108,6 +92,22 @@
     "by": "HarHarVeryFunny",
     "timeISO": "2025-10-20T19:00:29.000Z",
     "textPlain": "If you just want to stop and/or kill all child threads, you can read the list of thread IDs from /proc/pid/task, and send a signal to them with tgkill().",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45651443,
+    "by": "kscarlet",
+    "timeISO": "2025-10-21T01:20:29.000Z",
+    "textPlain": "Ah, the eternal problem of asynch unwind!  (without-interrupts \n    (acquire-resource)\n    (unwind-protect\n        (with-local-interrupts\n          (do-jobs-might-block-or-whatever))\n      (release-resource)))\n\n... and to cancel:  (interrupt-thread thread (lambda () (abort-thread)))\n\nI think what is really needed is just exception (unwind cleanup) mechanism and a cheap way to mask interrupts. Signal deferral mechanism does exactly that -- so that with(out)-interrupts just simply set a variable and don't need to go through syscall.",
+    "parent": 45589156,
+    "depth": 1
+  },
+  {
+    "id": 45651222,
+    "by": "BobbyTables2",
+    "timeISO": "2025-10-21T00:46:34.000Z",
+    "textPlain": "One does not simply stop a thread…",
     "parent": 45589156,
     "depth": 1
   },
@@ -216,19 +216,19 @@
     "depth": 2
   },
   {
-    "id": 45647921,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-20T19:12:08.000Z",
-    "textPlain": "Note that the situation with libcurl is very specific: lookup with libnss is only available as a synchronous call. All other syscalls they make can be done with async APIs, which can easily be cancelled without any of the trickery discussed here.",
-    "parent": 45646293,
-    "depth": 2
-  },
-  {
     "id": 45647546,
     "by": "kccqzy",
     "timeISO": "2025-10-20T18:42:48.000Z",
     "textPlain": "IIRC rseq was originally proposed by Google to support their pure-userspace read-copy-update (RCU) implementation, which relied on per-CPU not per-thread data.",
     "parent": 45645249,
+    "depth": 2
+  },
+  {
+    "id": 45647921,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-20T19:12:08.000Z",
+    "textPlain": "Note that the situation with libcurl is very specific: lookup with libnss is only available as a synchronous call. All other syscalls they make can be done with async APIs, which can easily be cancelled without any of the trickery discussed here.",
+    "parent": 45646293,
     "depth": 2
   },
   {
@@ -285,6 +285,14 @@
     "timeISO": "2025-10-20T16:43:23.000Z",
     "textPlain": "yes, maybe except if you don't have a single tight loop and stop checks are not just done once in the loop body but manually sprinkled through various places of your code (e.g. thing a long running compute task split into part 1,2(tight loop),3(loop),4 then you probably want a stop check between each of them and in each inner iteration of 3 but probably not in each inner iteration of 2 (as each check is an atomic load).",
     "parent": 45645884,
+    "depth": 2
+  },
+  {
+    "id": 45652338,
+    "by": "AtlasBarfed",
+    "timeISO": "2025-10-21T03:59:14.000Z",
+    "textPlain": "I'm unfamiliar with this, is \"coop multithreading\" basically equivalent to Windows 3.1 style coop multitasking, where a thread can hang the whole application by ... not cooperating?Does anyone here remember Windows 3.1?",
+    "parent": 45645895,
     "depth": 2
   },
   {
