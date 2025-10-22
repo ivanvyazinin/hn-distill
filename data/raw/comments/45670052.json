@@ -1,5 +1,13 @@
 [
   {
+    "id": 45675856,
+    "by": "andai",
+    "timeISO": "2025-10-22T22:16:09.000Z",
+    "textPlain": "I use these two all the time to encode and cut mp4s.    ffmp4() {\n        input_file=\"$1\"\n        output_file=\"${input_file%.*}_sd.mp4\"\n\n        ffmpeg -i \"$input_file\" -c:v libx264 -crf 33 -profile:v baseline -level 3.0 -pix_fmt yuv420p -movflags faststart \"$output_file\"\n\n        echo \"Compressed video saved as: $output_file\"\n    }\n\n    fftime() {\n        input_file=\"$1\"\n        output_file=\"${input_file%.*}_cut.mp4\"\n        ffmpeg -i \"$input_file\" -c copy -ss \"$2\" -to \"$3\" \"$output_file\"\n\n        echo \"Cut video saved as: $output_file\"\n    }\n\n    ffmp4 foo.webm \n        -> foo_sd.mp4\n\n    fftime foo.mp4 01:30 01:45\n        -> foo_cut.mp4\n\nNote, fftime copies the audio and video data without re-encoding, which can be a little janky, but often works fine, and can be much (100x) faster on large files. To re-encode just remove \"-c copy\"",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
     "id": 45673681,
     "by": "latexr",
     "timeISO": "2025-10-22T19:05:55.000Z",
@@ -12,6 +20,22 @@
     "by": "oceanplexian",
     "timeISO": "2025-10-22T18:11:33.000Z",
     "textPlain": "It's weird how the circle of life progresses for a developer or whatever.- When I was a fresh engineer I used a pretty vanilla shell environment- When I got a year or two of experience, I wrote tons of scripts and bash aliases and had a 1k+ line .bashrc the same as OP- Now, as a more tenured engineer (15 years of experience), I basically just want a vanilla shell with zero distractions, aliases or scripts and use native UNIX implementations. If it's more complicated than that, I'll code it in Python or Go.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675754,
+    "by": "Noumenon72",
+    "timeISO": "2025-10-22T22:07:15.000Z",
+    "textPlain": "> ocr my_image.png extracts text from an image and prints it to stdout. It only works on macOSThe Mac Shortcut at https://github.com/e-kotov/macos-shortcuts lets you select a particular area of the screen (as with Cmd-Shift-4) and copies the text out of that, allowing you to copy exactly the text you need from anywhere on your screen with one keyboard shortcut. Great for popups with unselectable text, and copying error messages from coworkers' screenshares.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675495,
+    "by": "Noumenon72",
+    "timeISO": "2025-10-22T21:39:31.000Z",
+    "textPlain": "While you're creating and testing aliases, it's handy to source your ~/.zshrc whenever you edit it:    alias vz=\"vim ~/.zshrc && . ~/.zshrc\"\n\nI alias mdfind to grep my .docx files on my Mac:    docgrep() {\n      mdfind \"\\\"$@\\\"\" -onlyin /Users/xxxx/Notes 2> >(grep --invert-match ' \\[UserQueryParser\\] ' >&2) | grep -v -e '/Inactive/' | sort\n    }\n\nI use an `anon` function to anonymize my Mac clipboard when I want to paste something to the public ChatGPT, company Slack, private notes, etc. I ran it through itself before pasting it here, for example.    anonymizeclipboard() {\n      my_user_id=xxxx\n      account_ids=\"1234567890|1234567890\"  #regex\n      corp_words=\"xxxx|xxxx|xxxx|xxxx|xxxx\"  #regex\n      project_names=\"xxxx|xxxx|xxxx|xxxx|xxxx\"  # regex\n      pii=\"xxxx|xxxx|xxxx|xxxx|xxxx|xxxx\"  # regex\n      hostnames=\"xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx|xxxx\"  # regex\n      # anonymize IPs\n      pbpaste | sed -E -e 's/([0-9]{1,3})\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}/\\1.x.x.x/g' \\\n      -e \"s/(${corp_words}|${project_names}|${my_user_id}|${pii}|${hostnames})/xxxx/g\" -e \"s/(${account_ids})/1234567890/g\" | pbcopy\n      pbpaste\n    }\n\n    alias anon=anonymizeclipboard\n\nIt prints the new clipboard to stdout so you can inspect what you'll be pasting for anything it missed.",
     "parent": 45670052,
     "depth": 1
   },
@@ -32,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45674974,
-    "by": "chasil",
-    "timeISO": "2025-10-22T20:50:28.000Z",
-    "textPlain": "I like this one.  $ cat /usr/local/bin/awkmail\n  #!/bin/gawk -f\n\n  BEGIN { smtp=\"/inet/tcp/0/smtp.yourco.com/25\";\n  ORS=\"\\r\\n\"; r=ARGV[1]; s=ARGV[2]; sbj=ARGV[3]; # /bin/awkmail to from subj < in\n\n  print \"helo \" ENVIRON[\"HOSTNAME\"]        |& smtp;  smtp |& getline j; print j\n  print \"mail from:\" s                     |& smtp;  smtp |& getline j; print j\n  if(match(r, \",\"))\n  {\n   split(r, z, \",\")\n   for(y in z) { print \"rcpt to:\" z[y]     |& smtp;  smtp |& getline j; print j }\n  }\n  else { print \"rcpt to:\" r                |& smtp;  smtp |& getline j; print j }\n  print \"data\"                             |& smtp;  smtp |& getline j; print j\n\n  print \"From:\" s                          |& smtp;  ARGV[2] = \"\"   # not a file\n  print \"To:\" r                            |& smtp;  ARGV[1] = \"\"   # not a file\n  if(length(sbj)) { print \"Subject: \" sbj  |& smtp;  ARGV[3] = \"\" } # not a file\n  print \"\"                                 |& smtp\n\n  while(getline > 0) print                 |& smtp\n\n  print \".\"                                |& smtp;  smtp |& getline j; print j\n  print \"quit\"                             |& smtp;  smtp |& getline j; print j\n\n  close(smtp) } # /inet/protocol/local-port/remote-host/remote-port",
+    "id": 45674999,
+    "by": "alberand",
+    "timeISO": "2025-10-22T20:52:40.000Z",
+    "textPlain": "My fav script to unpack anything, found a few years ago somewhere      # ex - archive extractor\n      # usage: ex <file>\n      function ex() {\n          if [ -f $1 ] ; then\n          case $1 in\n              *.tar.bz2) tar xjf $1 ;;\n              *.tar.gz) tar xzf $1 ;;\n              *.tar.xz) tar xf $1 ;;\n              *.bz2) bunzip2 $1 ;;\n              *.rar) unrar x $1 ;;\n              *.gz) gunzip $1 ;;\n              *.tar) tar xf $1 ;;\n              *.tbz2) tar xjf $1 ;;\n              *.tgz) tar xzf $1 ;;\n              *.zip) unzip $1 ;;\n              *.Z) uncompress $1;;\n              *.7z) 7z x $1 ;;\n              *) echo \"'$1' cannot be extracted via ex()\" ;;\n          esac\n          else\n              echo \"'$1' is not a valid file\"\n          fi\n      }",
     "parent": 45670052,
     "depth": 1
   },
@@ -48,18 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45675189,
-    "by": "CrimpCity",
-    "timeISO": "2025-10-22T21:11:27.000Z",
-    "textPlain": "Lately I’ve been using caffeinate to run long running scripts without interruption from sleep on Mac. Nothing crazy but could be useful to newer devs.",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
-    "id": 45674999,
-    "by": "alberand",
-    "timeISO": "2025-10-22T20:52:40.000Z",
-    "textPlain": "My fav script to unpack anything, found a few years ago somewhere      # ex - archive extractor\n      # usage: ex <file>\n      function ex() {\n          if [ -f $1 ] ; then\n          case $1 in\n              *.tar.bz2) tar xjf $1 ;;\n              *.tar.gz) tar xzf $1 ;;\n              *.tar.xz) tar xf $1 ;;\n              *.bz2) bunzip2 $1 ;;\n              *.rar) unrar x $1 ;;\n              *.gz) gunzip $1 ;;\n              *.tar) tar xf $1 ;;\n              *.tbz2) tar xjf $1 ;;\n              *.tgz) tar xzf $1 ;;\n              *.zip) unzip $1 ;;\n              *.Z) uncompress $1;;\n              *.7z) 7z x $1 ;;\n              *) echo \"'$1' cannot be extracted via ex()\" ;;\n          esac\n          else\n              echo \"'$1' is not a valid file\"\n          fi\n      }",
+    "id": 45675643,
+    "by": "sorenjan",
+    "timeISO": "2025-10-22T21:54:16.000Z",
+    "textPlain": "I got a ccurl python script that extracts the cookies from my Firefox profile and then passes those on to curl, that way I can get webpages where I'm logged in.",
     "parent": 45670052,
     "depth": 1
   },
@@ -72,26 +88,26 @@
     "depth": 1
   },
   {
+    "id": 45673475,
+    "by": "dannyobrien",
+    "timeISO": "2025-10-22T18:48:47.000Z",
+    "textPlain": "Historical note: getting hold of these scripts by chatting to various developers was the motivation for the original 2004 \"lifehacks\" talk[1][2]. If you ever get into an online argument over what is a \"life hack\" and what isn't, feel free to use short scripts like these as the canonical example.Otherwise, I am happy to be pulled into your discussion, Marshall McLuhan style[3] to adjudicate, for a very reasonable fee.[1] https://craphound.com/lifehacksetcon04.txt[2] https://archive.org/details/Notcon2004DannyOBrienLifehacks[3] https://www.openculture.com/2017/05/woody-allen-gets-marshal...",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675543,
+    "by": "amterp",
+    "timeISO": "2025-10-22T21:44:01.000Z",
+    "textPlain": "Love this, lots of great ideas I'll be stealing :)Folks interested in scripting like this might like this tool I'm working on https://github.com/amterp/radRad is built specifically for writing CLI scripts and is perfect for these sorts of small to medium scripts, takes a declarative approach to script arguments, and has first-class shell command integration. I basically don't write scripts in anything else anymore.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
     "id": 45673860,
     "by": "yipbub",
     "timeISO": "2025-10-22T19:19:00.000Z",
     "textPlain": "I have mkcd exactly ( I wonder how many of us do, it's so obvious)I have almost the same, but differently named with scratch(day), copy(xc), markdown quote(blockquote), murder, waitfor, tryna, etc.I used to use telegram-send with a custom notification sounnd a lot for notifications from long-running scripts if I walked away from the laptop.I used to have one called timespeak that would speak the time to me every hour or half hour.I have go_clone that clones a repo into GOPATH which I use for organising even non-go projects long after putting go projects in GOPATH stopped being needed.I liked writing one-offs, and I don't think it's premature optimization because I kept getting faster at it.",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
-    "id": 45673899,
-    "by": "WhyNotHugo",
-    "timeISO": "2025-10-22T19:21:26.000Z",
-    "textPlain": "> cpwd copies the current directory to the clipboard. Basically pwd | copy. I often use this when I’m in a directory and I want use that directory in another terminal tab; I copy it in one tab and cd to it in another. I use this once a day or so.You can configure your shell to notify the terminal of directory changes, and then use your terminal’s “open new window” function (eg: ctrl+shift+n) to open a new window retaining the current directory.",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
-    "id": 45674846,
-    "by": "nberkman",
-    "timeISO": "2025-10-22T20:38:35.000Z",
-    "textPlain": "Nice! Tangentially related: I built a (MacOS only) tool called clippy to be a much better pbcopy. It was just added to homebrew core. Among other things, it auto-detects when you want files as references so they paste into GUI apps as uploads, not bytes.  clippy image.png         # paste into Slack, etc. as upload\n\n  clippy -r                # copy most recent download\n\n  pasty                    # copy file in Finder, paste actual file here\n\nhttps://github.com/neilberkman/clippy / brew install clippy",
     "parent": 45670052,
     "depth": 1
   },
@@ -104,10 +120,58 @@
     "depth": 1
   },
   {
+    "id": 45674846,
+    "by": "nberkman",
+    "timeISO": "2025-10-22T20:38:35.000Z",
+    "textPlain": "Nice! Tangentially related: I built a (MacOS only) tool called clippy to be a much better pbcopy. It was just added to homebrew core. Among other things, it auto-detects when you want files as references so they paste into GUI apps as uploads, not bytes.  clippy image.png  # then paste into Slack, etc. as upload\n\n  clippy -r         # copy most recent download\n\n  pasty             # copy file in Finder, then paste actual file here\n\nhttps://github.com/neilberkman/clippy / brew install clippy",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45674974,
+    "by": "chasil",
+    "timeISO": "2025-10-22T20:50:28.000Z",
+    "textPlain": "I like this one.  $ cat /usr/local/bin/awkmail\n  #!/bin/gawk -f\n\n  BEGIN { smtp=\"/inet/tcp/0/smtp.yourco.com/25\";\n  ORS=\"\\r\\n\"; r=ARGV[1]; s=ARGV[2]; sbj=ARGV[3]; # /bin/awkmail to from subj < in\n\n  print \"helo \" ENVIRON[\"HOSTNAME\"]        |& smtp;  smtp |& getline j; print j\n  print \"mail from:\" s                     |& smtp;  smtp |& getline j; print j\n  if(match(r, \",\"))\n  {\n   split(r, z, \",\")\n   for(y in z) { print \"rcpt to:\" z[y]     |& smtp;  smtp |& getline j; print j }\n  }\n  else { print \"rcpt to:\" r                |& smtp;  smtp |& getline j; print j }\n  print \"data\"                             |& smtp;  smtp |& getline j; print j\n\n  print \"From:\" s                          |& smtp;  ARGV[2] = \"\"   # not a file\n  print \"To:\" r                            |& smtp;  ARGV[1] = \"\"   # not a file\n  if(length(sbj)) { print \"Subject: \" sbj  |& smtp;  ARGV[3] = \"\" } # not a file\n  print \"\"                                 |& smtp\n\n  while(getline > 0) print                 |& smtp\n\n  print \".\"                                |& smtp;  smtp |& getline j; print j\n  print \"quit\"                             |& smtp;  smtp |& getline j; print j\n\n  close(smtp) } # /inet/protocol/local-port/remote-host/remote-port",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675603,
+    "by": "andai",
+    "timeISO": "2025-10-22T21:49:27.000Z",
+    "textPlain": "alias mpa='mpv --no-video'\n\n    mpa [youtube_url]\n\nI use this to listen to music / lectures in the terminal.I think it needs yt-dlp installed — and reasonably up to date, since YouTube keeps breaking yt-dlp... but the updates keep fixing it :)",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45673899,
+    "by": "WhyNotHugo",
+    "timeISO": "2025-10-22T19:21:26.000Z",
+    "textPlain": "> cpwd copies the current directory to the clipboard. Basically pwd | copy. I often use this when I’m in a directory and I want use that directory in another terminal tab; I copy it in one tab and cd to it in another. I use this once a day or so.You can configure your shell to notify the terminal of directory changes, and then use your terminal’s “open new window” function (eg: ctrl+shift+n) to open a new window retaining the current directory.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675460,
+    "by": "lillesvin",
+    "timeISO": "2025-10-22T21:35:26.000Z",
+    "textPlain": "Obviously, to each their own, but to me, this is an overwhelming amount of commands to remember on top of all the ones they are composed of that you will likely need to know anyway — regardless if all the custom ones exist.Like, I'd have to remember both `prettypath` and `sed`, and given that there's hardly any chance I'll not need `sed` in other situations, I now need to remember two commands instead of one.On top of that `prettypath` only does s/:/\\\\n/ on my path, not on other strings, making its use extremely narrow. But generally doing search and replace in a string is incredibly useful, so I'd personally rather just use `sed` directly and become more comfortable with it. (Or `perl`, but the point is the same.)As I said, that's obviously just my opinion, if loads of custom scripts/commands works for you, all the more power to you!",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
     "id": 45674268,
     "by": "alentred",
     "timeISO": "2025-10-22T19:51:49.000Z",
     "textPlain": "> alphabet just prints the English alphabet in upper and lowercase. I use this surprisingly often (probably about once a month)I genuinely wonder, why would anyone want to use this, often?",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45674906,
+    "by": "some_guy_nobel",
+    "timeISO": "2025-10-22T20:44:05.000Z",
+    "textPlain": "These are great, and I have a few matching myself.Here are some super simple ones I didn't see that I use almost every day:cl=\"clear\"g=\"git\"h=\"history\"ll=\"ls -al\"path='echo -e ${PATH//:/\\\\n}'lv=\"live-server\"And for common navigation:dl=\"cd ~/Downloads\"dt=\"cd ~/Desktop\"",
     "parent": 45670052,
     "depth": 1
   },
@@ -120,10 +184,10 @@
     "depth": 1
   },
   {
-    "id": 45674906,
-    "by": "some_guy_nobel",
-    "timeISO": "2025-10-22T20:44:05.000Z",
-    "textPlain": "These are great, and I have a few matching myself.Here are some super simple ones I didn't see that I use almost every day:cl=\"clear\"g=\"git\"h=\"history\"ll=\"ls -al\"path='echo -e ${PATH//:/\\\\n}'lv=\"live-server\"And for common navigation:dl=\"cd ~/Downloads\"dt=\"cd ~/Desktop\"",
+    "id": 45675294,
+    "by": "Tempest1981",
+    "timeISO": "2025-10-22T21:20:57.000Z",
+    "textPlain": "> alphabet just prints the English alphabet in upper and lowercase. I use this surprisingly oftenI'm curious to hear some examples (feel like I'm missing out)",
     "parent": 45670052,
     "depth": 1
   },
@@ -144,10 +208,18 @@
     "depth": 1
   },
   {
-    "id": 45673475,
-    "by": "dannyobrien",
-    "timeISO": "2025-10-22T18:48:47.000Z",
-    "textPlain": "Historical note: getting hold of these scripts by chatting to various developers was the motivation for the original 2004 \"lifehacks\" talk[1][2]. If you ever get into an online argument over what is a \"life hack\" and what isn't, feel free to use short scripts like these as the canonical example.Otherwise, I am happy to be pulled into your discussion, Marshall McLuhan style[3] to adjudicate, for a very reasonable fee.[1] https://craphound.com/lifehacksetcon04.txt[2] https://archive.org/details/Notcon2004DannyOBrienLifehacks[3] https://www.openculture.com/2017/05/woody-allen-gets-marshal...",
+    "id": 45675189,
+    "by": "CrimpCity",
+    "timeISO": "2025-10-22T21:11:27.000Z",
+    "textPlain": "Lately I’ve been using caffeinate to run long running scripts without interruption from sleep on Mac. Nothing crazy but could be useful to newer devs.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45674496,
+    "by": "sedatk",
+    "timeISO": "2025-10-22T20:08:29.000Z",
+    "textPlain": "> `rn` prints the current time and date using date and cal.And you can type `rn -rf *` to see all timezones recursively. :)",
     "parent": 45670052,
     "depth": 1
   },
@@ -160,34 +232,10 @@
     "depth": 1
   },
   {
-    "id": 45675163,
-    "by": "SuperHeavy256",
-    "timeISO": "2025-10-22T21:08:55.000Z",
-    "textPlain": "I hope to see an operating system with these scripts as built-in, because they are so intuitive and helpful! Which OS will be the first to take this on?",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
     "id": 45673632,
     "by": "helicaltwine",
     "timeISO": "2025-10-22T19:01:37.000Z",
     "textPlain": "As a bonus, I prepend my custom aliases or scripts with my user name and hyphen (i.e helicaltwine-).  It helps me recall rarely used scripts when I need them and forget the names.",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
-    "id": 45674924,
-    "by": "vzaliva",
-    "timeISO": "2025-10-22T20:46:07.000Z",
-    "textPlain": "A lot of these scripts could be just shell aliases.",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
-    "id": 45674867,
-    "by": "thibran",
-    "timeISO": "2025-10-22T20:39:48.000Z",
-    "textPlain": "30% of the productivity hacks can be archived in vanilla Nushell.",
     "parent": 45670052,
     "depth": 1
   },
@@ -200,10 +248,10 @@
     "depth": 1
   },
   {
-    "id": 45674496,
-    "by": "sedatk",
-    "timeISO": "2025-10-22T20:08:29.000Z",
-    "textPlain": "> `rn` prints the current time and date using date and cal.And you can type `rn -rf *` to see all timezones recursively. :)",
+    "id": 45675273,
+    "by": "sid-",
+    "timeISO": "2025-10-22T21:19:25.000Z",
+    "textPlain": "Why dont we have mkcd in linux natively boggles my mind :)",
     "parent": 45670052,
     "depth": 1
   },
@@ -224,10 +272,34 @@
     "depth": 1
   },
   {
+    "id": 45674867,
+    "by": "thibran",
+    "timeISO": "2025-10-22T20:39:48.000Z",
+    "textPlain": "30% of the productivity hacks can be archived in vanilla Nushell.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
     "id": 45673669,
     "by": "headgasket",
     "timeISO": "2025-10-22T19:04:51.000Z",
     "textPlain": "if you use x0vnc (useful if you use a linux machine both from the attached screen and from vnc, and in a bunch of other scenarios), copy and paste to and fro the vnc client is not implemented, quite frustrating. here's 2 scripts that does that for you, I now use this all day. https://github.com/francoisp/clipshare",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45674924,
+    "by": "vzaliva",
+    "timeISO": "2025-10-22T20:46:07.000Z",
+    "textPlain": "A lot of these scripts could be just shell aliases.",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45675486,
+    "by": "naikrovek",
+    "timeISO": "2025-10-22T21:38:23.000Z",
+    "textPlain": "> wifi togglethis fella doesn't know what \"toggle\" means.  in this context, it means \"turn off if it's currently on, or turn on if it's currently off.\"this should be named `wifi cycle` instead.  \"cycle\" is a good word for turning something off then on again.naming things is hard, but it's not so hard that you can't use the right word. :)",
     "parent": 45670052,
     "depth": 1
   },
@@ -248,6 +320,14 @@
     "depth": 1
   },
   {
+    "id": 45675163,
+    "by": "SuperHeavy256",
+    "timeISO": "2025-10-22T21:08:55.000Z",
+    "textPlain": "I hope to see an operating system with these scripts as built-in, because they are so intuitive and helpful! Which OS will be the first to take this on?",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
     "id": 45674174,
     "by": "munchlax",
     "timeISO": "2025-10-22T19:43:12.000Z",
@@ -256,18 +336,18 @@
     "depth": 1
   },
   {
-    "id": 45674816,
-    "by": "samtrack2019",
-    "timeISO": "2025-10-22T20:35:14.000Z",
-    "textPlain": "no offense but a lot of those script are pretty hacky they may work for the user but i would not use them without making sure to review them and adapt them to my workflow",
-    "parent": 45670052,
-    "depth": 1
-  },
-  {
     "id": 45672588,
     "by": "weregiraffe",
     "timeISO": "2025-10-22T17:43:40.000Z",
     "textPlain": "Looks very useful!",
+    "parent": 45670052,
+    "depth": 1
+  },
+  {
+    "id": 45674816,
+    "by": "samtrack2019",
+    "timeISO": "2025-10-22T20:35:14.000Z",
+    "textPlain": "no offense but a lot of those script are pretty hacky they may work for the user but i would not use them without making sure to review them and adapt them to my workflow",
     "parent": 45670052,
     "depth": 1
   },
@@ -296,107 +376,27 @@
     "depth": 2
   },
   {
-    "id": 45674987,
-    "by": "shortrounddev2",
-    "timeISO": "2025-10-22T20:51:44.000Z",
-    "textPlain": "> Why prioritise node instead of jq?In powershell I just do    > echo '{\"foo\": \"bar\"} | ConvertFrom-Json | ConvertTo-Json\n    {\n        \"foo\": \"bar\"\n    }\n\nBut as a function",
+    "id": 45675845,
+    "by": "YouAreWRONGtoo",
+    "timeISO": "2025-10-22T22:14:33.000Z",
+    "textPlain": "Instead of trash, reimplementing rm (to only really delete after some time or depending on resource usage or to shred of you are paranoid if the goal is to really delete something) or using zfs makes much more sense.",
     "parent": 45673681,
     "depth": 2
   },
   {
-    "id": 45674658,
-    "by": "sedatk",
-    "timeISO": "2025-10-22T20:21:22.000Z",
-    "textPlain": "and it's `New-Guid` in PowerShell.",
+    "id": 45675463,
+    "by": "Grimburger",
+    "timeISO": "2025-10-22T21:35:42.000Z",
+    "textPlain": "Shoutout to rip as an alternative to rm and trash:https://github.com/nivekuil/rip",
     "parent": 45673681,
     "depth": 2
   },
   {
-    "id": 45674098,
-    "by": "chis",
-    "timeISO": "2025-10-22T19:37:05.000Z",
-    "textPlain": "I think it's more likely to say that this comes from a place of laziness than some enlightened peak.  (I say this as someone who does the same, and is lazy).When I watch the work of coworkers or friends who have gone these rabbit holes of customization I always learn some interesting new tools to use - lately I've added atuin, fzf, and a few others to my linux install",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673397,
-    "by": "trenchpilgrim",
-    "timeISO": "2025-10-22T18:42:36.000Z",
-    "textPlain": "When I had one nix computer, I wanted to customize it heavily.Now I have many nix computers and I want them consistent and with only the most necessary packages installed.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673606,
-    "by": "planb",
-    "timeISO": "2025-10-22T18:59:50.000Z",
-    "textPlain": "Yeah - been there, done that, too. I feel like the time I gain from having a shortcut is often less that what I wound need to maintain it or to remember the real syntax when I'm on a machine where it's not available (which happens quite often in my case). I try to go with system defaults as much as possible nowadays.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673276,
-    "by": "D13Fd",
-    "timeISO": "2025-10-22T18:33:21.000Z",
-    "textPlain": "I would still call my Python scripts “scripts.” I don’t think the term “scripts” is limited to shell scripts.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673493,
-    "by": "jamesbelchamber",
-    "timeISO": "2025-10-22T18:50:37.000Z",
-    "textPlain": "I am going through a phase of working with younger engineers who have many dotfiles, and I just think \"Oh, yeh, I remember having lots of dotfiles. What a hassle that was.\"Nowadays I just try to be quite selective with my tooling and learn to change with it - \"like water\", so to speak.(I say this with no shade to those who like maintaining their dotfiles - it takes all sorts :))",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673685,
-    "by": "eikenberry",
-    "timeISO": "2025-10-22T19:06:11.000Z",
-    "textPlain": "Prepare to swing back again. With nearly 30 years experience I find the shell to be the best integration point for so many things due to its ability to adapt to whatever is needed and its universal availability. My use of a vanilla shell has been reduced to scripting cases only.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673416,
-    "by": "nonethewiser",
-    "timeISO": "2025-10-22T18:44:27.000Z",
-    "textPlain": "On the other hand, the author seems to have a lot of experience as well.Personally I tend to agree... there is a very small subset of things I find worth aliasing. I have a very small amount and probably only use half of them regularly. Frankly I wonder how my use case is so different.edit: In the case of the author I guess he's probably wants to live in the terminal full time. And perhaps offline. there is a lot of static data he's stored like http status codes: https://codeberg.org/EvanHahn/dotfiles/src/commit/843b9ee13d...In my case i'd start typing it in my browser then just click something i've visited 100 times before. There is something to be said about reducing that redundant network call but I dont think it makes much practical difference and the mental mapping/discoverability of aliases isnt nothing.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45674022,
-    "by": "grimgrin",
-    "timeISO": "2025-10-22T19:31:14.000Z",
-    "textPlain": "this is how it works for youas a person who loves their computer, my ~/bin is full. i definitely (not that you said this) do not think \"everything i do has to be possible on every computer i am ever shelled into\"being a person on a computer for decades, i have tuned how i want to do things that are incredibly common for methough perhaps you're referring to work and not hobby/life",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45674837,
-    "by": "apprentice7",
-    "timeISO": "2025-10-22T20:37:29.000Z",
-    "textPlain": "It's the bell curve meme all along.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45673595,
-    "by": "denimnerd42",
-    "timeISO": "2025-10-22T18:58:59.000Z",
-    "textPlain": "I prefer using kubectl than any other method so i have plenty of functions to help with that. I'd never consider using python or go for this although I do have plenty of python and go \"scripts\" on my path too.",
-    "parent": 45672984,
-    "depth": 2
-  },
-  {
-    "id": 45674094,
-    "by": "stronglikedan",
-    "timeISO": "2025-10-22T19:36:44.000Z",
-    "textPlain": "Different strokes for different folks - tenured engineers just settle into whatever works best for them.",
-    "parent": 45672984,
+    "id": 45675260,
+    "by": "mmmm2",
+    "timeISO": "2025-10-22T21:17:49.000Z",
+    "textPlain": "`trash` is good to know, thanks!  I'd been doing: \"tell app \\\"Finder\\\" to move {%s} to trash\"  where %s is a comma separated list of \"the POSIX file <path-to-file>\".",
+    "parent": 45673681,
     "depth": 2
   }
 ]
