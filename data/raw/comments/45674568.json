@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45676026,
+    "by": "pubby",
+    "timeISO": "2025-10-22T22:34:17.000Z",
+    "textPlain": "I like this article a lot but it doesn't answer the question of \"Why SSA?\".Sure, a graph representation is nice, but that isn't a unique property of SSA. You can have graph IRs that aren't SSA at all.And sure, SSA makes some optimizations easy, but it also makes other operations more difficult. When you consider that, plus the fact that going into and out of SSA is quite involved, it doesn't seem like SSA is worth the fuss.So why SSA?Well, it turns out compilers have sequencing issues. If you view compilation as a series of small code transformations, your representation goes from A -> B, then B -> C, then C -> D and so on. At least, that's how it works for non-optimizing compilers.For optimizing compilers however, passes want to loop. Whenever an optimization is found, previous passes should be run again with new inputs... if possible. The easiest way to ensure this is to make all optimizations input and output the same representation. So A -> B is no good. We want A -> A: a singular representation.So if we want a singular representation, let's pick a good one right? One that works reasonably well for most things. That's why SSA is useful: it's a decently good singular representation we can use for every pass.",
+    "parent": 45674568,
+    "depth": 1
+  },
+  {
     "id": 45675783,
     "by": "zachixer",
     "timeISO": "2025-10-22T22:09:29.000Z",
@@ -24,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45675810,
-    "by": "KeplerBoy",
-    "timeISO": "2025-10-22T22:11:24.000Z",
-    "textPlain": "Smallest of nitpicks: the depicted multiplier is a 2 bit multiplier. A one bit multiplier is just an and gate.",
-    "parent": 45674568,
-    "depth": 1
-  },
-  {
     "id": 45675610,
     "by": "mbauman",
     "timeISO": "2025-10-22T21:50:18.000Z",
@@ -40,10 +40,26 @@
     "depth": 1
   },
   {
-    "id": 45675212,
-    "by": "strbean",
-    "timeISO": "2025-10-22T21:13:53.000Z",
-    "textPlain": "I learned a bit about SSA in a compiler course. Among many other things, it is crucial for register assignment. You want to know each distinct value that will exist, and the lifetimes of those values, in order to give each a register. Then, if have more distinct values existing at one time than you have registers, you have to push stuff to the stack.",
+    "id": 45675810,
+    "by": "KeplerBoy",
+    "timeISO": "2025-10-22T22:11:24.000Z",
+    "textPlain": "Smallest of nitpicks: the depicted multiplier is a 2 bit multiplier. A one bit multiplier is just an and gate.",
+    "parent": 45674568,
+    "depth": 1
+  },
+  {
+    "id": 45676108,
+    "by": "ivanjermakov",
+    "timeISO": "2025-10-22T22:44:52.000Z",
+    "textPlain": "Static single assignment (SSA)",
+    "parent": 45674568,
+    "depth": 1
+  },
+  {
+    "id": 45676248,
+    "by": "tylerhou",
+    "timeISO": "2025-10-22T23:01:58.000Z",
+    "textPlain": "Here's a concise explanation of SSA. Regular (imperative) code is hard to optimize because in general statements are not pure -- if a statement has side effects, then it might not preserve the behavior to optimize that statement by, for example:1. Removing that statement (dead code elimination)2. Deduplicating that statement (available expressions)3. Reordering that statement with other statements (hoisting; loop-invariant code motion)4. Duplicating that statement (can be useful to enable other optimizations)All of the above optimizations are very important in compilers, and they are much, much easier to implement if you don't have to worry about preserving side effects while manipulating the program.So the point of SSA is to translate a program into an equivalent program whose statements have as few side effects as possible. The result is often something that looks like a functional program. (See: https://www.cs.princeton.edu/~appel/papers/ssafun.pdf, which is famous in the compilers community.) In fact, if you view basic blocks themselves as a function, phi nodes \"declare\" the arguments of the basic block, and branches correspond to tailcalling the next basic block with corresponding values. This has motivated basic block arguments in MLIR.The \"combinatorial circuit\" metaphor is slightly wrong, because most SSA implementations do need to consider state for loads and stores into arbitrary memory, or arbitrary function calls. Also, it's not easy to model a loop of arbitrary length as a (finite) combinatorial circuit. Given that the author works at an AI accelerator company, I can see why he leaned towards that metaphor, though.",
     "parent": 45674959,
     "depth": 2
   },
@@ -56,10 +72,58 @@
     "depth": 2
   },
   {
+    "id": 45675212,
+    "by": "strbean",
+    "timeISO": "2025-10-22T21:13:53.000Z",
+    "textPlain": "I learned a bit about SSA in a compiler course. Among many other things, it is crucial for register assignment. You want to know each distinct value that will exist, and the lifetimes of those values, in order to give each a register. Then, if have more distinct values existing at one time than you have registers, you have to push stuff to the stack.",
+    "parent": 45674959,
+    "depth": 2
+  },
+  {
+    "id": 45676288,
+    "by": "jcranmer",
+    "timeISO": "2025-10-22T23:06:35.000Z",
+    "textPlain": "SSA isn't about saying mutation is evil. It's about trivializing chasing down def-use rules. In the Dragon Book, essentially the first two dataflow analyses introduced are \"reaching definitions\" and \"live variables\"; within an SSA-based IR, these algorithms are basically \"traverse a few pointers\". There's also some ancillary benefits--SSA also makes a flow-insensitive algorithm partially flow-sensitive just by the fact that it's renaming several variables.Sure, you still need to keep those algorithms in place for being able to reason about memory loads and stores. But if you put effort into kicking memory operations into virtual register operations (where you get SSA for free), then you can also make the compiler faster since you're not constantly rerunning these analyses, but only on demand for the handful of passes that specifically care about eliminating or moving loads and stores.",
+    "parent": 45675783,
+    "depth": 2
+  },
+  {
+    "id": 45676050,
+    "by": "toast0",
+    "timeISO": "2025-10-22T22:37:53.000Z",
+    "textPlain": "> pretending state doesn’t exist.As a fan of a functional language, immutability doesn't mean state doesn't exist. You keep state with assignment --- in SSA, every piece of state has a new name.If you want to keep state beyond the scope of a function, you have to return it, or call another function with it (and hope you have tail call elimination). Or, stash it in a mutable escape hatch.",
+    "parent": 45675783,
+    "depth": 2
+  },
+  {
     "id": 45675858,
     "by": "vidarh",
     "timeISO": "2025-10-22T22:16:19.000Z",
     "textPlain": "SSA is appealing because you can defer the load/store hell until after a bunch of optimizations, though, and a lot of those optimizations becomes a lot easier to reason about when you get to pretend state doesn't exist.",
+    "parent": 45675783,
+    "depth": 2
+  },
+  {
+    "id": 45676212,
+    "by": "rpearl",
+    "timeISO": "2025-10-22T22:57:46.000Z",
+    "textPlain": "SSA form is a state representation. SSA encodes data flow information explicitly which therefore simplifies all other analysis passes. Including alias analysis.",
+    "parent": 45675783,
+    "depth": 2
+  },
+  {
+    "id": 45675871,
+    "by": "achierius",
+    "timeISO": "2025-10-22T22:18:11.000Z",
+    "textPlain": "You have it backwards. Modern compilers don't use SSA because it's \"simpler\", we use it because it enables very fast data-flow optimizations (constant prop, CSE, register allocation, etc.) that would otherwise require a lot of state. It doesn't \"pretend state doesn't exist\", it's actually exactly what makes it possible/practical for the compiler to handle changes in state.As some evidence to the second point: Haskell is a language that does enforce immutability, but it's compiler, GHC, does not use SSA for main IR -- it uses a \"spineless tagless g-machine\" graph representation that does, in fact, rely on that immutability. SSA only happens later once it's lowered to a mutating form. If your variables aren't mutated, then you don't even need to transform them to SSA!Of course, you're welcome to try something else, people certainly have -- take a look at how V8's move to Sea-of-Nodes has gone for them.",
+    "parent": 45675783,
+    "depth": 2
+  },
+  {
+    "id": 45676222,
+    "by": "antonvs",
+    "timeISO": "2025-10-22T22:59:29.000Z",
+    "textPlain": "> the “simplicity” of SSA only exists because we’ve decided mutation is evil.Mutation is the result of sloppy thinking about the role of time in computation. Sloppy thinking is a hindrance to efficient and tractable code transformations.When you \"mutate\" a value, you're implicitly indexing it on a time offset - the variable had one value at time t_0 and another  value at time t_1. SSA simply uses naming to make this explicit. (As do CPS and ANF, which is where that \"equivalence\" comes from.)If you don't use SSA, CPS, or ANF for this purpose, you need to do something else to make the time dimension explicit, or you're going to be dealing with some very hairy problems.\"Evil\" in this case is shorthand for saying that mutable variables are an unsuitable model for the purpose. That's not a subjective decision - try to achieve similar results without dealing with the time/mutation issue and you'll find out why.",
     "parent": 45675783,
     "depth": 2
   },
