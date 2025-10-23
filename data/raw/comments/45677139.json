@@ -1,17 +1,25 @@
 [
   {
-    "id": 45679393,
-    "by": "jasode",
-    "timeISO": "2025-10-23T08:02:42.000Z",
-    "textPlain": "So the DNS records if-stale-then-needs-update it was basically a variation of the \"2 Hard Things In Computer Science - cache invalidation\".  Excerpt from the giant paragraph:>[...] Right before this event started, one DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints. As it was slowly working through the endpoints, several other things were also happening. First, the DNS Planner continued to run and produced many newer generations of plans. Second, one of the other DNS Enactors then began applying one of the newer plans and rapidly progressed through all of the endpoints. The timing of these events triggered the latent race condition. When the second Enactor (applying the newest plan) completed its endpoint updates, it then invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them. At the same time that this clean-up process was invoked, the first Enactor (which had been unusually delayed) applied its much older plan to the regional DDB endpoint, overwriting the newer plan. The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time due to the unusually high delays in Enactor processing. [...] It outlines some of the mechanics but some might think it still isn't a \"Root Cause Analysis\" because there's no satisfying explanation of _why_ there were \"unusually high delays in Enactor processing\".  Hardware problem?!?  Human error misconfiguration causing unintended delays in Enactor behavior?!?  Either the previous sequence of events leading up to that is considered unimportant, or Amazon is still investigating what made Enactor behave in an unpredictable way.",
+    "id": 45685629,
+    "by": "shrubble",
+    "timeISO": "2025-10-23T19:11:14.000Z",
+    "textPlain": "The Bind resolver required each zone to have an increasing serial number for the zone.So if you made a change you had to increase the number, usually a timestamp like 20250906114509 which would be older / lower numbered than 20250906114702; making it easier to determine which zone file had the newest data.Seems like they sort of had the same setup but with less rigidity in terms of refusing to load older files.",
     "parent": 45677139,
     "depth": 1
   },
   {
-    "id": 45681778,
-    "by": "everfrustrated",
-    "timeISO": "2025-10-23T13:46:41.000Z",
-    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
+    "id": 45685215,
+    "by": "ecnahc515",
+    "timeISO": "2025-10-23T18:36:15.000Z",
+    "textPlain": "Seems like the enactor should be checking the version/generation of the current record before it applies the new value, to ensure it never applies an old plan on top of an record updated by a new plan. It wouldn't be as efficient, but that's just how it is. It's a basic compare and swap operation, so it could be handled easily within dynamodb itself where these records are stored.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45679393,
+    "by": "jasode",
+    "timeISO": "2025-10-23T08:02:42.000Z",
+    "textPlain": "So the DNS records if-stale-then-needs-update it was basically a variation of the \"2 Hard Things In Computer Science - cache invalidation\".  Excerpt from the giant paragraph:>[...] Right before this event started, one DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints. As it was slowly working through the endpoints, several other things were also happening. First, the DNS Planner continued to run and produced many newer generations of plans. Second, one of the other DNS Enactors then began applying one of the newer plans and rapidly progressed through all of the endpoints. The timing of these events triggered the latent race condition. When the second Enactor (applying the newest plan) completed its endpoint updates, it then invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them. At the same time that this clean-up process was invoked, the first Enactor (which had been unusually delayed) applied its much older plan to the regional DDB endpoint, overwriting the newer plan. The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time due to the unusually high delays in Enactor processing. [...] It outlines some of the mechanics but some might think it still isn't a \"Root Cause Analysis\" because there's no satisfying explanation of _why_ there were \"unusually high delays in Enactor processing\".  Hardware problem?!?  Human error misconfiguration causing unintended delays in Enactor behavior?!?  Either the previous sequence of events leading up to that is considered unimportant, or Amazon is still investigating what made Enactor behave in an unpredictable way.",
     "parent": 45677139,
     "depth": 1
   },
@@ -24,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45681778,
+    "by": "everfrustrated",
+    "timeISO": "2025-10-23T13:46:41.000Z",
+    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
     "id": 45684810,
     "by": "pelagicAustral",
     "timeISO": "2025-10-23T17:58:01.000Z",
     "textPlain": "Had no idea Dynamo was so intertwined with the whole AWS stack.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45679256,
+    "by": "shayonj",
+    "timeISO": "2025-10-23T07:40:08.000Z",
+    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
     "parent": 45677139,
     "depth": 1
   },
@@ -40,14 +64,6 @@
     "depth": 1
   },
   {
-    "id": 45680567,
-    "by": "ericpauley",
-    "timeISO": "2025-10-23T11:19:00.000Z",
-    "textPlain": "Interesting use of the phrase “Route53 transaction” for an operation that has no hard transactional guarantees. Especially given the lack of transactional updates are what caused the outage…",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
     "id": 45679844,
     "by": "gslin",
     "timeISO": "2025-10-23T09:12:49.000Z",
@@ -56,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45679256,
-    "by": "shayonj",
-    "timeISO": "2025-10-23T07:40:08.000Z",
-    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
+    "id": 45680567,
+    "by": "ericpauley",
+    "timeISO": "2025-10-23T11:19:00.000Z",
+    "textPlain": "Interesting use of the phrase “Route53 transaction” for an operation that has no hard transactional guarantees. Especially given the lack of transactional updates are what caused the outage…",
     "parent": 45677139,
     "depth": 1
   },
@@ -136,11 +152,27 @@
     "depth": 2
   },
   {
+    "id": 45685345,
+    "by": "ignoramous",
+    "timeISO": "2025-10-23T18:48:58.000Z",
+    "textPlain": "> ...there's no satisfying explanation of _why_ there were \"unusually high delays in Enactor processing\". Hardware problem?Can't speak for the current incident but a similar \"slow machine\" issue once bit our BigCloud service (not as big an incident, thankfully) due to loooong JVM GC pauses on failing hardware.",
+    "parent": 45679393,
+    "depth": 2
+  },
+  {
     "id": 45679533,
     "by": "mcmoor",
     "timeISO": "2025-10-23T08:27:03.000Z",
     "textPlain": "Also, I don't know if I missed it, but they don't establish anything to prevent outage if there's unusually high delay again?",
     "parent": 45679393,
+    "depth": 2
+  },
+  {
+    "id": 45685631,
+    "by": "tptacek",
+    "timeISO": "2025-10-23T19:11:22.000Z",
+    "textPlain": "I think you have to be careful with ideas like \"the root cause\". They underwent a metastable congestive collapse. A large component of the outage was them not having a runbook to safely recover an adequately performing state for their droplet manager service.The precipitating event was a race condition with the DynamoDB planner/enactor system.https://how.complexsystems.fail/",
+    "parent": 45684737,
     "depth": 2
   },
   {
@@ -160,6 +192,14 @@
     "depth": 2
   },
   {
+    "id": 45681204,
+    "by": "donavanm",
+    "timeISO": "2025-10-23T12:48:02.000Z",
+    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
+    "parent": 45679256,
+    "depth": 2
+  },
+  {
     "id": 45684856,
     "by": "offmycloud",
     "timeISO": "2025-10-23T18:01:04.000Z",
@@ -168,11 +208,11 @@
     "depth": 2
   },
   {
-    "id": 45681136,
-    "by": "donavanm",
-    "timeISO": "2025-10-23T12:39:54.000Z",
-    "textPlain": "I think you misunderstnad the failure case. The ChangeResourceRecordSet is transactional (or was when I worked on the service) https://docs.aws.amazon.com/Route53/latest/APIReference/API_....The fault was two different clients with divergent goal states:- one (\"old\") DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints- the DNS Planner continued to run and produced many newer generations of plans\n   [Ed: this is key: its producing \"plans\" of desired state, the does not include a complete transaction like a log or chain with previous state + mutations]- one of the other (\"new\") DNS Enactors then began applying one of the newer plans-  then (\"new\") invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them   [Ed: the key race is implied here. The \"old\" Enactor is reading _current state_, which was the output of \"new\", and applying its desired \"old\" state on top. The discrepency is because apparently Planer and Enactor aren't working with a chain/vector clock/serialized change set numbers/etc]- At the same time the first (\"old\") Enactor ... applied its much older plan to the regional DDB endpoint, overwriting the newer plan.   [Ed: and here is where \"old\" Enactor creates the valid ChangeRRSets call, replacing \"new\" with \"old\"]-  The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time  [Ed: Whoops!]- The second Enactor’s clean-up process then deleted this older plan because it was many generations older than the plan it had just applied.Ironically Route 53 does have strong transactions of API changes _and_ serializes them _and_ has closed loop observers to validate change sets globally on every dataplane host. So do other AWS services. And there are even some internal primitives for building replication or change set chains like this. But ",
-    "parent": 45680567,
+    "id": 45685595,
+    "by": "tguedes",
+    "timeISO": "2025-10-23T19:08:20.000Z",
+    "textPlain": "I think it makes sense in this instance. Because this occurred in us-east-1, the vast majority of affected customers are US based. For most people, it's easier to do the timezone conversion from PT than UTC.",
+    "parent": 45679844,
     "depth": 2
   },
   {
@@ -192,11 +232,11 @@
     "depth": 2
   },
   {
-    "id": 45681204,
+    "id": 45681136,
     "by": "donavanm",
-    "timeISO": "2025-10-23T12:48:02.000Z",
-    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
-    "parent": 45679256,
+    "timeISO": "2025-10-23T12:39:54.000Z",
+    "textPlain": "I think you misunderstnad the failure case. The ChangeResourceRecordSet is transactional (or was when I worked on the service) https://docs.aws.amazon.com/Route53/latest/APIReference/API_....The fault was two different clients with divergent goal states:- one (\"old\") DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints- the DNS Planner continued to run and produced many newer generations of plans\n   [Ed: this is key: its producing \"plans\" of desired state, the does not include a complete transaction like a log or chain with previous state + mutations]- one of the other (\"new\") DNS Enactors then began applying one of the newer plans-  then (\"new\") invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them   [Ed: the key race is implied here. The \"old\" Enactor is reading _current state_, which was the output of \"new\", and applying its desired \"old\" state on top. The discrepency is because apparently Planer and Enactor aren't working with a chain/vector clock/serialized change set numbers/etc]- At the same time the first (\"old\") Enactor ... applied its much older plan to the regional DDB endpoint, overwriting the newer plan.   [Ed: and here is where \"old\" Enactor creates the valid ChangeRRSets call, replacing \"new\" with \"old\"]-  The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time  [Ed: Whoops!]- The second Enactor’s clean-up process then deleted this older plan because it was many generations older than the plan it had just applied.Ironically Route 53 does have strong transactions of API changes _and_ serializes them _and_ has closed loop observers to validate change sets globally on every dataplane host. So do other AWS services. And there are even some internal primitives for building replication or change set chains like this. But ",
+    "parent": 45680567,
     "depth": 2
   },
   {
