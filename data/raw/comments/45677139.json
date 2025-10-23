@@ -1,17 +1,17 @@
 [
   {
-    "id": 45685629,
-    "by": "shrubble",
-    "timeISO": "2025-10-23T19:11:14.000Z",
-    "textPlain": "The Bind resolver required each zone to have an increasing serial number for the zone.So if you made a change you had to increase the number, usually a timestamp like 20250906114509 which would be older / lower numbered than 20250906114702; making it easier to determine which zone file had the newest data.Seems like they sort of had the same setup but with less rigidity in terms of refusing to load older files.",
+    "id": 45685855,
+    "by": "tptacek",
+    "timeISO": "2025-10-23T19:28:35.000Z",
+    "textPlain": "I'm a tedious broken record about this (among many other things) but if you haven't read this Richard Cook piece, I strongly recommend you stop reading this postmortem and go read Cook's piece first. It won't take you long. It's the single best piece of writing about this topic I have ever read and I think the piece of technical writing that has done the most to change my thinking:https://how.complexsystems.fail/You can literally check off the things from Cook's piece that apply directly here. Also: when I wrote this comment, most of the thread was about root-causing the DNS thing that happened, which I don't think is the big story behind this outage. (Cook rejects the whole idea of a \"root cause\", and I'm pretty sure he's dead on right about why.)",
     "parent": 45677139,
     "depth": 1
   },
   {
-    "id": 45685215,
-    "by": "ecnahc515",
-    "timeISO": "2025-10-23T18:36:15.000Z",
-    "textPlain": "Seems like the enactor should be checking the version/generation of the current record before it applies the new value, to ensure it never applies an old plan on top of an record updated by a new plan. It wouldn't be as efficient, but that's just how it is. It's a basic compare and swap operation, so it could be handled easily within dynamodb itself where these records are stored.",
+    "id": 45685836,
+    "by": "stefan_bobev",
+    "timeISO": "2025-10-23T19:27:25.000Z",
+    "textPlain": "I appreciate the details this went through, especially laying out the exact timelines of operations and how overlaying those timelines produces unexpected effects. One of my all time favourite bits about distributed systems comes from the (legendary) talk at GDC - I Shot You First[1] - where the speaker describes drawing sequence diagrams with tilted arrows to represent the flow of time and asking \"Where is the lag?\". This method has saved me many times, all throughout my career from making games, to livestream and VoD services to now fintech. Always account for the flow of time when doing a distributed operation - time's arrow always marches forward, your systems might not.But the stale read didn't scare me nearly as much as this quote:> Since this situation had no established operational recovery procedure, engineers took care in attempting to resolve the issue with DWFM without causing further issuesEveryone can make a distributed system mistake (these things are hard). But I did not expect something as core as the service managing the leases on the physical EC2 nodes to not have recovery procedure. Maybe I am reading too much into it, maybe what they meant was that they didn't have a recovery procedure for \"this exact\" set of circumstances, but it is a little worrying even if that were the case. EC2 is one of the original services in AWS. At this point I expect it to be so battle hardened that very few edge cases would not have been identified. It seems that the EC2 failure was more impactful in a way, as it cascaded to more and more services (like the NLB and Lambda) and took more time to fully recover. I'd be interested to know what gets put in place there to make it even more resilient.[1] https://youtu.be/h47zZrqjgLc?t=1587",
     "parent": 45677139,
     "depth": 1
   },
@@ -24,10 +24,34 @@
     "depth": 1
   },
   {
+    "id": 45685215,
+    "by": "ecnahc515",
+    "timeISO": "2025-10-23T18:36:15.000Z",
+    "textPlain": "Seems like the enactor should be checking the version/generation of the current record before it applies the new value, to ensure it never applies an old plan on top of an record updated by a new plan. It wouldn't be as efficient, but that's just how it is. It's a basic compare and swap operation, so it could be handled easily within dynamodb itself where these records are stored.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45686127,
+    "by": "__turbobrew__",
+    "timeISO": "2025-10-23T19:45:45.000Z",
+    "textPlain": "From a meta analysis level: bugs will always happen, formal verification is hard, and sometimes it just takes a number of years to have some bad luck (I have hit bugs which were over 10 years old but due to low probability of them occurring they didn’t happen for a long time).If we assume that the system will fail, I think the logical thing to think about is how to limit the effects of that failure. In practice this means cell based architecture, phased rollouts, and isolated zones.To my knowledge AWS does attempt to implement cell based architecture, but there are some cross region dependencies specifically with us-east-1 due to legacy. The real long term fix for this is designing regions to be independent of each other.This is a hard thing to do, but it is possible. I have personally been involved in disaster testing where a region was purposely firewalled off from the rest of the infrastructure. You find out very quick where those cross region dependencies lie, and many of them are in unexpected places.Usually this work is not done due to lack of upper level VP support and funding, and it is easier to stick your head in the sand and hope bad things don’t happen. The strongest supporters of this work are going to be the share holders who are in it for the long run. If the company goes poof due to improper disaster testing, the shareholders are going to be the main bag holders. Making the board aware of the risks and the estimated probability of fundamentally company ending events can help get this work funded.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
     "id": 45684737,
     "by": "WaitWaitWha",
     "timeISO": "2025-10-23T17:52:19.000Z",
     "textPlain": "I gather, the root cause was a latent race condition in the DynamoDB DNS management system that allowed an outdated DNS plan to overwrite the current one, resulting in an empty DNS record for the regional endpoint.Correct?",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45685629,
+    "by": "shrubble",
+    "timeISO": "2025-10-23T19:11:14.000Z",
+    "textPlain": "The Bind resolver required each zone to have an increasing serial number for the zone.So if you made a change you had to increase the number, usually a timestamp like 20250906114509 which would be older / lower numbered than 20250906114702; making it easier to determine which zone file had the newest data.Seems like they sort of had the same setup but with less rigidity in terms of refusing to load older files.",
     "parent": 45677139,
     "depth": 1
   },
@@ -48,22 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45679256,
-    "by": "shayonj",
-    "timeISO": "2025-10-23T07:40:08.000Z",
-    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
-    "id": 45684446,
-    "by": "qrush",
-    "timeISO": "2025-10-23T17:25:49.000Z",
-    "textPlain": "Sounds like DynamoDB is going to continue to be a hard dependency for EC2, etc. I at least appreciate the transparency and hearing about their internal systems names.",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
     "id": 45679844,
     "by": "gslin",
     "timeISO": "2025-10-23T09:12:49.000Z",
@@ -72,10 +80,26 @@
     "depth": 1
   },
   {
+    "id": 45679256,
+    "by": "shayonj",
+    "timeISO": "2025-10-23T07:40:08.000Z",
+    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
     "id": 45680567,
     "by": "ericpauley",
     "timeISO": "2025-10-23T11:19:00.000Z",
     "textPlain": "Interesting use of the phrase “Route53 transaction” for an operation that has no hard transactional guarantees. Especially given the lack of transactional updates are what caused the outage…",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45684446,
+    "by": "qrush",
+    "timeISO": "2025-10-23T17:25:49.000Z",
+    "textPlain": "Sounds like DynamoDB is going to continue to be a hard dependency for EC2, etc. I at least appreciate the transparency and hearing about their internal systems names.",
     "parent": 45677139,
     "depth": 1
   },
@@ -128,6 +152,14 @@
     "depth": 1
   },
   {
+    "id": 45685894,
+    "by": "tptacek",
+    "timeISO": "2025-10-23T19:30:58.000Z",
+    "textPlain": "It shouldn't scare you. It should spark recognition. This meta-failure-mode exists in every complex technological system. You should be, like, \"ah, of course, that makes sense now\". Latent failures are fractally prevalent and have combinatoric potential to cause catastrophic failures. Yes, this is a runbook they need to have, but we should all understand there are an unbounded number of other runbooks they'll need and won't have, too!",
+    "parent": 45685836,
+    "depth": 2
+  },
+  {
     "id": 45680977,
     "by": "donavanm",
     "timeISO": "2025-10-23T12:17:16.000Z",
@@ -152,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45685345,
-    "by": "ignoramous",
-    "timeISO": "2025-10-23T18:48:58.000Z",
-    "textPlain": "> ...there's no satisfying explanation of _why_ there were \"unusually high delays in Enactor processing\". Hardware problem?Can't speak for the current incident but a similar \"slow machine\" issue once bit our BigCloud service (not as big an incident, thankfully) due to loooong JVM GC pauses on failing hardware.",
-    "parent": 45679393,
-    "depth": 2
-  },
-  {
     "id": 45679533,
     "by": "mcmoor",
     "timeISO": "2025-10-23T08:27:03.000Z",
     "textPlain": "Also, I don't know if I missed it, but they don't establish anything to prevent outage if there's unusually high delay again?",
+    "parent": 45679393,
+    "depth": 2
+  },
+  {
+    "id": 45685345,
+    "by": "ignoramous",
+    "timeISO": "2025-10-23T18:48:58.000Z",
+    "textPlain": "> ...there's no satisfying explanation of _why_ there were \"unusually high delays in Enactor processing\". Hardware problem?Can't speak for the current incident but a similar \"slow machine\" issue once bit our BigCloud service (not as big an incident, thankfully) due to loooong JVM GC pauses on failing hardware.",
     "parent": 45679393,
     "depth": 2
   },
@@ -192,22 +224,6 @@
     "depth": 2
   },
   {
-    "id": 45681204,
-    "by": "donavanm",
-    "timeISO": "2025-10-23T12:48:02.000Z",
-    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
-    "parent": 45679256,
-    "depth": 2
-  },
-  {
-    "id": 45684856,
-    "by": "offmycloud",
-    "timeISO": "2025-10-23T18:01:04.000Z",
-    "textPlain": "I think it's time for AWS to pull the curtain back a bit and release a JSON document that shows a list of all internal service dependencies for each AWS service.",
-    "parent": 45684446,
-    "depth": 2
-  },
-  {
     "id": 45685595,
     "by": "tguedes",
     "timeISO": "2025-10-23T19:08:20.000Z",
@@ -232,11 +248,27 @@
     "depth": 2
   },
   {
+    "id": 45681204,
+    "by": "donavanm",
+    "timeISO": "2025-10-23T12:48:02.000Z",
+    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
+    "parent": 45679256,
+    "depth": 2
+  },
+  {
     "id": 45681136,
     "by": "donavanm",
     "timeISO": "2025-10-23T12:39:54.000Z",
     "textPlain": "I think you misunderstnad the failure case. The ChangeResourceRecordSet is transactional (or was when I worked on the service) https://docs.aws.amazon.com/Route53/latest/APIReference/API_....The fault was two different clients with divergent goal states:- one (\"old\") DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints- the DNS Planner continued to run and produced many newer generations of plans\n   [Ed: this is key: its producing \"plans\" of desired state, the does not include a complete transaction like a log or chain with previous state + mutations]- one of the other (\"new\") DNS Enactors then began applying one of the newer plans-  then (\"new\") invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them   [Ed: the key race is implied here. The \"old\" Enactor is reading _current state_, which was the output of \"new\", and applying its desired \"old\" state on top. The discrepency is because apparently Planer and Enactor aren't working with a chain/vector clock/serialized change set numbers/etc]- At the same time the first (\"old\") Enactor ... applied its much older plan to the regional DDB endpoint, overwriting the newer plan.   [Ed: and here is where \"old\" Enactor creates the valid ChangeRRSets call, replacing \"new\" with \"old\"]-  The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time  [Ed: Whoops!]- The second Enactor’s clean-up process then deleted this older plan because it was many generations older than the plan it had just applied.Ironically Route 53 does have strong transactions of API changes _and_ serializes them _and_ has closed loop observers to validate change sets globally on every dataplane host. So do other AWS services. And there are even some internal primitives for building replication or change set chains like this. But ",
     "parent": 45680567,
+    "depth": 2
+  },
+  {
+    "id": 45684856,
+    "by": "offmycloud",
+    "timeISO": "2025-10-23T18:01:04.000Z",
+    "textPlain": "I think it's time for AWS to pull the curtain back a bit and release a JSON document that shows a list of all internal service dependencies for each AWS service.",
+    "parent": 45684446,
     "depth": 2
   },
   {
