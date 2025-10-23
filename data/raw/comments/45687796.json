@@ -1,0 +1,34 @@
+[
+  {
+    "id": 45688581,
+    "by": "nteon",
+    "timeISO": "2025-10-23T23:05:38.000Z",
+    "textPlain": "the downside is that the go runtime doesn't expect memory reads to page fault, so you may end up with stalls/latency/under-utilization if part of your dataset is paged out (like if you have a large cdb file w/ random access patterns).  Using file IO, the Go runtime could be running a different goroutine if there is a disk read, but with mmap that thread is descheduled but holding an m & p. I'm also not sure if there would be increased stop the world pauses, or if the async preemption stuff would \"just work\".Section 3.2 of this paper has more details: https://db.cs.cmu.edu/papers/2022/cidr2022-p13-crotty.pdf",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688661,
+    "by": "habibur",
+    "timeISO": "2025-10-23T23:13:44.000Z",
+    "textPlain": "Is mmap still faster than fread? That might have been true in the 90s but I was wondering about current improvements.If you have enough free memory, the file will be cached in memory anyway instead of residing on disk. Therefore both will be reading from memory, albeit through different API.Looking for recent benchmark or view from OS developers.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688548,
+    "by": "nawgz",
+    "timeISO": "2025-10-23T23:02:31.000Z",
+    "textPlain": "Sounds interesting. Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688681,
+    "by": "trenchpilgrim",
+    "timeISO": "2025-10-23T23:17:08.000Z",
+    "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
+    "parent": 45688548,
+    "depth": 2
+  }
+]
