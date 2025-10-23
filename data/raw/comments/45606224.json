@@ -1,9 +1,9 @@
 [
   {
-    "id": 45683797,
-    "by": "deepanwadhwa",
-    "timeISO": "2025-10-23T16:27:43.000Z",
-    "textPlain": "Does anyone know if there is anything like CRDT with end to end encryption?",
+    "id": 45684226,
+    "by": "Arcuru",
+    "timeISO": "2025-10-23T17:04:01.000Z",
+    "textPlain": "Shameless plug: I'm betting that a lot of applications could use some form of CRDT as a Database, which would allow a fully decentralized backend/database for local-first apps. So I've been building one.Still working on good blog posts to explain and introduce it though.https://github.com/arcuru/eidetica",
     "parent": 45606224,
     "depth": 1
   },
@@ -12,6 +12,22 @@
     "by": "cbm-vic-20",
     "timeISO": "2025-10-23T14:39:48.000Z",
     "textPlain": "The article sets up a scenario where two people are editing a document, but have conflicting changes: \"If Alice fixes a missing letter in a word while Bob removes the whole word, that’s a conflict.\"The article then goes into some examples of CRDTs and their merge operation, and the examples are pretty straightforward: take the maximum of two values, or take one with a more recent timestamp, etc.But what about the motivating example? What should a merge function do with the inputs \"change the third word from 'affect' to 'effect'\" and \"delete the third word\"? In other words, how does the function know which of these operations \"wins\"? It could ask a user for a manual resolution, but is there a reasonable way for a function to make this determination itself? Maybe deletes are more powerful than word changes, so the delete wins.",
+    "parent": 45606224,
+    "depth": 1
+  },
+  {
+    "id": 45684319,
+    "by": "iwontberude",
+    "timeISO": "2025-10-23T17:14:08.000Z",
+    "textPlain": "The toy example with two nodes incrementing and decrementing likes independently and then sharing the delta with each other would require an increasing amount of backend requests (n^2) for every like. If you had 10000 nodes and they were all sending 9999 requests to eachother for a single request, obviously that's not the best model. It did somewhat remind me of MySQLs active-active replication scheme but that has some locking to make sure drift isn't too bad. MySQL Group Sync also doesn't scale beyond 9 nodes.",
+    "parent": 45606224,
+    "depth": 1
+  },
+  {
+    "id": 45683797,
+    "by": "deepanwadhwa",
+    "timeISO": "2025-10-23T16:27:43.000Z",
+    "textPlain": "Does anyone know if there is anything like CRDT with end to end encryption?",
     "parent": 45606224,
     "depth": 1
   },
@@ -40,18 +56,18 @@
     "depth": 2
   },
   {
-    "id": 45683474,
-    "by": "jongjong",
-    "timeISO": "2025-10-23T16:04:47.000Z",
-    "textPlain": "Yes, it's impossible for a distributed system to figure out the collaborative intent when it sees conflicting changes... Even the people who made the changes may not 'know' what is the correct way to resolve the conflict... For that to happen, people involved would have to communicate and agree on either option or they would have to agree on a compromise. This problem cannot be solved automatically because computers cannot read minds (yet).This is why I like using granular data structures where each value can be updated in an all-or-nothing manner and if one person's change overwrites another, the person whose change was overwritten will just assume that the other person made an update shortly after and the amount overwritten is minimal.",
-    "parent": 45682350,
-    "depth": 2
-  },
-  {
     "id": 45682746,
     "by": "scotty79",
     "timeISO": "2025-10-23T15:10:18.000Z",
     "textPlain": "I think it's your job as a designer to encode which update should win. In case of equivalent updates like writing to a field they suggest 'last update wins\" strategy.For words, if a word is a single unit in your system, delete obviously beats amendment.",
+    "parent": 45682350,
+    "depth": 2
+  },
+  {
+    "id": 45683474,
+    "by": "jongjong",
+    "timeISO": "2025-10-23T16:04:47.000Z",
+    "textPlain": "Yes, it's impossible for a distributed system to figure out the collaborative intent when it sees conflicting changes... Even the people who made the changes may not 'know' what is the correct way to resolve the conflict... For that to happen, people involved would have to communicate and agree on either option or they would have to agree on a compromise. This problem cannot be solved automatically because computers cannot read minds (yet).This is why I like using granular data structures where each value can be updated in an all-or-nothing manner and if one person's change overwrites another, the person whose change was overwritten will just assume that the other person made an update shortly after and the amount overwritten is minimal.",
     "parent": 45682350,
     "depth": 2
   },
@@ -61,6 +77,38 @@
     "timeISO": "2025-10-23T15:24:26.000Z",
     "textPlain": "I mean your example is a classic case.And there are different algos, for diamondtypes:Once a character is seen by clients any delete of it wins, algos like diamond types reconstruct each clients stream.So in the case of DT, effect is absolutely gone, two clients deleting the e and one client deleted the ffects, and they both started at the same causal slice, but the A is a good question. You might just end up with an A.In the case of multiple inserts in the same position dt uses the client ids lexical sort for ordering to reduce text interleaving.Other crdt approaches may be positional or last write wins, in which case you may end up with nothing.Besides being an amazing project loro crdts documentation and blog covers a lot of this stuff and names the specific algos they use.",
     "parent": 45682350,
+    "depth": 2
+  },
+  {
+    "id": 45683911,
+    "by": "sotomski",
+    "timeISO": "2025-10-23T16:37:22.000Z",
+    "textPlain": "AFAIK, Automerge people work pretty hard on Beehive and Keyhive. Once released, that’ll be exactly what you asked for: https://www.inkandswitch.com/keyhive/notebook/05/\nYou can also use Yjs over Matrix (which has e2e encryption): https://github.com/YousefED/Matrix-CRDT",
+    "parent": 45683797,
+    "depth": 2
+  },
+  {
+    "id": 45684114,
+    "by": "Retr0id",
+    "timeISO": "2025-10-23T16:54:33.000Z",
+    "textPlain": "In theory, you can exchange CRDT update information over  any channel you like (say, MLS) https://martin.kleppmann.com/2019/05/15/encrypted-crdts.html",
+    "parent": 45683797,
+    "depth": 2
+  },
+  {
+    "id": 45683987,
+    "by": "marcusestes",
+    "timeISO": "2025-10-23T16:43:15.000Z",
+    "textPlain": "Fireproof implements a CRDT and implements E2E. https://use-fireproof.com/docs/welcome/",
+    "parent": 45683797,
+    "depth": 2
+  },
+  {
+    "id": 45683858,
+    "by": "schainks",
+    "timeISO": "2025-10-23T16:33:01.000Z",
+    "textPlain": "You mean something like this? https://jakelazaroff.com/words/homomorphically-encrypted-crd...It is slow and inefficient, but can be done.",
+    "parent": 45683797,
     "depth": 2
   }
 ]
