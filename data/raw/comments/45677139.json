@@ -1,13 +1,5 @@
 [
   {
-    "id": 45681778,
-    "by": "everfrustrated",
-    "timeISO": "2025-10-23T13:46:41.000Z",
-    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
     "id": 45679393,
     "by": "jasode",
     "timeISO": "2025-10-23T08:02:42.000Z",
@@ -16,10 +8,34 @@
     "depth": 1
   },
   {
-    "id": 45679256,
-    "by": "shayonj",
-    "timeISO": "2025-10-23T07:40:08.000Z",
-    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
+    "id": 45681778,
+    "by": "everfrustrated",
+    "timeISO": "2025-10-23T13:46:41.000Z",
+    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45684737,
+    "by": "WaitWaitWha",
+    "timeISO": "2025-10-23T17:52:19.000Z",
+    "textPlain": "I gather, the root cause was a latent race condition in the DynamoDB DNS management system that allowed an outdated DNS plan to overwrite the current one, resulting in an empty DNS record for the regional endpoint.Correct?",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45684810,
+    "by": "pelagicAustral",
+    "timeISO": "2025-10-23T17:58:01.000Z",
+    "textPlain": "Had no idea Dynamo was so intertwined with the whole AWS stack.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45684446,
+    "by": "qrush",
+    "timeISO": "2025-10-23T17:25:49.000Z",
+    "textPlain": "Sounds like DynamoDB is going to continue to be a hard dependency for EC2, etc. I at least appreciate the transparency and hearing about their internal systems names.",
     "parent": 45677139,
     "depth": 1
   },
@@ -28,6 +44,22 @@
     "by": "ericpauley",
     "timeISO": "2025-10-23T11:19:00.000Z",
     "textPlain": "Interesting use of the phrase “Route53 transaction” for an operation that has no hard transactional guarantees. Especially given the lack of transactional updates are what caused the outage…",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45679844,
+    "by": "gslin",
+    "timeISO": "2025-10-23T09:12:49.000Z",
+    "textPlain": "I believe a report with timezone not using UTC is a crime.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45679256,
+    "by": "shayonj",
+    "timeISO": "2025-10-23T07:40:08.000Z",
+    "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
     "parent": 45677139,
     "depth": 1
   },
@@ -44,14 +76,6 @@
     "by": "lazystar",
     "timeISO": "2025-10-23T06:01:01.000Z",
     "textPlain": "> Since this situation had no established operational recovery procedure, engineers took care in attempting to resolve the issue with DWFM without causing further issues.interesting.",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
-    "id": 45679844,
-    "by": "gslin",
-    "timeISO": "2025-10-23T09:12:49.000Z",
-    "textPlain": "I believe a report with timezone not using UTC is a crime.",
     "parent": 45677139,
     "depth": 1
   },
@@ -96,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 45684489,
+    "by": "Cicero22",
+    "timeISO": "2025-10-23T17:30:44.000Z",
+    "textPlain": "my take away was that the race condition was the root cause. Take away that bug, and suddenly there's no incident, regardless of any processing delays.",
+    "parent": 45679393,
+    "depth": 2
+  },
+  {
     "id": 45683071,
     "by": "dustbunny",
     "timeISO": "2025-10-23T15:35:38.000Z",
@@ -112,11 +144,27 @@
     "depth": 2
   },
   {
-    "id": 45681204,
-    "by": "donavanm",
-    "timeISO": "2025-10-23T12:48:02.000Z",
-    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
-    "parent": 45679256,
+    "id": 45684455,
+    "by": "supriyo-biswas",
+    "timeISO": "2025-10-23T17:26:59.000Z",
+    "textPlain": "DNS-based CDNs are also effectively this: collect metrics from a datastore regarding system usage metrics, packet loss, latency etc and compute a table of viewer networks and preferred PoPs.Unfortunately hard documentation is difficult to provide but that’s how a CDN worked at a place I used to work for, there’s also another CDN[1] which talks about the same thing in fancier terms.[1] https://bunny.net/network/smartedge/",
+    "parent": 45681778,
+    "depth": 2
+  },
+  {
+    "id": 45685014,
+    "by": "freedomben",
+    "timeISO": "2025-10-23T18:16:46.000Z",
+    "textPlain": "Yeah, for better or worse, AWS is a huge dogfooder. It's nice to know they trust their stuff enough to depend on it themselves, but it's also scary to know that the blast radius of a failure in any particular service can be enormous",
+    "parent": 45684810,
+    "depth": 2
+  },
+  {
+    "id": 45684856,
+    "by": "offmycloud",
+    "timeISO": "2025-10-23T18:01:04.000Z",
+    "textPlain": "I think it's time for AWS to pull the curtain back a bit and release a JSON document that shows a list of all internal service dependencies for each AWS service.",
+    "parent": 45684446,
     "depth": 2
   },
   {
@@ -125,14 +173,6 @@
     "timeISO": "2025-10-23T12:39:54.000Z",
     "textPlain": "I think you misunderstnad the failure case. The ChangeResourceRecordSet is transactional (or was when I worked on the service) https://docs.aws.amazon.com/Route53/latest/APIReference/API_....The fault was two different clients with divergent goal states:- one (\"old\") DNS Enactor experienced unusually high delays needing to retry its update on several of the DNS endpoints- the DNS Planner continued to run and produced many newer generations of plans\n   [Ed: this is key: its producing \"plans\" of desired state, the does not include a complete transaction like a log or chain with previous state + mutations]- one of the other (\"new\") DNS Enactors then began applying one of the newer plans-  then (\"new\") invoked the plan clean-up process, which identifies plans that are significantly older than the one it just applied and deletes them   [Ed: the key race is implied here. The \"old\" Enactor is reading _current state_, which was the output of \"new\", and applying its desired \"old\" state on top. The discrepency is because apparently Planer and Enactor aren't working with a chain/vector clock/serialized change set numbers/etc]- At the same time the first (\"old\") Enactor ... applied its much older plan to the regional DDB endpoint, overwriting the newer plan.   [Ed: and here is where \"old\" Enactor creates the valid ChangeRRSets call, replacing \"new\" with \"old\"]-  The check that was made at the start of the plan application process, which ensures that the plan is newer than the previously applied plan, was stale by this time  [Ed: Whoops!]- The second Enactor’s clean-up process then deleted this older plan because it was many generations older than the plan it had just applied.Ironically Route 53 does have strong transactions of API changes _and_ serializes them _and_ has closed loop observers to validate change sets globally on every dataplane host. So do other AWS services. And there are even some internal primitives for building replication or change set chains like this. But ",
     "parent": 45680567,
-    "depth": 2
-  },
-  {
-    "id": 45680108,
-    "by": "philipwhiuk",
-    "timeISO": "2025-10-23T09:55:16.000Z",
-    "textPlain": "Race condition and bad data validation.",
-    "parent": 45677745,
     "depth": 2
   },
   {
@@ -149,6 +189,22 @@
     "timeISO": "2025-10-23T16:48:01.000Z",
     "textPlain": "My guess is that PT was chosen to highlight the fact that this happened in the middle of the night for most of the responding ops folks.(I don't know anything here, just spitballing why that choice would be made)",
     "parent": 45679844,
+    "depth": 2
+  },
+  {
+    "id": 45681204,
+    "by": "donavanm",
+    "timeISO": "2025-10-23T12:48:02.000Z",
+    "textPlain": "See https://news.ycombinator.com/item?id=45681136. The actual DNS mutation API does, effectively, CAS. They had multiple unsynchronized writers who raced without logical constraints or ordering to teh changes. Without thinking much they _might_ have been able to implement something like a vector either through updating the zone serial or another \"sentinel record\" that was always used for ChangeRRSets affecting that label/zone; like a TXT record containing a serialized change set number or a \"checksum\" of the old + new state.Im guessing the \"plans\" aspect skipped that and they were just applying intended state, without trying serialize them. And last-write-wins, until it doesnt.",
+    "parent": 45679256,
+    "depth": 2
+  },
+  {
+    "id": 45680108,
+    "by": "philipwhiuk",
+    "timeISO": "2025-10-23T09:55:16.000Z",
+    "textPlain": "Race condition and bad data validation.",
+    "parent": 45677745,
     "depth": 2
   }
 ]
