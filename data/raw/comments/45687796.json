@@ -1,5 +1,13 @@
 [
   {
+    "id": 45696029,
+    "by": "lzaf",
+    "timeISO": "2025-10-24T16:07:59.000Z",
+    "textPlain": "On a similar vein some time ago I had written a small toy lib that emulates the os.File interface for nmap backed files: https://github.com/zaf/yammap, \nIt even handled bus errors without panicking: https://github.com/zaf/yammap/blob/186f714343906bb9304ad5f30...Read and write performance was usually better especially with larger write sizes.\nCompared to os.File:  ~/src/yammap$ go test -benchtime=4s -bench .\n  goos: linux\n  goarch: amd64\n  pkg: github.com/zaf/yammap\n  cpu: AMD Ryzen 9 5900X 12-Core Processor\n  BenchmarkWrite-24 29085     164744 ns/op 25459.52 MB/s\n  BenchmarkOSWrite-24 22204     215131 ns/op 19496.54 MB/s\n  BenchmarkRead-24 29113     166820 ns/op 25142.72 MB/s\n  BenchmarkOSRead-24 27451     172685 ns/op 24288.69 MB/s",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45688819,
     "by": "buybackoff",
     "timeISO": "2025-10-23T23:31:25.000Z",
@@ -64,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45689129,
+    "by": "gustavpaul",
+    "timeISO": "2025-10-24T00:06:35.000Z",
+    "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45691639,
     "by": "gethly",
     "timeISO": "2025-10-24T06:51:19.000Z",
@@ -92,14 +108,6 @@
     "by": "Animats",
     "timeISO": "2025-10-24T04:16:56.000Z",
     "textPlain": "I never knew that Linux memory mapped files were copy-on-write. I'd assumed they let you alter the page and wrote out dirty pages later.",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
-    "id": 45689129,
-    "by": "gustavpaul",
-    "timeISO": "2025-10-24T00:06:35.000Z",
-    "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
     "parent": 45687796,
     "depth": 1
   },
@@ -168,18 +176,18 @@
     "depth": 2
   },
   {
-    "id": 45693574,
-    "by": "checker659",
-    "timeISO": "2025-10-24T11:39:23.000Z",
-    "textPlain": "Latency Numbers Every Programmer Should Know (originally by Jeff Dean / Peter Norvig)https://gist.github.com/jboner/2841832",
-    "parent": 45688819,
-    "depth": 2
-  },
-  {
     "id": 45689236,
     "by": "Scaevolus",
     "timeISO": "2025-10-24T00:23:18.000Z",
     "textPlain": "Yeah, 3.3ns is about 12 CPU cycles. You can indeed create a pointer to a memory location that fast!",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45693574,
+    "by": "checker659",
+    "timeISO": "2025-10-24T11:39:23.000Z",
+    "textPlain": "Latency Numbers Every Programmer Should Know (originally by Jeff Dean / Peter Norvig)https://gist.github.com/jboner/2841832",
     "parent": 45688819,
     "depth": 2
   },
@@ -264,6 +272,30 @@
     "depth": 2
   },
   {
+    "id": 45690000,
+    "by": "loeg",
+    "timeISO": "2025-10-24T02:14:23.000Z",
+    "textPlain": "> so if ever the underlying file descriptor is closedNit: Mmap mapping lifetimes are not attached to the underlying fd.  The file truncation and latency concerns are valid, though.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45693981,
+    "by": "dahfizz",
+    "timeISO": "2025-10-24T12:34:08.000Z",
+    "textPlain": "Being able to avoid an extra copy is actually a huge performance gain when you can safely do it. You shouldn't discount how useful mmap is just because its not useful in every scenario.You shouldn't replace every single file access with mmap. But when it makes sense, mmap is a big performance win.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45689536,
+    "by": "dapperdrake",
+    "timeISO": "2025-10-24T01:05:42.000Z",
+    "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
     "id": 45695263,
     "by": "perbu",
     "timeISO": "2025-10-24T14:53:23.000Z",
@@ -301,30 +333,6 @@
     "timeISO": "2025-10-24T04:50:02.000Z",
     "textPlain": "MAP_PRIVATE vs. MAP_SHARED",
     "parent": 45690705,
-    "depth": 2
-  },
-  {
-    "id": 45693981,
-    "by": "dahfizz",
-    "timeISO": "2025-10-24T12:34:08.000Z",
-    "textPlain": "Being able to avoid an extra copy is actually a huge performance gain when you can safely do it. You shouldn't discount how useful mmap is just because its not useful in every scenario.You shouldn't replace every single file access with mmap. But when it makes sense, mmap is a big performance win.",
-    "parent": 45689129,
-    "depth": 2
-  },
-  {
-    "id": 45690000,
-    "by": "loeg",
-    "timeISO": "2025-10-24T02:14:23.000Z",
-    "textPlain": "> so if ever the underlying file descriptor is closedNit: Mmap mapping lifetimes are not attached to the underlying fd.  The file truncation and latency concerns are valid, though.",
-    "parent": 45689129,
-    "depth": 2
-  },
-  {
-    "id": 45689536,
-    "by": "dapperdrake",
-    "timeISO": "2025-10-24T01:05:42.000Z",
-    "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
-    "parent": 45689129,
     "depth": 2
   },
   {
