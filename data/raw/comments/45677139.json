@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45685215,
+    "by": "ecnahc515",
+    "timeISO": "2025-10-23T18:36:15.000Z",
+    "textPlain": "Seems like the enactor should be checking the version/generation of the current record before it applies the new value, to ensure it never applies an old plan on top of an record updated by a new plan. It wouldn't be as efficient, but that's just how it is. It's a basic compare and swap operation, so it could be handled easily within dynamodb itself where these records are stored.",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
     "id": 45690103,
     "by": "JCM9",
     "timeISO": "2025-10-24T02:32:36.000Z",
@@ -40,34 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45685215,
-    "by": "ecnahc515",
-    "timeISO": "2025-10-23T18:36:15.000Z",
-    "textPlain": "Seems like the enactor should be checking the version/generation of the current record before it applies the new value, to ensure it never applies an old plan on top of an record updated by a new plan. It wouldn't be as efficient, but that's just how it is. It's a basic compare and swap operation, so it could be handled easily within dynamodb itself where these records are stored.",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
     "id": 45690340,
     "by": "grogers",
     "timeISO": "2025-10-24T03:10:06.000Z",
     "textPlain": "> As this plan was deleted, all IP addresses for the regional endpoint were immediately removed.I feel like I am missing something here... They make it sound like the DNS enactor basically diffs the current state of DNS with the desired state, and then submits the adds/deletes needed to make the DNS go to the desired state.With the racing writers, wouldn't that have just made the DNS go back to an older state? Why did it remove all the IPs entirely?",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
-    "id": 45681778,
-    "by": "everfrustrated",
-    "timeISO": "2025-10-23T13:46:41.000Z",
-    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
-    "id": 45689950,
-    "by": "rr808",
-    "timeISO": "2025-10-24T02:06:23.000Z",
-    "textPlain": "https://newsletter.pragmaticengineer.com/p/what-caused-the-l... has a better explanation instead of the wall of text from AWS",
     "parent": 45677139,
     "depth": 1
   },
@@ -92,6 +76,22 @@
     "by": "shayonj",
     "timeISO": "2025-10-23T07:40:08.000Z",
     "textPlain": "I was kinda surprised the lack of CAS on per-endpoint plan version or rejecting stale writes via 2PC or single-writer lease per endpoint like patterns.Definitely a painful one with good learnings and kudos to AWS for being so transparent and detailed :hugops:",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45689950,
+    "by": "rr808",
+    "timeISO": "2025-10-24T02:06:23.000Z",
+    "textPlain": "https://newsletter.pragmaticengineer.com/p/what-caused-the-l... has a better explanation instead of the wall of text from AWS",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45681778,
+    "by": "everfrustrated",
+    "timeISO": "2025-10-23T13:46:41.000Z",
+    "textPlain": ">Services like DynamoDB maintain hundreds of thousands of DNS records to operate a very large heterogeneous fleet of load balancers in each RegionDoes that mean a DNS query for dynamodb.us-east-1.amazonaws.com can resolve to one of a hundred thousand IP address?That's insane!And also well beyond the limits of route53.I'm wondering if they're constantly updating route53 with a smaller subset of records and using a low ttl to somewhat work around this.",
     "parent": 45677139,
     "depth": 1
   },
@@ -192,18 +192,18 @@
     "depth": 1
   },
   {
-    "id": 45690422,
-    "by": "martythemaniak",
-    "timeISO": "2025-10-24T03:23:24.000Z",
-    "textPlain": "It's not DNS\nThere's no way it's DNS\nIt was DNS",
-    "parent": 45677139,
-    "depth": 1
-  },
-  {
     "id": 45678380,
     "by": "galaxy01",
     "timeISO": "2025-10-23T05:18:50.000Z",
     "textPlain": "Would conditional read/write solve this? looks like some kind of stale read",
+    "parent": 45677139,
+    "depth": 1
+  },
+  {
+    "id": 45690422,
+    "by": "martythemaniak",
+    "timeISO": "2025-10-24T03:23:24.000Z",
+    "textPlain": "It's not DNS\nThere's no way it's DNS\nIt was DNS",
     "parent": 45677139,
     "depth": 1
   },
@@ -328,6 +328,14 @@
     "depth": 2
   },
   {
+    "id": 45691459,
+    "by": "throwdbaaway",
+    "timeISO": "2025-10-24T06:22:40.000Z",
+    "textPlain": "> But I did not expect something as core as the service managing the leases on the physical EC2 nodes to not have recovery procedure.I guess they don't have a recovery procedure for the \"congestive collapse\" edge case. I have seen something similar, so I wouldn't be frowning at this.A couple of red flags though:1. Apparent lack of load-shedding support by this DWFM, such that a server reboot had to be performed. Need to learn from https://aws.amazon.com/builders-library/using-load-shedding-...2. Having DynamoDB as a dependency of this DWFM service, instead of something more primitive like Chubby. Need to learn more about distributed systems primitives from https://www.youtube.com/watch?v=QVvFVwyElLY",
+    "parent": 45685836,
+    "depth": 2
+  },
+  {
     "id": 45691023,
     "by": "gtowey",
     "timeISO": "2025-10-24T05:16:49.000Z",
@@ -384,19 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45690161,
-    "by": "Arainach",
-    "timeISO": "2025-10-24T02:42:22.000Z",
-    "textPlain": ">about where these single points of failure exist.In general, when you find one you work to fix it, and one of the most common ways to find more is when one of them fails.  Having single points of failure and letting them live isn't the standard practice at this scale.",
-    "parent": 45690103,
-    "depth": 2
-  },
-  {
-    "id": 45690159,
-    "by": "cowsandmilk",
-    "timeISO": "2025-10-24T02:42:12.000Z",
-    "textPlain": "Except just in the DNS section, I’ve already found one place where he gets it wrong…",
-    "parent": 45689950,
+    "id": 45681090,
+    "by": "exogenousdata",
+    "timeISO": "2025-10-23T12:33:24.000Z",
+    "textPlain": "An epoch fail?",
+    "parent": 45679844,
     "depth": 2
   }
 ]
