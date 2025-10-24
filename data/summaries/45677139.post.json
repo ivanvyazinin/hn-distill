@@ -1,0 +1,17 @@
+{
+  "id": 45677139,
+  "lang": "ru",
+  "summary": "В течение 19 и 20 октября 2025 года сервис Amazon DynamoDB в регионе Северной Вирджинии (us-east-1) столкнулся с серией сбоев, повлиявших на клиентов. Проблема началась 19 октября в 23:48 по тихоокеанскому времени и завершилась 20 октября в 14:20. Событие развивалось в три этапа. Сначала, до 2:40 утра 20 октября, клиенты испытывали повышенное количество ошибок API при обращении к DynamoDB. Во-вторых, с 5:30 утра до 14:09 20 октября, Network Load Balancer (NLB) испытывал повышенные ошибки подключения для некоторых балансировщиков. В-третьих, с 2:25 до 10:36 утра 20 октября, запуски новых экземпляров EC2 терпели неудачу, а те, что запустились, имели проблемы с подключением до 13:50.\n\nПричиной инцидента стала редкая race condition в системе управления DNS DynamoDB. Эта система, ключевая для масштабируемости и отказоустойчивости DynamoDB, состоит из двух частей. DNS Planner создает планы обновления DNS на основе состояния пула серверов. DNS Enactor применяет эти планы, обновляя Route53 (систему DNS AWS). Обычно это работает надежно, но в данном случае два экземпляра DNS Enactor одновременно попытались обновить одну и ту же запись DNS, что привело к ее очистке. В результате, адрес **dynamodb.us-east-1.amazonaws.com** стал указывать в пустоту, и клиенты не могли установить соединение. Проблема была обнаружена и исправлена к 2:40 утра 20 октября, но вторичные эффекты привели к последующим инцидентам.\n\nС 5:30 утра до 14:09 20 октября, Network Load Balancer (NLB) испытывал повышенные ошибки соединения для некоторых балансировщиков. Это было вызвано тем, что вторичный эффект инцидента DynamoDB привел к тому, что часть трафика NLB перенаправлялась на экземпляры, которые сами зависели от DynamoDB и стали недоступны. Это создавало каскадный эффект: пока DynamoDB был недоступен, часть трафика NLB терялась, что привело к ошибкам.\n\nС 2:25 до 10:36 утра 20 октября, запуски новых экземпляров EC2 терпели неудачу. Это произошло потому, что сервис управления EC2 использует DynamoDB для хранения состояния, и когда DynamoDB был недоступен, он не мог создавать новые экземпляры. В 10:37 запуски возобновились, но до 13:50 некоторые экземпляры имели проблемы с сетью, так как они были созданы без полной конфигурации сети из-за race condition с NLB.",
+  "inputHash": "44e48ee036520c3ad1d0b6e85dd821152069448223514b4f672bf284172f6161",
+  "model": "deepseek/deepseek-chat-v3.1:free",
+  "createdISO": "2025-10-24T02:02:36.708Z",
+  "guard": {
+    "ok": true,
+    "verdict": "other",
+    "reasons": [
+      "The candidate summary accurately represents the key points of the article excerpt, including the timeline of events, the root cause of the DynamoDB service disruption, and the subsequent impacts on Network Load Balancer (NLB) and EC2 instance launches.",
+      "The summary provides a clear and concise explanation of the technical issues, such as the race condition in the DynamoDB DNS management system and the cascading effects on other AWS services.",
+      "The summary is well-structured and logically organized, making it easy to understand the sequence of events and their interconnections."
+    ]
+  }
+}

@@ -1,9 +1,49 @@
 [
   {
+    "id": 45688819,
+    "by": "buybackoff",
+    "timeISO": "2025-10-23T23:31:25.000Z",
+    "textPlain": "It looks suspicious at 25x. Even 2.5x would be suspicious unless reading very small records.I assume both cases have the file cached in RAM already fully, with a tiny size of 100MB. But the file read based version actually copies the data into a given buffer, which involves cache misses to get data from RAM to L1 for copying. The mmap version just returns the slice and it's discarded immediately, the actual data is not touched at all. Each record is 2 cache lines and with random indices is not prefetched. For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.The benchmark compares actually getting data vs getting data location. Single digit nanos is the scale of good hash tables lookups with data in CPU caches, not actual IO. For fairness, both should use/touch the data, eg copy it.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45688581,
     "by": "nteon",
     "timeISO": "2025-10-23T23:05:38.000Z",
     "textPlain": "the downside is that the go runtime doesn't expect memory reads to page fault, so you may end up with stalls/latency/under-utilization if part of your dataset is paged out (like if you have a large cdb file w/ random access patterns).  Using file IO, the Go runtime could be running a different goroutine if there is a disk read, but with mmap that thread is descheduled but holding an m & p. I'm also not sure if there would be increased stop the world pauses, or if the async preemption stuff would \"just work\".Section 3.2 of this paper has more details: https://db.cs.cmu.edu/papers/2022/cidr2022-p13-crotty.pdf",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45689040,
+    "by": "Ingon",
+    "timeISO": "2025-10-23T23:55:05.000Z",
+    "textPlain": "When I adopted mmap in klevdb [1], I saw a dramatic performance improvements. So, even as klevdb completes a write segment, it will reopen, on demand, the segment for reading with mmap (segments are basically part of write only log). With this any random reads are super fast (but of course not as fast as sequential ones).[1] https://github.com/klev-dev/klevdb",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45689129,
+    "by": "gustavpaul",
+    "timeISO": "2025-10-24T00:06:35.000Z",
+    "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45689174,
+    "by": "liuliu",
+    "timeISO": "2025-10-24T00:13:46.000Z",
+    "textPlain": "mmap is a good crutch when you 1. don't have busy polling / async IO API available and want to do some quick & dirty preloading tricks; 2. don't want to manage the complexity of in-memory cache, especially cross-processes ones.Obviously if you have kernel-backed async IO APIs (io_uring) and willing to dig into the deeper end (for better managed cache), you can get better performance than mmap. But in many cases, mmap is \"good-enough\".",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688987,
+    "by": "commandersaki",
+    "timeISO": "2025-10-23T23:50:01.000Z",
+    "textPlain": "This is a good article but I'm wondering what is the relationship between this website/company and varnish-cache.org, since in the article they make claims of releasing Varnish Cache, and the article wasn't written by Poul-Henning Kamp.",
     "parent": 45687796,
     "depth": 1
   },
@@ -16,12 +56,100 @@
     "depth": 1
   },
   {
+    "id": 45688901,
+    "by": "mholt",
+    "timeISO": "2025-10-23T23:40:20.000Z",
+    "textPlain": "Just this month, I've learned the hard way that some file systems do not play well with mmap: https://github.com/mattn/go-sqlite3/issues/1355In my case, it seems that Mac's ExFAT driver is incompatible with sqlite's WAL mode because the driver returned a memory address that is misaligned on ARM64. Most bizarre error I've encountered in years.So, uh, mind your file systems, kids!",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688897,
+    "by": "MayCXC",
+    "timeISO": "2025-10-23T23:39:33.000Z",
+    "textPlain": "wowie. mmap also dramatically improved perf for LLaMA: https://justine.lol/mmap/",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45689464,
+    "by": "kragen",
+    "timeISO": "2025-10-24T00:53:43.000Z",
+    "textPlain": "The simple answer to \"How do memory maps (mmap) deliver faster file access?\" is \"sometimes\", but the blog post does give some more details.I was suspicious of the 25× speedup claim, but it's a lot more plausible than I thought.On this Ryzen 5 3500U running mostly at 3.667GHz (poorly controlled), reading data from an already-memory-mapped page is as fast as memcpy (about 10 gigabytes per second when not cached on one core of my laptop, which works out to 0.1 nanoseconds per byte, plus about 20 nanoseconds of overhead) while lseek+read is two system calls (590ns each) plus copying bytes into userspace (26–30ps per byte for small calls, 120ps per byte for a few megabytes).  Small memcpy (from, as it happens, an mmapped page) also costs about 25ps per byte, plus about 2800ps per loop iteration, probably much of which is incrementing the loop counter and passing arguments to the memcpy function (GCC is emitting an actual call to memcpy, via the PLT).So mmap will always be faster than lseek+read on this machine, at least if it doesn't have a page fault, but the point at which memcpy from mmap would be 25× faster than lseek+read would be where 2×590 + .028n = 25×(2.8 + .025n) = 70 + .625n.  Which is to say 1110 = .597n ∴ n = 1110/.597 = 1859 bytes.  At that point, memcpy from mmap should be 49ns and lseek+read should be 1232ns, which is 25× as big.  You can cut that size more than in half if you use pread() instead of lseek+read, and presumably io_uring would cut it even more.  If we assume that we're also taking cache misses to bring in the data from main memory in both cases, we have 2×590 + .1n = 25×(2.8 + .1n) = 70 + 2.5n, so 1110 = 2.4n ∴ n = 1110/2.4 = 462 bytes.On the other hand, mmap will be slow if it's hitting a page fault, which sort of corresponds to the case where you could have cached the result of lseek+read in private RAM, which you could do on a smaller-than-pagesize granularity, which potentially means you could hit the slow path much less often for a giv",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45688548,
     "by": "nawgz",
     "timeISO": "2025-10-23T23:02:31.000Z",
     "textPlain": "Sounds interesting. Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?",
     "parent": 45687796,
     "depth": 1
+  },
+  {
+    "id": 45689562,
+    "by": "a-dub",
+    "timeISO": "2025-10-24T01:10:00.000Z",
+    "textPlain": "doing these sorts of benchmarks is actually quite tricky. you must clear the page cache by allocating >1x physical ram before each attempt.moreover, mmap by default will load lazy, where mmap with MAP_POPULATE will prefetch. in the former case, reporting average operation times is not valid because the access time distributions are not gaussian (they have a one time big hit at first touch). with MAP_POPULATE (linux only), there is long loading delay when mmap is first called, but then the average access times will be very low. when pages are released will be determined by the operating system page cache eviction policy.the data structure on top is best chosen based on desired runtime characteristics. if it's all going in ram, go ahead and use a standard randomized hash table. if it's too big to fit in ram, designing a structure that is aware of lru style page eviction semantics may make sense (ie, a hash table or other layout that preserves locality for things that are expected to be accessed in a temporally local fashion.)",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45689486,
+    "by": "kragen",
+    "timeISO": "2025-10-24T00:58:19.000Z",
+    "textPlain": "> For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.I think this is the wrong order of magnitude.  One core of my Ryzen 5 3500U seems to be able to run memcpy() at 10 gigabytes per second (0.1 nanoseconds per byte) and memset() at 31 gigabytes per second (0.03 nanoseconds per byte).  I'd expect a sequential read of 100 bytes to take about 3 nanoseconds, not 100 nanoseconds.However, I think random accesses do take close to 100 nanoseconds to transmit the starting row and column address and open the row.  I haven't measured this on this hardware because I don't have a test I'm confident in.",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45689236,
+    "by": "Scaevolus",
+    "timeISO": "2025-10-24T00:23:18.000Z",
+    "textPlain": "Yeah, 3.3ns is about 12 CPU cycles. You can indeed create a pointer to a memory location that fast!",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45688989,
+    "by": "vlovich123",
+    "timeISO": "2025-10-23T23:50:14.000Z",
+    "textPlain": "To me this indicates a limitation of the API. Cause you do want to maintain that the kernel can page out that memory under pressure while userspace accesses that memory asynchronously while allowing the thread to do other asynchronous things. There’s no good programming model/OS api that can accomplish this today.",
+    "parent": 45688581,
+    "depth": 2
+  },
+  {
+    "id": 45689536,
+    "by": "dapperdrake",
+    "timeISO": "2025-10-24T01:05:42.000Z",
+    "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45688704,
+    "by": "stingraycharles",
+    "timeISO": "2025-10-23T23:20:18.000Z",
+    "textPlain": "In our experience building a high performance database server: absolutely. If your line of thinking is “if you have enough free memory”, then these types of optimizations aren’t for you. one of the main benefits is eliminating an extra copy.additionally, mmap is heavily optimized for random access, so if that’s what you’re doing, then you’ll have a much better time with it than fread.(I hope a plug is not frowned upon here: if you like this kind of stuff, we’re a fully remote company and hiring C++ devs: https://apply.workable.com/quasar/j/436B0BEE43/ )",
+    "parent": 45688661,
+    "depth": 2
+  },
+  {
+    "id": 45688731,
+    "by": "do_not_redeem",
+    "timeISO": "2025-10-23T23:22:09.000Z",
+    "textPlain": "Even if the file is cached, fread has to do a memcpy. mmap doesn't.",
+    "parent": 45688661,
+    "depth": 2
+  },
+  {
+    "id": 45689111,
+    "by": "vlovich123",
+    "timeISO": "2025-10-24T00:04:30.000Z",
+    "textPlain": "I would be very careful about that conclusion. Reading that thread it sounds like you’re relying on Claude to make this conclusion but you haven’t actually verified what the address being returned actually is.The reason I’m skeptical is three fold. The first is that it’s generally impossible for a filesystem to mmap return a pointer that’s not page boundary aligned. The second is that unaligned accesses are still fine on modern ARM is not a SIGBUS. The third is that Claude’s reasoning that the pointer must be 8-byte aligned and that indicates a misaligned read is flawed - how do you know that SQLite isn’t doing a 2-byte read at that address?If you really think it’s a bad alignment it should be trivial to reproduce - mmap the file explicitly and print the address or modify the SQLite source to print the mmap location it gets.",
+    "parent": 45688901,
+    "depth": 2
   },
   {
     "id": 45688681,
