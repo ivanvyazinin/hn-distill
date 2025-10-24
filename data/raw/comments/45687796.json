@@ -1,17 +1,17 @@
 [
   {
-    "id": 45688819,
-    "by": "buybackoff",
-    "timeISO": "2025-10-23T23:31:25.000Z",
-    "textPlain": "It looks suspicious at 25x. Even 2.5x would be suspicious unless reading very small records.I assume both cases have the file cached in RAM already fully, with a tiny size of 100MB. But the file read based version actually copies the data into a given buffer, which involves cache misses to get data from RAM to L1 for copying. The mmap version just returns the slice and it's discarded immediately, the actual data is not touched at all. Each record is 2 cache lines and with random indices is not prefetched. For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.The benchmark compares actually getting data vs getting data location. Single digit nanos is the scale of good hash tables lookups with data in CPU caches, not actual IO. For fairness, both should use/touch the data, eg copy it.",
+    "id": 45692587,
+    "by": "benjiro",
+    "timeISO": "2025-10-24T09:17:45.000Z",
+    "textPlain": "People are so focused on the mmap part, and the latency, that the usage is overlooked.> The last couple of weeks I've been working on an HTTP-backed filesystem.It feels like this is micro optimizations, that are going to get blocked anyway by the whole HTTP cycle anyway.There is also the benchmark issue:The enhanced CDB format seems to be focused on a read only benefits, as writes introduced a lot of latency, and issue with mmap. In other words, there is a need to freeze for the mmap, then unfreeze, write for updates, freeze for mmap ...This cycle introduces overhead, does it not? Has this been benchmarked? Because from what i am seeing, the benefits are mostly in the frozen state (aka read only).If the data is changed infrequently, why not just use json? No matter how slow it is, if your just going to do http requests for the directory listing, your overhead is not the actual file format.If this enhanced file format was used as file storage, and you want to be able to fast read files, that is a different matter. Then there are ways around it with keeping \"part\" files where files 1 ... 1000 are in file.01, 2 ... 2000 in file.02 (thus reducing overhead from the file system). And those are memory mapped for fast reading. And where updates are invalidated files/rewrites (as i do not see any delete/vacume ability in the file format).So, the actual benefits just for a file directory listing db escapes me.",
     "parent": 45687796,
     "depth": 1
   },
   {
-    "id": 45692201,
-    "by": "karel-3d",
-    "timeISO": "2025-10-24T08:18:49.000Z",
-    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
+    "id": 45688819,
+    "by": "buybackoff",
+    "timeISO": "2025-10-23T23:31:25.000Z",
+    "textPlain": "It looks suspicious at 25x. Even 2.5x would be suspicious unless reading very small records.I assume both cases have the file cached in RAM already fully, with a tiny size of 100MB. But the file read based version actually copies the data into a given buffer, which involves cache misses to get data from RAM to L1 for copying. The mmap version just returns the slice and it's discarded immediately, the actual data is not touched at all. Each record is 2 cache lines and with random indices is not prefetched. For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.The benchmark compares actually getting data vs getting data location. Single digit nanos is the scale of good hash tables lookups with data in CPU caches, not actual IO. For fairness, both should use/touch the data, eg copy it.",
     "parent": 45687796,
     "depth": 1
   },
@@ -48,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45691639,
-    "by": "gethly",
-    "timeISO": "2025-10-24T06:51:19.000Z",
-    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
+    "id": 45692201,
+    "by": "karel-3d",
+    "timeISO": "2025-10-24T08:18:49.000Z",
+    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
     "parent": 45687796,
     "depth": 1
   },
@@ -60,6 +60,14 @@
     "by": "gustavpaul",
     "timeISO": "2025-10-24T00:06:35.000Z",
     "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45691639,
+    "by": "gethly",
+    "timeISO": "2025-10-24T06:51:19.000Z",
+    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
     "parent": 45687796,
     "depth": 1
   },
@@ -128,18 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45692029,
-    "by": "hyc_symas",
-    "timeISO": "2025-10-24T07:51:55.000Z",
-    "textPlain": "That's such an obvious error in their benchmark code. In my benchmark code I make sure to touch the data so at least the 1st page is actually paged in from disk.https://github.com/LMDB/dbbench/blob/1281588b7fdf119bcba65ce...",
-    "parent": 45688819,
-    "depth": 2
-  },
-  {
     "id": 45689562,
     "by": "a-dub",
     "timeISO": "2025-10-24T01:10:00.000Z",
     "textPlain": "doing these sorts of benchmarks is actually quite tricky. you must clear the page cache by allocating >1x physical ram before each attempt.moreover, mmap by default will load lazy, where mmap with MAP_POPULATE will prefetch. in the former case, reporting average operation times is not valid because the access time distributions are not gaussian (they have a one time big hit at first touch). with MAP_POPULATE (linux only), there is long loading delay when mmap is first called, but then the average access times will be very low. when pages are released will be determined by the operating system page cache eviction policy.the data structure on top is best chosen based on desired runtime characteristics. if it's all going in ram, go ahead and use a standard randomized hash table. if it's too big to fit in ram, designing a structure that is aware of lru style page eviction semantics may make sense (ie, a hash table or other layout that preserves locality for things that are expected to be accessed in a temporally local fashion.)",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45692029,
+    "by": "hyc_symas",
+    "timeISO": "2025-10-24T07:51:55.000Z",
+    "textPlain": "That's such an obvious error in their benchmark code. In my benchmark code I make sure to touch the data so at least the 1st page is actually paged in from disk.https://github.com/LMDB/dbbench/blob/1281588b7fdf119bcba65ce...",
     "parent": 45688819,
     "depth": 2
   },
@@ -173,6 +181,22 @@
     "timeISO": "2025-10-24T08:21:09.000Z",
     "textPlain": "That is not unrealistic if you are using the file to save binary data on given positions and don't need to read all data. For example if you have a big matrix of fixed size structs and you need to read only some of them.",
     "parent": 45690927,
+    "depth": 2
+  },
+  {
+    "id": 45692306,
+    "by": "perbu",
+    "timeISO": "2025-10-24T08:34:41.000Z",
+    "textPlain": "This is a niche scenario. The scenario outlined is reading CDB databases.",
+    "parent": 45690927,
+    "depth": 2
+  },
+  {
+    "id": 45692548,
+    "by": "perbu",
+    "timeISO": "2025-10-24T09:11:25.000Z",
+    "textPlain": "This is amazingly good feedback. I hadn't thought of that at all. It is so much harder to reason about the Go runtime as opposed to a threaded application.",
+    "parent": 45688581,
     "depth": 2
   },
   {
@@ -224,18 +248,18 @@
     "depth": 2
   },
   {
-    "id": 45688731,
-    "by": "do_not_redeem",
-    "timeISO": "2025-10-23T23:22:09.000Z",
-    "textPlain": "Even if the file is cached, fread has to do a memcpy. mmap doesn't.",
-    "parent": 45688661,
-    "depth": 2
-  },
-  {
     "id": 45690013,
     "by": "loeg",
     "timeISO": "2025-10-24T02:16:25.000Z",
     "textPlain": "read, or fread?  fread is the buffered version that does an extra copy for no reason that would benefit this use case.",
+    "parent": 45688661,
+    "depth": 2
+  },
+  {
+    "id": 45688731,
+    "by": "do_not_redeem",
+    "timeISO": "2025-10-23T23:22:09.000Z",
+    "textPlain": "Even if the file is cached, fread has to do a memcpy. mmap doesn't.",
     "parent": 45688661,
     "depth": 2
   },
@@ -272,6 +296,14 @@
     "depth": 2
   },
   {
+    "id": 45692522,
+    "by": "perbu",
+    "timeISO": "2025-10-24T09:08:33.000Z",
+    "textPlain": "The point is that invoking the OS has a cost. Using mmap, for those situations where it makes sense, lets you avoid that cost.",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
     "id": 45692045,
     "by": "kragen",
     "timeISO": "2025-10-24T07:54:25.000Z",
@@ -280,18 +312,18 @@
     "depth": 2
   },
   {
-    "id": 45690437,
-    "by": "toast0",
-    "timeISO": "2025-10-24T03:25:34.000Z",
-    "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
-    "parent": 45688548,
-    "depth": 2
-  },
-  {
     "id": 45688681,
     "by": "trenchpilgrim",
     "timeISO": "2025-10-23T23:17:08.000Z",
     "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
+    "id": 45690437,
+    "by": "toast0",
+    "timeISO": "2025-10-24T03:25:34.000Z",
+    "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
     "parent": 45688548,
     "depth": 2
   }
