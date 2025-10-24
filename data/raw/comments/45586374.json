@@ -1,9 +1,17 @@
 [
   {
+    "id": 45691722,
+    "by": "unwind",
+    "timeISO": "2025-10-24T07:04:15.000Z",
+    "textPlain": "Cool!I've not had enough coffee to deeply understand this, some parts seem like magic and I'm not sure if the hashing is sufficient.Anyway, I am eminently nerd-snipable when it comes to reviewing C code, so here are a few comments. Do with them as you wish obviously.1. C89 is an interesting and slightly depressing choice, it would be interesting to hear one platform where this library would be relevant that lacks at least a C99-compliant compiler.2. On that note, I don't think `uint32_t` and friends are in C89, so that's a bit strange. Many compilers seem to allow it anyway, but then your code is no longer C89-compliant, of course.3. I think the constant `num_hash_entries` pollutes the global namespace, it's not `static` and has no prefix.4. In the header there is the `USER_FLAG_MASK` which is static, but will also clobber any application-defined symbol of the same name. Consider prefixing it.4. In general please consider writing    memset(binmoji, 0, sizeof(struct binmoji));\n\nas:    memset(binmoji, 0, sizeof *binmoji);\n\nit's less error-prone (since it \"locks\" the cleared size to the actual type of the variable used) while being shorter and typographically less involved.5. The repeated bitwise-OR:ing in `binmoji_encode()` has extra parentheses on each of the lines.6. Awesome to see use of `bsearch()` to reduce risk of binary-search bugs.",
+    "parent": 45586374,
+    "depth": 1
+  },
+  {
     "id": 45691377,
     "by": "creatonez",
     "timeISO": "2025-10-24T06:11:27.000Z",
-    "textPlain": "> There is a possibility of collisions in the future, we can use the reserved flags as a nonce for known collisions if this ever comes up.This is a ticking time bomb. Good luck getting folks using this standard to implement this properly when this eventually happens.  If this is the contingency for a collision, then a massive lookup table for every combination was probably a better solution to begin with.",
+    "textPlain": "> There is a possibility of collisions in the future, we can use the reserved flags as a nonce for known collisions if this ever comes up.This is a ticking time bomb. Good luck getting folks using this standard to implement this properly when this eventually happens.  If this is the contingency for a collision, then a massive non-hash-based list of every combination was probably a better solution to begin with.Edit: On second look, I'm not sure if binmoji is working properly? The component hash lookup table seems way too short  to cover even a fraction of possible combinations, and it doesn't seem like it can properly roundtrip emojis such as this diverse family emoji: https://apps.timwhitlock.info/unicode/inspect?s=%F0%9F%91%A8...",
     "parent": 45586374,
     "depth": 1
   },
