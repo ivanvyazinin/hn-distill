@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45690705,
-    "by": "Animats",
-    "timeISO": "2025-10-24T04:16:56.000Z",
-    "textPlain": "I never knew that Linux memory mapped files were copy-on-write. I'd assumed they let you alter the page and wrote out dirty pages later.",
+    "id": 45690927,
+    "by": "charlietap",
+    "timeISO": "2025-10-24T04:58:29.000Z",
+    "textPlain": "This article is nonsensical. If you're reading this please don't start mmap'ing files just to read from them. It proposes an incredibly unrealistic scenario where the program is  making thousands of random incredibly small unbuffered reads from a file. In reality 99 percent of programs will sequentially reading bytes into a buffer which makes orders of magnitude less syscalls.Mmap is useful in niche scenarios, it's not magic.",
     "parent": 45687796,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "gustavpaul",
     "timeISO": "2025-10-24T00:06:35.000Z",
     "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45690705,
+    "by": "Animats",
+    "timeISO": "2025-10-24T04:16:56.000Z",
+    "textPlain": "I never knew that Linux memory mapped files were copy-on-write. I'd assumed they let you alter the page and wrote out dirty pages later.",
     "parent": 45687796,
     "depth": 1
   },
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45690885,
+    "by": "pengaru",
+    "timeISO": "2025-10-24T04:50:02.000Z",
+    "textPlain": "MAP_PRIVATE vs. MAP_SHARED",
+    "parent": 45690705,
+    "depth": 2
+  },
+  {
     "id": 45689810,
     "by": "wmf",
     "timeISO": "2025-10-24T01:44:07.000Z",
@@ -208,18 +224,18 @@
     "depth": 2
   },
   {
-    "id": 45690437,
-    "by": "toast0",
-    "timeISO": "2025-10-24T03:25:34.000Z",
-    "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
-    "parent": 45688548,
-    "depth": 2
-  },
-  {
     "id": 45688681,
     "by": "trenchpilgrim",
     "timeISO": "2025-10-23T23:17:08.000Z",
     "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
+    "id": 45690437,
+    "by": "toast0",
+    "timeISO": "2025-10-24T03:25:34.000Z",
+    "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
     "parent": 45688548,
     "depth": 2
   }
