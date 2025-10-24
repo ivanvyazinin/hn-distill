@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45691365,
+    "by": "philippta",
+    "timeISO": "2025-10-24T06:08:46.000Z",
+    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45690927,
     "by": "charlietap",
     "timeISO": "2025-10-24T04:58:29.000Z",
@@ -20,14 +28,6 @@
     "by": "nteon",
     "timeISO": "2025-10-23T23:05:38.000Z",
     "textPlain": "the downside is that the go runtime doesn't expect memory reads to page fault, so you may end up with stalls/latency/under-utilization if part of your dataset is paged out (like if you have a large cdb file w/ random access patterns).  Using file IO, the Go runtime could be running a different goroutine if there is a disk read, but with mmap that thread is descheduled but holding an m & p. I'm also not sure if there would be increased stop the world pauses, or if the async preemption stuff would \"just work\".Section 3.2 of this paper has more details: https://db.cs.cmu.edu/papers/2022/cidr2022-p13-crotty.pdf",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
-    "id": 45691365,
-    "by": "philippta",
-    "timeISO": "2025-10-24T06:08:46.000Z",
-    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
     "parent": 45687796,
     "depth": 1
   },
@@ -56,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45691639,
-    "by": "gethly",
-    "timeISO": "2025-10-24T06:51:19.000Z",
-    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45688987,
     "by": "commandersaki",
     "timeISO": "2025-10-23T23:50:01.000Z",
     "textPlain": "This is a good article but I'm wondering what is the relationship between this website/company and varnish-cache.org, since in the article they make claims of releasing Varnish Cache, and the article wasn't written by Poul-Henning Kamp.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45691639,
+    "by": "gethly",
+    "timeISO": "2025-10-24T06:51:19.000Z",
+    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
     "parent": 45687796,
     "depth": 1
   },
@@ -152,14 +152,6 @@
     "depth": 2
   },
   {
-    "id": 45693574,
-    "by": "checker659",
-    "timeISO": "2025-10-24T11:39:23.000Z",
-    "textPlain": "Latency Numbers Every Programmer Should Know (originally by Jeff Dean / Peter Norvig)https://gist.github.com/jboner/2841832",
-    "parent": 45688819,
-    "depth": 2
-  },
-  {
     "id": 45689486,
     "by": "kragen",
     "timeISO": "2025-10-24T00:58:19.000Z",
@@ -176,11 +168,35 @@
     "depth": 2
   },
   {
+    "id": 45693574,
+    "by": "checker659",
+    "timeISO": "2025-10-24T11:39:23.000Z",
+    "textPlain": "Latency Numbers Every Programmer Should Know (originally by Jeff Dean / Peter Norvig)https://gist.github.com/jboner/2841832",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
     "id": 45689236,
     "by": "Scaevolus",
     "timeISO": "2025-10-24T00:23:18.000Z",
     "textPlain": "Yeah, 3.3ns is about 12 CPU cycles. You can indeed create a pointer to a memory location that fast!",
     "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45691606,
+    "by": "vlovich123",
+    "timeISO": "2025-10-24T06:45:00.000Z",
+    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
+    "parent": 45691365,
+    "depth": 2
+  },
+  {
+    "id": 45694397,
+    "by": "icedchai",
+    "timeISO": "2025-10-24T13:27:08.000Z",
+    "textPlain": "At a previous company, we had a custom \"database\" (I use that term very loosely) built on memory mapped files. All startup, all pages were read to ensure the data was hot, unlikely to be any page faults. It worked well for the application, but obviously because the whole thing fit in memory and was preloaded. We also had our own custom write-ahead-log. Today, I'd probably use sqlite.",
+    "parent": 45690927,
     "depth": 2
   },
   {
@@ -213,14 +229,6 @@
     "timeISO": "2025-10-23T23:50:14.000Z",
     "textPlain": "To me this indicates a limitation of the API. Cause you do want to maintain that the kernel can page out that memory under pressure while userspace accesses that memory asynchronously while allowing the thread to do other asynchronous things. There’s no good programming model/OS api that can accomplish this today.",
     "parent": 45688581,
-    "depth": 2
-  },
-  {
-    "id": 45691606,
-    "by": "vlovich123",
-    "timeISO": "2025-10-24T06:45:00.000Z",
-    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
-    "parent": 45691365,
     "depth": 2
   },
   {
@@ -336,18 +344,18 @@
     "depth": 2
   },
   {
-    "id": 45692045,
-    "by": "kragen",
-    "timeISO": "2025-10-24T07:54:25.000Z",
-    "textPlain": "Multics did default to this behavior, but Unix was written on the PDP-7 and later the PDP-11, neither of which supported virtual memory or paging, so the Unix system call interface necessarily used read() and write() calls instead.This permitted the use of the same system calls on files, on the teletype, on the paper tape reader and punch, on the magtape, on the line printer, and eventually on pipes.  Even before pipes, the ability to \"record\" a program's terminal output in a file or \"play back\" simulated user input from a file made Unix especially convenient.But pipes, in turn, permitted entire programs on Unix to be used as the building blocks of a new, much more powerful programming language, one where you manipulated not just numbers or strings but potentially endless flows of data, and which could easily orchestrate computations that no single program in the PDP-11's 16-bit address space could manage.And that was how Unix users in the 01970s had an operating system with the entire printed manual available in the comprehensive online help system, a way to produce publication-quality documents on the phototypesetter, incremental recompilation, software version control, full-text search, WYSIWYG screen editors that could immediately jump to the definition of a function, networked email, interactive source-level debugging, a relational database, etc.—all on a 16-bit computer that struggled to run half a million instructions per second, which at most companies might have been relegated to controlling some motors and heaters in a chemical plant or something.It turns out that often what you can do matters even more than how fast you can do it.",
-    "parent": 45688548,
-    "depth": 2
-  },
-  {
     "id": 45688681,
     "by": "trenchpilgrim",
     "timeISO": "2025-10-23T23:17:08.000Z",
     "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
+    "id": 45692045,
+    "by": "kragen",
+    "timeISO": "2025-10-24T07:54:25.000Z",
+    "textPlain": "Multics did default to this behavior, but Unix was written on the PDP-7 and later the PDP-11, neither of which supported virtual memory or paging, so the Unix system call interface necessarily used read() and write() calls instead.This permitted the use of the same system calls on files, on the teletype, on the paper tape reader and punch, on the magtape, on the line printer, and eventually on pipes.  Even before pipes, the ability to \"record\" a program's terminal output in a file or \"play back\" simulated user input from a file made Unix especially convenient.But pipes, in turn, permitted entire programs on Unix to be used as the building blocks of a new, much more powerful programming language, one where you manipulated not just numbers or strings but potentially endless flows of data, and which could easily orchestrate computations that no single program in the PDP-11's 16-bit address space could manage.And that was how Unix users in the 01970s had an operating system with the entire printed manual available in the comprehensive online help system, a way to produce publication-quality documents on the phototypesetter, incremental recompilation, software version control, full-text search, WYSIWYG screen editors that could immediately jump to the definition of a function, networked email, interactive source-level debugging, a relational database, etc.—all on a 16-bit computer that struggled to run half a million instructions per second, which at most companies might have been relegated to controlling some motors and heaters in a chemical plant or something.It turns out that often what you can do matters even more than how fast you can do it.",
     "parent": 45688548,
     "depth": 2
   },
