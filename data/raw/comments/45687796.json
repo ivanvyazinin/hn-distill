@@ -1,13 +1,5 @@
 [
   {
-    "id": 45692587,
-    "by": "benjiro",
-    "timeISO": "2025-10-24T09:17:45.000Z",
-    "textPlain": "People are so focused on the mmap part, and the latency, that the usage is overlooked.> The last couple of weeks I've been working on an HTTP-backed filesystem.It feels like this is micro optimizations, that are going to get blocked anyway by the whole HTTP cycle anyway.There is also the benchmark issue:The enhanced CDB format seems to be focused on a read only benefits, as writes introduced a lot of latency, and issue with mmap. In other words, there is a need to freeze for the mmap, then unfreeze, write for updates, freeze for mmap ...This cycle introduces overhead, does it not? Has this been benchmarked? Because from what i am seeing, the benefits are mostly in the frozen state (aka read only).If the data is changed infrequently, why not just use json? No matter how slow it is, if your just going to do http requests for the directory listing, your overhead is not the actual file format.If this enhanced file format was used as file storage, and you want to be able to fast read files, that is a different matter. Then there are ways around it with keeping \"part\" files where files 1 ... 1000 are in file.01, 2 ... 2000 in file.02 (thus reducing overhead from the file system). And those are memory mapped for fast reading. And where updates are invalidated files/rewrites (as i do not see any delete/vacume ability in the file format).So, the actual benefits just for a file directory listing db escapes me.",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45688819,
     "by": "buybackoff",
     "timeISO": "2025-10-23T23:31:25.000Z",
@@ -16,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45691365,
-    "by": "philippta",
-    "timeISO": "2025-10-24T06:08:46.000Z",
-    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
+    "id": 45692587,
+    "by": "benjiro",
+    "timeISO": "2025-10-24T09:17:45.000Z",
+    "textPlain": "People are so focused on the mmap part, and the latency, that the usage is overlooked.> The last couple of weeks I've been working on an HTTP-backed filesystem.It feels like this is micro optimizations, that are going to get blocked anyway by the whole HTTP cycle anyway.There is also the benchmark issue:The enhanced CDB format seems to be focused on a read only benefits, as writes introduced a lot of latency, and issue with mmap. In other words, there is a need to freeze for the mmap, then unfreeze, write for updates, freeze for mmap ...This cycle introduces overhead, does it not? Has this been benchmarked? Because from what i am seeing, the benefits are mostly in the frozen state (aka read only).If the data is changed infrequently, why not just use json? No matter how slow it is, if your just going to do http requests for the directory listing, your overhead is not the actual file format.If this enhanced file format was used as file storage, and you want to be able to fast read files, that is a different matter. Then there are ways around it with keeping \"part\" files where files 1 ... 1000 are in file.01, 2 ... 2000 in file.02 (thus reducing overhead from the file system). And those are memory mapped for fast reading. And where updates are invalidated files/rewrites (as i do not see any delete/vacume ability in the file format).So, the actual benefits just for a file directory listing db escapes me.",
     "parent": 45687796,
     "depth": 1
   },
@@ -28,6 +20,14 @@
     "by": "charlietap",
     "timeISO": "2025-10-24T04:58:29.000Z",
     "textPlain": "This article is nonsensical. If you're reading this please don't start mmap'ing files just to read from them. It proposes an incredibly unrealistic scenario where the program is  making thousands of random incredibly small unbuffered reads from a file. In reality 99 percent of programs will sequentially reading bytes into a buffer which makes orders of magnitude less syscalls.Mmap is useful in niche scenarios, it's not magic.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45691365,
+    "by": "philippta",
+    "timeISO": "2025-10-24T06:08:46.000Z",
+    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
     "parent": 45687796,
     "depth": 1
   },
@@ -48,14 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45692201,
-    "by": "karel-3d",
-    "timeISO": "2025-10-24T08:18:49.000Z",
-    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45689129,
     "by": "gustavpaul",
     "timeISO": "2025-10-24T00:06:35.000Z",
@@ -64,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45691639,
-    "by": "gethly",
-    "timeISO": "2025-10-24T06:51:19.000Z",
-    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
+    "id": 45692201,
+    "by": "karel-3d",
+    "timeISO": "2025-10-24T08:18:49.000Z",
+    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
     "parent": 45687796,
     "depth": 1
   },
@@ -76,6 +68,14 @@
     "by": "liuliu",
     "timeISO": "2025-10-24T00:13:46.000Z",
     "textPlain": "mmap is a good crutch when you 1. don't have busy polling / async IO API available and want to do some quick & dirty preloading tricks; 2. don't want to manage the complexity of in-memory cache, especially cross-processes ones.Obviously if you have kernel-backed async IO APIs (io_uring) and willing to dig into the deeper end (for better managed cache), you can get better performance than mmap. But in many cases, mmap is \"good-enough\".",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45691639,
+    "by": "gethly",
+    "timeISO": "2025-10-24T06:51:19.000Z",
+    "textPlain": "I have never used mmap, as I had no need, but I know BoltDB uses it and from what I remember, the mmap is good for when you are working with whole disk pages, which BoltDB does. Otherwise it seems to be wrong use case for it?",
     "parent": 45687796,
     "depth": 1
   },
@@ -168,14 +168,6 @@
     "depth": 2
   },
   {
-    "id": 45691606,
-    "by": "vlovich123",
-    "timeISO": "2025-10-24T06:45:00.000Z",
-    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
-    "parent": 45691365,
-    "depth": 2
-  },
-  {
     "id": 45692216,
     "by": "karel-3d",
     "timeISO": "2025-10-24T08:21:09.000Z",
@@ -189,6 +181,14 @@
     "timeISO": "2025-10-24T08:34:41.000Z",
     "textPlain": "This is a niche scenario. The scenario outlined is reading CDB databases.",
     "parent": 45690927,
+    "depth": 2
+  },
+  {
+    "id": 45691606,
+    "by": "vlovich123",
+    "timeISO": "2025-10-24T06:45:00.000Z",
+    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
+    "parent": 45691365,
     "depth": 2
   },
   {
@@ -296,10 +296,10 @@
     "depth": 2
   },
   {
-    "id": 45692522,
-    "by": "perbu",
-    "timeISO": "2025-10-24T09:08:33.000Z",
-    "textPlain": "The point is that invoking the OS has a cost. Using mmap, for those situations where it makes sense, lets you avoid that cost.",
+    "id": 45688681,
+    "by": "trenchpilgrim",
+    "timeISO": "2025-10-23T23:17:08.000Z",
+    "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
     "parent": 45688548,
     "depth": 2
   },
@@ -312,18 +312,18 @@
     "depth": 2
   },
   {
-    "id": 45688681,
-    "by": "trenchpilgrim",
-    "timeISO": "2025-10-23T23:17:08.000Z",
-    "textPlain": "1. mmap was added to Unix later by Sun, it wasn't in the original Unix2. As the article points out mmap is very fast for reading huge amounts of data but is a lot slower at other file operations. For reading smallish files, which is the majority of calls most software will make to the filesystem, the regular file syscalls are better.3. If you're on a modern Linux you might be better off with io_uring than mmap.",
-    "parent": 45688548,
-    "depth": 2
-  },
-  {
     "id": 45690437,
     "by": "toast0",
     "timeISO": "2025-10-24T03:25:34.000Z",
     "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
+    "id": 45692522,
+    "by": "perbu",
+    "timeISO": "2025-10-24T09:08:33.000Z",
+    "textPlain": "The point is that invoking the OS has a cost. Using mmap, for those situations where it makes sense, lets you avoid that cost.",
     "parent": 45688548,
     "depth": 2
   }
