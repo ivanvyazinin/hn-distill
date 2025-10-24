@@ -8,26 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45692587,
-    "by": "benjiro",
-    "timeISO": "2025-10-24T09:17:45.000Z",
-    "textPlain": "People are so focused on the mmap part, and the latency, that the usage is overlooked.> The last couple of weeks I've been working on an HTTP-backed filesystem.It feels like this is micro optimizations, that are going to get blocked anyway by the whole HTTP cycle anyway.There is also the benchmark issue:The enhanced CDB format seems to be focused on a read only benefits, as writes introduced a lot of latency, and issue with mmap. In other words, there is a need to freeze for the mmap, then unfreeze, write for updates, freeze for mmap ...This cycle introduces overhead, does it not? Has this been benchmarked? Because from what i am seeing, the benefits are mostly in the frozen state (aka read only).If the data is changed infrequently, why not just use json? No matter how slow it is, if your just going to do http requests for the directory listing, your overhead is not the actual file format.If this enhanced file format was used as file storage, and you want to be able to fast read files, that is a different matter. Then there are ways around it with keeping \"part\" files where files 1 ... 1000 are in file.01, 2 ... 2000 in file.02 (thus reducing overhead from the file system). And those are memory mapped for fast reading. And where updates are invalidated files/rewrites (as i do not see any delete/vacume ability in the file format).So, the actual benefits just for a file directory listing db escapes me.",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45690927,
     "by": "charlietap",
     "timeISO": "2025-10-24T04:58:29.000Z",
     "textPlain": "This article is nonsensical. If you're reading this please don't start mmap'ing files just to read from them. It proposes an incredibly unrealistic scenario where the program is  making thousands of random incredibly small unbuffered reads from a file. In reality 99 percent of programs will sequentially reading bytes into a buffer which makes orders of magnitude less syscalls.Mmap is useful in niche scenarios, it's not magic.",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
-    "id": 45691365,
-    "by": "philippta",
-    "timeISO": "2025-10-24T06:08:46.000Z",
-    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
     "parent": 45687796,
     "depth": 1
   },
@@ -40,6 +24,22 @@
     "depth": 1
   },
   {
+    "id": 45691365,
+    "by": "philippta",
+    "timeISO": "2025-10-24T06:08:46.000Z",
+    "textPlain": "At computerenhance.com[0] Casey Muratori shows that memory mapped files actually perform worse at sequential reads, which is the common case for file access.That’s because the CPU won’t prefetch data as effectively and has to rely on page faults to know what to read next. With regular, sequential file reads, the CPU can be much smarter and prefetch the next page while the program is consuming the previous one.[0] https://www.computerenhance.com/p/memory-mapped-files",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45692587,
+    "by": "benjiro",
+    "timeISO": "2025-10-24T09:17:45.000Z",
+    "textPlain": "People are so focused on the mmap part, and the latency, that the usage is overlooked.> The last couple of weeks I've been working on an HTTP-backed filesystem.It feels like this is micro optimizations, that are going to get blocked anyway by the whole HTTP cycle anyway.There is also the benchmark issue:The enhanced CDB format seems to be focused on a read only benefits, as writes introduced a lot of latency, and issue with mmap. In other words, there is a need to freeze for the mmap, then unfreeze, write for updates, freeze for mmap ...This cycle introduces overhead, does it not? Has this been benchmarked? Because from what i am seeing, the benefits are mostly in the frozen state (aka read only).If the data is changed infrequently, why not just use json? No matter how slow it is, if your just going to do http requests for the directory listing, your overhead is not the actual file format.If this enhanced file format was used as file storage, and you want to be able to fast read files, that is a different matter. Then there are ways around it with keeping \"part\" files where files 1 ... 1000 are in file.01, 2 ... 2000 in file.02 (thus reducing overhead from the file system). And those are memory mapped for fast reading. And where updates are invalidated files/rewrites (as i do not see any delete/vacume ability in the file format).So, the actual benefits just for a file directory listing db escapes me.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45689040,
     "by": "Ingon",
     "timeISO": "2025-10-23T23:55:05.000Z",
@@ -48,26 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45689129,
-    "by": "gustavpaul",
-    "timeISO": "2025-10-24T00:06:35.000Z",
-    "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45689174,
     "by": "liuliu",
     "timeISO": "2025-10-24T00:13:46.000Z",
     "textPlain": "mmap is a good crutch when you 1. don't have busy polling / async IO API available and want to do some quick & dirty preloading tricks; 2. don't want to manage the complexity of in-memory cache, especially cross-processes ones.Obviously if you have kernel-backed async IO APIs (io_uring) and willing to dig into the deeper end (for better managed cache), you can get better performance than mmap. But in many cases, mmap is \"good-enough\".",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
-    "id": 45692201,
-    "by": "karel-3d",
-    "timeISO": "2025-10-24T08:18:49.000Z",
-    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
     "parent": 45687796,
     "depth": 1
   },
@@ -88,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45692201,
+    "by": "karel-3d",
+    "timeISO": "2025-10-24T08:18:49.000Z",
+    "textPlain": "mmap is fine when you know the file fits in memory, and you need random file reads/writes of only some parts of the file. It's not magic.It's also quite hard to debug in go, because mmaped files are not visible in pprof; whe you run out of memory, mmap starts behaving really suboptimally. And it's hard to see which file takes how much memory (again it doesn't show in pprof).",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
     "id": 45688661,
     "by": "habibur",
     "timeISO": "2025-10-23T23:13:44.000Z",
@@ -100,6 +92,14 @@
     "by": "Animats",
     "timeISO": "2025-10-24T04:16:56.000Z",
     "textPlain": "I never knew that Linux memory mapped files were copy-on-write. I'd assumed they let you alter the page and wrote out dirty pages later.",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45689129,
+    "by": "gustavpaul",
+    "timeISO": "2025-10-24T00:06:35.000Z",
+    "textPlain": "The MmapReader is not copying the requested byte range into the buf argument, so if ever the underlying file descriptor is closed (or the file truncated out of band) any subsequent slice access will throw SIGBUS, which is really unpleasant.It also means the latency due to pagefaults is shifted from inside mmapReader.ReadRecord() (where it would be expected) to wherever in the application the bytes are first accessed, leading to spooky unpreditactable latency spikes in what are otherwise pure functions. That inevitably leads to wild arguments about how bad GC stalls are :-)An apples to apples comparison should be copying the bytes from the mmap buffer and returning the resulting slice.",
     "parent": 45687796,
     "depth": 1
   },
@@ -136,6 +136,14 @@
     "depth": 1
   },
   {
+    "id": 45693951,
+    "by": "Tuna-Fish",
+    "timeISO": "2025-10-24T12:29:36.000Z",
+    "textPlain": "> For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.It's important to note that throughput is not just an inverse of latency, because modern OoO cpus with modern memory subsystems can have hundreds of requests in flight. If your code doesn't serialize accesses, latency numbers are irrelevant to throughput.",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
     "id": 45689562,
     "by": "a-dub",
     "timeISO": "2025-10-24T01:10:00.000Z",
@@ -144,10 +152,10 @@
     "depth": 2
   },
   {
-    "id": 45692029,
-    "by": "hyc_symas",
-    "timeISO": "2025-10-24T07:51:55.000Z",
-    "textPlain": "That's such an obvious error in their benchmark code. In my benchmark code I make sure to touch the data so at least the 1st page is actually paged in from disk.https://github.com/LMDB/dbbench/blob/1281588b7fdf119bcba65ce...",
+    "id": 45693574,
+    "by": "checker659",
+    "timeISO": "2025-10-24T11:39:23.000Z",
+    "textPlain": "Latency Numbers Every Programmer Should Know (originally by Jeff Dean / Peter Norvig)https://gist.github.com/jboner/2841832",
     "parent": 45688819,
     "depth": 2
   },
@@ -156,6 +164,14 @@
     "by": "kragen",
     "timeISO": "2025-10-24T00:58:19.000Z",
     "textPlain": "> For the CPU AMD Ryzen 7 9800X3D mentioned in the repo, just reading 100 bytes from RAM to L1 should take ~100 nanos.I think this is the wrong order of magnitude.  One core of my Ryzen 5 3500U seems to be able to run memcpy() at 10 gigabytes per second (0.1 nanoseconds per byte) and memset() at 31 gigabytes per second (0.03 nanoseconds per byte).  I'd expect a sequential read of 100 bytes to take about 3 nanoseconds, not 100 nanoseconds.However, I think random accesses do take close to 100 nanoseconds to transmit the starting row and column address and open the row.  I haven't measured this on this hardware because I don't have a test I'm confident in.",
+    "parent": 45688819,
+    "depth": 2
+  },
+  {
+    "id": 45692029,
+    "by": "hyc_symas",
+    "timeISO": "2025-10-24T07:51:55.000Z",
+    "textPlain": "That's such an obvious error in their benchmark code. In my benchmark code I make sure to touch the data so at least the 1st page is actually paged in from disk.https://github.com/LMDB/dbbench/blob/1281588b7fdf119bcba65ce...",
     "parent": 45688819,
     "depth": 2
   },
@@ -184,14 +200,6 @@
     "depth": 2
   },
   {
-    "id": 45691606,
-    "by": "vlovich123",
-    "timeISO": "2025-10-24T06:45:00.000Z",
-    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
-    "parent": 45691365,
-    "depth": 2
-  },
-  {
     "id": 45692548,
     "by": "perbu",
     "timeISO": "2025-10-24T09:11:25.000Z",
@@ -208,19 +216,27 @@
     "depth": 2
   },
   {
-    "id": 45690000,
-    "by": "loeg",
-    "timeISO": "2025-10-24T02:14:23.000Z",
-    "textPlain": "> so if ever the underlying file descriptor is closedNit: Mmap mapping lifetimes are not attached to the underlying fd.  The file truncation and latency concerns are valid, though.",
-    "parent": 45689129,
+    "id": 45691606,
+    "by": "vlovich123",
+    "timeISO": "2025-10-24T06:45:00.000Z",
+    "textPlain": "Io_uring should be outperforming both - you can configure the read ahead optimally, there’s no page faults, and there’s no copies as there is with buffered I/O:[1] https://archive.is/vkdCo",
+    "parent": 45691365,
     "depth": 2
   },
   {
-    "id": 45689536,
-    "by": "dapperdrake",
-    "timeISO": "2025-10-24T01:05:42.000Z",
-    "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
-    "parent": 45689129,
+    "id": 45693444,
+    "by": "perbu",
+    "timeISO": "2025-10-24T11:21:23.000Z",
+    "textPlain": "We need to support over 10M files in each folder. JSON wouldn't fare well as the lack of indices makes random access problematic. Composing a JSON file with many objects is, at least with the current JSON implementation, not feasible.CDB is only a transport medium. The data originates in PostgreSQL and upon request, stored in CDB and transferred. Writing/freezing to CDB is faster than encoding JSON.CDB also makes it possible to access it directly, with ranged HTTP requests. It isn't something I've implemented, but having the option to do so is nice.",
+    "parent": 45692587,
+    "depth": 2
+  },
+  {
+    "id": 45693962,
+    "by": "dahfizz",
+    "timeISO": "2025-10-24T12:30:59.000Z",
+    "textPlain": "This reads like complete nonsense. If HTTP is involved, lets just give up and make the system as slow as possible?The HTTP request needs to actually be actioned by the server before it can respond. Reducing the time it takes for the server to do the thing (accessing files) will meaningfully improve overall performance.Switching out to JSON will meaningfully degrade performance. For no benefit.",
+    "parent": 45692587,
     "depth": 2
   },
   {
@@ -264,6 +280,30 @@
     "depth": 2
   },
   {
+    "id": 45693981,
+    "by": "dahfizz",
+    "timeISO": "2025-10-24T12:34:08.000Z",
+    "textPlain": "Being able to avoid an extra copy is actually a huge performance gain when you can safely do it. You shouldn't discount how useful mmap is just because its not useful in every scenario.You shouldn't replace every single file access with mmap. But when it makes sense, mmap is a big performance win.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45690000,
+    "by": "loeg",
+    "timeISO": "2025-10-24T02:14:23.000Z",
+    "textPlain": "> so if ever the underlying file descriptor is closedNit: Mmap mapping lifetimes are not attached to the underlying fd.  The file truncation and latency concerns are valid, though.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45689536,
+    "by": "dapperdrake",
+    "timeISO": "2025-10-24T01:05:42.000Z",
+    "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
     "id": 45690664,
     "by": "kristjansson",
     "timeISO": "2025-10-24T04:08:50.000Z",
@@ -296,6 +336,14 @@
     "depth": 2
   },
   {
+    "id": 45692045,
+    "by": "kragen",
+    "timeISO": "2025-10-24T07:54:25.000Z",
+    "textPlain": "Multics did default to this behavior, but Unix was written on the PDP-7 and later the PDP-11, neither of which supported virtual memory or paging, so the Unix system call interface necessarily used read() and write() calls instead.This permitted the use of the same system calls on files, on the teletype, on the paper tape reader and punch, on the magtape, on the line printer, and eventually on pipes.  Even before pipes, the ability to \"record\" a program's terminal output in a file or \"play back\" simulated user input from a file made Unix especially convenient.But pipes, in turn, permitted entire programs on Unix to be used as the building blocks of a new, much more powerful programming language, one where you manipulated not just numbers or strings but potentially endless flows of data, and which could easily orchestrate computations that no single program in the PDP-11's 16-bit address space could manage.And that was how Unix users in the 01970s had an operating system with the entire printed manual available in the comprehensive online help system, a way to produce publication-quality documents on the phototypesetter, incremental recompilation, software version control, full-text search, WYSIWYG screen editors that could immediately jump to the definition of a function, networked email, interactive source-level debugging, a relational database, etc.—all on a 16-bit computer that struggled to run half a million instructions per second, which at most companies might have been relegated to controlling some motors and heaters in a chemical plant or something.It turns out that often what you can do matters even more than how fast you can do it.",
+    "parent": 45688548,
+    "depth": 2
+  },
+  {
     "id": 45688681,
     "by": "trenchpilgrim",
     "timeISO": "2025-10-23T23:17:08.000Z",
@@ -308,14 +356,6 @@
     "by": "toast0",
     "timeISO": "2025-10-24T03:25:34.000Z",
     "textPlain": "> Why wouldn’t the OS itself default to this behavior? Could it fall apart under load, or is it just not important enough to replace the legacy code relying on it?Mmap and read/write syscalls are both ways to interact with files, but they have different behaviors. You can't exactly swap one for the other without knowledge of the caller. What you likely do see is that OS utilities likely use mmap when it makes sense and a difference.You also have a lot of things that can work on files or pipes/etc and having a common interface is more useful than having more potential performance (sometimes the performance is enough to warrant writing it twice).",
-    "parent": 45688548,
-    "depth": 2
-  },
-  {
-    "id": 45692045,
-    "by": "kragen",
-    "timeISO": "2025-10-24T07:54:25.000Z",
-    "textPlain": "Multics did default to this behavior, but Unix was written on the PDP-7 and later the PDP-11, neither of which supported virtual memory or paging, so the Unix system call interface necessarily used read() and write() calls instead.This permitted the use of the same system calls on files, on the teletype, on the paper tape reader and punch, on the magtape, on the line printer, and eventually on pipes.  Even before pipes, the ability to \"record\" a program's terminal output in a file or \"play back\" simulated user input from a file made Unix especially convenient.But pipes, in turn, permitted entire programs on Unix to be used as the building blocks of a new, much more powerful programming language, one where you manipulated not just numbers or strings but potentially endless flows of data, and which could easily orchestrate computations that no single program in the PDP-11's 16-bit address space could manage.And that was how Unix users in the 01970s had an operating system with the entire printed manual available in the comprehensive online help system, a way to produce publication-quality documents on the phototypesetter, incremental recompilation, software version control, full-text search, WYSIWYG screen editors that could immediately jump to the definition of a function, networked email, interactive source-level debugging, a relational database, etc.—all on a 16-bit computer that struggled to run half a million instructions per second, which at most companies might have been relegated to controlling some motors and heaters in a chemical plant or something.It turns out that often what you can do matters even more than how fast you can do it.",
     "parent": 45688548,
     "depth": 2
   },
