@@ -56,14 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45688901,
-    "by": "mholt",
-    "timeISO": "2025-10-23T23:40:20.000Z",
-    "textPlain": "Just this month, I've learned the hard way that some file systems do not play well with mmap: https://github.com/mattn/go-sqlite3/issues/1355In my case, it seems that Mac's ExFAT driver is incompatible with sqlite's WAL mode because the driver returned a memory address that is misaligned on ARM64. Most bizarre error I've encountered in years.So, uh, mind your file systems, kids!",
-    "parent": 45687796,
-    "depth": 1
-  },
-  {
     "id": 45688897,
     "by": "MayCXC",
     "timeISO": "2025-10-23T23:39:33.000Z",
@@ -76,6 +68,14 @@
     "by": "kragen",
     "timeISO": "2025-10-24T00:53:43.000Z",
     "textPlain": "The simple answer to \"How do memory maps (mmap) deliver faster file access?\" is \"sometimes\", but the blog post does give some more details.I was suspicious of the 25× speedup claim, but it's a lot more plausible than I thought.On this Ryzen 5 3500U running mostly at 3.667GHz (poorly controlled), reading data from an already-memory-mapped page is as fast as memcpy (about 10 gigabytes per second when not cached on one core of my laptop, which works out to 0.1 nanoseconds per byte, plus about 20 nanoseconds of overhead) while lseek+read is two system calls (590ns each) plus copying bytes into userspace (26–30ps per byte for small calls, 120ps per byte for a few megabytes).  Small memcpy (from, as it happens, an mmapped page) also costs about 25ps per byte, plus about 2800ps per loop iteration, probably much of which is incrementing the loop counter and passing arguments to the memcpy function (GCC is emitting an actual call to memcpy, via the PLT).So mmap will always be faster than lseek+read on this machine, at least if it doesn't have a page fault, but the point at which memcpy from mmap would be 25× faster than lseek+read would be where 2×590 + .028n = 25×(2.8 + .025n) = 70 + .625n.  Which is to say 1110 = .597n ∴ n = 1110/.597 = 1859 bytes.  At that point, memcpy from mmap should be 49ns and lseek+read should be 1232ns, which is 25× as big.  You can cut that size more than in half if you use pread() instead of lseek+read, and presumably io_uring would cut it even more.  If we assume that we're also taking cache misses to bring in the data from main memory in both cases, we have 2×590 + .1n = 25×(2.8 + .1n) = 70 + 2.5n, so 1110 = 2.4n ∴ n = 1110/2.4 = 462 bytes.On the other hand, mmap will be slow if it's hitting a page fault, which sort of corresponds to the case where you could have cached the result of lseek+read in private RAM, which you could do on a smaller-than-pagesize granularity, which potentially means you could hit the slow path much less often for a giv",
+    "parent": 45687796,
+    "depth": 1
+  },
+  {
+    "id": 45688901,
+    "by": "mholt",
+    "timeISO": "2025-10-23T23:40:20.000Z",
+    "textPlain": "Just this month, I've learned the hard way that some file systems do not play well with mmap: https://github.com/mattn/go-sqlite3/issues/1355In my case, it seems that Mac's ExFAT driver is incompatible with sqlite's WAL mode because the driver returned a memory address that is misaligned on ARM64. Most bizarre error I've encountered in years.So, uh, mind your file systems, kids!",
     "parent": 45687796,
     "depth": 1
   },
@@ -120,11 +120,27 @@
     "depth": 2
   },
   {
+    "id": 45690000,
+    "by": "loeg",
+    "timeISO": "2025-10-24T02:14:23.000Z",
+    "textPlain": "> so if ever the underlying file descriptor is closedNit: Mmap mapping lifetimes are not attached to the underlying fd.  The file truncation and latency concerns are valid, though.",
+    "parent": 45689129,
+    "depth": 2
+  },
+  {
     "id": 45689536,
     "by": "dapperdrake",
     "timeISO": "2025-10-24T01:05:42.000Z",
     "textPlain": "It’s not accessible until it is in user space.  (Virtual memory addresses mapped to physical RAM holding the data.)Good point.",
     "parent": 45689129,
+    "depth": 2
+  },
+  {
+    "id": 45689810,
+    "by": "wmf",
+    "timeISO": "2025-10-24T01:44:07.000Z",
+    "textPlain": "Varnish hasn't been a solo project for many years. Also PHK's version is now called Vinyl Cache while the corporate fork is called Varnish.",
+    "parent": 45688987,
     "depth": 2
   },
   {
@@ -136,11 +152,27 @@
     "depth": 2
   },
   {
+    "id": 45690013,
+    "by": "loeg",
+    "timeISO": "2025-10-24T02:16:25.000Z",
+    "textPlain": "read, or fread?  fread is the buffered version that does an extra copy for no reason that would benefit this use case.",
+    "parent": 45688661,
+    "depth": 2
+  },
+  {
     "id": 45688731,
     "by": "do_not_redeem",
     "timeISO": "2025-10-23T23:22:09.000Z",
     "textPlain": "Even if the file is cached, fread has to do a memcpy. mmap doesn't.",
     "parent": 45688661,
+    "depth": 2
+  },
+  {
+    "id": 45690025,
+    "by": "loeg",
+    "timeISO": "2025-10-24T02:18:03.000Z",
+    "textPlain": "> lseek+read is two system callsYou'd never do that, though -- you'd use pread.",
+    "parent": 45689464,
     "depth": 2
   },
   {
