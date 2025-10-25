@@ -56,22 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45705907,
-    "by": "nodesocket",
-    "timeISO": "2025-10-25T18:17:38.000Z",
-    "textPlain": "I'm running a Python 3.13 Flask app in production using gunicorn and gevent (workers=1) with gevent monkey patching. Using ab can get around 320 requests per second. Performance is decent but I'm wondering how much a lift would be required to migrate to FastAPI. Would I see performance increases staying with gunicorn + gevent but upgrading Python to 3.14?",
-    "parent": 45633311,
-    "depth": 1
-  },
-  {
-    "id": 45703672,
-    "by": "mkoubaa",
-    "timeISO": "2025-10-25T13:16:52.000Z",
-    "textPlain": "I thought WSGI already used subinterpreters that each have their own GIL",
-    "parent": 45633311,
-    "depth": 1
-  },
-  {
     "id": 45705279,
     "by": "callamdelaney",
     "timeISO": "2025-10-25T16:52:04.000Z",
@@ -80,10 +64,26 @@
     "depth": 1
   },
   {
+    "id": 45705907,
+    "by": "nodesocket",
+    "timeISO": "2025-10-25T18:17:38.000Z",
+    "textPlain": "I'm running a Python 3.13 Flask app in production using gunicorn and gevent (workers=1) with gevent monkey patching. Using ab can get around 320 requests per second. Performance is decent but I'm wondering how much a lift would be required to migrate to FastAPI. Would I see performance increases staying with gunicorn + gevent but upgrading Python to 3.14?",
+    "parent": 45633311,
+    "depth": 1
+  },
+  {
     "id": 45704357,
     "by": "Spivak",
     "timeISO": "2025-10-25T14:51:15.000Z",
     "textPlain": "> On asynchronous protocols like ASGI, despite the fact the concurrency model doesn't change that much – we shift from one event loop per process, to one event loop per thread – just the fact we no longer need to scale memory allocations just to use more CPU is a massive improvement.It's nice that someone else recognizes that event loop per thread is the way. I swear if you said this online any time in the past few years people looked at you like you insulted their mother. It's so much easier to manage even before the performance improvements.",
+    "parent": 45633311,
+    "depth": 1
+  },
+  {
+    "id": 45703672,
+    "by": "mkoubaa",
+    "timeISO": "2025-10-25T13:16:52.000Z",
+    "textPlain": "I thought WSGI already used subinterpreters that each have their own GIL",
     "parent": 45633311,
     "depth": 1
   },
@@ -100,6 +100,14 @@
     "by": "dehrmann",
     "timeISO": "2025-10-25T17:49:32.000Z",
     "textPlain": "I think Java got this mostly right. On the threading front, very little is thread-safe or atomic (x += 1 is not thread-safe), so as soon as you expose something to threads, you have to think about safe access. For interacting with C code, your choices are either shared buffers or copying data between C and Java. It's painful, but it's needed for memory safety.",
+    "parent": 45704595,
+    "depth": 2
+  },
+  {
+    "id": 45706331,
+    "by": "radarsat1",
+    "timeISO": "2025-10-25T19:26:44.000Z",
+    "textPlain": "I agree and honestly it may as well be considered a form of ABI incompatibility. They should make this explicit such that existing C extensions need to be updated to use some new API call for initialization to flag that they are GILless-ready, so that older extensions cannot even successfully be loaded when GIL is disabled.",
     "parent": 45704595,
     "depth": 2
   },
@@ -144,18 +152,18 @@
     "depth": 2
   },
   {
-    "id": 45703923,
-    "by": "logicchains",
-    "timeISO": "2025-10-25T13:54:11.000Z",
-    "textPlain": ">Please do not complain about the global object. Using a pure function would obviously be a useless benchmark for locking and real world Python code bases have far more intricate access patterns.Just because there's a lot of shit Python code out there, doesn't mean people who want to write clean, performant Python code should suffer for it.",
-    "parent": 45703888,
-    "depth": 2
-  },
-  {
     "id": 45704481,
     "by": "adamzwasserman",
     "timeISO": "2025-10-25T15:10:10.000Z",
     "textPlain": "I will complain about the global object.Even though technically, everything in Python is an object, I feel strongly that programmers should avoid OOP in Python like the plague. Every object is a petri dish for state corruption.Thee is a very solid list of reasons to use pure functions with explicit passing wherever humanly possible, and I personally believe there is no comparable list of reason to use OOP.\n* Stack-allocated primitives need no refcounting\n* Immutable structures reduce synchronization\n* Data locality improves when you pass arrays/structs rather than object graphs\n* Pure functions can be parallelized without locks",
+    "parent": 45703888,
+    "depth": 2
+  },
+  {
+    "id": 45703923,
+    "by": "logicchains",
+    "timeISO": "2025-10-25T13:54:11.000Z",
+    "textPlain": ">Please do not complain about the global object. Using a pure function would obviously be a useless benchmark for locking and real world Python code bases have far more intricate access patterns.Just because there's a lot of shit Python code out there, doesn't mean people who want to write clean, performant Python code should suffer for it.",
     "parent": 45703888,
     "depth": 2
   },
@@ -216,6 +224,14 @@
     "depth": 2
   },
   {
+    "id": 45706110,
+    "by": "yupyupyups",
+    "timeISO": "2025-10-25T18:52:17.000Z",
+    "textPlain": "No, because you can't kill a Python thread, but you can kill a process. That is a significant limitation to think about, especially when executing something long-running and CPU intensive such as large scientific computations.If your thread gets stuck, the only recourse you will have is to kill the entire parent process.",
+    "parent": 45704357,
+    "depth": 2
+  },
+  {
     "id": 45704711,
     "by": "ZiiS",
     "timeISO": "2025-10-25T15:40:02.000Z",
@@ -229,14 +245,6 @@
     "timeISO": "2025-10-25T15:37:30.000Z",
     "textPlain": "Subinterpreters are part of the Python standard library as of 3.13 (I think?).",
     "parent": 45703672,
-    "depth": 2
-  },
-  {
-    "id": 45706110,
-    "by": "yupyupyups",
-    "timeISO": "2025-10-25T18:52:17.000Z",
-    "textPlain": "No, because you can't kill a Python thread, but you can kill a process. That is a significant limitation to think about, especially when executing something long-running and CPU intensive such as large scientific computations.If your thread gets stuck, the only recourse you will have is to kill the entire parent process.",
-    "parent": 45704357,
     "depth": 2
   }
 ]
