@@ -1,5 +1,13 @@
 [
   {
+    "id": 45704595,
+    "by": "rogerbinns",
+    "timeISO": "2025-10-25T15:22:07.000Z",
+    "textPlain": "C code needs to be updated to be safe in a GIL free execution environment.  It is a lot of work!  The pervasive problem is that mutable data structures (lists, dict etc) could change at any arbitrary point while the C code is working with them, and the reference count for others could drop to zero if *anyone* is using a borrowed reference (common for performance in CPython APIs).  Previously the GIL protected where those changes could happen.  In simple cases it is adding a critical section, but often there multiple data structures in play.  As an example these are the changes that had to be done to the standard library json module:https://github.com/python/cpython/pull/119438/files#diff-efe...This is how much of the standard library has been audited:https://github.com/python/cpython/issues/116738The json changes above are in Python 3.15, not the just released 3.14.The consequences of the C changes not being made are crashes and corruption if unexpected mutation or object freeing happens.  Web services are exposed to adversity so be *very* careful.It would be a big help if CPython released a tool that could at least scan a C code base to detect free threaded issues, and ideally verify it is correct.",
+    "parent": 45633311,
+    "depth": 1
+  },
+  {
     "id": 45703888,
     "by": "Zsfe510asG",
     "timeISO": "2025-10-25T13:49:47.000Z",
@@ -8,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45703480,
-    "by": "Waterluvian",
-    "timeISO": "2025-10-25T12:46:29.000Z",
-    "textPlain": "We already have PyPy and PyPI, so I think we are cosmically required to call Python 3.14 PyPi",
+    "id": 45704690,
+    "by": "btbuilder",
+    "timeISO": "2025-10-25T15:36:22.000Z",
+    "textPlain": "This is fantastic progress for CPython. I had almost given up hope that CPython would overcome the GIL after first hitting its limitations over 10 years ago.That being said I strongly believe that because of the sharp edges on async style code vs proper co-routine-based user threads like go-routines and Java virtual threads Python is still far behind optimal parallelism patterns.",
     "parent": 45633311,
     "depth": 1
   },
   {
-    "id": 45704189,
-    "by": "natdempk",
-    "timeISO": "2025-10-25T14:30:13.000Z",
-    "textPlain": "Really great, just waiting on library support / builds for free threading.Have people had any/good experiences running Granian in prod?",
+    "id": 45703480,
+    "by": "Waterluvian",
+    "timeISO": "2025-10-25T12:46:29.000Z",
+    "textPlain": "We already have PyPy and PyPI, so I think we are cosmically required to call Python 3.14 PyPi",
     "parent": 45633311,
     "depth": 1
   },
@@ -36,6 +44,14 @@
     "by": "shdh",
     "timeISO": "2025-10-25T13:32:50.000Z",
     "textPlain": "Hadn’t heard of Granian before, thinking about upgrading to 3.14 for my services and running them threaded now",
+    "parent": 45633311,
+    "depth": 1
+  },
+  {
+    "id": 45704189,
+    "by": "natdempk",
+    "timeISO": "2025-10-25T14:30:13.000Z",
+    "textPlain": "Really great, just waiting on library support / builds for free threading.Have people had any/good experiences running Granian in prod?",
     "parent": 45633311,
     "depth": 1
   },
@@ -64,10 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45704481,
-    "by": "adamzwasserman",
-    "timeISO": "2025-10-25T15:10:10.000Z",
-    "textPlain": "I will complain about the global object.Even though technically, everything in Python is an object, I feel strongly that programmers should avoid OOP in Python like the plague. Every object is a petri dish for state corruption.Thee is a very solid list of reasons to use pure functions with explicit passing wherever humanly possible, and I personally believe there is no comparable list of reason to use OOP.\n* Stack-allocated primitives need no refcounting\n* Immutable structures reduce synchronization\n* Data locality improves when you pass arrays/structs rather than object graphs\n* Pure functions can be parallelized without locks",
+    "id": 45704930,
+    "by": "westurner",
+    "timeISO": "2025-10-25T16:09:34.000Z",
+    "textPlain": "> It would be a big help if CPython released a tool that could at least scan a C code base to detect free threaded issues, and ideally verify it is correct.Create or extend a list of answers to:What heuristics predict that code will fail in CPython's nogil \"free threaded\" mode?",
+    "parent": 45704595,
+    "depth": 2
+  },
+  {
+    "id": 45704641,
+    "by": "wenc",
+    "timeISO": "2025-10-25T15:29:43.000Z",
+    "textPlain": "Globals are not commonly used except in retrofit cases of legacy code or in beginner code.I haven’t seen or used a global more than once in my 20 years of writing Python.",
     "parent": 45703888,
     "depth": 2
   },
@@ -80,10 +104,34 @@
     "depth": 2
   },
   {
+    "id": 45704942,
+    "by": "greatgib",
+    "timeISO": "2025-10-25T16:10:50.000Z",
+    "textPlain": "Sad that you did not test with 3.12 that is a lot better then 3.11!",
+    "parent": 45703888,
+    "depth": 2
+  },
+  {
+    "id": 45704481,
+    "by": "adamzwasserman",
+    "timeISO": "2025-10-25T15:10:10.000Z",
+    "textPlain": "I will complain about the global object.Even though technically, everything in Python is an object, I feel strongly that programmers should avoid OOP in Python like the plague. Every object is a petri dish for state corruption.Thee is a very solid list of reasons to use pure functions with explicit passing wherever humanly possible, and I personally believe there is no comparable list of reason to use OOP.\n* Stack-allocated primitives need no refcounting\n* Immutable structures reduce synchronization\n* Data locality improves when you pass arrays/structs rather than object graphs\n* Pure functions can be parallelized without locks",
+    "parent": 45703888,
+    "depth": 2
+  },
+  {
     "id": 45703923,
     "by": "logicchains",
     "timeISO": "2025-10-25T13:54:11.000Z",
     "textPlain": ">Please do not complain about the global object. Using a pure function would obviously be a useless benchmark for locking and real world Python code bases have far more intricate access patterns.Just because there's a lot of shit Python code out there, doesn't mean people who want to write clean, performant Python code should suffer for it.",
+    "parent": 45703888,
+    "depth": 2
+  },
+  {
+    "id": 45704855,
+    "by": "immibis",
+    "timeISO": "2025-10-25T16:01:16.000Z",
+    "textPlain": "> Using a pure function would obviously be a useless benchmark for lockingBut isn't that the point? Previously, pure functions would all lock, so you could only run one pure function at a time. Now they don't.",
     "parent": 45703888,
     "depth": 2
   },
@@ -109,6 +157,22 @@
     "timeISO": "2025-10-25T12:50:16.000Z",
     "textPlain": "PeePee hee hee",
     "parent": 45703480,
+    "depth": 2
+  },
+  {
+    "id": 45704711,
+    "by": "ZiiS",
+    "timeISO": "2025-10-25T15:40:02.000Z",
+    "textPlain": "This needs a lot of RAM with the speed/cores of modern CPUs. A GIL free multi threaded ASGI scales much further.",
+    "parent": 45703672,
+    "depth": 2
+  },
+  {
+    "id": 45704698,
+    "by": "theandrewbailey",
+    "timeISO": "2025-10-25T15:37:30.000Z",
+    "textPlain": "Subinterpreters are part of the Python standard library as of 3.13 (I think?).",
+    "parent": 45703672,
     "depth": 2
   }
 ]
