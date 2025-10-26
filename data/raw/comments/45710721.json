@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45713557,
-    "by": "donatj",
-    "timeISO": "2025-10-26T17:17:24.000Z",
-    "textPlain": "Back when I started at my current job... 15 years ago... We had no central git server. No PR workflow. We just gut pull-ed from each others machines. It worked better than you would expect.We then went to using a central bare repo on a shared server, to hosted gitlab(? I think - it was Ruby and broke constantly) eventually landing on GitHub",
+    "id": 45713074,
+    "by": "kragen",
+    "timeISO": "2025-10-26T16:25:09.000Z",
+    "textPlain": "You probably want to use a bare repository (git init --bare) rather than `git config receive.denyCurrentBranch updateInstead`, which will cause your pushes to fail if you edit anything locally in the checkout.  For http://canonical.org/~kragen/sw/dev3/ I run a pull from the post-update hook of http://canonical.org/~kragen/sw/dev3.git, http://canonical.org/~kragen/sw/dev3.git/hooks/post-update, which is short enough that I'll just include it here:    #!/bin/sh\n    set -e\n\n    echo -n 'updating... '\n    git update-server-info\n    echo 'done. going to dev3'\n    cd /home/kragen/public_html/sw/dev3\n    echo -n 'pulling... '\n    env -u GIT_DIR git pull\n    echo -n 'updating... '\n    env -u GIT_DIR git update-server-info\n    echo 'done.'\n\nYou can of course also run a local site generator here as well, although for dev3 I took a lighter-weight approach — I just checked in the HEADER.html file that Apache FancyIndexing defaults to including above the file directory listing and tweaked some content-types in the .htaccess file.This could still fail to update the checkout if it has local changes, but only if they create a merge conflict, and it won't fail to update the bare repo, which is probably what your other checkouts are cloned from and therefore where they'll be pulling from.",
     "parent": 45710721,
     "depth": 1
   },
@@ -24,34 +24,18 @@
     "depth": 1
   },
   {
+    "id": 45713960,
+    "by": "cycomanic",
+    "timeISO": "2025-10-26T18:09:57.000Z",
+    "textPlain": "I suspect many who always use git remotely don't know that you can easily work with local repositories as well using the file protocol,  git clone file:///path/to/repository will create a clone of the repository at the path.I used that all the time when I had to move private repositories back and forth from work, without ssh access.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
     "id": 45711734,
     "by": "eqvinox",
     "timeISO": "2025-10-26T13:32:42.000Z",
     "textPlain": "git clone ssh://username@hostname/path/to/repo\n\nthis is equivalent to:  git clone username@hostname:path/to/repo\n\nand if your usernames match between local and remote:  git clone hostname:path/to/repo\n\n(if the path has no leading /, it is relative to your home directory on the remote)",
-    "parent": 45710721,
-    "depth": 1
-  },
-  {
-    "id": 45713074,
-    "by": "kragen",
-    "timeISO": "2025-10-26T16:25:09.000Z",
-    "textPlain": "You probably want to use a bare repository (git init --bare) rather than `git config receive.denyCurrentBranch updateInstead`, which will cause your pushes to fail if you edit anything locally in the checkout.  For http://canonical.org/~kragen/sw/dev3/ I run a pull from the post-update hook of http://canonical.org/~kragen/sw/dev3.git, http://canonical.org/~kragen/sw/dev3.git/hooks/post-update, which is short enough that I'll just include it here:    #!/bin/sh\n    set -e\n\n    echo -n 'updating... '\n    git update-server-info\n    echo 'done. going to dev3'\n    cd /home/kragen/public_html/sw/dev3\n    echo -n 'pulling... '\n    env -u GIT_DIR git pull\n    echo -n 'updating... '\n    env -u GIT_DIR git update-server-info\n    echo 'done.'\n\nYou can of course also run a local site generator here as well, although for dev3 I took a lighter-weight approach — I just checked in the HEADER.html file that Apache FancyIndexing defaults to including above the file directory listing and tweaked some content-types in the .htaccess file.This could still fail to update the checkout if it has local changes, but only if they create a merge conflict, and it won't fail to update the bare repo, which is probably what your other checkouts are cloned from and therefore where they'll be pulling from.",
-    "parent": 45710721,
-    "depth": 1
-  },
-  {
-    "id": 45711236,
-    "by": "seba_dos1",
-    "timeISO": "2025-10-26T12:28:30.000Z",
-    "textPlain": "Just make the repository on the server side bare and you won't have to worry about checked out branches or renaming \".git\" directory.",
-    "parent": 45710721,
-    "depth": 1
-  },
-  {
-    "id": 45713349,
-    "by": "simonw",
-    "timeISO": "2025-10-26T16:56:21.000Z",
-    "textPlain": "> It’s also backed up by default: If the server breaks, I’ve still got the copy on my laptop, and if my laptop breaks, I can download everything from the server.This is true, but I do also like having backups that are entirely decoupled from my own infrastructure. GitHub personal private accounts are free and I believe they store your data redundantly in more than one region.I imagine there's a way to setup a hook on your own server such that any pushes are then pushed to a GitHub copy without you having to do anything else yourself.",
     "parent": 45710721,
     "depth": 1
   },
@@ -64,10 +48,26 @@
     "depth": 1
   },
   {
+    "id": 45711236,
+    "by": "seba_dos1",
+    "timeISO": "2025-10-26T12:28:30.000Z",
+    "textPlain": "Just make the repository on the server side bare and you won't have to worry about checked out branches or renaming \".git\" directory.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
     "id": 45713200,
     "by": "tonymet",
     "timeISO": "2025-10-26T16:41:11.000Z",
     "textPlain": "My favorite git trick is using etckeeper & git subtree to manage multiple machines from a single repo .  A single git repo can “fan out” to dozens of instances .  It’s useful even for “managed” hosts with terraform because etckeeper snapshots config with every change, catching bugs in the terraform config.During the dev / compile / test flow, git makes a lightweight CI that reduces the exposure to your primary repo .  Just run `watch -n 60 make` on the target and push using `git push` .  The target can run builds without having any access to your primary (GitHub) repo.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
+    "id": 45712164,
+    "by": "prmph",
+    "timeISO": "2025-10-26T14:27:13.000Z",
+    "textPlain": "The more I use git, the more I discover more depth to it.So many features and concepts; it's easy to think you understand the basics, but you need to dig deep into it's origin and rationale to begin to grasp the way of thinking it is built around.And the API surface area is much larger than one would think, like an icebergSo I find it really weirdly low level in a way. Probably what is needed is is a higher-level CLI to use it in the most sensible, default way, because certainly the mental model most people use it with is inadequate.",
     "parent": 45710721,
     "depth": 1
   },
@@ -88,10 +88,18 @@
     "depth": 1
   },
   {
-    "id": 45712164,
-    "by": "prmph",
-    "timeISO": "2025-10-26T14:27:13.000Z",
-    "textPlain": "The more I use git, the more I discover more depth to it.So many features and concepts; it's easy to think you understand the basics, but you need to dig deep into it's origin and rationale to begin to grasp the way of thinking it is built around.And the API surface area is much larger than one would think, like an icebergSo I find it really weirdly low level in a way. Probably what is needed is is a higher-level CLI to use it in the most sensible, default way, because certainly the mental model most people use it with is inadequate.",
+    "id": 45713349,
+    "by": "simonw",
+    "timeISO": "2025-10-26T16:56:21.000Z",
+    "textPlain": "> It’s also backed up by default: If the server breaks, I’ve still got the copy on my laptop, and if my laptop breaks, I can download everything from the server.This is true, but I do also like having backups that are entirely decoupled from my own infrastructure. GitHub personal private accounts are free and I believe they store your data redundantly in more than one region.I imagine there's a way to setup a hook on your own server such that any pushes are then pushed to a GitHub copy without you having to do anything else yourself.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
+    "id": 45713557,
+    "by": "donatj",
+    "timeISO": "2025-10-26T17:17:24.000Z",
+    "textPlain": "Back when I started at my current job... 15 years ago... We had no central git server. No PR workflow. We just git pull-ed from each others machines. It worked better than you would expect.We then went to using a central bare repo on a shared server, to hosted gitlab(? I think - it was Ruby and broke constantly) eventually landing on GitHub",
     "parent": 45710721,
     "depth": 1
   },
@@ -104,10 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45713441,
-    "by": "iwontberude",
-    "timeISO": "2025-10-26T17:05:28.000Z",
-    "textPlain": "“By default, git won’t let you push to the branch that is currently checked out”TIL that people use non-bare git.",
+    "id": 45712705,
+    "by": "patal",
+    "timeISO": "2025-10-26T15:32:46.000Z",
+    "textPlain": "How would I sync access, if more than one people ssh-pushes onto the git repo? I assume syncing be necessary.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
+    "id": 45711308,
+    "by": "ezst",
+    "timeISO": "2025-10-26T12:38:47.000Z",
+    "textPlain": "As a git user \"not by choice\" (my preference going for mercurial every single day), I never understood why git needs this distinction between bare/non-bare (or commit vs staging for that matter). Seems like yet another leaky abstraction/bad design choice.",
     "parent": 45710721,
     "depth": 1
   },
@@ -128,22 +144,6 @@
     "depth": 1
   },
   {
-    "id": 45713266,
-    "by": "gijoeyguerra",
-    "timeISO": "2025-10-26T16:48:21.000Z",
-    "textPlain": "There’s also git daemon.",
-    "parent": 45710721,
-    "depth": 1
-  },
-  {
-    "id": 45712705,
-    "by": "patal",
-    "timeISO": "2025-10-26T15:32:46.000Z",
-    "textPlain": "How would I sync access, if more than one people ssh-pushes onto the git repo? I assume syncing be necessary.",
-    "parent": 45710721,
-    "depth": 1
-  },
-  {
     "id": 45711939,
     "by": "binary132",
     "timeISO": "2025-10-26T14:00:53.000Z",
@@ -160,18 +160,18 @@
     "depth": 1
   },
   {
-    "id": 45711205,
-    "by": "singpolyma3",
-    "timeISO": "2025-10-26T12:24:27.000Z",
-    "textPlain": "One note, xcode and maybe some other clients can't use http \"dumb mode\". Smart mode is not hard to set up, but it's a few lines of server config more than this hook.TIL about the update options for checked out branch. In practise though usually you want just the .git \"bare\" folder on server",
+    "id": 45711221,
+    "by": "imiric",
+    "timeISO": "2025-10-26T12:26:40.000Z",
+    "textPlain": "I've used Git over SSH for several years for personal projects. It just works with no additional overhead or maintenance.Tip: create a `git` user on the server and set its shell to `git-shell`. E.g.:  sudo useradd -m -g git -d /home/git -s /usr/bin/git-shell git\n\nYou might also want to restrict its directory and command access in the sshd config for extra security.Then, when you need to create a new repository you run:  sudo -u git git init --bare --initial-branch=main /home/git/myrepo.git\n\nAnd use it like so:  git clone git@myserver:myrepo.git\n\nOr:  git remote add myserver git@myserver:myrepo.git\n  git push -u myserver main\n\nThis has the exact same UX as any code forge.I think that initializing a bare repository avoids the workarounds for pushing to a currently checked out branch.",
     "parent": 45710721,
     "depth": 1
   },
   {
-    "id": 45711308,
-    "by": "ezst",
-    "timeISO": "2025-10-26T12:38:47.000Z",
-    "textPlain": "As a git user \"not by choice\" (my preference going for mercurial every single day), I never understood why git needs this distinction between bare/non-bare (or commit vs staging for that matter). Seems like yet another leaky abstraction/bad design choice.",
+    "id": 45711205,
+    "by": "singpolyma3",
+    "timeISO": "2025-10-26T12:24:27.000Z",
+    "textPlain": "One note, xcode and maybe some other clients can't use http \"dumb mode\". Smart mode is not hard to set up, but it's a few lines of server config more than this hook.TIL about the update options for checked out branch. In practise though usually you want just the .git \"bare\" folder on server",
     "parent": 45710721,
     "depth": 1
   },
@@ -184,10 +184,10 @@
     "depth": 1
   },
   {
-    "id": 45711221,
-    "by": "imiric",
-    "timeISO": "2025-10-26T12:26:40.000Z",
-    "textPlain": "I've used Git over SSH for several years for personal projects. It just works with no additional overhead or maintenance.Tip: create a `git` user on the server and set its shell to `git-shell`. E.g.:  sudo useradd -m -g git -d /home/git -s /usr/bin/git-shell git\n\nYou might also want to restrict its directory and command access in the sshd config for extra security.Then, when you need to create a new repository you run:  sudo -u git git init --bare --initial-branch=main /home/git/myrepo.git\n\nAnd use it like so:  git clone git@myserver:myrepo.git\n\nOr:  git remote add myserver git@myserver:myrepo.git\n  git push -u myserver main\n\nThis has the exact same UX as any code forge.I think that initializing a bare repository avoids the workarounds for pushing to a currently checked out branch.",
+    "id": 45713266,
+    "by": "gijoeyguerra",
+    "timeISO": "2025-10-26T16:48:21.000Z",
+    "textPlain": "There’s also git daemon.",
     "parent": 45710721,
     "depth": 1
   },
@@ -204,6 +204,14 @@
     "by": "globular-toast",
     "timeISO": "2025-10-26T13:42:56.000Z",
     "textPlain": "The proper way to do this to make a \"bare\" clone on the server (a clone without a checked out branch). I was doing this in 2010 before I even signed up to GitHub.",
+    "parent": 45710721,
+    "depth": 1
+  },
+  {
+    "id": 45713441,
+    "by": "iwontberude",
+    "timeISO": "2025-10-26T17:05:28.000Z",
+    "textPlain": "“By default, git won’t let you push to the branch that is currently checked out”TIL that people use non-bare git.",
     "parent": 45710721,
     "depth": 1
   },
@@ -248,6 +256,14 @@
     "depth": 2
   },
   {
+    "id": 45713807,
+    "by": "mzajc",
+    "timeISO": "2025-10-26T17:49:36.000Z",
+    "textPlain": "> “origin” is also just the default name for the cloned remote. It could be called anything, and you can have as many remotes as you’d like.One remote can also hold more URLs! This is arguably more obscure (Eclipse's EGit doesn't even support it), but works wonders for my workflow, since I want to push to multiple mirrors at the same time.",
+    "parent": 45711822,
+    "depth": 2
+  },
+  {
     "id": 45712185,
     "by": "kawsper",
     "timeISO": "2025-10-26T14:29:03.000Z",
@@ -280,10 +296,10 @@
     "depth": 2
   },
   {
-    "id": 45712974,
-    "by": "mewpmewp2",
-    "timeISO": "2025-10-26T16:09:45.000Z",
-    "textPlain": "Depends on what you mean by using etc.If somebody asked me if it's possible to scp my git repo over to another box and use it there or vice versa, I would have said, yes, that is possible. Although I would've felt uneasy doing that.If somebody asked me if git clone ssh:// ... would definitely work, I wouldn't have known out of the gate, although I would have thought it would be neat if it did and maybe it does. I may have thought that maybe there must be some sort of git server process running that would handle it, although it's plausible that it would be possible to just do a script that would handle it from the client side.And finally, I would've never thought really to necessarily try it out like that, since I've always been using Github, Bitbucket, etc. I have thought of those as permanent, while any boxes I have could be temporary, so not a place where I'd want to store something as important to be under source control.",
+    "id": 45712022,
+    "by": "thwarted",
+    "timeISO": "2025-10-26T14:10:25.000Z",
+    "textPlain": "Yes. I've been subject to claims that a single person can't start a  project unless and until an official, centralized repo is setup for them. I've responded with \"git init is all that is necessary to get started\", but they wouldn't hear it.",
     "parent": 45711160,
     "depth": 2
   },
@@ -296,10 +312,10 @@
     "depth": 2
   },
   {
-    "id": 45712022,
-    "by": "thwarted",
-    "timeISO": "2025-10-26T14:10:25.000Z",
-    "textPlain": "Yes. I've been subject to claims that a single person can't start a  project unless and until an official, centralized repo is setup for them. I've responded with \"git init is all that is necessary to get started\", but they wouldn't hear it.",
+    "id": 45712974,
+    "by": "mewpmewp2",
+    "timeISO": "2025-10-26T16:09:45.000Z",
+    "textPlain": "Depends on what you mean by using etc.If somebody asked me if it's possible to scp my git repo over to another box and use it there or vice versa, I would have said, yes, that is possible. Although I would've felt uneasy doing that.If somebody asked me if git clone ssh:// ... would definitely work, I wouldn't have known out of the gate, although I would have thought it would be neat if it did and maybe it does. I may have thought that maybe there must be some sort of git server process running that would handle it, although it's plausible that it would be possible to just do a script that would handle it from the client side.And finally, I would've never thought really to necessarily try it out like that, since I've always been using Github, Bitbucket, etc. I have thought of those as permanent, while any boxes I have could be temporary, so not a place where I'd want to store something as important to be under source control.",
     "parent": 45711160,
     "depth": 2
   },
@@ -328,14 +344,6 @@
     "depth": 2
   },
   {
-    "id": 45712094,
-    "by": "victorbjorklund",
-    "timeISO": "2025-10-26T14:18:47.000Z",
-    "textPlain": "I never thought about it. If somebody had asked me, yeah. Of course it makes sense. But it's just one of those things where I haven't thought about possibility.",
-    "parent": 45711160,
-    "depth": 2
-  },
-  {
     "id": 45711799,
     "by": "bluedino",
     "timeISO": "2025-10-26T13:40:36.000Z",
@@ -348,6 +356,14 @@
     "by": "candiddevmike",
     "timeISO": "2025-10-26T13:13:50.000Z",
     "textPlain": "What are some fun/creative ways to do GitHub/GitLab style CI/CD with this method?  Some kind of entry point script on push that determines what to do next? How could you decide some kind of variables like what the push was for?",
+    "parent": 45711160,
+    "depth": 2
+  },
+  {
+    "id": 45712094,
+    "by": "victorbjorklund",
+    "timeISO": "2025-10-26T14:18:47.000Z",
+    "textPlain": "I never thought about it. If somebody had asked me, yeah. Of course it makes sense. But it's just one of those things where I haven't thought about possibility.",
     "parent": 45711160,
     "depth": 2
   },
@@ -380,22 +396,6 @@
     "by": "thaumasiotes",
     "timeISO": "2025-10-26T16:16:49.000Z",
     "textPlain": "I was aware that it should be possible to interact directly with another repository on another machine (or, heck, in another directory on the same machine), which implies that ssh access is sufficient, but I was unaware of how that would be done.",
-    "parent": 45711160,
-    "depth": 2
-  },
-  {
-    "id": 45712976,
-    "by": "dogleash",
-    "timeISO": "2025-10-26T16:10:10.000Z",
-    "textPlain": "There's definitely generational loss about the capabilities of git. In the beginning, git was a new version control option for people to explore, now git is the thing you learn to collaborate on github/lab/ea. I remember the Chagon book coming out as the peak between dense technical explainers and paint by numbers how-tos.",
-    "parent": 45711160,
-    "depth": 2
-  },
-  {
-    "id": 45711849,
-    "by": "tuwtuwtuwtuw",
-    "timeISO": "2025-10-26T13:48:00.000Z",
-    "textPlain": "I would be surprised if more than 10% of git users know that. Would be equally surprised if more than 20% of git users know how to use ssh.I think your age isn't the issue, but I suspect you're in a bubble.",
     "parent": 45711160,
     "depth": 2
   }
