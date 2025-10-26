@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45707776,
+    "by": "bignerd_95",
+    "timeISO": "2025-10-25T23:32:12.000Z",
+    "textPlain": "As someone who teaches this stuff at university, I see students getting confused every single year by how textbooks draw memory. The problem is mostly visual, not conceptual.Most diagrams in books and slides use an old hardware-centric convention: they draw higher addresses at the top of the page and lower addresses at the bottom. People sometimes justify this with an analogy like “floors in a building go up,” so address 0x7fffffffe000 is drawn “higher” than 0x400000.But this is backwards from how humans read almost everything today. When you look at code in VS Code or any other IDE, line 1 is at the top, then line 2 is below it, then 3, 4, etc. Numbers go up as you go down. Your brain learns: “down = bigger index.”Memory in a real Linux process actually matches the VS Code model much more closely than the textbook diagrams suggest.You can see it yourself with:cat /proc/$$/maps(pick any PID instead of $$).    ...\n\n[0x00000000]          lower addresses    ...\n\n[0x00620000]  HEAP start[0x00643000]  HEAP extended ↓ (more allocations => higher addresses)    ...\n\n[0x7ffd8c3f7000]  STACK top (<- stack pointer)                  ↑ the stack pointer starts here and moves upward\n\n                  (toward lower addresses) when you push\n[0x7ffd8c418000]  STACK start    ...\n\n[0xffffffffff600000] higher addresses    ...\n\nThe output is printed from low addresses to high addresses. At the top of the output you'll usually see the binary, shared libs, heap, etc. Those all live at lower virtual addresses. Farther down in the output you'll eventually see the stack, which lives at a higher virtual address. In other words: as you scroll down, the addresses get bigger. Exactly like scrolling down in an editor gives you bigger line numbers.The phrases “the heap grows up” and “the stack grows down” aren't wrong. They're just describing what happens to the numeric addresses: the heap expands toward higher addresses, and the stack moves into lower addresses.The real problem is how we draw it",
+    "parent": 45706380,
+    "depth": 1
+  },
+  {
     "id": 45707033,
     "by": "itopaloglu83",
     "timeISO": "2025-10-25T21:16:01.000Z",
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45707776,
-    "by": "bignerd_95",
-    "timeISO": "2025-10-25T23:32:12.000Z",
-    "textPlain": "As someone who teaches this stuff at university, I see students getting confused every single year by how textbooks draw memory. The problem is mostly visual, not conceptual.Most diagrams in books and slides use an old hardware-centric convention: they draw higher addresses at the top of the page and lower addresses at the bottom. People sometimes justify this with an analogy like “floors in a building go up,” so address 0x7fffffffe000 is drawn “higher” than 0x400000.But this is backwards from how humans read almost everything today. When you look at code in VS Code or any other IDE, line 1 is at the top, then line 2 is below it, then 3, 4, etc. Numbers go up as you go down. Your brain learns: “down = bigger index.”Memory in a real Linux process actually matches the VS Code model much more closely than the textbook diagrams suggest.You can see it yourself with:cat /proc/$$/maps(pick any PID instead of $$).    ...\n\n[0x00000000]          lower addresses    ...\n\n[0x00620000]  HEAP start[0x00643000]  HEAP extended ↓ (more allocations => higher addresses)    ...\n\n[0x7ffd8c3f7000]  STACK top (<- stack pointer)                  ↑ the stack pointer starts here and moves upward\n\n                  (toward lower addresses) when you push\n[0x7ffd8c418000]  STACK start    ...\n\n[0xffffffffff600000] higher addresses    ...\n\nThe output is printed from low addresses to high addresses. At the top of the output you'll usually see the binary, shared libs, heap, etc. Those all live at lower virtual addresses. Farther down in the output you'll eventually see the stack, which lives at a higher virtual address. In other words: as you scroll down, the addresses get bigger. Exactly like scrolling down in an editor gives you bigger line numbers.The phrases “the heap grows up” and “the stack grows down” aren't wrong. They're just describing what happens to the numeric addresses: the heap expands toward higher addresses, and the stack moves into lower addresses.The real problem is how we draw it",
+    "id": 45709141,
+    "by": "matheusmoreira",
+    "timeISO": "2025-10-26T04:29:05.000Z",
+    "textPlain": "Hacking this stuff is so fun!!> Depending on your program, _start may be the only thing between the entrypoint and your main functionI once developed a liblinux project entirely built around this idea.I wanted to get rid of libc and all of its initialization, complexity and global state. The C library is so complex it has a primitive form of package management built into it:https://blogs.oracle.com/solaris/post/init-and-fini-processi...So I made _start functions which did nothing but pass argc, argv, envp and auxv to the actual main function:https://github.com/matheusmoreira/liblinux/blob/master/start...https://github.com/matheusmoreira/liblinux/blob/master/start...You can get surprisingly far with just this, and it's actually possible to understand what's going on. Biggest pain point was the lack of C library utility functions like number/string conversion. I simply wrote my own.https://github.com/matheusmoreira/liblinux/tree/master/examp...Linux is the only operating system that lets us do this. In other systems, the C library is part of the kernel interface. Bypassing it like this can and does break things. Go developers once discovered this the hard way.https://www.matheusmoreira.com/articles/linux-system-callsThe kernel has their own nolibc infrastructure now, no doubt much better than my project.https://github.com/torvalds/linux/tree/master/tools/include/...I encourage everyone to use it.Note also that _start is an arbitrary symbol. The name is not special at all. It's just some linker default. The ELF header contains a pointer to the entry point, not a symbol. Feel free to choose a nice name!",
     "parent": 45706380,
     "depth": 1
   },
@@ -78,6 +86,14 @@
     "textPlain": "On the subject of symbols:> Yeah, that’s it. Now, 2308 may be slightly bloated because we link against musl instead of glibc, but the point still stands: There’s a lot of stuff going on behind the scenes here.Slightly bloated is a slight understatement. The same program linked to glibc tops at 36 symbols in .symtab:    $ readelf -a hello|grep \"'.symtab'\"\n    Symbol table '.symtab' contains 36 entries:",
     "parent": 45706380,
     "depth": 1
+  },
+  {
+    "id": 45709203,
+    "by": "matheusmoreira",
+    "timeISO": "2025-10-26T04:45:31.000Z",
+    "textPlain": "Yeah it turns out the kernel doesn't care about sections at all. It only ever cares about the PT_LOAD segments in the program header table, which is essentially a table of arguments for the mmap system call. Sections are just dynamic linker metadata and are never covered by PT_LOAD segments.This seems to be a common misconception. I too suffered from it once... Tried to embed arbitrary files into ELF files using objcopy. The tool could easily create new sections with the file contents just fine, but the kernel wouldn't load them into memory. It was really confusing at first.https://stackoverflow.com/q/77468641There were no tools for patching the program header table, I ended up making them! The mold linker even added a feature just to make this patching easy!https://www.matheusmoreira.com/articles/self-contained-lone-...",
+    "parent": 45707337,
+    "depth": 2
   },
   {
     "id": 45707514,
@@ -109,6 +125,14 @@
     "timeISO": "2025-10-26T00:54:19.000Z",
     "textPlain": "I love cpu.land! Thanks for creating such a fun resource.",
     "parent": 45707558,
+    "depth": 2
+  },
+  {
+    "id": 45709224,
+    "by": "matheusmoreira",
+    "timeISO": "2025-10-26T04:50:54.000Z",
+    "textPlain": "I once wrote a liblinux project just for this!! It was indeed extremely fun. Details in my other comment:https://news.ycombinator.com/item?id=45709141I abandoned it because Linux itself now has a rich set of nolibc headers.Now I'm working on a whole programming language based around this concept. A freestanding lisp interpreter targeting Linux directly with builtin system call support. The idea is to complete the interpreter and then write the standard library and Linux user space in lisp using the system calls.It's been an amazing journey. It's incredible how far one can take this.",
+    "parent": 45706565,
     "depth": 2
   },
   {
