@@ -1,5 +1,13 @@
 [
   {
+    "id": 45726855,
+    "by": "socketcluster",
+    "timeISO": "2025-10-27T22:01:33.000Z",
+    "textPlain": "Even large companies are still grasping at straws when it comes to good code. Meanwhile there are articles I wrote years ago which explain clearly from first principles why the correct philosophy is \"Generic core, specific shell.\"I actually remember early in my career working for a small engineering/manufacturing prototyping firm which did its own software, there was a senior developer there who didn't speak very good English but he kept insisting that the \"Business layer\" should be on top. How right he was. I couldn't imagine how much wisdom and experience was packed in such simple, malformed sentences. Nothing else matters really. Functional vs imperative is a very minor point IMO, mostly a distraction.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45725501,
     "by": "hinkley",
     "timeISO": "2025-10-27T19:51:17.000Z",
@@ -24,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45726940,
+    "by": "semiinfinitely",
+    "timeISO": "2025-10-27T22:11:21.000Z",
+    "textPlain": "this looks like a post from 2007 im shocked at the date",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45725580,
     "by": "rcleveng",
     "timeISO": "2025-10-27T19:58:29.000Z",
@@ -40,11 +56,43 @@
     "depth": 1
   },
   {
+    "id": 45726540,
+    "by": "bitwize",
+    "timeISO": "2025-10-27T21:31:20.000Z",
+    "textPlain": "I invented this pattern when I was working on a small ecommerce system (written in Scheme, yay!) in the early 2000s. It just became much easier to do all the pricing calculations, which were subject to market conditions and customer choices, if I broke it up into steps and verified each step as a side-effect-free, data-in-data-out function.Of course by \"invented\" I mean that far smarter people than me probably invented it far earlier, kinda like how I \"invented\" intrusive linked lists in my mid-teens to manage the set of sprites for a game. The idea came from my head as the most natural solution to the problem. But it did happen well before the programming blogosphere started making the pattern popular.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45726956,
+    "by": "foofoo12",
+    "timeISO": "2025-10-27T22:13:33.000Z",
+    "textPlain": "> Even large companies are still grasping at straws when it comes to good codeProbably many reasons for this, but what I've seen often is that once the code base has been degraded, it's a slippery slope downhill after that.Adding functionality often requires more hacks. The alternative is to fix the mess, but that's not part of the task at hand.",
+    "parent": 45726855,
+    "depth": 2
+  },
+  {
+    "id": 45726935,
+    "by": "benoitg",
+    "timeISO": "2025-10-27T22:10:48.000Z",
+    "textPlain": "I’d love to know more, do you have any links to your articles?",
+    "parent": 45726855,
+    "depth": 2
+  },
+  {
     "id": 45725751,
     "by": "Jtsummers",
     "timeISO": "2025-10-27T20:15:58.000Z",
     "textPlain": "Command-Query Separation is the term for that. However, I find this statement odd:> having functions that do things without verifying preconditions are exploitableWhy would you do this? The separation between commands and queries does not mean that executing a command must succeed. It can still fail. Put queries inside the commands (but do not return the query results, that's the job of the query itself) and branch based on the results. After executing a command which may fail, you can follow it with a query to see if it succeeded and, if not, why not.https://en.wikipedia.org/wiki/Command%E2%80%93query_separati...",
     "parent": 45725501,
+    "depth": 2
+  },
+  {
+    "id": 45726514,
+    "by": "HiPhish",
+    "timeISO": "2025-10-27T21:28:52.000Z",
+    "textPlain": "> email.bulkSend(generateExpiryEmails(getExpiredUsers(db.getUsers(), Date.now())));What makes it hard to reason about is that your code is one-dimensional, you have functions like `getExpiredUsers` and `generateExpiryEmails` which could be expressed as composition of more general functions. Here is how I would have written it in JavaScript:    const emails = db.getUsers()\n        .filter(user => user.isExpired(Date.now()))  // Some property every user has\n        .map(generateExpiryEmail);  // Maps a single user to a message\n\n    email.bulkSend(emails);\n\nThe idea is that you have small but general functions, methods and properties and then use higher-order functions and methods to compose them on the fly. This makes the code two-dimensional. The outer dimension (`filter` and `map`) tells the reader what is done (take all users, pick out only some, then turn each one into something else) while the outer dimension tells you how it is done. Note that there is no function `getExpiredUsers` that receives all users, instead there is a simple and more general `isExpired` method which is combined with `filter` to get the same result.In a functional language with pipes it could be written in an arguably even more elegant design:    db.getUsers() |> filter(User.isExpired(Date.now()) |> map(generateExpiryEmail) |> email.bulkSend\n\nI also like Python's generator expressions which can express `map` and `filter` as a single expression:    email.bulk_send(generate_expiry_email(user) for user in db.get_users() if user.is_expired(Date.now())",
+    "parent": 45725583,
     "depth": 2
   },
   {
@@ -77,6 +125,14 @@
     "timeISO": "2025-10-27T20:43:27.000Z",
     "textPlain": "I would have written each statement on its own line:var users = db.getUsers();var expiredUsers = getExpiredUsers(users, Date.now());var expiryEmails = generateExpiryEmails(expiredUsers);email.bulkSend(expiryEmails);This is not only much easier to read, it's also easier to follow in a stack trace and it's easier to debug. IMO it's just flat out better unless you're code golfing.I'd also combine the first two steps by creating a DB query that just gets expired users directly rather than fetching all users and filtering them in memory:expiredUsers = db.getExpiredUsers(Date.now());Now I'm probably mostly getting zero or a few users rather than thousands or millions.",
     "parent": 45725583,
+    "depth": 2
+  },
+  {
+    "id": 45726571,
+    "by": "skydhash",
+    "timeISO": "2025-10-27T21:33:42.000Z",
+    "textPlain": "Functional core usually means pure functional functions, aka the return value is know if the arguments is known, no side effects required. All the side effects is then pushed up the imperative shell.You’ll find usually that side effect in imperative actions is usually tied to the dependencies (database, storage, ui, network connections). It can be quite easy to isolate those dependencies then.It’s ok to have several layers of core. But usually, it’s quite easy to have the actual dependency tree with interfaces and have the implementation as leaves for each node. But the actual benefits is very easy testing and validation. Also fast feedback due to only unit tests is needed for your business logic.",
+    "parent": 45726194,
     "depth": 2
   },
   {
