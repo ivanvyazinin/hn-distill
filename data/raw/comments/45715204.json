@@ -16,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 45718859,
+    "by": "hk1337",
+    "timeISO": "2025-10-27T09:23:05.000Z",
+    "textPlain": "I have always understood S3 is just HDFS with some extra features? So, if you were going to roll your own S3, then you’d stand up an HDFS cluster.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
     "id": 45717225,
     "by": "ixtli",
     "timeISO": "2025-10-27T03:43:03.000Z",
     "textPlain": "They didn’t actually do what the headline claims. They made a memory cache which sits in front of S3 for the happy path. Cool but not nearly rolling your own S3",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718696,
+    "by": "gethly",
+    "timeISO": "2025-10-27T08:56:09.000Z",
+    "textPlain": "I made my own S3 as well. I used two S3-compatible services before but there was always some issue(first one failed to upload certain file, no matter what and support was unhelpful; second one did not migrate with file metadata properly so i knew this would be ongoing problem). In the end, it is just a dumb file store, nothing else. All you need to do is to write a basic HTTPS API layer and some logic to handle database for the file metadata and possibly location. That is about it. Takes a few days with testing.But then you also have to think about file uploads and file downloads. You cannot have a single server fulfilling all the roles, otherwise you have a bottleneck.So this file storage became a private backend service that end-users never access directly. I have added upload services, whose sole purpose is to allow users to upload files and only then upload them to this central file store, essentially creating a distributed file upload queue(there is also a bit more logic regarding file id creation and validation).Secondly, own CDN was needed for downloads. But only because I use custom access handling and could not have used any of the commercial services(though they do support access via tokens, it just was not working for me). This was tricky because I wanted for the nodes to distribute files between themselves and not always fetch them from the origin to avoid network costs on the origin server. So they had to find each other, talk to each other and know who has which file.In short, rolling your own is not as hard as it might seem and should be preferable. Maybe to save time, use cloud at the beginning, but once you are up and running and your business idea is validated by having customer, immediately move to your own infra in order to avoid astronomical costs of cloud services.btw, i also do video processing like mentioned in the blog post :)",
     "parent": 45715204,
     "depth": 1
   },
@@ -32,14 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45718244,
-    "by": "swiftcoder",
-    "timeISO": "2025-10-27T07:28:11.000Z",
-    "textPlain": "This feels like they were using the wrong architecture from the start, and are now papering over that problem with additional layers of cache.The only practical reason to put a video in S3 for an average of 2 seconds is to provide additional redundancy, and replacing that with a cache removes most of the redundancy.Feels like if you uploaded these to an actual server, the server could process them on upload, and you could eliminate S3, the queue in SQS, and the lambdas all in one fell swoop...",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
     "id": 45717787,
     "by": "anarsdk",
     "timeISO": "2025-10-27T05:49:04.000Z",
@@ -48,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45716503,
-    "by": "none2585",
-    "timeISO": "2025-10-27T01:32:14.000Z",
-    "textPlain": "I'm curious how many engineers per year this costs to maintain",
+    "id": 45718244,
+    "by": "swiftcoder",
+    "timeISO": "2025-10-27T07:28:11.000Z",
+    "textPlain": "This feels like they were using the wrong architecture from the start, and are now papering over that problem with additional layers of cache.The only practical reason to put a video in S3 for an average of 2 seconds is to provide additional redundancy, and replacing that with a cache removes most of the redundancy.Feels like if you uploaded these to an actual server, the server could process them on upload, and you could eliminate S3, the queue in SQS, and the lambdas all in one fell swoop...",
     "parent": 45715204,
     "depth": 1
   },
@@ -60,6 +68,14 @@
     "by": "dmje",
     "timeISO": "2025-10-27T05:58:13.000Z",
     "textPlain": "I’m sufficiently old / sensible (you decide) to think that uploading video of your baby (to anywhere) is fucking weird and fucking spooky and not needed anyway. This is a solution that doesn’t have a problem. Worse: it prays on parental / young parental fears. There’s nothing here - this is not a product that’s needed. You don’t need to “track” your baby, ffs. You don’t need to watch it while it sleeps. You don’t need “every breath, seen”. People have been having babies for fucking centuries without entering them into this hyper weird surveillance state at birth.What an appalling screwed up world we seem to have manufactured for ourselves.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45716503,
+    "by": "none2585",
+    "timeISO": "2025-10-27T01:32:14.000Z",
+    "textPlain": "I'm curious how many engineers per year this costs to maintain",
     "parent": 45715204,
     "depth": 1
   },
@@ -80,26 +96,26 @@
     "depth": 1
   },
   {
+    "id": 45716971,
+    "by": "VladVladikoff",
+    "timeISO": "2025-10-27T02:56:45.000Z",
+    "textPlain": "I’m mostly just impressed that some janky baby monitor has racked up server fees on this scale. Amazing example of absolutely horrible engineering.Also, just take an old phone from your drawer full of old phones, slap some free camera app on it, zip tie a car phone mount to the crib, and boom you have a free baby monitor.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718739,
+    "by": "miroljub",
+    "timeISO": "2025-10-27T09:03:59.000Z",
+    "textPlain": "Ah, these modern babies. They can't even sleep without being spied and recorded 24/7.I'm glad both me and my kind grew up in different times.Today's kids will never in their lives know what freedom is, and we are guilty we made such dystopian societies a reality.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
     "id": 45717008,
     "by": "Huxley1",
     "timeISO": "2025-10-27T03:04:15.000Z",
     "textPlain": "S3 certainly saves a lot of hassle, but in certain use cases, it really is prohibitively expensive.\nHas anyone tried self-hosted alternatives like MinIO or SeaweedFS? Or taken even more radical approaches?\nHow do you balance between stability, maintenance overhead, and cost savings?",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
-    "id": 45718206,
-    "by": "danjc",
-    "timeISO": "2025-10-27T07:18:55.000Z",
-    "textPlain": "I'd it's processed in 2 seconds, why not just process it immediately in memory?",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
-    "id": 45718377,
-    "by": "Brian_K_White",
-    "timeISO": "2025-10-27T07:54:18.000Z",
-    "textPlain": "unnecessary cloud subscription service abjures unnecessary cloud subscription service",
     "parent": 45715204,
     "depth": 1
   },
@@ -112,10 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45718083,
-    "by": "0xbadcafebee",
-    "timeISO": "2025-10-27T06:53:01.000Z",
-    "textPlain": "Their architecture is internet bandwidth heavy and storage heavy; these are some of the most expensive things in AWS. You probably want to use a different provider for those things.> It turns out that when AWS says an instance can do “Up to 12.5 Gbps”, that’s burstable networking backed by credits; when you’re below the baseline, you accrue credits and can burst for short periods.Yes, AWS has a burst rating and a sustained/baseline rating for both EBS types as well as instance types. Use https://instances.vantage.sh/ (and make sure you choose specific columns) to compare specific criteria and then export as a CSV to find the lowest price that matches your performance/feature/platform criteria. Design to the baseline if you need guaranteed performance. Do sustained performance testing.> When we Terminated connections idle >10 minutes, memory dropped by ~1 GB immediately; confirming the leak was from dangling sockets. Fix: make sockets short-lived and enforce time limits.We used to do that with Apache 20 years ago. Config option forces a forked subchild to exit after N requests to avoid the inevitable memory leaks. AKA the Windows 95 garbage collector (a reboot a day keeps the slowness at bay).FWIW, if the business feasibility of your architecture depends on custom stuff, performance enhancements, etc, you will find that you eventually have harder and harder problems to solve to keep your business functioning. It's more reliable to waste money on a solution that is brainless, than invest human ingenuity/technical mastery in a solution that is frugal.",
+    "id": 45718206,
+    "by": "danjc",
+    "timeISO": "2025-10-27T07:18:55.000Z",
+    "textPlain": "I'd it's processed in 2 seconds, why not just process it immediately in memory?",
     "parent": 45715204,
     "depth": 1
   },
@@ -136,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45716971,
-    "by": "VladVladikoff",
-    "timeISO": "2025-10-27T02:56:45.000Z",
-    "textPlain": "I’m mostly just impressed that some janky baby monitor has racked up server fees on this scale. Amazing example of absolutely horrible engineering.Also, just take an old phone from your drawer full of old phones, slap some free camera app on it, zip tie a car phone mount to the crib, and boom you have a free baby monitor.",
+    "id": 45718083,
+    "by": "0xbadcafebee",
+    "timeISO": "2025-10-27T06:53:01.000Z",
+    "textPlain": "Their architecture is internet bandwidth heavy and storage heavy; these are some of the most expensive things in AWS. You probably want to use a different provider for those things.> It turns out that when AWS says an instance can do “Up to 12.5 Gbps”, that’s burstable networking backed by credits; when you’re below the baseline, you accrue credits and can burst for short periods.Yes, AWS has a burst rating and a sustained/baseline rating for both EBS types as well as instance types. Use https://instances.vantage.sh/ (and make sure you choose specific columns) to compare specific criteria and then export as a CSV to find the lowest price that matches your performance/feature/platform criteria. Design to the baseline if you need guaranteed performance. Do sustained performance testing.> When we Terminated connections idle >10 minutes, memory dropped by ~1 GB immediately; confirming the leak was from dangling sockets. Fix: make sockets short-lived and enforce time limits.We used to do that with Apache 20 years ago. Config option forces a forked subchild to exit after N requests to avoid the inevitable memory leaks. AKA the Windows 95 garbage collector (a reboot a day keeps the slowness at bay).FWIW, if the business feasibility of your architecture depends on custom stuff, performance enhancements, etc, you will find that you eventually have harder and harder problems to solve to keep your business functioning. It's more reliable to waste money on a solution that is brainless, than invest human ingenuity/technical mastery in a solution that is frugal.",
     "parent": 45715204,
     "depth": 1
   },
@@ -148,6 +164,14 @@
     "by": "lpa22",
     "timeISO": "2025-10-27T04:24:30.000Z",
     "textPlain": "If anyone here uses the Nanit app in the background of their phones, it absolutely destroys battery life.I got a new phone because I thought my battery was cooked, but turns out it was just the app.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718377,
+    "by": "Brian_K_White",
+    "timeISO": "2025-10-27T07:54:18.000Z",
+    "textPlain": "unnecessary cloud subscription service abjures unnecessary cloud subscription service",
     "parent": 45715204,
     "depth": 1
   },
@@ -176,6 +200,14 @@
     "depth": 1
   },
   {
+    "id": 45716429,
+    "by": "ch2026",
+    "timeISO": "2025-10-27T01:15:24.000Z",
+    "textPlain": "Who is “The South Korean Government”?",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
     "id": 45717459,
     "by": "another_twist",
     "timeISO": "2025-10-27T04:40:30.000Z",
@@ -184,10 +216,10 @@
     "depth": 1
   },
   {
-    "id": 45716429,
-    "by": "ch2026",
-    "timeISO": "2025-10-27T01:15:24.000Z",
-    "textPlain": "Who is “The South Korean Government”?",
+    "id": 45718566,
+    "by": "TimCock",
+    "timeISO": "2025-10-27T08:31:58.000Z",
+    "textPlain": "\"Saved\" by having to maintain? Ofc. Techbro logic.",
     "parent": 45715204,
     "depth": 1
   },
@@ -224,6 +256,14 @@
     "depth": 2
   },
   {
+    "id": 45718669,
+    "by": "afro88",
+    "timeISO": "2025-10-27T08:50:34.000Z",
+    "textPlain": "> Self-hosted video isn't that hard but no one makes a baby-monitor centric solutionIt sounds like they're not hosting it though. They are processing it, and storing it temporarily while it's queued.A fully self hosted AI powered baby monitor that accurately detects sleep states and danger situations would be incredibly expensive today. Maybe not in a few years though.",
+    "parent": 45717363,
+    "depth": 2
+  },
+  {
     "id": 45717605,
     "by": "kdamica",
     "timeISO": "2025-10-27T05:09:56.000Z",
@@ -240,10 +280,10 @@
     "depth": 2
   },
   {
-    "id": 45718452,
-    "by": "tonyhart7",
-    "timeISO": "2025-10-27T08:11:05.000Z",
-    "textPlain": "\"Self-hosted video isn't that hard but no one makes a baby-monitor centric solution\"I don't understand this attitude, sure its easy for some people but MOST people want an easy out of the box solutionits nothing wrong with that",
+    "id": 45718668,
+    "by": "mschuster91",
+    "timeISO": "2025-10-27T08:50:25.000Z",
+    "textPlain": "> Self-hosted video isn't that hard but no one makes a baby-monitor centric solution.It's not that easy. The only usecase that is actually really fucking easy is when both the camera and the device trying to access it is in the same network - broadcasts for discovery, that's it. Although I've seen people turn on \"client isolation\" in their wifi back when I did computer repairs, so it's not a given that this works!But as soon as that assumption goes out the window - and if it's just you going into the garden to check on some weeds where the wifi doesn't reach - the task suddenly becomes so, so much harder:- the \"easiest\" case is an ISP that hands your wifi router a globally routed IPv4 address, allows UPnP to be configured, and the user has UPnP configured. All that the camera has to do here is to request a port opening and that's it. Still, you as manufacturer need a server to store a mapping between user, IP address and port. (And you need to hope that the user's mobile device or their ISP doesn't have a nasty firewall blocking non-standard ports)- No UPnP? Now you as manufacturer either need some STUN/TURN server or explain to the user how to manually enable port forwarding.- Worst case: the user's ISP either has IPv6 only, CGNAT, double/triple/... NAT or similar shit in play because they don't have enough IP addresses to supply to their customer base. That's pretty much impossible even with STUN/TURN, sooo many ways for things to go wrong along the path.- even a theoretical fully IPv6 world where everyone has globally routed IPv6 addresses everywhere and all ISPs have their routing working still wouldn't solve the issue... because consumer ISP routers enable a firewall on IPv6 to avoid stuff like \"online game cheaters 0wning their opponents running an outdated version of their game\".The sad reality is, running a cloud service is the only actually pain-free way for any given smart Thing to work as the customer expects it.And on top of that, a NAS capable of storin",
     "parent": 45717363,
     "depth": 2
   },
@@ -252,6 +292,14 @@
     "by": "jen20",
     "timeISO": "2025-10-27T04:25:57.000Z",
     "textPlain": "This is the reason I refused to buy Nanit cameras, instead opting for unconnected models. E2E encryption is table stakes.",
+    "parent": 45717363,
+    "depth": 2
+  },
+  {
+    "id": 45718452,
+    "by": "tonyhart7",
+    "timeISO": "2025-10-27T08:11:05.000Z",
+    "textPlain": "\"Self-hosted video isn't that hard but no one makes a baby-monitor centric solution\"I don't understand this attitude, sure its easy for some people but MOST people want an easy out of the box solutionits nothing wrong with that",
     "parent": 45717363,
     "depth": 2
   },
@@ -277,6 +325,22 @@
     "timeISO": "2025-10-27T07:05:15.000Z",
     "textPlain": "I suspect it's a massive amount, as S3 is one of the cheaper services. As we evaluate moving all of our compute off of AWS, S3 (and SQS) are probably services we'll retain because they are still amazing values.",
     "parent": 45718056,
+    "depth": 2
+  },
+  {
+    "id": 45718702,
+    "by": "Gasp0de",
+    "timeISO": "2025-10-27T08:56:51.000Z",
+    "textPlain": "Exactly, my first thought was \"Why in earth would anyone think that S3 was the right service to store millions of tiny ephemeral files?\" and now it seems they have invented their own in-memory store instead of just using something like Redis. I also wonder what happens if their DIY thingy crashes, are the videos lost? Why not send to Kinesis or SQS in the first place?",
+    "parent": 45717787,
+    "depth": 2
+  },
+  {
+    "id": 45718073,
+    "by": "ramraj07",
+    "timeISO": "2025-10-27T06:51:08.000Z",
+    "textPlain": "Of all the hills to die on w.r.t. how the world is screwed up, this seems like the silliest.Different folks parent differently, culture evolves. You're free to have your \"old school\" thoughts as are people who use services like this.Its not like they're publishing it in public. The service in discussion especially just stores it in the server only temporarily to use ML to detect things such as sleeping or crying. Sounds innocuous to me.Many of us can do the math ourselves and choose to make choices based on our own beliefs. That's true freedom.",
+    "parent": 45717829,
     "depth": 2
   },
   {
@@ -320,22 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45718549,
-    "by": "hexbin010",
-    "timeISO": "2025-10-27T08:29:28.000Z",
-    "textPlain": "[delayed]",
-    "parent": 45717829,
-    "depth": 2
-  },
-  {
-    "id": 45718073,
-    "by": "ramraj07",
-    "timeISO": "2025-10-27T06:51:08.000Z",
-    "textPlain": "Of all the hills to die on w.r.t. how the world is screwed up, this seems like the silliest.Different folks parent differently, culture evolves. You're free to have your \"old school\" thoughts as are people who use services like this.Its not like they're publishing it in public. The service in discussion especially just stores it in the server only temporarily to use ML to detect things such as sleeping or crying. Sounds innocuous to me.Many of us can do the math ourselves and choose to make choices based on our own beliefs. That's true freedom.",
-    "parent": 45717829,
-    "depth": 2
-  },
-  {
     "id": 45718145,
     "by": "tauntz",
     "timeISO": "2025-10-27T07:04:52.000Z",
@@ -344,59 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45717035,
-    "by": "ddxv",
-    "timeISO": "2025-10-27T03:09:14.000Z",
-    "textPlain": "MinIO has moved away from having a free community fork, and I think it's base cost is close to $100k a year. I've been using Garage and been happy, but as a single dev and orders of magnitude smaller than the OP, so there are certainly edge cases I'm missing to compare the two.",
-    "parent": 45717008,
-    "depth": 2
-  },
-  {
-    "id": 45718234,
-    "by": "swiftcoder",
-    "timeISO": "2025-10-27T07:25:05.000Z",
-    "textPlain": "Because they are serverless, so there's currently no memory for it to be processed in at the point of upload",
-    "parent": 45718206,
-    "depth": 2
-  },
-  {
-    "id": 45718473,
-    "by": "szszrk",
-    "timeISO": "2025-10-27T08:14:12.000Z",
-    "textPlain": "They can't say that, as they did not stop. They made a cache in front of it.",
-    "parent": 45717718,
-    "depth": 2
-  },
-  {
-    "id": 45718440,
-    "by": "dilyevsky",
-    "timeISO": "2025-10-27T08:08:54.000Z",
-    "textPlain": "They're very ingest heavy compared to how much of it is actually streamed out and to a very small/local audience so probably don't even need a cdn. And ingest on aws is free.On the other hand, S3 is kind of ridiculously expensive compared to even more expensive on-prem options like a PureStorage SSDs array. With spindles on Ceph you can probably get quite a bit lower than AWS's 2c/Gig/mo. Or you can just use R2 with colocated servers for ingest.",
-    "parent": 45718083,
-    "depth": 2
-  },
-  {
-    "id": 45717181,
-    "by": "YZF",
-    "timeISO": "2025-10-27T03:35:38.000Z",
-    "textPlain": "Right. Having worked on a commercial S3 compatible storage I can tell y'all that there's a lot more to it then just sticking some files on JBOD. It does depend on your specific requirements though. 1.5 FTE over 18 months sounds on the low side for everything you've described.That said the article seems to be more about an optimization of their pipeline to reduce the S3 usage by holding some objects in memory instead. That's very different than trying to build your own object store to replace S3.",
-    "parent": 45717071,
-    "depth": 2
-  },
-  {
-    "id": 45717302,
-    "by": "supriyo-biswas",
-    "timeISO": "2025-10-27T04:06:18.000Z",
-    "textPlain": "Why do all your comments seem LLM generated? You do clearly have something to contribute, but it’s probably better to just write what you’re talking about than going through a LLM.",
-    "parent": 45717071,
-    "depth": 2
-  },
-  {
-    "id": 45717379,
-    "by": "john01dav",
-    "timeISO": "2025-10-27T04:24:29.000Z",
-    "textPlain": "There are more options than using S3 or completely rolling your own on JBOD. For example, you could use a cheaper S3-compatible cloud (such as Backblaze) or you can deploy a project such as Ceph.",
-    "parent": 45717071,
+    "id": 45717010,
+    "by": "bombcar",
+    "timeISO": "2025-10-27T03:04:35.000Z",
+    "textPlain": "If you don’t have fifty to a hundred dodgy PoE cameras from Alibaba tied to the crib do you even really love the baby?",
+    "parent": 45716971,
     "depth": 2
   }
 ]

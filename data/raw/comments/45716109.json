@@ -16,18 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45718400,
-    "by": "noselasd",
-    "timeISO": "2025-10-27T08:00:11.000Z",
-    "textPlain": "Mostly out of curiosity, a read on a TCP connection could easily block for a month - how does the I/O timeout interface look like ? e.g. if you want to send an application level heartbeat when a read has blocked for 30 seconds.",
+    "id": 45718867,
+    "by": "d3ckard",
+    "timeISO": "2025-10-27T09:23:57.000Z",
+    "textPlain": "Honestly, have been excited about Zig for quite a while, dabbled a bit a while back and was waiting for it getting closer to 1.0 to actually do a deep dive... but that moment doesn't seem to come.I don't mind, it's up to the maintainers on how they want to proceed. However, I would greatly appreciate if Zig news was a bit clearer on what's happening, timelines etc.I think it takes relatively little time to do so, but optics would be so much better.",
     "parent": 45716109,
     "depth": 1
   },
   {
-    "id": 45718504,
-    "by": "pjmlp",
-    "timeISO": "2025-10-27T08:20:53.000Z",
-    "textPlain": "Zio already exists, https://zio.dev/",
+    "id": 45718706,
+    "by": "cat-whisperer",
+    "timeISO": "2025-10-27T08:57:33.000Z",
+    "textPlain": "Stackful coroutines make sense when you have the RAM for it.I've been using Zig for embedded (ARM Cortex-M4, 256KB RAM) mainly for memory safety with C interop. The explicitness around calling conventions catches ABI mismatches at compile-time instead of runtime crashes.I actually prefer colored async (like Rust) over this approach. The \"illusion of synchronous code\" feels magical, but magic becomes a gotcha in larger codebases when you can't tell what's blocking and what isn't.",
+    "parent": 45716109,
+    "depth": 1
+  },
+  {
+    "id": 45718400,
+    "by": "noselasd",
+    "timeISO": "2025-10-27T08:00:11.000Z",
+    "textPlain": "Mostly out of curiosity, a read on a TCP connection could easily block for a month - how does the I/O timeout interface look like ? e.g. if you want to send an application level heartbeat when a read has blocked for 30 seconds.",
     "parent": 45716109,
     "depth": 1
   },
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45718504,
+    "by": "pjmlp",
+    "timeISO": "2025-10-27T08:20:53.000Z",
+    "textPlain": "Zio already exists, https://zio.dev/",
+    "parent": 45716109,
+    "depth": 1
+  },
+  {
     "id": 45717271,
     "by": "mrasong",
     "timeISO": "2025-10-27T03:56:59.000Z",
@@ -80,18 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45717854,
-    "by": "sriku",
-    "timeISO": "2025-10-27T06:04:30.000Z",
-    "textPlain": "The article says it was created to write audio software but I'm unable to find any first sources for that. Pointers?",
-    "parent": 45716109,
-    "depth": 1
-  },
-  {
     "id": 45716451,
     "by": "supportengineer",
     "timeISO": "2025-10-27T01:20:08.000Z",
     "textPlain": "Move Zig, for great justice.",
+    "parent": 45716109,
+    "depth": 1
+  },
+  {
+    "id": 45717854,
+    "by": "sriku",
+    "timeISO": "2025-10-27T06:04:30.000Z",
+    "textPlain": "The article says it was created to write audio software but I'm unable to find any first sources for that. Pointers?",
     "parent": 45716109,
     "depth": 1
   },
@@ -109,6 +125,14 @@
     "timeISO": "2025-10-27T05:36:43.000Z",
     "textPlain": "You are right that the statement was overblown, however when I was testing with \"trivial\" load between yields (synchronized ping-pong between coroutines), I was getting numbers that I had trouble believing, when comparing them to other solutions.",
     "parent": 45717257,
+    "depth": 2
+  },
+  {
+    "id": 45718733,
+    "by": "boomlinde",
+    "timeISO": "2025-10-27T09:03:12.000Z",
+    "textPlain": "One thing I would consider \"unclean\" about the zio approach (and e.g. libtask) is that you pass it an arbitrary expected stack size (or, as in the example, assume the default) and practically just kind of hope it's big enough not to blow up and small enough to be able to spawn as many tasks as you need. Meanwhile, how much stack actually ends up being needed by the function is a platform specific implementation detail and hard to know.This is a gotcha of using stack allocation in general, but exacerbated in this case by the fact that you have an incentive to keep the stacks as small as possible when you want many concurrent tasks. So you either end up solving the puzzle of how big exactly the stack needs to be, you undershoot and overflow with possibly disastrous effects (especially if your stack happens to overflow into memory that doesn't cause an access violation) or you overshoot and waste memory. Better yet, you may have calculated and optimized your stack size for your platform and then the code ends up doing UB on a different platform with fewer registers, bigger `c_long`s or different alignment constraints.If something like https://github.com/ziglang/zig/issues/157 actually gets implemented I will be happier about this approach.",
+    "parent": 45717764,
     "depth": 2
   },
   {
@@ -133,6 +157,14 @@
     "timeISO": "2025-10-27T06:15:24.000Z",
     "textPlain": "I think it started with an interrupt. And less abstraction often wins.",
     "parent": 45717764,
+    "depth": 2
+  },
+  {
+    "id": 45718568,
+    "by": "lukaslalinsky",
+    "timeISO": "2025-10-27T08:32:28.000Z",
+    "textPlain": "I don't have a good answer for that yet, mostly because TCP reads are expected to be done through std.Io.Reader which isn't aware of timeouts.What I envision is something like `asyncio.timeout` in Python, where you start a timeout and let the code run as usual. If it's in I/O sleep when the timeout fires, it will get woken up and the operation gets canceled.I see something like this:    var timeout: zio.Timeout = .init;\n    defer timeout.cancel(rt);\n\n    timeout.set(rt, 10);\n    const n = try reader.interface.readVec(&data);",
+    "parent": 45718400,
     "depth": 2
   },
   {
@@ -200,19 +232,19 @@
     "depth": 2
   },
   {
-    "id": 45717956,
-    "by": "lukaslalinsky",
-    "timeISO": "2025-10-27T06:27:46.000Z",
-    "textPlain": "See the first example in Andrew's introduction: https://andrewkelley.me/post/intro-to-zig.html",
-    "parent": 45717854,
-    "depth": 2
-  },
-  {
     "id": 45717402,
     "by": "echelon",
     "timeISO": "2025-10-27T04:28:08.000Z",
     "textPlain": "One of the very first internet memes. The zig team should adopt it as the slogan.https://en.wikipedia.org/wiki/All_your_base_are_belong_to_us",
     "parent": 45716451,
+    "depth": 2
+  },
+  {
+    "id": 45717956,
+    "by": "lukaslalinsky",
+    "timeISO": "2025-10-27T06:27:46.000Z",
+    "textPlain": "See the first example in Andrew's introduction: https://andrewkelley.me/post/intro-to-zig.html",
+    "parent": 45717854,
     "depth": 2
   }
 ]
