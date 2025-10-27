@@ -1,9 +1,25 @@
 [
   {
+    "id": 45717363,
+    "by": "varenc",
+    "timeISO": "2025-10-27T04:22:35.000Z",
+    "textPlain": "In HN style, I'm going to diverge from the content and rant about the company:Nanit needs this storage because they run cloud based baby cameras.  Every Nanit user is uploading video and audio of their home/baby\nlive to Nanit without any E2EE.Their hardware essentially requires a subscription to use, even though it costs $200/camera. You must spend an additional $200 on a Nanit floor stand if you want sleep tracking.\nThis is purely a software limitation since there's plenty of other ways to get an overhead camera mount. (I'm curious how they even detect if you're using the stand since it's just a USB-C cable. Maybe etags?)Of course Nanit is a popular and successful product that many parents swear by. It just pains me to see cloud based in-home audio/video storage being so normalized. Self-hosted video isn't that hard but no one makes a baby-monitor centric solution. I'm sure the cloud based video storage model will continue to be popular because it's easy, but also because it helps justifies a recurring subscription.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
     "id": 45717071,
     "by": "Lucian6",
     "timeISO": "2025-10-27T03:16:57.000Z",
     "textPlain": "Having gone through S3 cost optimization ourselves, I want to share some important nuances around this approach. While the raw storage costs can look attractive, there are hidden operational costs to consider:We found that implementing proper data durability (3+ replicas, corruption detection, automatic repair) added ~40% overhead to our initial estimates. The engineering time spent building and maintaining custom tooling for multi-region replication, access controls, and monitoring ended up being substantial - about 1.5 FTE over 18 months.For high-throughput workloads (>500 req/s), we actually saw better cost efficiency with S3 due to their economies of scale on bandwidth. The breakeven point seems to be around 100-200TB of relatively static data with predictable access patterns. Below that, the operational overhead of running your own storage likely exceeds S3's markup.The key is to be really honest about your use case. Are you truly at scale? Do you have the engineering resources to build AND maintain this long-term? Sometimes paying the AWS premium is worth it for the operational simplicity.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45717225,
+    "by": "ixtli",
+    "timeISO": "2025-10-27T03:43:03.000Z",
+    "textPlain": "They didn’t actually do what the headline claims. They made a memory cache which sits in front of S3 for the happy path. Cool but not nearly rolling your own S3",
     "parent": 45715204,
     "depth": 1
   },
@@ -16,10 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45717008,
-    "by": "Huxley1",
-    "timeISO": "2025-10-27T03:04:15.000Z",
-    "textPlain": "S3 certainly saves a lot of hassle, but in certain use cases, it really is prohibitively expensive.\nHas anyone tried self-hosted alternatives like MinIO or SeaweedFS? Or taken even more radical approaches?\nHow do you balance between stability, maintenance overhead, and cost savings?",
+    "id": 45717381,
+    "by": "lpa22",
+    "timeISO": "2025-10-27T04:24:30.000Z",
+    "textPlain": "If anyone here uses the Nanit app in the background of their phones, it absolutely destroys battery life.I got a new phone because I thought my battery was cooked, but turns out it was just the app.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45717131,
+    "by": "dxxvi",
+    "timeISO": "2025-10-27T03:27:37.000Z",
+    "textPlain": "So, you want a place to store many files in a short period of time and when there's a new file, somebody must be notified?Have you ever thought of using a postgresql db (also on aws) to store those files and use CDC to publish messages about those files to a kafka topic? In your original way, we need 3 aws services: s3, lambda and sqs. With this way, we need 2: postgresql and kafka. I'm not sure how well this method works though :-)",
     "parent": 45715204,
     "depth": 1
   },
@@ -28,6 +52,14 @@
     "by": "none2585",
     "timeISO": "2025-10-27T01:32:14.000Z",
     "textPlain": "I'm curious how many engineers per year this costs to maintain",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45717008,
+    "by": "Huxley1",
+    "timeISO": "2025-10-27T03:04:15.000Z",
+    "textPlain": "S3 certainly saves a lot of hassle, but in certain use cases, it really is prohibitively expensive.\nHas anyone tried self-hosted alternatives like MinIO or SeaweedFS? Or taken even more radical approaches?\nHow do you balance between stability, maintenance overhead, and cost savings?",
     "parent": 45715204,
     "depth": 1
   },
@@ -56,6 +88,54 @@
     "depth": 1
   },
   {
+    "id": 45717391,
+    "by": "jen20",
+    "timeISO": "2025-10-27T04:25:57.000Z",
+    "textPlain": "This is the reason I refused to buy Nanit cameras, instead opting for unconnected models. E2E encryption is table stakes.",
+    "parent": 45717363,
+    "depth": 2
+  },
+  {
+    "id": 45717302,
+    "by": "supriyo-biswas",
+    "timeISO": "2025-10-27T04:06:18.000Z",
+    "textPlain": "Why do all your comments seem LLM generated? You do clearly have something to contribute, but it’s probably better to just write what you’re talking about than going through a LLM.",
+    "parent": 45717071,
+    "depth": 2
+  },
+  {
+    "id": 45717379,
+    "by": "john01dav",
+    "timeISO": "2025-10-27T04:24:29.000Z",
+    "textPlain": "There are more options than using S3 or completely rolling your own on JBOD. For example, you could use a cheaper S3-compatible cloud (such as Backblaze) or you can deploy a project such as Ceph.",
+    "parent": 45717071,
+    "depth": 2
+  },
+  {
+    "id": 45717181,
+    "by": "YZF",
+    "timeISO": "2025-10-27T03:35:38.000Z",
+    "textPlain": "Right. Having worked on a commercial S3 compatible storage I can tell y'all that there's a lot more to it then just sticking some files on JBOD. It does depend on your specific requirements though. 1.5 FTE over 18 months sounds on the low side for everything you've described.That said the article seems to be more about an optimization of their pipeline to reduce the S3 usage by holding some objects in memory instead. That's very different than trying to build your own object store to replace S3.",
+    "parent": 45717071,
+    "depth": 2
+  },
+  {
+    "id": 45717306,
+    "by": "Twirrim",
+    "timeISO": "2025-10-27T04:08:20.000Z",
+    "textPlain": "S3 does more than 3x replica durability, as well, they use a form of erasure coding.  They can lose several hard drives/servers/racks before your data becomes at risk, and have sufficient spare capacity to very quickly reproduce any missing shards before things become a problem.That said, S3 seems like a really odd fit for their workload, plus their dependency on lifecycle rules seems utterly bizarre.> Storage was a secondary tax. Even when processing finished in ~2 s, Lifecycle deletes meant paying for ~24 h of storage.They decided not to implement the deletion logic in their service, so they'd just leave files sitting around for hours instead needlessly paying that storage cost?  I wonder how much money they'd have saved if they just added that deletion logic.",
+    "parent": 45717071,
+    "depth": 2
+  },
+  {
+    "id": 45717293,
+    "by": "groundzeros2015",
+    "timeISO": "2025-10-27T04:03:34.000Z",
+    "textPlain": "Is spending time to optimize S3 in the manner you describe not a relevant cost?",
+    "parent": 45717071,
+    "depth": 2
+  },
+  {
     "id": 45716655,
     "by": "tcdent",
     "timeISO": "2025-10-27T02:00:44.000Z",
@@ -64,18 +144,10 @@
     "depth": 2
   },
   {
-    "id": 45717035,
-    "by": "ddxv",
-    "timeISO": "2025-10-27T03:09:14.000Z",
-    "textPlain": "MinIO has moved away from having a free community fork, and I think it's base cost is close to $100k a year. I've been using Garage and been happy, but as a single dev and orders of magnitude smaller than the OP, so there are certainly edge cases I'm missing to compare the two.",
-    "parent": 45717008,
-    "depth": 2
-  },
-  {
-    "id": 45716879,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-27T02:38:11.000Z",
-    "textPlain": "> I'm curious how many engineers per year this costs to maintainThe end of the article has this:> Consider custom infrastructure when you have both: sufficient scale for meaningful cost savings, and specific constraints that enable a simple solution. The engineering effort to build and maintain your system must be less than the infrastructure costs it eliminates. In our case, specific requirements (ephemeral storage, loss tolerance, S3 fallback) let us build something simple enough that maintenance costs stay low. Without both factors, stick with managed services.Seems they were well aware of the tradeoffs.",
+    "id": 45716611,
+    "by": "codedokode",
+    "timeISO": "2025-10-27T01:54:13.000Z",
+    "textPlain": "And I am curious how many engineer years it requires to port code to cloud services and  deal with multiple issues you cannot even debug due to not having root privileges in the cloud.Without cloud, saving a file is as simple as \"with open(...) as f: f.write(data)\" + adding a record to DB. And no weird network issues to debug.",
     "parent": 45716503,
     "depth": 2
   },
@@ -88,10 +160,10 @@
     "depth": 2
   },
   {
-    "id": 45716611,
-    "by": "codedokode",
-    "timeISO": "2025-10-27T01:54:13.000Z",
-    "textPlain": "And I am curious how many engineer years it requires to port code to cloud services and  deal with multiple issues you cannot even debug due to not having root privileges in the cloud.Without cloud, saving a file is as simple as \"with open(...) as f: f.write(data)\" + adding a record to DB. And no weird network issues to debug.",
+    "id": 45716879,
+    "by": "CaptainOfCoit",
+    "timeISO": "2025-10-27T02:38:11.000Z",
+    "textPlain": "> I'm curious how many engineers per year this costs to maintainThe end of the article has this:> Consider custom infrastructure when you have both: sufficient scale for meaningful cost savings, and specific constraints that enable a simple solution. The engineering effort to build and maintain your system must be less than the infrastructure costs it eliminates. In our case, specific requirements (ephemeral storage, loss tolerance, S3 fallback) let us build something simple enough that maintenance costs stay low. Without both factors, stick with managed services.Seems they were well aware of the tradeoffs.",
     "parent": 45716503,
     "depth": 2
   },
@@ -109,6 +181,14 @@
     "timeISO": "2025-10-27T01:51:55.000Z",
     "textPlain": "Yes, that was my thought as well. Breakeven might be like 1 (give or take 2x)?",
     "parent": 45716503,
+    "depth": 2
+  },
+  {
+    "id": 45717035,
+    "by": "ddxv",
+    "timeISO": "2025-10-27T03:09:14.000Z",
+    "textPlain": "MinIO has moved away from having a free community fork, and I think it's base cost is close to $100k a year. I've been using Garage and been happy, but as a single dev and orders of magnitude smaller than the OP, so there are certainly edge cases I'm missing to compare the two.",
+    "parent": 45717008,
     "depth": 2
   },
   {
