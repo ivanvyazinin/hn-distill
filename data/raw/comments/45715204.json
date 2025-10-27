@@ -1,13 +1,5 @@
 [
   {
-    "id": 45717363,
-    "by": "varenc",
-    "timeISO": "2025-10-27T04:22:35.000Z",
-    "textPlain": "In HN style, I'm going to diverge from the content and rant about the company:Nanit needs this storage because they run cloud based baby cameras.  Every Nanit user is uploading video and audio of their home/baby\nlive to Nanit without any E2EE. It's a hot mic sending anything you say near it to the cloud.Their hardware essentially requires a subscription to use, even though it costs $200/camera. You must spend an additional $200 on a Nanit floor stand if you want sleep tracking. This is purely a software limitation since there's plenty of other ways to get an overhead camera mount. (I'm curious how they even detect if you're using the stand since it's just a USB-C cable. Maybe etags?)Of course Nanit is a popular and successful product that many parents swear by. It just pains me to see cloud based in-home audio/video storage being so normalized. Self-hosted video isn't that hard but no one makes a baby-monitor centric solution. I'm sure the cloud based video storage model will continue to be popular because it's easy, but also because it helps justifies a recurring subscription.edit: just noticed an irony in my comment. I'm ranting about Nanit locking users into their 3rd party cloud video storage, and the article is about Nanit's engineering team moving off a 3rd party (S3) and self-hosting their own storage.  Props to them for getting off S3.",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
     "id": 45716482,
     "by": "Havoc",
     "timeISO": "2025-10-27T01:26:44.000Z",
@@ -24,10 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45719183,
-    "by": "ruperthair",
-    "timeISO": "2025-10-27T10:06:41.000Z",
-    "textPlain": "This may be an obvious point, but I didn't see it mentioned in the (otherwise excellent) article: I would have been interested in the cost saving in just implementing the 'delete on read' with S3 that they ended up using with the home-made in-memory cache solution.  I can't see this on the S3 billing page, but if the usage is billed per-second, as with some other AWS services, then the savings may be significant.The solution they document also matches the S3 'reduced redundancy' storage option, so I hope they had this enabled from day one.",
+    "id": 45719908,
+    "by": "JCM9",
+    "timeISO": "2025-10-27T11:50:45.000Z",
+    "textPlain": "The article strikes me as a self congratulatory solution to solving a problem that they could just have avoided entirely by instead selling hardware with local video storage. Lots of options for doing that efficiently and inexpensively in 2025. Hosting everything in the cloud like this is a 2015-era solution.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45717363,
+    "by": "varenc",
+    "timeISO": "2025-10-27T04:22:35.000Z",
+    "textPlain": "In HN style, I'm going to diverge from the content and rant about the company:Nanit needs this storage because they run cloud based baby cameras.  Every Nanit user is uploading video and audio of their home/baby\nlive to Nanit without any E2EE. It's a hot mic sending anything you say near it to the cloud.Their hardware essentially requires a subscription to use, even though it costs $200/camera. You must spend an additional $200 on a Nanit floor stand if you want sleep tracking. This is purely a software limitation since there's plenty of other ways to get an overhead camera mount. (I'm curious how they even detect if you're using the stand since it's just a USB-C cable. Maybe etags?)Of course Nanit is a popular and successful product that many parents swear by. It just pains me to see cloud based in-home audio/video storage being so normalized. Self-hosted video isn't that hard but no one makes a baby-monitor centric solution. I'm sure the cloud based video storage model will continue to be popular because it's easy, but also because it helps justifies a recurring subscription.edit: just noticed an irony in my comment. I'm ranting about Nanit locking users into their 3rd party cloud video storage, and the article is about Nanit's engineering team moving off a 3rd party (S3) and self-hosting their own storage.  Props to them for getting off S3.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45720339,
+    "by": "ghm2180",
+    "timeISO": "2025-10-27T12:39:05.000Z",
+    "textPlain": "Actually why(just) RAM? Why not have an append only storage to the local disk? WALs are quite fast.",
     "parent": 45715204,
     "depth": 1
   },
@@ -36,6 +44,22 @@
     "by": "freak42",
     "timeISO": "2025-10-27T06:46:53.000Z",
     "textPlain": "They saved $500k on what total sum? $500'001 or 55'000'000? Without this info the post is moot.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45719183,
+    "by": "ruperthair",
+    "timeISO": "2025-10-27T10:06:41.000Z",
+    "textPlain": "This may be an obvious point, but I didn't see it mentioned in the (otherwise excellent) article: I would have been interested in the cost saving in just implementing the 'delete on read' with S3 that they ended up using with the home-made in-memory cache solution.  I can't see this on the S3 billing page, but if the usage is billed per-second, as with some other AWS services, then the savings may be significant.The solution they document also matches the S3 'reduced redundancy' storage option, so I hope they had this enabled from day one.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718244,
+    "by": "swiftcoder",
+    "timeISO": "2025-10-27T07:28:11.000Z",
+    "textPlain": "This feels like they were using the wrong architecture from the start, and are now papering over that problem with additional layers of cache.The only practical reason to put a video in S3 for an average of 2 seconds is to provide additional redundancy, and replacing that with a cache removes most of the redundancy.Feels like if you uploaded these to an actual server, the server could process them on upload, and you could eliminate S3, the queue in SQS, and the lambdas all in one fell swoop...",
     "parent": 45715204,
     "depth": 1
   },
@@ -56,18 +80,26 @@
     "depth": 1
   },
   {
-    "id": 45718244,
-    "by": "swiftcoder",
-    "timeISO": "2025-10-27T07:28:11.000Z",
-    "textPlain": "This feels like they were using the wrong architecture from the start, and are now papering over that problem with additional layers of cache.The only practical reason to put a video in S3 for an average of 2 seconds is to provide additional redundancy, and replacing that with a cache removes most of the redundancy.Feels like if you uploaded these to an actual server, the server could process them on upload, and you could eliminate S3, the queue in SQS, and the lambdas all in one fell swoop...",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
     "id": 45717829,
     "by": "dmje",
     "timeISO": "2025-10-27T05:58:13.000Z",
     "textPlain": "I’m sufficiently old / sensible (you decide) to think that uploading video of your baby (to anywhere) is fucking weird and fucking spooky and not needed anyway. This is a solution that doesn’t have a problem. Worse: it prays on parental / young parental fears. There’s nothing here - this is not a product that’s needed. You don’t need to “track” your baby, ffs. You don’t need to watch it while it sleeps. You don’t need “every breath, seen”. People have been having babies for fucking centuries without entering them into this hyper weird surveillance state at birth.What an appalling screwed up world we seem to have manufactured for ourselves.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45720366,
+    "by": "fergie",
+    "timeISO": "2025-10-27T12:41:53.000Z",
+    "textPlain": "I mean fair enough, but I feel like S3 is one of the few AWS products that is actually pretty cheap for what you get.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45716971,
+    "by": "VladVladikoff",
+    "timeISO": "2025-10-27T02:56:45.000Z",
+    "textPlain": "I’m mostly just impressed that some janky baby monitor has racked up server fees on this scale. Amazing example of absolutely horrible engineering.Also, just take an old phone from your drawer full of old phones, slap some free camera app on it, zip tie a car phone mount to the crib, and boom you have a free baby monitor.",
     "parent": 45715204,
     "depth": 1
   },
@@ -88,26 +120,10 @@
     "depth": 1
   },
   {
-    "id": 45718859,
-    "by": "hk1337",
-    "timeISO": "2025-10-27T09:23:05.000Z",
-    "textPlain": "I have always understood S3 is just HDFS with some extra features? So, if you were going to roll your own S3, then you’d stand up an HDFS cluster.",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
     "id": 45717718,
     "by": "gnarlouse",
     "timeISO": "2025-10-27T05:34:27.000Z",
     "textPlain": "because \"How we stopped putting your kids in S3 buckets\"just sounded less attractive",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
-    "id": 45716971,
-    "by": "VladVladikoff",
-    "timeISO": "2025-10-27T02:56:45.000Z",
-    "textPlain": "I’m mostly just impressed that some janky baby monitor has racked up server fees on this scale. Amazing example of absolutely horrible engineering.Also, just take an old phone from your drawer full of old phones, slap some free camera app on it, zip tie a car phone mount to the crib, and boom you have a free baby monitor.",
     "parent": 45715204,
     "depth": 1
   },
@@ -120,10 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45718206,
-    "by": "danjc",
-    "timeISO": "2025-10-27T07:18:55.000Z",
-    "textPlain": "I'd it's processed in 2 seconds, why not just process it immediately in memory?",
+    "id": 45718859,
+    "by": "hk1337",
+    "timeISO": "2025-10-27T09:23:05.000Z",
+    "textPlain": "I have always understood S3 is just HDFS with some extra features? So, if you were going to roll your own S3, then you’d stand up an HDFS cluster.",
     "parent": 45715204,
     "depth": 1
   },
@@ -132,6 +148,14 @@
     "by": "anshumankmr",
     "timeISO": "2025-10-27T06:01:14.000Z",
     "textPlain": "Some stuff like this also exists:\nhttps://www.dell.com/en-in/shop/storage-servers-and-networki...We could just use something like thatOr there is that other Object storage solution called R1 from Cloudflare.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718206,
+    "by": "danjc",
+    "timeISO": "2025-10-27T07:18:55.000Z",
+    "textPlain": "I'd it's processed in 2 seconds, why not just process it immediately in memory?",
     "parent": 45715204,
     "depth": 1
   },
@@ -152,18 +176,18 @@
     "depth": 1
   },
   {
-    "id": 45718739,
-    "by": "miroljub",
-    "timeISO": "2025-10-27T09:03:59.000Z",
-    "textPlain": "Ah, these modern babies. They can't even sleep without being spied and recorded 24/7.I'm glad both me and my kind grew up in different times.Today's kids will never in their lives know what freedom is, and we are guilty we made such dystopian societies a reality.",
-    "parent": 45715204,
-    "depth": 1
-  },
-  {
     "id": 45717381,
     "by": "lpa22",
     "timeISO": "2025-10-27T04:24:30.000Z",
     "textPlain": "If anyone here uses the Nanit app in the background of their phones, it absolutely destroys battery life.I got a new phone because I thought my battery was cooked, but turns out it was just the app.",
+    "parent": 45715204,
+    "depth": 1
+  },
+  {
+    "id": 45718739,
+    "by": "miroljub",
+    "timeISO": "2025-10-27T09:03:59.000Z",
+    "textPlain": "Ah, these modern babies. They can't even sleep without being spied and recorded 24/7.I'm glad both me and my kind grew up in different times.Today's kids will never in their lives know what freedom is, and we are guilty we made such dystopian societies a reality.",
     "parent": 45715204,
     "depth": 1
   },
@@ -232,6 +256,22 @@
     "depth": 1
   },
   {
+    "id": 45716655,
+    "by": "tcdent",
+    "timeISO": "2025-10-27T02:00:44.000Z",
+    "textPlain": "Yeah, so now you're basically running a heavy instance in order to get the network throughput and the RAM, but not really using that much CPU when you could probably handle the encode with the available headroom. Although the article lists TLS handshakes as being a significant source of CPU usage, I must be missing something because I don't see how that is anywhere near the top of the constraints of a system like this.Regardless, I enjoyed the article and I appreciate that people are still finding ways to build systems tailored to their workflows.",
+    "parent": 45716482,
+    "depth": 2
+  },
+  {
+    "id": 45718053,
+    "by": "ramraj07",
+    "timeISO": "2025-10-27T06:46:29.000Z",
+    "textPlain": "I also didnt get why the cache had to be memory and not local name storage..",
+    "parent": 45717225,
+    "depth": 2
+  },
+  {
     "id": 45717437,
     "by": "sbrother",
     "timeISO": "2025-10-27T04:35:42.000Z",
@@ -248,14 +288,6 @@
     "depth": 2
   },
   {
-    "id": 45718064,
-    "by": "bee_rider",
-    "timeISO": "2025-10-27T06:49:15.000Z",
-    "textPlain": "I actually don’t really get the point of a cloud service for this. Aren’t babies usually left in situations where there’s at least one trusted adult locally available?",
-    "parent": 45717363,
-    "depth": 2
-  },
-  {
     "id": 45717649,
     "by": "cbg0",
     "timeISO": "2025-10-27T05:20:58.000Z",
@@ -264,10 +296,26 @@
     "depth": 2
   },
   {
+    "id": 45718064,
+    "by": "bee_rider",
+    "timeISO": "2025-10-27T06:49:15.000Z",
+    "textPlain": "I actually don’t really get the point of a cloud service for this. Aren’t babies usually left in situations where there’s at least one trusted adult locally available?",
+    "parent": 45717363,
+    "depth": 2
+  },
+  {
     "id": 45717605,
     "by": "kdamica",
     "timeISO": "2025-10-27T05:09:56.000Z",
     "textPlain": "We've used an offline Infant Optics baby camera for three kids and have never wished for any of the smart features that online cameras offer. You really just want to know whether they are asleep and when they are crying. I just don't see a good use case for recording all that video for most kids. (I'm sure there are special needs situations where it is helpful)",
+    "parent": 45717363,
+    "depth": 2
+  },
+  {
+    "id": 45719795,
+    "by": "mherkender",
+    "timeISO": "2025-10-27T11:37:09.000Z",
+    "textPlain": "I run a Unifi Protect setup, local only.They don't provide a display, so I put a Raspberry Pi, a display, and an audio hat in an enclosure. It plays an rtsp stream from the camera at startup and works pretty well.",
     "parent": 45717363,
     "depth": 2
   },
@@ -320,19 +368,11 @@
     "depth": 2
   },
   {
-    "id": 45716655,
-    "by": "tcdent",
-    "timeISO": "2025-10-27T02:00:44.000Z",
-    "textPlain": "Yeah, so now you're basically running a heavy instance in order to get the network throughput and the RAM, but not really using that much CPU when you could probably handle the encode with the available headroom. Although the article lists TLS handshakes as being a significant source of CPU usage, I must be missing something because I don't see how that is anywhere near the top of the constraints of a system like this.Regardless, I enjoyed the article and I appreciate that people are still finding ways to build systems tailored to their workflows.",
-    "parent": 45716482,
-    "depth": 2
-  },
-  {
-    "id": 45718053,
-    "by": "ramraj07",
-    "timeISO": "2025-10-27T06:46:29.000Z",
-    "textPlain": "I also didnt get why the cache had to be memory and not local name storage..",
-    "parent": 45717225,
+    "id": 45720309,
+    "by": "coleca",
+    "timeISO": "2025-10-27T12:36:57.000Z",
+    "textPlain": "That's a great point.  Sometimes we look for architecture or technology solutions for a problem that could be easily solved at the sales level by negotiating a PPA (Private Pricing Addendum) with AWS.",
+    "parent": 45718056,
     "depth": 2
   },
   {
@@ -344,14 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45718702,
-    "by": "Gasp0de",
-    "timeISO": "2025-10-27T08:56:51.000Z",
-    "textPlain": "Exactly, my first thought was \"Why in earth would anyone think that S3 was the right service to store millions of tiny ephemeral files?\" and now it seems they have invented their own in-memory store instead of just using something like Redis. I also wonder what happens if their DIY thingy crashes, are the videos lost? Why not send to Kinesis or SQS in the first place?",
-    "parent": 45717787,
-    "depth": 2
-  },
-  {
     "id": 45719108,
     "by": "_el1s7",
     "timeISO": "2025-10-27T09:58:12.000Z",
@@ -360,43 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45718073,
-    "by": "ramraj07",
-    "timeISO": "2025-10-27T06:51:08.000Z",
-    "textPlain": "Of all the hills to die on w.r.t. how the world is screwed up, this seems like the silliest.Different folks parent differently, culture evolves. You're free to have your \"old school\" thoughts as are people who use services like this.Its not like they're publishing it in public. The service in discussion especially just stores it in the server only temporarily to use ML to detect things such as sleeping or crying. Sounds innocuous to me.Many of us can do the math ourselves and choose to make choices based on our own beliefs. That's true freedom.",
-    "parent": 45717829,
-    "depth": 2
-  },
-  {
-    "id": 45716879,
-    "by": "CaptainOfCoit",
-    "timeISO": "2025-10-27T02:38:11.000Z",
-    "textPlain": "> I'm curious how many engineers per year this costs to maintainThe end of the article has this:> Consider custom infrastructure when you have both: sufficient scale for meaningful cost savings, and specific constraints that enable a simple solution. The engineering effort to build and maintain your system must be less than the infrastructure costs it eliminates. In our case, specific requirements (ephemeral storage, loss tolerance, S3 fallback) let us build something simple enough that maintenance costs stay low. Without both factors, stick with managed services.Seems they were well aware of the tradeoffs.",
-    "parent": 45716503,
-    "depth": 2
-  },
-  {
-    "id": 45716611,
-    "by": "codedokode",
-    "timeISO": "2025-10-27T01:54:13.000Z",
-    "textPlain": "And I am curious how many engineer years it requires to port code to cloud services and  deal with multiple issues you cannot even debug due to not having root privileges in the cloud.Without cloud, saving a file is as simple as \"with open(...) as f: f.write(data)\" + adding a record to DB. And no weird network issues to debug.",
-    "parent": 45716503,
-    "depth": 2
-  },
-  {
-    "id": 45716677,
-    "by": "nbngeorcjhe",
-    "timeISO": "2025-10-27T02:04:30.000Z",
-    "textPlain": "A small fraction of 1, probably? It sounds like a fairly simple service that shouldn't require much ongoing development",
-    "parent": 45716503,
-    "depth": 2
-  },
-  {
-    "id": 45716596,
-    "by": "UseofWeapons1",
-    "timeISO": "2025-10-27T01:51:55.000Z",
-    "textPlain": "Yes, that was my thought as well. Breakeven might be like 1 (give or take 2x)?",
-    "parent": 45716503,
+    "id": 45718702,
+    "by": "Gasp0de",
+    "timeISO": "2025-10-27T08:56:51.000Z",
+    "textPlain": "Exactly, my first thought was \"Why in earth would anyone think that S3 was the right service to store millions of tiny ephemeral files?\" and now it seems they have invented their own in-memory store instead of just using something like Redis. I also wonder what happens if their DIY thingy crashes, are the videos lost? Why not send to Kinesis or SQS in the first place?",
+    "parent": 45717787,
     "depth": 2
   }
 ]

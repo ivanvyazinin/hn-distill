@@ -1,5 +1,13 @@
 [
   {
+    "id": 45720359,
+    "by": "MontyCarloHall",
+    "timeISO": "2025-10-27T12:41:00.000Z",
+    "textPlain": ">I use nucgen to generate a random 100M line FASTQ file and pipe it into different tools to compare their throughput with hyperfine.This is a strange benchmark [0] -- here is what this random FASTQ looks like:  $ nucgen -n 100000000 -l 20 | head -n8\n  \n  >seq.0\n  TGGGGTAAATTGACAGTTGG\n  >seq.1\n  CTTCTGCTTATCGCCATGGC\n  >seq.2\n  AGCCATCGATTATATAGACA\n  >seq.3\n  ATACCCTAGGAGCTTGCGCA\n\nThere are going to be few-to-zero repeated strings in this 100M line file, since each >seq.X will be unique and there are roughly a trillion random 4-letter (ACGT) strings of length 20. So this is really assessing the performance of how well a hashtable can deal with being overloaded.I did not have enough RAM to run a 100M line benchmark, but the following simple `awk` command performed ~15x faster on a 10M line benchmark (using the same hyperfine setup) versus the naïve `sort | uniq -c`, which isn't bad for something that comes standard with every *nix system.  awk '{ x[$0]++ } END { for(y in x) { print y, x[y] }}' <file> | sort -k2,2nr\n\n[0] https://github.com/noamteyssier/hist-rs/blob/main/justfile",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
     "id": 45718213,
     "by": "zX41ZdbW",
     "timeISO": "2025-10-27T07:20:13.000Z",
@@ -12,6 +20,14 @@
     "by": "noamteyssier",
     "timeISO": "2025-10-22T22:26:45.000Z",
     "textPlain": "Was sitting around in meetings today and remembered an old shell script I had to count the number of unique lines in a file. Gave it a shot in rust and with a little bit of (over-engineering)™ I managed to get 25x throughput over the naive approach using coreutils as well as improve over some existing tools.Some notes on the improvements:1. using csv (serde) for writing leads to some big gains2. arena allocation of incoming keys + storing references in the hashmap instead of storing owned values heavily reduced the number of allocations and improves cache efficiency (I'm guessing, I did not measure).There are some regex functionalities and some table filtering built in as well.happy hacking",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45720051,
+    "by": "ashvardanian",
+    "timeISO": "2025-10-27T12:08:35.000Z",
+    "textPlain": "Storage, strings, sorting, counting, bioinformatics... I got nerd-sniped! Can't resist a shameless plug here :)Looking at the code, there are a few things I would consider optimizing. I'd start by trying (my) StringZilla for hashing and sorting.HashBrown collections under the hood use aHash, which is an excellent hash function, but on both short and long inputs, on new CPUs, StringZilla seems faster [0]:                               short               long\n  aHash::hash_one 1.23 GiB/s         8.61 GiB/s\n  stringzilla::hash 1.84 GiB/s        11.38 GiB/s\n\nA similar story with sorting strings. Inner loops of arbitrary length string comparisons often dominate such workloads. Doing it in a more Radix-style fashion can 4x your performance [1]:                                                    short                  long\n  std::sort_unstable_by_key           ~54.35 M compares/s    57.70 M compares/s\n  stringzilla::argsort_permutation   ~213.73 M compares/s    74.64 M compares/s\n\nBear in mind that \"compares/s\" is a made-up metric here; in reality, I'm comparing from the duration.[0] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...[1] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...",
     "parent": 45675956,
     "depth": 1
   },
@@ -32,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45718678,
-    "by": "jll29",
-    "timeISO": "2025-10-27T08:52:27.000Z",
-    "textPlain": "I use questions around this pipeline in interviews. As soon as people say they'd write a Python program to sort a file, they get rejected.Arguably, this will result in a slower result in most cases, but the reason for the rejection is wasting developer time (not to mention time to test for correctness) to re-develop something that is already available in the OS.",
+    "id": 45720134,
+    "by": "trollbridge",
+    "timeISO": "2025-10-27T12:20:25.000Z",
+    "textPlain": "This reminds me of a program I wrote to do the same thing that wc -L does, except a lot faster. I had to run it on a corpus of data that was many gigabytes (terabytes) in size, far too big to fit in RAM. MIT license.https://github.com/JoshRodd/mll",
     "parent": 45675956,
     "depth": 1
   },
@@ -44,6 +60,14 @@
     "by": "Someone",
     "timeISO": "2025-10-27T07:42:58.000Z",
     "textPlain": "> I am measuring the performance of equivalent cat <file> | sort | uniq -c | sort -n functionality.It likely won’t matter much here, but invoking cat is unnecessary.   sort <file> | uniq -c | sort -n\n\nwill do the job just fine. GNU’s sort also has a few flags controlling buffer size and parallelism. Those may matter more (see https://www.gnu.org/software/coreutils/manual/html_node/sort...)",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718678,
+    "by": "jll29",
+    "timeISO": "2025-10-27T08:52:27.000Z",
+    "textPlain": "I use questions around this pipeline in interviews. As soon as people say they'd write a Python program to sort a file, they get rejected.Arguably, this will result in a slower result in most cases, but the reason for the rejection is wasting developer time (not to mention time to test for correctness) to re-develop something that is already available in the OS.",
     "parent": 45675956,
     "depth": 1
   },
@@ -96,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45719756,
+    "by": "G_o_D",
+    "timeISO": "2025-10-27T11:32:06.000Z",
+    "textPlain": "why no mention of awk ?\nawk '!a[$0]++'",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
     "id": 45718091,
     "by": "vlovich123",
     "timeISO": "2025-10-27T06:55:04.000Z",
@@ -128,6 +160,22 @@
     "depth": 2
   },
   {
+    "id": 45719807,
+    "by": "LtdJorge",
+    "timeISO": "2025-10-27T11:38:01.000Z",
+    "textPlain": "When using clickhouse-local like this, does it build a logical plan and run the optimizer on it? Does it have any kind of code generation, since it knows the query (and physical data layout) ahead of time?",
+    "parent": 45718213,
+    "depth": 2
+  },
+  {
+    "id": 45718747,
+    "by": "gigatexal",
+    "timeISO": "2025-10-27T09:05:05.000Z",
+    "textPlain": "Exactly. I love this and DuckDb and other such amazing tools.",
+    "parent": 45718213,
+    "depth": 2
+  },
+  {
     "id": 45719521,
     "by": "nsteel",
     "timeISO": "2025-10-27T10:56:51.000Z",
@@ -140,14 +188,6 @@
     "by": "nasretdinov",
     "timeISO": "2025-10-27T07:26:12.000Z",
     "textPlain": "To be more fair you could also add SETTINGS max_threads=1 though?",
-    "parent": 45718213,
-    "depth": 2
-  },
-  {
-    "id": 45718747,
-    "by": "gigatexal",
-    "timeISO": "2025-10-27T09:05:05.000Z",
-    "textPlain": "Exactly. I love this and DuckDb and other such amazing tools.",
     "parent": 45718213,
     "depth": 2
   },
@@ -168,14 +208,6 @@
     "depth": 2
   },
   {
-    "id": 45719668,
-    "by": "rs186",
-    "timeISO": "2025-10-27T11:19:26.000Z",
-    "textPlain": "Your loss, not theirs. Lots of good developers are not expert at unix commands, many of which spend most of their time on Windows. They may be \"wasting\" 2 minutes on this specific task with their \"inefficient\" method, but they may perform much better on other tasks, to the point that 2 minutes saved here is nothing.Not to mention that these days people often ask ChatGPT \"what's the best way to do this\" before proceeding, and whatever you ask in interviews is completely irrelevant.",
-    "parent": 45718678,
-    "depth": 2
-  },
-  {
     "id": 45719216,
     "by": "pbhjpbhj",
     "timeISO": "2025-10-27T10:13:07.000Z",
@@ -188,6 +220,14 @@
     "by": "wahern",
     "timeISO": "2025-10-27T09:19:14.000Z",
     "textPlain": "One of the cooler Unix command utilities is tsort, which performs a topological sort. Basically you give it a list of items (first word in each line) and their dependencies (subsequent words on each line) and it sorts them accordingly, similar to how, e.g., Make builds a graph of targets and dependencies to run recipes in the correct order. https://en.wikipedia.org/wiki/Tsort https://pubs.opengroup.org/onlinepubs/9799919799/utilities/t...However, I've never found a use for it. Apparently it was written for the Version 7 Unix build system to sort libraries for passing to the linker. And still used.[1][2] But of the few times I've needed a topological sort, it was part of a much larger problem where shell scripting was inappropriate, and implementing it from scratch using a typical sort routine isn't that difficult. Still, I'm waiting for an excuse to use it someday, hopefully in something high visibility so I can blow people's minds.[1] https://github.com/openbsd/src/blob/17290de/share/mk/bsd.lib...\n[2] https://github.com/NetBSD/src/blob/7d8184e/share/mk/bsd.lib....",
+    "parent": 45718678,
+    "depth": 2
+  },
+  {
+    "id": 45719668,
+    "by": "rs186",
+    "timeISO": "2025-10-27T11:19:26.000Z",
+    "textPlain": "Your loss, not theirs. Lots of good developers are not expert at unix commands, many of which spend most of their time on Windows. They may be \"wasting\" 2 minutes on this specific task with their \"inefficient\" method, but they may perform much better on other tasks, to the point that 2 minutes saved here is nothing.Not to mention that these days people often ask ChatGPT \"what's the best way to do this\" before proceeding, and whatever you ask in interviews is completely irrelevant.It is exactly for these reasons we never ask such questions in our interviews. There are much more important aspects of a candidate to evaluate.",
     "parent": 45718678,
     "depth": 2
   },
