@@ -1,0 +1,274 @@
+[
+  {
+    "id": 45724071,
+    "by": "jedberg",
+    "timeISO": "2025-10-27T17:44:17.000Z",
+    "textPlain": "I've told this story before, but it's super relevant here.  When I set up all the servers for reddit, I set them all to Arizona time.  Arizona does not have DST, and is only one hour off of California (where we all were) for five months, and the same as here the rest of the year.I didn't use UTC because subtracting eight when reading raw logs is a lot harder than subtracting one.They use UTC now, which makes sense since they have a global workforce and log reading interfaces that can automatically change timezones on display.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45723859,
+    "by": "noir_lord",
+    "timeISO": "2025-10-27T17:29:10.000Z",
+    "textPlain": "I worked at a place that had set the servers to BST not UTC and used cron jobs extensively for reporting, which caused chaos twice a year and twice a year they had to explain to the business again why it caused chaos and ask for the time to fix it.Company went bust before it got fixed.Just use UTC folks unless you have a really good idea why you shouldn't.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45723959,
+    "by": "cuu508",
+    "timeISO": "2025-10-27T17:36:23.000Z",
+    "textPlain": "Apparently there are some timezones (Cuba, Egypt, Lebanon) where DST change happens at midnight, so, also watch out for that!https://mas.to/@mpirnat/115395859892135002",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724053,
+    "by": "ldoughty",
+    "timeISO": "2025-10-27T17:43:11.000Z",
+    "textPlain": "I try to avoid crons at the top of the hour, partly because of this... but also because (in shared / serverless infrastructure) I assume a lot more people are setting their crons for 'on the hour' so there's more resource contention... I also aim for 'after 4am' where I can as well, or 'before midnight', to avoid this whole range.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724010,
+    "by": "gadders",
+    "timeISO": "2025-10-27T17:40:01.000Z",
+    "textPlain": "Also, never set jobs to run at midnight (00:00) as nobody will be able to tell what day it is. Set it to 00:01 or something.And tbh, don't run jobs on the hour anyway. Everything kicks off then. Set stuff to run at 01:45 or 02:15 or something instead.(None of these suggestions are time change related)",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724429,
+    "by": "matja",
+    "timeISO": "2025-10-27T18:15:10.000Z",
+    "textPlain": "Seems to me the real problem here is not the timezone (there's legitimate business needs to run something daily at a specific localtime...) but having multiple instances of a cron job that overlap, in which case it should wait until the previous is done or not start at all.  At least prefix a job with \"flock -n\" if it doesn't/can't handle that.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724034,
+    "by": "ttz",
+    "timeISO": "2025-10-27T17:41:36.000Z",
+    "textPlain": "> Alternatively, where possible set the server timezone to UTC so that no daylight savings changes will happen at allthis is the way",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724392,
+    "by": "PhilipRoman",
+    "timeISO": "2025-10-27T18:10:58.000Z",
+    "textPlain": "I read this a while ago and was looking forward to the mess that would happen with these default Alpine configurations (after setting non-UTC localtime)    0 2 * * * run-parts /etc/periodic/daily\n    0 3 * * 6 run-parts /etc/periodic/weekly\n\nIt appears that busybox cron is smart enough to handle it and only ran the jobs once.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724106,
+    "by": "raggles",
+    "timeISO": "2025-10-27T17:46:50.000Z",
+    "textPlain": "I have a job that deliberately runs at 2am and 3am... to update the time in a bunch of really old PLCs for DST.  And check that every other device on my telemetry network has correctly updated its time.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724068,
+    "by": "throwaway106382",
+    "timeISO": "2025-10-27T17:44:11.000Z",
+    "textPlain": "bruh, just use UTC",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45723924,
+    "by": "superkuh",
+    "timeISO": "2025-10-27T17:34:02.000Z",
+    "textPlain": "This isn't a problem with actual cron and crontab. It is a problem with the systemd-timers shim \"crontab\" which doesn't work the same in many corner cases and often has weird bugs.",
+    "parent": 45723554,
+    "depth": 1
+  },
+  {
+    "id": 45724243,
+    "by": "aerostable_slug",
+    "timeISO": "2025-10-27T17:58:22.000Z",
+    "textPlain": "I've had to try to clean up after a similar early decision and it was very painful.Please stick with utc across the board people, someone someday may have to clean up your mess.",
+    "parent": 45724071,
+    "depth": 2
+  },
+  {
+    "id": 45724606,
+    "by": "devsda",
+    "timeISO": "2025-10-27T18:28:58.000Z",
+    "textPlain": "Java allows setting the default timezone at jvm level and everyone in our org were setting their favourite TZ which was mostly PST somewhere in the code.We had application logs and system level logs with different timestamp and someone decided a certain db column has to be a string of the format 'yyyy-mm-dd hh:mm:ss\". You can imagine the confusion and the \"fun\" time we had while debugging logs from multiple systems at specific times.Finally, one lead put their feet down and mandated that setting timezone to PST should be the first thing all applications do and db columns should be considered PST unless otherwise required.",
+    "parent": 45724071,
+    "depth": 2
+  },
+  {
+    "id": 45724197,
+    "by": "adzm",
+    "timeISO": "2025-10-27T17:54:59.000Z",
+    "textPlain": "> I didn't use UTC because subtracting eight when reading raw logs is a lot harder than subtracting one.Also important here is that the date stays the same! Even though I've gotten used to instinctively decoding UTC, that part is still frustrating sometimes.",
+    "parent": 45724071,
+    "depth": 2
+  },
+  {
+    "id": 45724169,
+    "by": "latchkey",
+    "timeISO": "2025-10-27T17:52:20.000Z",
+    "textPlain": "Computers can do things. Build a UX to read the logs and have it automatically parse/convert the logs to show whatever is local time.https://unix.stackexchange.com/questions/274816/how-to-conve...",
+    "parent": 45724071,
+    "depth": 2
+  },
+  {
+    "id": 45724179,
+    "by": "kjehjrktlhl",
+    "timeISO": "2025-10-27T17:53:31.000Z",
+    "textPlain": "This is not smart, this is just surprising to the next person who is going to maintain your ”smart” tricks. Thank god they switched to utc, that is what everyone expect.",
+    "parent": 45724071,
+    "depth": 2
+  },
+  {
+    "id": 45724173,
+    "by": "yabones",
+    "timeISO": "2025-10-27T17:52:42.000Z",
+    "textPlain": "I put a little analog clock on my desk that's set to UTC time. It helps a lot with converting logs to get a quick reference.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45723904,
+    "by": "lxgr",
+    "timeISO": "2025-10-27T17:32:39.000Z",
+    "textPlain": "\"Our customers aren't in UTC\" is often a compelling reason.People generally expect things like usage limits to reset overnight, not at UTC midnight, and these are often implicitly tied to (the result of) batch jobs.Financial jobs, including billing, is another big category.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45724370,
+    "by": "SecondHandTofu",
+    "timeISO": "2025-10-27T18:08:08.000Z",
+    "textPlain": "Generally, yes but I there's a surprising amount of cases when it is important, which makes it difficult to generalise\ne.g. Huge amounts of the financial sector cares because of market times or regulatory reasons.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45724055,
+    "by": "ta1243",
+    "timeISO": "2025-10-27T17:43:29.000Z",
+    "textPlain": "If I want a report of what happened at a specific time I need that report at local timeI get a daily status report of various things from our 24 hour operational management team which runs at 8am UK time every day. That means last week it ran at 0700UTC and this week at 0800UTCThis is built around operational events, shift changes, etc.I've got another system which is in operation in Sydney from 0630 to 1630 local time, this means that maintence windows which overlap with UK shift patterns depend on the week but mean the system is operating 2130-0730 UK time at some times, 2030-0630 UK at others, and 1930-0530 at others.UTC is not \"the answer\". Sometimes you want things running at a UTC time, sometimes you want them running at local time.I have a regular meeting at 10am London time on Tuesday and Thursday. That can't be stored in UTC as it varies depending on the time of the year. It has to have the timezone stored and actioned.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45724274,
+    "by": "nodesocket",
+    "timeISO": "2025-10-27T18:00:23.000Z",
+    "textPlain": "I use UTC for all public/production servers, but for my homelab servers in my closet rack they all use local time. Makes grokking times in homelab servers much easier. The exception is database insert/update date/times which are always stored UTC.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45723949,
+    "by": "latchkey",
+    "timeISO": "2025-10-27T17:35:43.000Z",
+    "textPlain": "At Marin Software, they ran each customer on their own set of servers and set the servers to the customers defined TZ. It was an endless cronjob nightmare. Now they are also bankrupt.Just found out some guy decided to try to restart the company. Good luck. https://x.com/Austen/status/1981904435539280324",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45724104,
+    "by": "jedberg",
+    "timeISO": "2025-10-27T17:46:49.000Z",
+    "textPlain": "> Just use UTC folks unless you have a really good idea why you shouldn't.If my whole team is based in Pacific Time, I'm gonna use something close to PT so I don't have to do hard math when reading raw logs.If we're all US based, I still want something in the USA.  The math is easier.",
+    "parent": 45723859,
+    "depth": 2
+  },
+  {
+    "id": 45723969,
+    "by": "latchkey",
+    "timeISO": "2025-10-27T17:37:14.000Z",
+    "textPlain": "There are TZ rules that do all sorts of wild things.",
+    "parent": 45723959,
+    "depth": 2
+  },
+  {
+    "id": 45724564,
+    "by": "layer8",
+    "timeISO": "2025-10-27T18:26:20.000Z",
+    "textPlain": "One trick for cron is to prepend the actual command in the crontab with something like    sleep $(( $(od -N1 -tuC -An /dev/urandom) % 60 ))m ;\n\nwhich will delay it by 0 to 59 minutes at random.",
+    "parent": 45724053,
+    "depth": 2
+  },
+  {
+    "id": 45724235,
+    "by": "sgc",
+    "timeISO": "2025-10-27T17:57:52.000Z",
+    "textPlain": "To incrementally improve that tactic, systemd has RandomizedDelaySec, which is a convenient way to reduce the possibility of scheduling conflicts.",
+    "parent": 45724053,
+    "depth": 2
+  },
+  {
+    "id": 45724356,
+    "by": "tetha",
+    "timeISO": "2025-10-27T18:07:10.000Z",
+    "textPlain": "In general I try to use odd times for cronjobs. Backups starting at XX:13, analysis scripts at XX:23, data exports at XX:42 and so on. This simplifies the question of \"Why does my system go whack at 23:23? Oh, wait\".",
+    "parent": 45724010,
+    "depth": 2
+  },
+  {
+    "id": 45724561,
+    "by": "latchkey",
+    "timeISO": "2025-10-27T18:26:13.000Z",
+    "textPlain": "Google's AI and ChatGPT answer disagrees.https://www.google.com/search?q=busybox+cron+dst\"BusyBox’s crond is a lightweight implementation designed for embedded systems, so it doesn’t have all the timezone/DST logic of full vixie-cron or cronie. It just reads /etc/TZ or the system timezone at startup and then wakes up every minute to check if something should run.\"",
+    "parent": 45724392,
+    "depth": 2
+  },
+  {
+    "id": 45724171,
+    "by": "bobmcnamara",
+    "timeISO": "2025-10-27T17:52:30.000Z",
+    "textPlain": "Ugh gross. Same non monotonic time problems just not every year.TAI4LYFE!",
+    "parent": 45724068,
+    "depth": 2
+  },
+  {
+    "id": 45724041,
+    "by": "LegionMammal978",
+    "timeISO": "2025-10-27T17:42:03.000Z",
+    "textPlain": "This post is literally about an issue observed in vixie-cron (as included in some distro c. 2013), not about any systemd implementation.",
+    "parent": 45723924,
+    "depth": 2
+  },
+  {
+    "id": 45724114,
+    "by": "ziml77",
+    "timeISO": "2025-10-27T17:47:30.000Z",
+    "textPlain": "What do you consider \"actual cron\"? Because the post specifically says Vixie cron, which has been the basis for most versions of cron on Linux systems.",
+    "parent": 45723924,
+    "depth": 2
+  },
+  {
+    "id": 45724138,
+    "by": "Kwpolska",
+    "timeISO": "2025-10-27T17:49:16.000Z",
+    "textPlain": "Which cron is actual cron? There are tons of implementations out there.This post describes vixie-cron, not systemd-timers.",
+    "parent": 45723924,
+    "depth": 2
+  },
+  {
+    "id": 45723979,
+    "by": "Bratmon",
+    "timeISO": "2025-10-27T17:37:42.000Z",
+    "textPlain": "How does actual cron handle this situation?",
+    "parent": 45723924,
+    "depth": 2
+  },
+  {
+    "id": 45723944,
+    "by": "lxgr",
+    "timeISO": "2025-10-27T17:35:28.000Z",
+    "textPlain": "\"Not a problem\" as in these only run these cron job once per day, irrespective of DST changes making a given \"hour happen twice\"?",
+    "parent": 45723924,
+    "depth": 2
+  }
+]
