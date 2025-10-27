@@ -1,17 +1,17 @@
 [
   {
-    "id": 45720359,
-    "by": "MontyCarloHall",
-    "timeISO": "2025-10-27T12:41:00.000Z",
-    "textPlain": ">I use nucgen to generate a random 100M line FASTQ file and pipe it into different tools to compare their throughput with hyperfine.This is a strange benchmark [0] -- here is what this random FASTQ looks like:  $ nucgen -n 100000000 -l 20 | head -n8\n  \n  >seq.0\n  TGGGGTAAATTGACAGTTGG\n  >seq.1\n  CTTCTGCTTATCGCCATGGC\n  >seq.2\n  AGCCATCGATTATATAGACA\n  >seq.3\n  ATACCCTAGGAGCTTGCGCA\n\nThere are going to be few-to-zero repeated strings in this 100M line file, since each >seq.X will be unique and there are roughly a trillion random 4-letter (ACGT) strings of length 20. So this is really assessing the performance of how well a hashtable can deal with being overloaded.I did not have enough RAM to run a 100M line benchmark, but the following simple `awk` command performed ~15x faster on a 10M line benchmark (using the same hyperfine setup) versus the naïve `sort | uniq -c`, which isn't bad for something that comes standard with every *nix system.  awk '{ x[$0]++ } END { for(y in x) { print y, x[y] }}' <file> | sort -k2,2nr\n\n[0] https://github.com/noamteyssier/hist-rs/blob/main/justfile",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718213,
     "by": "zX41ZdbW",
     "timeISO": "2025-10-27T07:20:13.000Z",
     "textPlain": "This and similar tasks can be solved efficiently with clickhouse-local [1]. Example:    ch --input-format LineAsString --query \"SELECT line, count() AS c GROUP BY line ORDER BY c DESC\" < data.txt\n\nI've tested it and it is faster than both sort and this Rust code:    time LC_ALL=C sort data.txt | uniq -c | sort -rn > /dev/null\n    32 sec.\n\n    time hist data.txt > /dev/null\n    14 sec.\n\n    time ch --input-format LineAsString --query \"SELECT line, count() AS c GROUP BY line ORDER BY c DESC\" < data.txt > /dev/null\n    2.7 sec.\n\nIt is like a Swiss Army knife for data processing: it can solve various tasks, such as joining data from multiple files and data sources, processing various binary and text formats, converting between them, and accessing external databases.[1] https://clickhouse.com/docs/operations/utilities/clickhouse-...",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45720359,
+    "by": "MontyCarloHall",
+    "timeISO": "2025-10-27T12:41:00.000Z",
+    "textPlain": ">I use nucgen to generate a random 100M line FASTQ file and pipe it into different tools to compare their throughput with hyperfine.This is a strange benchmark [0] -- here is what this random FASTQ looks like:  $ nucgen -n 100000000 -l 20 | head -n8\n  \n  >seq.0\n  TGGGGTAAATTGACAGTTGG\n  >seq.1\n  CTTCTGCTTATCGCCATGGC\n  >seq.2\n  AGCCATCGATTATATAGACA\n  >seq.3\n  ATACCCTAGGAGCTTGCGCA\n\nThere are going to be very few [*] repeated strings in this 100M line file, since each >seq.X will be unique and there are roughly a trillion random 4-letter (ACGT) strings of length 20. So this is really assessing the performance of how well a hashtable can deal with reallocating after being overloaded.I did not have enough RAM to run a 100M line benchmark, but the following simple `awk` command performed ~15x faster on a 10M line benchmark (using the same hyperfine setup) versus the naïve `sort | uniq -c`, which isn't bad for something that comes standard with every *nix system.  awk '{ x[$0]++ } END { for(y in x) { print y, x[y] }}' <file> | sort -k2,2nr\n\n[0] https://github.com/noamteyssier/hist-rs/blob/main/justfile[*] Birthday problem math says about 250, for 50M strings sampled from a pool of ~1T.",
     "parent": 45675956,
     "depth": 1
   },
@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45720051,
-    "by": "ashvardanian",
-    "timeISO": "2025-10-27T12:08:35.000Z",
-    "textPlain": "Storage, strings, sorting, counting, bioinformatics... I got nerd-sniped! Can't resist a shameless plug here :)Looking at the code, there are a few things I would consider optimizing. I'd start by trying (my) StringZilla for hashing and sorting.HashBrown collections under the hood use aHash, which is an excellent hash function, but on both short and long inputs, on new CPUs, StringZilla seems faster [0]:                               short               long\n  aHash::hash_one 1.23 GiB/s         8.61 GiB/s\n  stringzilla::hash 1.84 GiB/s        11.38 GiB/s\n\nA similar story with sorting strings. Inner loops of arbitrary length string comparisons often dominate such workloads. Doing it in a more Radix-style fashion can 4x your performance [1]:                                                    short                  long\n  std::sort_unstable_by_key           ~54.35 M compares/s    57.70 M compares/s\n  stringzilla::argsort_permutation   ~213.73 M compares/s    74.64 M compares/s\n\nBear in mind that \"compares/s\" is a made-up metric here; in reality, I'm comparing from the duration.[0] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...[1] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718351,
     "by": "donatj",
     "timeISO": "2025-10-27T07:49:34.000Z",
     "textPlain": "I created \"unic\" a number of years ago because I had need to get the unique lines from a giant file without losing the order they initially appeared. It achieves this using a Cuckoo Filter so it's pretty dang quick about it, faster than sorting a large file in memory for sure.https://github.com/donatj/unic",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45720051,
+    "by": "ashvardanian",
+    "timeISO": "2025-10-27T12:08:35.000Z",
+    "textPlain": "Storage, strings, sorting, counting, bioinformatics... I got nerd-sniped! Can't resist a shameless plug here :)Looking at the code, there are a few things I would consider optimizing. I'd start by trying (my) StringZilla for hashing and sorting.HashBrown collections under the hood use aHash, which is an excellent hash function, but on both short and long inputs, on new CPUs, StringZilla seems faster [0]:                               short               long\n  aHash::hash_one 1.23 GiB/s         8.61 GiB/s\n  stringzilla::hash 1.84 GiB/s        11.38 GiB/s\n\nA similar story with sorting strings. Inner loops of arbitrary length string comparisons often dominate such workloads. Doing it in a more Radix-style fashion can 4x your performance [1]:                                                    short                  long\n  std::sort_unstable_by_key           ~54.35 M compares/s    57.70 M compares/s\n  stringzilla::argsort_permutation   ~213.73 M compares/s    74.64 M compares/s\n\nBear in mind that \"compares/s\" is a made-up metric here; in reality, I'm comparing from the duration.[0] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...[1] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...",
     "parent": 45675956,
     "depth": 1
   },
@@ -48,14 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45720134,
-    "by": "trollbridge",
-    "timeISO": "2025-10-27T12:20:25.000Z",
-    "textPlain": "This reminds me of a program I wrote to do the same thing that wc -L does, except a lot faster. I had to run it on a corpus of data that was many gigabytes (terabytes) in size, far too big to fit in RAM. MIT license.https://github.com/JoshRodd/mll",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718318,
     "by": "Someone",
     "timeISO": "2025-10-27T07:42:58.000Z",
@@ -64,10 +56,26 @@
     "depth": 1
   },
   {
+    "id": 45720134,
+    "by": "trollbridge",
+    "timeISO": "2025-10-27T12:20:25.000Z",
+    "textPlain": "This reminds me of a program I wrote to do the same thing that wc -L does, except a lot faster. I had to run it on a corpus of data that was many gigabytes (terabytes) in size, far too big to fit in RAM. MIT license.https://github.com/JoshRodd/mll",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
     "id": 45718678,
     "by": "jll29",
     "timeISO": "2025-10-27T08:52:27.000Z",
     "textPlain": "I use questions around this pipeline in interviews. As soon as people say they'd write a Python program to sort a file, they get rejected.Arguably, this will result in a slower result in most cases, but the reason for the rejection is wasting developer time (not to mention time to test for correctness) to re-develop something that is already available in the OS.",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718757,
+    "by": "f311a",
+    "timeISO": "2025-10-27T09:06:13.000Z",
+    "textPlain": "People often use sort | uniq when they don't want to load a bunch of lines into memory. That's why it's slow. It uses files and allocates very little memory by default. The pros? You can sort hundreds of gigabytes of data.This Rust implementation uses hashmap, if you have a lot of unique values, you will need a lot of RAM.",
     "parent": 45675956,
     "depth": 1
   },
@@ -88,14 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45718757,
-    "by": "f311a",
-    "timeISO": "2025-10-27T09:06:13.000Z",
-    "textPlain": "People often use sort | uniq when they don't want to load a bunch of lines into memory. That's why it's slow. It uses files and allocates very little memory by default. The pros? You can sort hundreds of gigabytes of data.This Rust implementation uses hashmap, if you have a lot of unique values, you will need a lot of RAM.",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718457,
     "by": "ukuina",
     "timeISO": "2025-10-27T08:12:00.000Z",
@@ -104,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45718797,
-    "by": "fsiefken",
-    "timeISO": "2025-10-27T09:13:57.000Z",
-    "textPlain": "I'm curious how much faster this is compared to the rust uutils coreutils ports of sort and uniq",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718438,
     "by": "scaredginger",
     "timeISO": "2025-10-27T08:08:06.000Z",
     "textPlain": "Looks like the impl uses a HashMap. I'd be curious about how a trie or some other specialized string data structure would compare here.",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718797,
+    "by": "fsiefken",
+    "timeISO": "2025-10-27T09:13:57.000Z",
+    "textPlain": "I'm curious how much faster this is compared to the rust uutils coreutils ports of sort and uniq",
     "parent": 45675956,
     "depth": 1
   },
@@ -168,18 +168,18 @@
     "depth": 2
   },
   {
-    "id": 45718747,
-    "by": "gigatexal",
-    "timeISO": "2025-10-27T09:05:05.000Z",
-    "textPlain": "Exactly. I love this and DuckDb and other such amazing tools.",
-    "parent": 45718213,
-    "depth": 2
-  },
-  {
     "id": 45719521,
     "by": "nsteel",
     "timeISO": "2025-10-27T10:56:51.000Z",
     "textPlain": "Just noting that in your benchmark (which we know nothing about), your \"naive\" data point is just 2.29x slower than hist. In their testing it was 27x slower! And it's not quite the same naive shell command, which isn't helpful.",
+    "parent": 45718213,
+    "depth": 2
+  },
+  {
+    "id": 45718747,
+    "by": "gigatexal",
+    "timeISO": "2025-10-27T09:05:05.000Z",
+    "textPlain": "Exactly. I love this and DuckDb and other such amazing tools.",
     "parent": 45718213,
     "depth": 2
   },
@@ -228,6 +228,14 @@
     "by": "rs186",
     "timeISO": "2025-10-27T11:19:26.000Z",
     "textPlain": "Your loss, not theirs. Lots of good developers are not expert at unix commands, many of which spend most of their time on Windows. They may be \"wasting\" 2 minutes on this specific task with their \"inefficient\" method, but they may perform much better on other tasks, to the point that 2 minutes saved here is nothing.Not to mention that these days people often ask ChatGPT \"what's the best way to do this\" before proceeding, and whatever you ask in interviews is completely irrelevant.It is exactly for these reasons we never ask such questions in our interviews. There are much more important aspects of a candidate to evaluate.",
+    "parent": 45718678,
+    "depth": 2
+  },
+  {
+    "id": 45720496,
+    "by": "Aefiam",
+    "timeISO": "2025-10-27T12:55:23.000Z",
+    "textPlain": "you can develop just as fast or even faster with python once you develop a good enough utility library for it.For example my python interpreter imports my custom List and Path classes and I could just do the following to get the same result:List(List(Path(\"filepath\").read_text_file().splitlines()).group_by_key(lambda x:x).items()).map(lambda x:(len(x[1]),x[0])).sorted()and if used often enough, it could made an utility method:Path(\"filepath\").read_sorted_by_most_common()So I find it shortsighted to reject someone based on that without giving them a chance to explain their reasoning.I think generally people really underestimate how much more productive you can be with a good utility library.",
     "parent": 45718678,
     "depth": 2
   },
