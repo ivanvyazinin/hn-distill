@@ -32,18 +32,26 @@
     "depth": 1
   },
   {
-    "id": 45720051,
-    "by": "ashvardanian",
-    "timeISO": "2025-10-27T12:08:35.000Z",
-    "textPlain": "Storage, strings, sorting, counting, bioinformatics... I got nerd-sniped! Can't resist a shameless plug here :)Looking at the code, there are a few things I would consider optimizing. I'd start by trying (my) StringZilla for hashing and sorting.HashBrown collections under the hood use aHash, which is an excellent hash function, but on both short and long inputs, on new CPUs, StringZilla seems faster [0]:                               short               long\n  aHash::hash_one 1.23 GiB/s         8.61 GiB/s\n  stringzilla::hash 1.84 GiB/s        11.38 GiB/s\n\nA similar story with sorting strings. Inner loops of arbitrary length string comparisons often dominate such workloads. Doing it in a more Radix-style fashion can 4x your performance [1]:                                                    short                  long\n  std::sort_unstable_by_key           ~54.35 M compares/s    57.70 M compares/s\n  stringzilla::argsort_permutation   ~213.73 M compares/s    74.64 M compares/s\n\nBear in mind that \"compares/s\" is a made-up metric here; in reality, I'm comparing from the duration.[0] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...[1] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718235,
     "by": "nasretdinov",
     "timeISO": "2025-10-27T07:25:09.000Z",
     "textPlain": "Note that by default sort command has a pretty low memory usage and spills to disk. You can improve the throughput quite a bit by increasing the allowed memory usage: --buffer-size=SIZE",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718757,
+    "by": "f311a",
+    "timeISO": "2025-10-27T09:06:13.000Z",
+    "textPlain": "People often use sort | uniq when they don't want to load a bunch of lines into memory. That's why it's slow. It uses files and allocates very little memory by default. The pros? You can sort hundreds of gigabytes of data.This Rust implementation uses hashmap, if you have a lot of unique values, you will need a lot of RAM.",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45720051,
+    "by": "ashvardanian",
+    "timeISO": "2025-10-27T12:08:35.000Z",
+    "textPlain": "Storage, strings, sorting, counting, bioinformatics... I got nerd-sniped! Can't resist a shameless plug here :)Looking at the code, there are a few things I would consider optimizing. I'd start by trying (my) StringZilla for hashing and sorting.HashBrown collections under the hood use aHash, which is an excellent hash function, but on both short and long inputs, on new CPUs, StringZilla seems faster [0]:                               short               long\n  aHash::hash_one 1.23 GiB/s         8.61 GiB/s\n  stringzilla::hash 1.84 GiB/s        11.38 GiB/s\n\nA similar story with sorting strings. Inner loops of arbitrary length string comparisons often dominate such workloads. Doing it in a more Radix-style fashion can 4x your performance [1]:                                                    short                  long\n  std::sort_unstable_by_key           ~54.35 M compares/s    57.70 M compares/s\n  stringzilla::argsort_permutation   ~213.73 M compares/s    74.64 M compares/s\n\nBear in mind that \"compares/s\" is a made-up metric here; in reality, I'm comparing from the duration.[0] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...[1] https://github.com/ashvardanian/StringWars?tab=readme-ov-fil...",
     "parent": 45675956,
     "depth": 1
   },
@@ -72,14 +80,6 @@
     "depth": 1
   },
   {
-    "id": 45718757,
-    "by": "f311a",
-    "timeISO": "2025-10-27T09:06:13.000Z",
-    "textPlain": "People often use sort | uniq when they don't want to load a bunch of lines into memory. That's why it's slow. It uses files and allocates very little memory by default. The pros? You can sort hundreds of gigabytes of data.This Rust implementation uses hashmap, if you have a lot of unique values, you will need a lot of RAM.",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
     "id": 45718576,
     "by": "majke",
     "timeISO": "2025-10-27T08:33:39.000Z",
@@ -92,6 +92,14 @@
     "by": "noctune",
     "timeISO": "2025-10-27T07:29:50.000Z",
     "textPlain": "I built something similarly a few years ago for `sort | uniq -d` using sketches. The downside is you need two passes, but still it's overall faster than sorting: https://github.com/mpdn/sketch-duplicates",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45719756,
+    "by": "G_o_D",
+    "timeISO": "2025-10-27T11:32:06.000Z",
+    "textPlain": "why no mention of awk ?\nawk '!a[$0]++'",
     "parent": 45675956,
     "depth": 1
   },
@@ -116,14 +124,6 @@
     "by": "fsiefken",
     "timeISO": "2025-10-27T09:13:57.000Z",
     "textPlain": "I'm curious how much faster this is compared to the rust uutils coreutils ports of sort and uniq",
-    "parent": 45675956,
-    "depth": 1
-  },
-  {
-    "id": 45719756,
-    "by": "G_o_D",
-    "timeISO": "2025-10-27T11:32:06.000Z",
-    "textPlain": "why no mention of awk ?\nawk '!a[$0]++'",
     "parent": 45675956,
     "depth": 1
   },
@@ -189,6 +189,22 @@
     "timeISO": "2025-10-27T07:26:12.000Z",
     "textPlain": "To be more fair you could also add SETTINGS max_threads=1 though?",
     "parent": 45718213,
+    "depth": 2
+  },
+  {
+    "id": 45721234,
+    "by": "pclmulqdq",
+    "timeISO": "2025-10-27T14:12:25.000Z",
+    "textPlain": "The awk script is probably the fastest way to do this still, and it's faster if you use gawk or something similar rather than default awk. Most people also don't need ordering, so you can get away with only the awk part and you don't need the sort.",
+    "parent": 45720359,
+    "depth": 2
+  },
+  {
+    "id": 45721215,
+    "by": "xorcist",
+    "timeISO": "2025-10-27T14:10:18.000Z",
+    "textPlain": "From a causal glance, isn't your code limited by the amount of available memory?Which could be totally useful in itself, but not even close to what \"sort\" is doing.Did you run sort with a buffer size larger than the data? Your specialized one-pass program is likely faster, but at least the numbers would mean something.That said, I don't see what is over-engineered here. It's pretty straightforward and easy to read.",
+    "parent": 45675957,
     "depth": 2
   },
   {
