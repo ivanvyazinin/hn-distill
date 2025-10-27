@@ -1,9 +1,9 @@
 [
   {
-    "id": 45717998,
-    "by": "flowerthoughts",
-    "timeISO": "2025-10-27T06:35:33.000Z",
-    "textPlain": "The win here might be using HashMap to avoid having to sort all entries. Then sorting at the end instead. What's the ratio of duplicates in the benchmark input?There is no text encoding processing, so this only works for single byte encodings. That probably speeds it up a little bit.Depending on the size of the benchmark input, sort(1) may have done disk-based sorting. What's the size of the benchmark input?",
+    "id": 45718213,
+    "by": "zX41ZdbW",
+    "timeISO": "2025-10-27T07:20:13.000Z",
+    "textPlain": "This and similar tasks can be solved efficiently with clickhouse-local [1]. Example:    ch --input-format LineAsString --query \"SELECT line, count() AS c GROUP BY line ORDER BY c DESC\" < data.txt\n\nI've tested it and it is faster than both sort and this Rust code:    time LC_ALL=C sort data.txt | uniq -c | sort -rn > /dev/null\n    32 sec.\n\n    time hist data.txt > /dev/null\n    14 sec.\n\n    time ch --input-format LineAsString --query \"SELECT line, count() AS c GROUP BY line ORDER BY c DESC\" < data.txt > /dev/null\n    2.7 sec.\n\nIt is like a Swiss Army knife for data processing: it can solve various tasks, such as joining data from multiple files and data sources, processing various binary and text formats, converting between them, and accessing external databases.[1] https://clickhouse.com/docs/operations/utilities/clickhouse-...",
     "parent": 45675956,
     "depth": 1
   },
@@ -14,5 +14,69 @@
     "textPlain": "Was sitting around in meetings today and remembered an old shell script I had to count the number of unique lines in a file. Gave it a shot in rust and with a little bit of (over-engineering)™ I managed to get 25x throughput over the naive approach using coreutils as well as improve over some existing tools.Some notes on the improvements:1. using csv (serde) for writing leads to some big gains2. arena allocation of incoming keys + storing references in the hashmap instead of storing owned values heavily reduced the number of allocations and improves cache efficiency (I'm guessing, I did not measure).There are some regex functionalities and some table filtering built in as well.happy hacking",
     "parent": 45675956,
     "depth": 1
+  },
+  {
+    "id": 45717998,
+    "by": "flowerthoughts",
+    "timeISO": "2025-10-27T06:35:33.000Z",
+    "textPlain": "The win here might be using HashMap to avoid having to sort all entries. Then sorting at the end instead. What's the ratio of duplicates in the benchmark input?There is no text encoding processing, so this only works for single byte encodings. That probably speeds it up a little bit.Depending on the size of the benchmark input, sort(1) may have done disk-based sorting. What's the size of the benchmark input?",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718091,
+    "by": "vlovich123",
+    "timeISO": "2025-10-27T06:55:04.000Z",
+    "textPlain": "Why does this test against sort | uniq | sort? It’s kind of weird to sort twice no?",
+    "parent": 45675956,
+    "depth": 1
+  },
+  {
+    "id": 45718093,
+    "by": "theemptiness",
+    "timeISO": "2025-10-27T06:55:21.000Z",
+    "textPlain": "Small semantics nit: it is not overengineered, it is engineered. You wanted more throughput, the collection of coreutils tools was not designed for throughput but flexibility.It is not difficult to construct scenarios where throughput matters but that IMHO that does not determine engineering vs overengineering. What matters is whether there are requirements that need to be met. Debating the requirements is possible but doesn't take away from whether a solution obtained with reasonable effort meets the spec. Overengineering is about unreasonable effort, which could lead to overshoot the requirements, not about unreasonable requirements.",
+    "parent": 45675957,
+    "depth": 2
+  },
+  {
+    "id": 45718108,
+    "by": "dbdr",
+    "timeISO": "2025-10-27T06:59:12.000Z",
+    "textPlain": "> using csv (serde) for writing leads to some big gainsCould you explain that, if you have the time? Is that for writing the output lines? Is actual CSV functionality used? That crate says \"Fast CSV parsing with support for serde\", so I'm especially confused how that helps with writing.",
+    "parent": 45675957,
+    "depth": 2
+  },
+  {
+    "id": 45718085,
+    "by": "wodenokoto",
+    "timeISO": "2025-10-27T06:53:40.000Z",
+    "textPlain": "To me, the really big win would be _not_ to have to sort at all. Have an option to keep first or last duplicate and remove all others while keeping line order is usually what I need.",
+    "parent": 45717998,
+    "depth": 2
+  },
+  {
+    "id": 45718127,
+    "by": "gucci-on-fleek",
+    "timeISO": "2025-10-27T07:01:59.000Z",
+    "textPlain": "The first \"sort\" sorts the input lines lexicographically (which is required for \"uniq\" to work); the second \"sort\" sorts the output of \"uniq\" numerically (so that lines are ordered from most-frequent to least-frequent):  $ echo c a b c | tr ' ' '\\n'\n  c\n  a\n  b\n  c\n  \n  $ echo c a b c | tr ' ' '\\n' | sort\n  a\n  b\n  c\n  c\n  \n  $ echo c a b c | tr ' ' '\\n' | sort | uniq -c\n        1 a\n        1 b\n        2 c\n  \n  $ echo c a b c | tr ' ' '\\n' | sort | uniq -c | sort -rn\n        2 c\n        1 b\n        1 a",
+    "parent": 45718091,
+    "depth": 2
+  },
+  {
+    "id": 45718121,
+    "by": "Aaron2222",
+    "timeISO": "2025-10-27T07:00:43.000Z",
+    "textPlain": "sort | uniq -c | sort -n\n\nThe second sort is sorting by frequency (the count output by `uniq -c`).",
+    "parent": 45718091,
+    "depth": 2
+  },
+  {
+    "id": 45718109,
+    "by": "BuildTheRobots",
+    "timeISO": "2025-10-27T06:59:15.000Z",
+    "textPlain": "It's something I've done myself in the past. First sort is because it needs to be sorted for uniq -c to count it proper, second sort because uniq doesn't always give the output in the right order.",
+    "parent": 45718091,
+    "depth": 2
   }
 ]
