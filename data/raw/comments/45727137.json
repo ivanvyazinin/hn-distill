@@ -1,0 +1,58 @@
+[
+  {
+    "id": 45727719,
+    "by": "tptacek",
+    "timeISO": "2025-10-27T23:47:51.000Z",
+    "textPlain": "Why does it matter? I know the answer and this is a philosophical complaint, but the purpose of CVE is simply to make sure that people are talking about the same bug, not as a certification of importance or impact.In this particular case, the poster is complaining that 3 CVEs were assigned for memory corruption vulnerabilities reachable only from the dnsmasq configuration file. I didn't read carefully, but the presumption that config file memory corruption bugs aren't vulnerabilities is problematic, because user input can find its way into configurations through templating; it depends on how innocuous the field triggering the bug is.",
+    "parent": 45727137,
+    "depth": 1
+  },
+  {
+    "id": 45728224,
+    "by": "jerrythegerbil",
+    "timeISO": "2025-10-28T01:03:40.000Z",
+    "textPlain": "Vulnerabilities can and often are chained together.While the relevant configuration does require root to edit, that doesn’t mean that editing or inserting values to dnsmasq as an unprivileged user doesn’t exist as functionality in another application or system.There are frivolous CVEs issued without any evidence of exploitability all the time. This particular example however, isn’t that. These are pretty clearly qualified as CVEs.The implied risk is a different story, but if you’re familiar with the industry you’ll quickly learn that there are people with far more imagination and capacity to exploit conditions you believe aren’t practically exploitable, particularly in highly available tools such as dnsmasq. You don’t make assumptions about that. You publish the CVE.",
+    "parent": 45727137,
+    "depth": 1
+  },
+  {
+    "id": 45728254,
+    "by": "Kiboneu",
+    "timeISO": "2025-10-28T01:08:40.000Z",
+    "textPlain": "Several issues seem to be getting mixed up.The first issue being raised is that replacing the configuration file shouldn't count as a vulnerability. Usually I'd agree, but the fact that it causes memory corruption from user input warrants at least a low severity report.If we can't prove that a vulnerability is exploitable, we have to keep our assumptions minimal. If the memory corruption vuln is provably unexploitable, a future code change could surface it as a plausible exploit primitive. It can also point to a section of code that may have been under-speced, and may serve as an signal to pay more attention at these sections for related bugs. Also, it doesn't seem right to assume that the config files will always be under a privileged directory.The second issue being discussed iun the mailing list is that it's LLM slop. While the reports do seem to be AI generated, I haven't seen any response about the PoC failing, but maybe there is a significant problem where a lot of PoCs are fake.So many assumptions. As commander Data may have said today, \"the most elementary and valuable statement in security, the beginning of wisdom, is 'I do not know.'\"",
+    "parent": 45727137,
+    "depth": 1
+  },
+  {
+    "id": 45727990,
+    "by": "ekidd",
+    "timeISO": "2025-10-28T00:26:23.000Z",
+    "textPlain": "I suspect the big problem here is thinly-stretched volunteer maintainers.I am very sympathetic to the idea that all memory corruption bugs should be fixed systematically, whether or not they're exploitable. It works well for OpenBSD. And, well, I wouldn't have leaned into Rust so early if I wasn't a bit fanatic about fixing memory corruption bugs.But at the same time, a lot of maintainers are stretched really thin. And many pieces of software choose to trust some inputs, especially inputs that require root access to edit. If you want to take user input and use it to generate config files in /etc, you should plan to do extremely robust sanitization. Or to make donations to thinly-stretched volunteer maintainers, perhaps.",
+    "parent": 45727719,
+    "depth": 2
+  },
+  {
+    "id": 45728009,
+    "by": "DiabloD3",
+    "timeISO": "2025-10-28T00:29:05.000Z",
+    "textPlain": "CVEs, however, do get scored according to CVSS, and they are often extremely hostile and live in fantasy land.CVEs also cannot be denied by projects, and are often used as an avenue of harassment towards open source projects.I agree with the poster on that mailing list, this is not, nor should be, a CVE. At no point can you edit those files without being root.",
+    "parent": 45727719,
+    "depth": 2
+  },
+  {
+    "id": 45728066,
+    "by": "TheDong",
+    "timeISO": "2025-10-28T00:36:42.000Z",
+    "textPlain": "If someone can template in data, it's a lot easier to just set \"dhcp-script=/arbitrary/code\"If the person templating isn't validating data, then it's already RCE to let someone template into this config file without careful validation.... Also, this is a segfault, the chance anyone can get an RCE out of '*r = 0' for r being slightly out of bounds is close to nil, you'd need an actively malicious compiler.While CVE's in theory are \"just a number to coordinate with no real meaning\", in practice a \"Severity: High\" CVE will trigger a bunch of work for people, so it's obviously not ideal to issue garbage ones.",
+    "parent": 45727719,
+    "depth": 2
+  },
+  {
+    "id": 45728255,
+    "by": "landr0id",
+    "timeISO": "2025-10-28T01:08:56.000Z",
+    "textPlain": ">that doesn’t mean that editing or inserting values to dnsmasq as an unprivileged user doesn’t exist as functionality in another application or system.The developer typically defines its threat model. My threat model would not include another application inserting garbage values into my application's config, which is expected to be configured by a root (trusted) user.The Windows threat model does not include malicious hardware with DMA tampering with kernel memory _except_ maybe under very specific configurations.",
+    "parent": 45728224,
+    "depth": 2
+  }
+]
