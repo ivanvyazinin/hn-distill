@@ -1,9 +1,33 @@
 [
   {
+    "id": 45736622,
+    "by": "zie",
+    "timeISO": "2025-10-28T18:13:06.000Z",
+    "textPlain": "We transfer ACH files(i.e. paychecks) via SSH(SFTP) to several banks. You better believe I check keys.  One of the banks forces key rotation every 2-ish years. I absolutely verify it every rotation and delete the old keys.Occasionally it fails, almost always it's something unexpected happening, but occasionally we catch their errors(verified by connecting from various endpoints/DNS queries/etc). We used to call them all the time whenever that happened. Now we just auto-retry on failure in an hour and that fixes the issue all of the time(so far). We only re-try once and then fail with a ticket. Most of us like our paychecks, so we are pretty good about getting that ticket resolved quickly.",
+    "parent": 45687014,
+    "depth": 1
+  },
+  {
+    "id": 45736566,
+    "by": "beala",
+    "timeISO": "2025-10-28T18:09:42.000Z",
+    "textPlain": "Terminal.shop lets you order coffee over ssh, which is kind of novel and fun. I did it, and the coffee was good! This post reminded me that they've gotten enough questions about security that they've added this to their FAQ:> is ordering via ssh secure?# you bet it is. arguably more secure than your browser. ssh incorporates encryption and authentication via a process called public key cryptography. if that doesn’t sound secure we don’t know what does. [1]I think this is wrong though for exactly the reasons described in this post. TLS verifies that the URL matches the cert through the chain of trust, whereas SSH leaves this up to the user to do out-of-band, which of course no one does.But then the author of this article goes on to say (emphasis mine):> This result represents good news for both the SSL/TLS PKI camps and the SSH non-PKI camps, since SSH advocates can rejoice over the fact that the expensive PKI-based approach is no better than the SSH one, while PKI advocates can rest assured that their solution is no less secure than the SSH one.Which feels like it comes out of left field. Certainly the chain of trust adds some security, even if it's imperfect. I know many people just click through the warning, but I certainly don't.[1] https://www.terminal.shop/faq",
+    "parent": 45687014,
+    "depth": 1
+  },
+  {
     "id": 45734297,
     "by": "kqr",
     "timeISO": "2025-10-28T15:40:11.000Z",
     "textPlain": "I feel like this is unnecessarily reductive. The initial handshake is always fraught with security problems. I struggle to see a scenario in which a bad actor is able to give me the address of a bad machine, yet not be able to trick me into their host key being the correct one.I would definitely however spend effort into verifying a host key that changes unexpectedly.",
+    "parent": 45687014,
+    "depth": 1
+  },
+  {
+    "id": 45735975,
+    "by": "teeray",
+    "timeISO": "2025-10-28T17:31:26.000Z",
+    "textPlain": "I kinda like the approach Github does: they just publish their fingerprints here: https://docs.github.com/en/authentication/keeping-your-accou...This is served over TLS, so it's no worse than TLS. You can also benefit from the paved road that LetsEncrypt has provided. It might not be as smooth as SSH CAs once they're set up, but setting those up and the Day 2 operations involved isn't nearly as straightforward.",
     "parent": 45687014,
     "depth": 1
   },
@@ -16,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45734318,
-    "by": "dcminter",
-    "timeISO": "2025-10-28T15:41:26.000Z",
-    "textPlain": "I guess the interesting question to me is: how often does this matter? How many successful mitm attacks on ssh connections are there and in what sort of circumstances do they occur?It seems like it ought to matter, but if roughly nobody verifies and yet the sky has not fallen - does it?",
-    "parent": 45687014,
-    "depth": 1
-  },
-  {
     "id": 45734091,
     "by": "radial_symmetry",
     "timeISO": "2025-10-28T15:24:52.000Z",
     "textPlain": "I appreciate the to-the-point abstract",
+    "parent": 45687014,
+    "depth": 1
+  },
+  {
+    "id": 45734318,
+    "by": "dcminter",
+    "timeISO": "2025-10-28T15:41:26.000Z",
+    "textPlain": "I guess the interesting question to me is: how often does this matter? How many successful mitm attacks on ssh connections are there and in what sort of circumstances do they occur?It seems like it ought to matter, but if roughly nobody verifies and yet the sky has not fallen - does it?",
     "parent": 45687014,
     "depth": 1
   },
@@ -56,18 +80,26 @@
     "depth": 1
   },
   {
-    "id": 45735802,
-    "by": "otabdeveloper4",
-    "timeISO": "2025-10-28T17:20:45.000Z",
-    "textPlain": "> ...a host key that changes unexpectedly.Literally happens every single damn day and literally nobody on the face of this earth ever gives a shit.Host keys are the stupidest idea in the history of computer so-called \"security\".",
-    "parent": 45734297,
+    "id": 45736676,
+    "by": "tw04",
+    "timeISO": "2025-10-28T18:17:25.000Z",
+    "textPlain": ">TLS verifies that the URL matches cert through the chain of trust,I think you need to point out that TLS utilizes the browsers cert store for that chain of trust.  If a bad actor acquires an entity that has a trusted cert, or your cert store is compromised, that embedded cert store is almost entirely useless which has happened on more than one occassion (Chinese government and Symantec most recently).https://expeditedsecurity.com/blog/control-the-ssl-cas-your-...This is typically caught pretty quickly but there's almost nothing a user can do to defend against a chain of trust attack.  With SSH, while nobody does it, at least you have the ability to protect yourself.",
+    "parent": 45736566,
     "depth": 2
   },
   {
-    "id": 45735593,
-    "by": "zenmac",
-    "timeISO": "2025-10-28T17:06:28.000Z",
-    "textPlain": "Server should publish their key fingerprint to at least the authorized personal of the group. So people know if the server they are connecting to is actually that server.",
+    "id": 45736705,
+    "by": "zie",
+    "timeISO": "2025-10-28T18:19:54.000Z",
+    "textPlain": "in SSH, it's a two-way handshake, the client ordering the coffee also gets a cert to prove their identity.In browser land, the client browser doesn't get a cert to prove their identity, it's one-way only.Certainly TLS supports client certs, browsers(at least some) technically even implement a version, but the UX is SOOOO horrible that nobody uses it. Some people have tried, the only people that have ever seen any success with client side authentication certificates over a web browser are webauthn/passkeys and the US Military(their ID cards have a cert in them).webauthn/passkeys are not fully baked yet, so time will tell if they will actually be a success, but so far their usage is growing.",
+    "parent": 45736566,
+    "depth": 2
+  },
+  {
+    "id": 45736008,
+    "by": "chasil",
+    "timeISO": "2025-10-28T17:33:03.000Z",
+    "textPlain": "My corporate SFTP server that became mandated to use several years ago presented multiple keys, apparently because it was on DNS round robin.My attempts to convince them to use the same key came to naught, so instead I use one of the IP addresses.I could alternately erase the known hosts entry on each transfer. That would probably have been preferable.I also got a shell on it when I attempted ssh, so you can guess the care that is taken with it.",
     "parent": 45734297,
     "depth": 2
   },
@@ -76,6 +108,14 @@
     "by": "kragen",
     "timeISO": "2025-10-28T16:28:21.000Z",
     "textPlain": "They might be able to spoof your DNS, for example if you're using their Wi-Fi, so you get the wrong IP address for the right hostname, but not your mail server's SSL.  You could pass the host key fingerprint across an existing secure connection, such as in email or with ssh to a host that you already have the fingerprint of.",
+    "parent": 45734297,
+    "depth": 2
+  },
+  {
+    "id": 45735593,
+    "by": "zenmac",
+    "timeISO": "2025-10-28T17:06:28.000Z",
+    "textPlain": "Server should publish their key fingerprint to at least the authorized personal of the group. So people know if the server they are connecting to is actually that server.",
     "parent": 45734297,
     "depth": 2
   },
@@ -104,11 +144,27 @@
     "depth": 2
   },
   {
+    "id": 45735802,
+    "by": "otabdeveloper4",
+    "timeISO": "2025-10-28T17:20:45.000Z",
+    "textPlain": "> ...a host key that changes unexpectedly.Literally happens every single damn day and literally nobody on the face of this earth ever gives a shit.Host keys are the stupidest idea in the history of computer so-called \"security\".",
+    "parent": 45734297,
+    "depth": 2
+  },
+  {
     "id": 45734613,
     "by": "jon-wood",
     "timeISO": "2025-10-28T16:00:32.000Z",
     "textPlain": "Or you can use SSH certificates, where you work on the basis that if the host key is signed by the correct CA then it's legit. No more tofu required beyond need to trust whatever source you got your CA's public key from.",
     "parent": 45734439,
+    "depth": 2
+  },
+  {
+    "id": 45734124,
+    "by": "tobinfricke",
+    "timeISO": "2025-10-28T15:26:53.000Z",
+    "textPlain": "Also in compliance with Betteridge's law of headlines: \"Any headline that ends in a question mark can be answered by the word no.\"",
+    "parent": 45734091,
     "depth": 2
   },
   {
@@ -128,11 +184,11 @@
     "depth": 2
   },
   {
-    "id": 45734124,
-    "by": "tobinfricke",
-    "timeISO": "2025-10-28T15:26:53.000Z",
-    "textPlain": "Also in compliance with Betteridge's law of headlines: \"Any headline that ends in a question mark can be answered by the word no.\"",
-    "parent": 45734091,
+    "id": 45736839,
+    "by": "kbolino",
+    "timeISO": "2025-10-28T18:30:26.000Z",
+    "textPlain": "The CA/Browser Forum does not want to support this either. They are only interested in public, domain-verified websites served over HTTPS. They forbid client certificates, they require certificate transparency, and their policies get stricter every year. Most SSH deployments would not want to accept these constraints.So, even if SSH supported X.509 certificates, which isn't necessarily a bad idea, it would need to do so with its own verification mechanism and its own PKI with its own CAs. In other words, we'd be in basically the same place.",
+    "parent": 45734325,
     "depth": 2
   },
   {
