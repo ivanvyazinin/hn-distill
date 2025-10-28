@@ -1,13 +1,5 @@
 [
   {
-    "id": 45729414,
-    "by": "sherinjosephroy",
-    "timeISO": "2025-10-28T05:18:57.000Z",
-    "textPlain": "I like the idea of separating your “business logic” (the functional core) from the glue code that interacts with the outside world (the imperative shell). It makes the core easier to test and reason about.But also: the challenge is knowing where to draw the line. In real systems you’ll still have messy side-effects, transactions, performance constraints — so you might end up in a mixed bag anyway. The principle is solid, but the practical trade-offs matter.",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45726855,
     "by": "socketcluster",
     "timeISO": "2025-10-27T22:01:33.000Z",
@@ -16,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45729381,
-    "by": "ryangibb",
-    "timeISO": "2025-10-28T05:12:39.000Z",
-    "textPlain": "The MirageOS project [0] is a great collection of functionality pure OCaml libraries that are useful outside of unikernels. I've used the DNS library with an effectful layer for various nameserver experiments [1].[0] https://mirage.io/[1] https://ryan.freumh.org/eon.html",
+    "id": 45729722,
+    "by": "svat",
+    "timeISO": "2025-10-28T06:30:43.000Z",
+    "textPlain": "Another good blog post that is IMO in the same vein: https://lambdaisland.com/blog/2022-03-10-mechanism-vs-policy (“Improve your code by separating mechanism from policy”). This blends harmoniously with “functional core, imperative shell”—the \"mechanism\" code is the \"functional core\", and the \"policy\" code is the \"imperative shell\"—and also a little bit with John Ousterhout's idea in A Philosophy of Software Design of \"deep modules\" (in this context, don't put policy stuff, i.e. arbitrary decisions, inside the module).",
     "parent": 45701901,
     "depth": 1
   },
@@ -48,10 +40,26 @@
     "depth": 1
   },
   {
-    "id": 45729182,
-    "by": "metalrain",
-    "timeISO": "2025-10-28T04:24:41.000Z",
-    "textPlain": "I like the idea but the example doesn't make much sense.In what application would you load all users into memory from database and then filter them with TypeScript functions? And that is the problem with the otherwise sound idea \"Functional core, imperative shell\". The shell penetrates the core.Maybe some filters don't match the way database is laid out, what if you have a lot of users, how do you deal with email batching and error handing?So you have to write the functional core with the side effect context in mind, for example using query builder or DSL that matches the database conventions. Then weave it with the intricacies of your email sender logic, maybe you want iterator over the right size batches of emails to send at once, can it send multiple batches in parallel?",
+    "id": 45729381,
+    "by": "ryangibb",
+    "timeISO": "2025-10-28T05:12:39.000Z",
+    "textPlain": "The MirageOS project [0] is a great collection of functionality pure OCaml libraries that are useful outside of unikernels. I've used the DNS library with an effectful layer for various nameserver experiments [1].[0] https://mirage.io/[1] https://ryan.freumh.org/eon.html",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45729592,
+    "by": "pjmlp",
+    "timeISO": "2025-10-28T05:55:50.000Z",
+    "textPlain": "All nice ideas, that unfortunately don't get appreciated on the age of offshoring and vibe coding.Have to ship it non matter what.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45729414,
+    "by": "sherinjosephroy",
+    "timeISO": "2025-10-28T05:18:57.000Z",
+    "textPlain": "I like the idea of separating your “business logic” (the functional core) from the glue code that interacts with the outside world (the imperative shell). It makes the core easier to test and reason about.But also: the challenge is knowing where to draw the line. In real systems you’ll still have messy side-effects, transactions, performance constraints — so you might end up in a mixed bag anyway. The principle is solid, but the practical trade-offs matter.",
     "parent": 45701901,
     "depth": 1
   },
@@ -60,6 +68,14 @@
     "by": "CharlieDigital",
     "timeISO": "2025-10-28T01:57:01.000Z",
     "textPlain": "I wrote our AI agents code with a functional core + imperative shell and I have to agree: this approach yields much faster cycle times because you can run pure unit tests and it makes testing a lot easier.We have tens of thousands of lines of code for the platform and millions of workflow runs through them with no production errors coming from the core agent runtime which manages workflow state, variables, rehydration (suspend + resume).  All of the errors and fragility are at the imperative shell (usually integrations).Some of the examples in this thread I think get it wrong.    db.getUsers() |> filter(User.isExpired(Date.now()) |> map(generateExpiryEmail) |> email.bulkSend\n\nThis is already wrong because the call already starts with I/O; flip it and it makes a lot more sense.What you really want is (in TS, as an example):    bulkSend(\n      userFn: () => user[],\n      filterFn: (user: User) => bool,\n      expiryEmailProducerFn: (user: User) => Email,\n      senderFn: (email: Email) => string\n    ) \n\nThe effect of this is that the inner logic of `bulkSend` is completely decoupled from I/O and external logic.  Now there's no need for mocking or integration tests because it is possible to use pure unit tests by simply swapping out the functions.  I can easily unit test `bulkSend` because I don't need to mock anything or know about the inner behavior.I chose this approach because writing integration tests with LLM calls would make the testing run too slowly (and costly!) so most of the interaction with the LLM is simply a function passed into our core where there's a lot of logic of parsing and moving variables and state around.  You can see here that you no longer need mocks and no longer need to spy on calls because in the unit test, you can pass in whatever function you need and you can simply observe if the function was called correctly without a spy.It is easier than most folks think to adopt -- even in imperative languages -- by simply getting comfortable working ",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45729182,
+    "by": "metalrain",
+    "timeISO": "2025-10-28T04:24:41.000Z",
+    "textPlain": "I like the idea but the example doesn't make much sense.In what application would you load all users into memory from database and then filter them with TypeScript functions? And that is the problem with the otherwise sound idea \"Functional core, imperative shell\". The shell penetrates the core.Maybe some filters don't match the way database is laid out, what if you have a lot of users, how do you deal with email batching and error handing?So you have to write the functional core with the side effect context in mind, for example using query builder or DSL that matches the database conventions. Then weave it with the intricacies of your email sender logic, maybe you want iterator over the right size batches of emails to send at once, can it send multiple batches in parallel?",
     "parent": 45701901,
     "depth": 1
   },
@@ -96,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 45725580,
+    "by": "rcleveng",
+    "timeISO": "2025-10-27T19:58:29.000Z",
+    "textPlain": "If your language supports generators, this works a lot better than making copies of the entire dataset too.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45728804,
     "by": "lucifer153",
     "timeISO": "2025-10-28T02:56:38.000Z",
@@ -116,14 +140,6 @@
     "by": "semiinfinitely",
     "timeISO": "2025-10-27T22:11:21.000Z",
     "textPlain": "this looks like a post from 2007 im shocked at the date",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
-    "id": 45725580,
-    "by": "rcleveng",
-    "timeISO": "2025-10-27T19:58:29.000Z",
-    "textPlain": "If your language supports generators, this works a lot better than making copies of the entire dataset too.",
     "parent": 45701901,
     "depth": 1
   },
@@ -344,6 +360,22 @@
     "depth": 2
   },
   {
+    "id": 45726236,
+    "by": "akshayshah",
+    "timeISO": "2025-10-27T21:00:47.000Z",
+    "textPlain": "Sometimes, sure - but sometimes, passing around a fat wrapper around a DB cursor is worse, and the code would be better off paginating and materializing each page of data in memory. As usual, it depends.",
+    "parent": 45725580,
+    "depth": 2
+  },
+  {
+    "id": 45726017,
+    "by": "KlayLay",
+    "timeISO": "2025-10-27T20:40:58.000Z",
+    "textPlain": "You don't need your programming language to implement generators for you. You can implement them yourself.",
+    "parent": 45725580,
+    "depth": 2
+  },
+  {
     "id": 45727427,
     "by": "semiquaver",
     "timeISO": "2025-10-27T23:11:53.000Z",
@@ -365,38 +397,6 @@
     "timeISO": "2025-10-27T23:00:17.000Z",
     "textPlain": "Me too. Aren't we already doing this? This is the basic I have been taught first.",
     "parent": 45726940,
-    "depth": 2
-  },
-  {
-    "id": 45726236,
-    "by": "akshayshah",
-    "timeISO": "2025-10-27T21:00:47.000Z",
-    "textPlain": "Sometimes, sure - but sometimes, passing around a fat wrapper around a DB cursor is worse, and the code would be better off paginating and materializing each page of data in memory. As usual, it depends.",
-    "parent": 45725580,
-    "depth": 2
-  },
-  {
-    "id": 45726017,
-    "by": "KlayLay",
-    "timeISO": "2025-10-27T20:40:58.000Z",
-    "textPlain": "You don't need your programming language to implement generators for you. You can implement them yourself.",
-    "parent": 45725580,
-    "depth": 2
-  },
-  {
-    "id": 45727598,
-    "by": "garethrowlands",
-    "timeISO": "2025-10-27T23:33:38.000Z",
-    "textPlain": "> Indeed, the general idea of imperative assembly comes to mind as the ultimate \"core\" for most software.That's not what functional core, imperative shell means though. It's a given that CPUs aren't functional. The advice is for people  programming in languages that have expressions - ruby, in the case of the original talk. The functional paradigm mostly assumes automatic memory management.",
-    "parent": 45726151,
-    "depth": 2
-  },
-  {
-    "id": 45726189,
-    "by": "agentultra",
-    "timeISO": "2025-10-27T20:56:54.000Z",
-    "textPlain": "whispers in monadsIt can be done \"functionally\" but doesn't necessarily have to be done in an FP paradigm to use this pattern.There are other strategies to push resource handling to the edges of the program: pools, allocators, etc.",
-    "parent": 45726151,
     "depth": 2
   }
 ]
