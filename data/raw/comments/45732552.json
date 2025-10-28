@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "id": 45733179,
+    "by": "qixxiq",
+    "timeISO": "2025-10-28T14:14:21.000Z",
+    "textPlain": "Current implementation has the following limitations:\n      Maximum object size: 65534 keys\n      The order of object keys is not preserved\n      ...\n\n    These limitations may be lifted by using more bytes to store offset pointers and counts on binary level. Though it's hard to imagine a real application which would need that.\n\nI've worked on _many_ applications which have needed those features. Object keys is a per implementation detail, but failing at 65k keys seems like a problem people would likely hit if this were to be used at larger scales.",
+    "parent": 45732552,
+    "depth": 1
+  },
+  {
+    "id": 45732886,
+    "by": "gethly",
+    "timeISO": "2025-10-28T13:49:22.000Z",
+    "textPlain": "It is a bit confusing that JSON is being mention so much when in reality this has nothing to do with it - except to showcase that JSON is not suitable for streaming whereas this format is.Secondly, I fail to see advantages here as the claim is that it allows streaming for partial processing compared to JSON that has to be fully loaded in order to be parseable. Mainly, because the values must be streamed first, before their location/pointers in order for the structure to make sense and be usable for processing, but that also means we need all the parent pointes as well in order to know where to place the children in the root. So all in all, I just do not see why this is advantageous format above JSON(as that is its main complaint here), since you can stream JSON just as easily because you can detect { and } and { and ] and \" and , delimiters and know when your token is complete to then process it, without having to wait for the whole structure to finish being streamed or wait for the SICK pointers to arrive in full so you can build the structure.Or, I am just not getting it at all...",
+    "parent": 45732552,
+    "depth": 1
+  },
+  {
+    "id": 45733263,
+    "by": "pshirshov",
+    "timeISO": "2025-10-28T14:22:17.000Z",
+    "textPlain": "In our usecase, for which we created the library, we made this tradeoff to save several bytes per pointer and keep binary form more compact. The application split large objects and arrays into smaller chunks. 99% of the structures there are relatively small but there are tons of them. Most likely you can do the same - just split large structures into smaller ones.If you need support for larger structures, you may create your own implementation or extend ours (and I would really like to hear about your usecase).SICK as a concept is simple. SICK as the library was created to cover some particular usecases and may be not suitable for everyone. We would welcome any contributions.",
+    "parent": 45733179,
+    "depth": 2
+  },
+  {
+    "id": 45733046,
+    "by": "pshirshov",
+    "timeISO": "2025-10-28T14:02:20.000Z",
+    "textPlain": "> when in reality this has nothing to do with itIt's a specific representation of JSON-like data structures, with an indexed deduplicated binary format and JSON encoders and decoders. Why \"nothing\"? It's all about it.Mostly it's not about streaming. More efficient streaming is a byproduct of the representation.> because you can detect { and } and { and ] and \" and ,You need a pushdown automaton for that. In case of SICK you don't need potentially unbounded accumulation for many (not all) usecases.> the values must be streamed first, before their location/pointersOnly to avoid accumulation. If you are fine with (some) accumulation, you can reorder. Also think about the updates.But again, streaming is a byproduct. This tool is an indexed binary deduplicating storage which does not require parsing and provides amortized O(1) access time.",
+    "parent": 45732886,
+    "depth": 2
+  },
+  {
+    "id": 45733124,
+    "by": "8organicbits",
+    "timeISO": "2025-10-28T14:09:18.000Z",
+    "textPlain": "I think this quote explains the efficient streaming:> There is an interesting observation: when a stream does not contain removal entries it can be safely reordered.So if I'm understanding, the example in the readme could be sent in reverse, allowing the client to immediately use root:0 and then string:2 while the rest streams in.I was looking for something like this, but my use case exceeds the 65k key limit for objects.",
+    "parent": 45732886,
+    "depth": 2
+  }
+]
