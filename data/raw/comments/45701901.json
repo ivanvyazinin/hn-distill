@@ -1,17 +1,17 @@
 [
   {
-    "id": 45726855,
-    "by": "socketcluster",
-    "timeISO": "2025-10-27T22:01:33.000Z",
-    "textPlain": "Even large companies are still grasping at straws when it comes to good code. Meanwhile there are articles I wrote years ago which explain clearly from first principles why the correct philosophy is \"Generic core, specific shell.\"I actually remember early in my career working for a small engineering/manufacturing prototyping firm which did its own software, there was a senior developer there who didn't speak very good English but he kept insisting that the \"Business layer\" should be on top. How right he was. I couldn't imagine how much wisdom and experience was packed in such simple, malformed sentences. Nothing else matters really. Functional vs imperative is a very minor point IMO, mostly a distraction.",
+    "id": 45729980,
+    "by": "urxvtcd",
+    "timeISO": "2025-10-28T07:19:48.000Z",
+    "textPlain": "I have written a small system in Elixir adhering to FCIS. Not used to the approach, I was pretty slow and sometimes it felt like jumping through hoops set by myself, lol, but I loved it, the code was very clean, testable, and refactorable. Highly recommend it as an exercise, it was surprising just how much state and IO can be pushed out.",
     "parent": 45701901,
     "depth": 1
   },
   {
-    "id": 45729722,
-    "by": "svat",
-    "timeISO": "2025-10-28T06:30:43.000Z",
-    "textPlain": "Another good blog post that is IMO in the same vein: https://lambdaisland.com/blog/2022-03-10-mechanism-vs-policy (“Improve your code by separating mechanism from policy”). This blends harmoniously with “functional core, imperative shell”—the \"mechanism\" code is the \"functional core\", and the \"policy\" code is the \"imperative shell\"—and also a little bit with John Ousterhout's idea in A Philosophy of Software Design of \"deep modules\" (in this context, don't put policy stuff, i.e. arbitrary decisions, inside the module).",
+    "id": 45726855,
+    "by": "socketcluster",
+    "timeISO": "2025-10-27T22:01:33.000Z",
+    "textPlain": "Even large companies are still grasping at straws when it comes to good code. Meanwhile there are articles I wrote years ago which explain clearly from first principles why the correct philosophy is \"Generic core, specific shell.\"I actually remember early in my career working for a small engineering/manufacturing prototyping firm which did its own software, there was a senior developer there who didn't speak very good English but he kept insisting that the \"Business layer\" should be on top. How right he was. I couldn't imagine how much wisdom and experience was packed in such simple, malformed sentences. Nothing else matters really. Functional vs imperative is a very minor point IMO, mostly a distraction.",
     "parent": 45701901,
     "depth": 1
   },
@@ -32,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45729182,
+    "by": "metalrain",
+    "timeISO": "2025-10-28T04:24:41.000Z",
+    "textPlain": "I like the idea but the example doesn't make much sense.In what application would you load all users into memory from database and then filter them with TypeScript functions? And that is the problem with the otherwise sound idea \"Functional core, imperative shell\". The shell penetrates the core.Maybe some filters don't match the way database is laid out, what if you have a lot of users, how do you deal with email batching and error handing?So you have to write the functional core with the side effect context in mind, for example using query builder or DSL that matches the database conventions. Then weave it with the intricacies of your email sender logic, maybe you want iterator over the right size batches of emails to send at once, can it send multiple batches in parallel?",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45728598,
     "by": "QuadmasterXLII",
     "timeISO": "2025-10-28T02:15:40.000Z",
@@ -44,6 +52,14 @@
     "by": "ryangibb",
     "timeISO": "2025-10-28T05:12:39.000Z",
     "textPlain": "The MirageOS project [0] is a great collection of functionality pure OCaml libraries that are useful outside of unikernels. I've used the DNS library with an effectful layer for various nameserver experiments [1].[0] https://mirage.io/[1] https://ryan.freumh.org/eon.html",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45728499,
+    "by": "CharlieDigital",
+    "timeISO": "2025-10-28T01:57:01.000Z",
+    "textPlain": "I wrote our AI agents code with a functional core + imperative shell and I have to agree: this approach yields much faster cycle times because you can run pure unit tests and it makes testing a lot easier.We have tens of thousands of lines of code for the platform and millions of workflow runs through them with no production errors coming from the core agent runtime which manages workflow state, variables, rehydration (suspend + resume).  All of the errors and fragility are at the imperative shell (usually integrations).Some of the examples in this thread I think get it wrong.    db.getUsers() |> filter(User.isExpired(Date.now()) |> map(generateExpiryEmail) |> email.bulkSend\n\nThis is already wrong because the call already starts with I/O; flip it and it makes a lot more sense.What you really want is (in TS, as an example):    bulkSend(\n      userFn: () => user[],\n      filterFn: (user: User) => bool,\n      expiryEmailProducerFn: (user: User) => Email,\n      senderFn: (email: Email) => string\n    ) \n\nThe effect of this is that the inner logic of `bulkSend` is completely decoupled from I/O and external logic.  Now there's no need for mocking or integration tests because it is possible to use pure unit tests by simply swapping out the functions.  I can easily unit test `bulkSend` because I don't need to mock anything or know about the inner behavior.I chose this approach because writing integration tests with LLM calls would make the testing run too slowly (and costly!) so most of the interaction with the LLM is simply a function passed into our core where there's a lot of logic of parsing and moving variables and state around.  You can see here that you no longer need mocks and no longer need to spy on calls because in the unit test, you can pass in whatever function you need and you can simply observe if the function was called correctly without a spy.It is easier than most folks think to adopt -- even in imperative languages -- by simply getting comfortable working ",
     "parent": 45701901,
     "depth": 1
   },
@@ -64,18 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45728499,
-    "by": "CharlieDigital",
-    "timeISO": "2025-10-28T01:57:01.000Z",
-    "textPlain": "I wrote our AI agents code with a functional core + imperative shell and I have to agree: this approach yields much faster cycle times because you can run pure unit tests and it makes testing a lot easier.We have tens of thousands of lines of code for the platform and millions of workflow runs through them with no production errors coming from the core agent runtime which manages workflow state, variables, rehydration (suspend + resume).  All of the errors and fragility are at the imperative shell (usually integrations).Some of the examples in this thread I think get it wrong.    db.getUsers() |> filter(User.isExpired(Date.now()) |> map(generateExpiryEmail) |> email.bulkSend\n\nThis is already wrong because the call already starts with I/O; flip it and it makes a lot more sense.What you really want is (in TS, as an example):    bulkSend(\n      userFn: () => user[],\n      filterFn: (user: User) => bool,\n      expiryEmailProducerFn: (user: User) => Email,\n      senderFn: (email: Email) => string\n    ) \n\nThe effect of this is that the inner logic of `bulkSend` is completely decoupled from I/O and external logic.  Now there's no need for mocking or integration tests because it is possible to use pure unit tests by simply swapping out the functions.  I can easily unit test `bulkSend` because I don't need to mock anything or know about the inner behavior.I chose this approach because writing integration tests with LLM calls would make the testing run too slowly (and costly!) so most of the interaction with the LLM is simply a function passed into our core where there's a lot of logic of parsing and moving variables and state around.  You can see here that you no longer need mocks and no longer need to spy on calls because in the unit test, you can pass in whatever function you need and you can simply observe if the function was called correctly without a spy.It is easier than most folks think to adopt -- even in imperative languages -- by simply getting comfortable working ",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
-    "id": 45729182,
-    "by": "metalrain",
-    "timeISO": "2025-10-28T04:24:41.000Z",
-    "textPlain": "I like the idea but the example doesn't make much sense.In what application would you load all users into memory from database and then filter them with TypeScript functions? And that is the problem with the otherwise sound idea \"Functional core, imperative shell\". The shell penetrates the core.Maybe some filters don't match the way database is laid out, what if you have a lot of users, how do you deal with email batching and error handing?So you have to write the functional core with the side effect context in mind, for example using query builder or DSL that matches the database conventions. Then weave it with the intricacies of your email sender logic, maybe you want iterator over the right size batches of emails to send at once, can it send multiple batches in parallel?",
+    "id": 45729722,
+    "by": "svat",
+    "timeISO": "2025-10-28T06:30:43.000Z",
+    "textPlain": "Another good blog post that is IMO in the same vein: https://lambdaisland.com/blog/2022-03-10-mechanism-vs-policy (“Improve your code by separating mechanism from policy”). This blends harmoniously with “functional core, imperative shell”—the \"mechanism\" code is the \"functional core\", and the \"policy\" code is the \"imperative shell\"—and also a little bit with John Ousterhout's idea in A Philosophy of Software Design of \"deep modules\" (in this context, don't put policy stuff, i.e. arbitrary decisions, inside the module).",
     "parent": 45701901,
     "depth": 1
   },
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45728732,
-    "by": "droningparrot",
-    "timeISO": "2025-10-28T02:40:36.000Z",
-    "textPlain": "Haskell practically encourages this style of programming. Any function that touches IO needs to wrap outputs with an appropriate monad. It becomes easier to push all IO out to the edges of your program and keep your core purely functional with no monads",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45727202,
     "by": "jackbravo",
     "timeISO": "2025-10-27T22:43:13.000Z",
     "textPlain": "Reminds me of this clean architecture talk with Python explains this very well: https://www.youtube.com/watch?v=DJtef410XaM",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45728732,
+    "by": "droningparrot",
+    "timeISO": "2025-10-28T02:40:36.000Z",
+    "textPlain": "Haskell practically encourages this style of programming. Any function that touches IO needs to wrap outputs with an appropriate monad. It becomes easier to push all IO out to the edges of your program and keep your core purely functional with no monads",
     "parent": 45701901,
     "depth": 1
   },
@@ -128,18 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45727289,
-    "by": "postepowanieadm",
-    "timeISO": "2025-10-27T22:53:51.000Z",
-    "textPlain": "Something like that was popular in perl world: functional core, oop external interface.",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45726940,
     "by": "semiinfinitely",
     "timeISO": "2025-10-27T22:11:21.000Z",
     "textPlain": "this looks like a post from 2007 im shocked at the date",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45727289,
+    "by": "postepowanieadm",
+    "timeISO": "2025-10-27T22:53:51.000Z",
+    "textPlain": "Something like that was popular in perl world: functional core, oop external interface.",
     "parent": 45701901,
     "depth": 1
   },
@@ -280,18 +288,18 @@
     "depth": 2
   },
   {
-    "id": 45729164,
-    "by": "sandeepkd",
-    "timeISO": "2025-10-28T04:19:56.000Z",
-    "textPlain": "On the same page here, read it multiple times to see if I can convince my mind, this is bit off in terms of reading the code as its being executed. There are high chances of people making mistakes over the time with such patterns. As usual there is always a trade off involved, readability is the one taking hit here.",
-    "parent": 45725583,
-    "depth": 2
-  },
-  {
     "id": 45728213,
     "by": "solid_fuel",
     "timeISO": "2025-10-28T01:01:05.000Z",
     "textPlain": "I may have gotten nerd sniped here, but I believe all of these examples so far have some subtle errors.  Using elixir syntax, I would think something like this covers most of the cases:    expiry_date = DateTime.now!(\"Etc/UTC\")\n\n    query = \n          from u in User,\n          where: \n            u.expiry_date > ^expiry_date \n            and u.expiry_email_sent == false,\n          select: u\n\n    MyAppRepo.all(query)\n    |> Enum.map(u, &generate_expiry_emails(&1, expiry_date))\n    |> Email.bulkSend()  # Returns {:ok, %User{}} or {:err, _reason}\n    |> Enum.filter(fn \n      {:ok, _} -> true\n      _ -> false\n    end)\n    |> Enum.map(fn {:ok, user} ->\n      User.changeset(user, %{expiry_email_sent: true})\n      |> Repo.update()\n    end)\n\nMainly a lot of these examples do the expiry filtering on the application side instead of the database side, and most would send expiry emails multiple times which may or may not be desired behavior, but definitely isn't the best behavior if you automatically rerun this job when it fails.----Edit: I actually see a few problems with this, too, since Email.bulkSend probably shouldn't know about which user each email is for.  I always see a small impedance mismatch with this sort of pipeline, since if we sent the emails individually it would be easy to wrap it in a small function that passes the user through on failure.If I were going to build a user contacting system like this I would probably want a separate table tracking emails sent, and I think that the email generation could be made pure, the function which actually sends email should probably update a record including a unique email_type id and a date last sent, providing an interface like: `send_email(user_query, email_id, email_template_function)`",
+    "parent": 45725583,
+    "depth": 2
+  },
+  {
+    "id": 45729164,
+    "by": "sandeepkd",
+    "timeISO": "2025-10-28T04:19:56.000Z",
+    "textPlain": "On the same page here, read it multiple times to see if I can convince my mind, this is bit off in terms of reading the code as its being executed. There are high chances of people making mistakes over the time with such patterns. As usual there is always a trade off involved, readability is the one taking hit here.",
     "parent": 45725583,
     "depth": 2
   },
@@ -320,11 +328,11 @@
     "depth": 2
   },
   {
-    "id": 45729158,
-    "by": "ccortes",
-    "timeISO": "2025-10-28T04:18:18.000Z",
-    "textPlain": "> In this article, being \"functional\" is just serving as a proxy for code quality.It is not, it is being very specific about what it means and what it is referring to",
-    "parent": 45728598,
+    "id": 45729977,
+    "by": "bad_username",
+    "timeISO": "2025-10-28T07:19:34.000Z",
+    "textPlain": "I am surprised by this example, for the same reason.Generally, performance is a top cause of abstraction leaks and the emergence of less-than-beautiful code. On an infinitely powerful machine it would be  easy and advisable to program using neat abstracrions, using purely \"the language of\" the business. Our machines are not infinitely powerful, and that is especially evident when larger data sets are involved. That's where, to achieve useful performance, you have to increasingly speak \"the language of\" the machine. This is inevitable, and the big part of the programmer's skill is to be able to speak both \"languages\",  to know when to speak which one, and produce readable code regardless.Database programming is a prime example. There's a reason, for example, why ORMs are very messy and constitute such excellent footguns: they try to gap this bridge, but inevitably fail in important ways. And having and ORM in the example would, most likely, violate the \"functional core\"  principle from the article.So it looks like the author accidentally presented a very good counterexample to their own idea. I like the idea though, and I would love to know how to resolve the issue.",
+    "parent": 45729182,
     "depth": 2
   },
   {
@@ -333,6 +341,14 @@
     "timeISO": "2025-10-28T04:33:03.000Z",
     "textPlain": "> In what application would you load all users into memory from database and then filter them with TypeScript functions?You’d be surprised! I have worked on a legacy PHP service which did something very similar",
     "parent": 45729182,
+    "depth": 2
+  },
+  {
+    "id": 45729158,
+    "by": "ccortes",
+    "timeISO": "2025-10-28T04:18:18.000Z",
+    "textPlain": "> In this article, being \"functional\" is just serving as a proxy for code quality.It is not, it is being very specific about what it means and what it is referring to",
+    "parent": 45728598,
     "depth": 2
   },
   {
@@ -368,14 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45726017,
-    "by": "KlayLay",
-    "timeISO": "2025-10-27T20:40:58.000Z",
-    "textPlain": "You don't need your programming language to implement generators for you. You can implement them yourself.",
-    "parent": 45725580,
-    "depth": 2
-  },
-  {
     "id": 45727427,
     "by": "semiquaver",
     "timeISO": "2025-10-27T23:11:53.000Z",
@@ -388,14 +396,6 @@
     "by": "diamondtin",
     "timeISO": "2025-10-27T22:47:49.000Z",
     "textPlain": "I saw Gary posted his blog link on twitter, and I really like his article. I really didn't expect it to surface up at this moment (2025), and it's referred from a google blog. :shrug:",
-    "parent": 45726940,
-    "depth": 2
-  },
-  {
-    "id": 45727348,
-    "by": "vietvu",
-    "timeISO": "2025-10-27T23:00:17.000Z",
-    "textPlain": "Me too. Aren't we already doing this? This is the basic I have been taught first.",
     "parent": 45726940,
     "depth": 2
   }
