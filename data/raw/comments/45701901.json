@@ -1,5 +1,13 @@
 [
   {
+    "id": 45731169,
+    "by": "novoreorx",
+    "timeISO": "2025-10-28T10:38:50.000Z",
+    "textPlain": "While I largely agree with the philosophy, the example provided is not very practical. The code snippet `getExpiredUsers(db.getUsers(), Date.now())` is unlikely to occur in real-life scenarios. No one would retrieve all users and then filter them within the program. Instead, it should be `db.getExpiredUsers(Date.now())`.We should never be too extreme on anything, otherwise it would turn good into bad.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45726855,
     "by": "socketcluster",
     "timeISO": "2025-10-27T22:01:33.000Z",
@@ -8,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45730132,
-    "by": "procaryote",
-    "timeISO": "2025-10-28T07:49:43.000Z",
-    "textPlain": "I like the general idea, but unless you're assuming some very clever language or even more clever ORM that fixes things implicitly, wouldn't    email.bulkSend(generateReminderEmails(getExpiredUsers(db.getUsers(), fiveDaysFromNow)));\n\nget all users and then filter out the few that will expire in 5 days, on a code level? That doesn't sound like it would scale",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45725501,
     "by": "hinkley",
     "timeISO": "2025-10-27T19:51:17.000Z",
     "textPlain": "Bertrand Meyer suggested another way to consider this that ends up in a similar place.For concerns of code complexity and verification, code that asks a question and code that acts on the answers should be separated. Asking can be done as pure code, and if done as such, only ever needs unit tests. The doing is the imperative part, and it requires much slower tests that are much more expensive to evolve with your changing requirements and system design.The one place this advice falls down is security - having functions that do things without verifying preconditions are exploitable, and they are easy to accidentally expose to third party code through the addition of subsequent features, even if initially they are unreachable. Sun biffed this way a couple of times with Java.But for non crosscutting concerns this advice can also be a step toward FC/IS, both in structuring the code and acclimating devs to the paradigm. Because you can start extracting pure code sections in place.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45730132,
+    "by": "procaryote",
+    "timeISO": "2025-10-28T07:49:43.000Z",
+    "textPlain": "I like the general idea, but unless you're assuming some very clever language or even more clever ORM that fixes things implicitly, wouldn't    email.bulkSend(generateReminderEmails(getExpiredUsers(db.getUsers(), fiveDaysFromNow)));\n\nget all users and then filter out the few that will expire in 5 days, on a code level? That doesn't sound like it would scale",
     "parent": 45701901,
     "depth": 1
   },
@@ -40,6 +48,22 @@
     "depth": 1
   },
   {
+    "id": 45728598,
+    "by": "QuadmasterXLII",
+    "timeISO": "2025-10-28T02:15:40.000Z",
+    "textPlain": "I would argue that the real key is to have a distinct core and shell, and to hold the core to a much higher standard of quality than the shell. In this article, being \"functional\" is just serving as a proxy for code quality.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45729414,
+    "by": "sherinjosephroy",
+    "timeISO": "2025-10-28T05:18:57.000Z",
+    "textPlain": "I like the idea of separating your “business logic” (the functional core) from the glue code that interacts with the outside world (the imperative shell). It makes the core easier to test and reason about.But also: the challenge is knowing where to draw the line. In real systems you’ll still have messy side-effects, transactions, performance constraints — so you might end up in a mixed bag anyway. The principle is solid, but the practical trade-offs matter.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
     "id": 45730650,
     "by": "rockyj",
     "timeISO": "2025-10-28T09:10:12.000Z",
@@ -56,26 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45728598,
-    "by": "QuadmasterXLII",
-    "timeISO": "2025-10-28T02:15:40.000Z",
-    "textPlain": "I would argue that the real key is to have a distinct core and shell, and to hold the core to a much higher standard of quality than the shell. In this article, being \"functional\" is just serving as a proxy for code quality.",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45728499,
     "by": "CharlieDigital",
     "timeISO": "2025-10-28T01:57:01.000Z",
     "textPlain": "I wrote our AI agents code with a functional core + imperative shell and I have to agree: this approach yields much faster cycle times because you can run pure unit tests and it makes testing a lot easier.We have tens of thousands of lines of code for the platform and millions of workflow runs through them with no production errors coming from the core agent runtime which manages workflow state, variables, rehydration (suspend + resume).  All of the errors and fragility are at the imperative shell (usually integrations).Some of the examples in this thread I think get it wrong.    db.getUsers() |> filter(User.isExpired(Date.now()) |> map(generateExpiryEmail) |> email.bulkSend\n\nThis is already wrong because the call already starts with I/O; flip it and it makes a lot more sense.What you really want is (in TS, as an example):    bulkSend(\n      userFn: () => user[],\n      filterFn: (user: User) => bool,\n      expiryEmailProducerFn: (user: User) => Email,\n      senderFn: (email: Email) => string\n    ) \n\nThe effect of this is that the inner logic of `bulkSend` is completely decoupled from I/O and external logic.  Now there's no need for mocking or integration tests because it is possible to use pure unit tests by simply swapping out the functions.  I can easily unit test `bulkSend` because I don't need to mock anything or know about the inner behavior.I chose this approach because writing integration tests with LLM calls would make the testing run too slowly (and costly!) so most of the interaction with the LLM is simply a function passed into our core where there's a lot of logic of parsing and moving variables and state around.  You can see here that you no longer need mocks and no longer need to spy on calls because in the unit test, you can pass in whatever function you need and you can simply observe if the function was called correctly without a spy.It is easier than most folks think to adopt -- even in imperative languages -- by simply getting comfortable working ",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
-    "id": 45729414,
-    "by": "sherinjosephroy",
-    "timeISO": "2025-10-28T05:18:57.000Z",
-    "textPlain": "I like the idea of separating your “business logic” (the functional core) from the glue code that interacts with the outside world (the imperative shell). It makes the core easier to test and reason about.But also: the challenge is knowing where to draw the line. In real systems you’ll still have messy side-effects, transactions, performance constraints — so you might end up in a mixed bag anyway. The principle is solid, but the practical trade-offs matter.",
     "parent": 45701901,
     "depth": 1
   },
@@ -88,18 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45729980,
-    "by": "urxvtcd",
-    "timeISO": "2025-10-28T07:19:48.000Z",
-    "textPlain": "I have written a small system in Elixir adhering to FCIS. Not used to the approach, I was pretty slow and sometimes it felt like jumping through hoops set by myself, lol, but I loved it, the code was very clean, testable, and refactorable. Highly recommend it as an exercise, it was surprising just how much state and IO can be pushed out.",
-    "parent": 45701901,
-    "depth": 1
-  },
-  {
     "id": 45727121,
     "by": "johnrob",
     "timeISO": "2025-10-27T22:34:05.000Z",
     "textPlain": "Functions can have complexity or side effects, but not both.",
+    "parent": 45701901,
+    "depth": 1
+  },
+  {
+    "id": 45729980,
+    "by": "urxvtcd",
+    "timeISO": "2025-10-28T07:19:48.000Z",
+    "textPlain": "I have written a small system in Elixir adhering to FCIS. Not used to the approach, I was pretty slow and sometimes it felt like jumping through hoops set by myself, lol, but I loved it, the code was very clean, testable, and refactorable. Highly recommend it as an exercise, it was surprising just how much state and IO can be pushed out.",
     "parent": 45701901,
     "depth": 1
   },
@@ -248,10 +256,26 @@
     "depth": 2
   },
   {
-    "id": 45730171,
-    "by": "lelanthran",
-    "timeISO": "2025-10-28T07:56:11.000Z",
-    "textPlain": "> the correct philosophy is \"Generic core, specific shell.\"> Nothing else matters really. Functional vs imperative is a very minor point IMO, mostly a distraction.I'm torn on this. This really is the faster way to higher quality.OTOH, if more developers knew this, I wouldn't be so much more faster when I create my systems for clients. I'd just be a \"normal 1x dev\".I like implementing features, sans AI-assistance, in my LoB applications faster than devs with Claude code doing so on their $FRAMEWORK.",
+    "id": 45731166,
+    "by": "zelphirkalt",
+    "timeISO": "2025-10-28T10:38:26.000Z",
+    "textPlain": "I would even go so far to say, that large companies even struggle with this more than small ones. The amount of people needing to know how to build things properly is larger than in a small company, where one knowledgeable engineer might already be sufficient. Too many cooks spoiling the soup(/broth?). And lots of people are cooking these days.",
+    "parent": 45726855,
+    "depth": 2
+  },
+  {
+    "id": 45731111,
+    "by": "zelphirkalt",
+    "timeISO": "2025-10-28T10:28:07.000Z",
+    "textPlain": "Non-functional core tends to become a buggy mess, with workarounds in the shell to account for those bugs, and then one needs to know about the nature of the core to correctly use the shell and so on. Functional core will lend itself very well to unit tests. Writing them will almost be trivial, when functional core is done right. Imperative shell is then less of an issue, because the blast radius of bugs is reduced to one usage of the core. The imperative shell should be kept as small as reasonably possible of course.",
+    "parent": 45726855,
+    "depth": 2
+  },
+  {
+    "id": 45731157,
+    "by": "spoiler",
+    "timeISO": "2025-10-28T10:35:52.000Z",
+    "textPlain": "In my head, and the way its describe the generic and specific are swapped. The core handles a specific, pure problem. The core is generic (do you get the data via http, databases, filesystem, etc) then becomes irrelevant to the core problem",
     "parent": 45726855,
     "depth": 2
   },
@@ -260,6 +284,14 @@
     "by": "foofoo12",
     "timeISO": "2025-10-27T22:13:33.000Z",
     "textPlain": "> Even large companies are still grasping at straws when it comes to good codeProbably many reasons for this, but what I've seen often is that once the code base has been degraded, it's a slippery slope downhill after that.Adding functionality often requires more hacks. The alternative is to fix the mess, but that's not part of the task at hand.",
+    "parent": 45726855,
+    "depth": 2
+  },
+  {
+    "id": 45730171,
+    "by": "lelanthran",
+    "timeISO": "2025-10-28T07:56:11.000Z",
+    "textPlain": "> the correct philosophy is \"Generic core, specific shell.\"> Nothing else matters really. Functional vs imperative is a very minor point IMO, mostly a distraction.I'm torn on this. This really is the faster way to higher quality.OTOH, if more developers knew this, I wouldn't be so much more faster when I create my systems for clients. I'd just be a \"normal 1x dev\".I like implementing features, sans AI-assistance, in my LoB applications faster than devs with Claude code doing so on their $FRAMEWORK.",
     "parent": 45726855,
     "depth": 2
   },
@@ -288,18 +320,18 @@
     "depth": 2
   },
   {
+    "id": 45725751,
+    "by": "Jtsummers",
+    "timeISO": "2025-10-27T20:15:58.000Z",
+    "textPlain": "Command-Query Separation is the term for that. However, I find this statement odd:> having functions that do things without verifying preconditions are exploitableWhy would you do this? The separation between commands and queries does not mean that executing a command must succeed. It can still fail. Put queries inside the commands (but do not return the query results, that's the job of the query itself) and branch based on the results. After executing a command which may fail, you can follow it with a query to see if it succeeded and, if not, why not.https://en.wikipedia.org/wiki/Command%E2%80%93query_separati...",
+    "parent": 45725501,
+    "depth": 2
+  },
+  {
     "id": 45730724,
     "by": "dawidloubser",
     "timeISO": "2025-10-28T09:21:21.000Z",
     "textPlain": "Often the answer to \"some very clever language\" is a lazy functional language like Haskell, where it's quite common to express problems naturally on infinite or near-infinite lists (of numbers, users, whatever...) in this way - and the language's lazy evaluation semantics effectively turning it into an efficient streaming data pipeline of sorts.But even if not, the example from the article is just hypothetical. `db.getUsers()` could be something that just retrieves rather efficient `[UserEmail, ExpiryTime]` pairs, and then you'd have to have a pretty enormous user base for it to not scale (a couple of million string/date pairs in memory should be no problem).",
-    "parent": 45730132,
-    "depth": 2
-  },
-  {
-    "id": 45730641,
-    "by": "spoiler",
-    "timeISO": "2025-10-28T09:09:15.000Z",
-    "textPlain": "I think it's just a contrived example. They probably wanted to show more than a single thing composing in a very short post given it's from their Toilet series.Replace it with `getUsers(filters)` or even a specialised function, and it starts making more sense.",
     "parent": 45730132,
     "depth": 2
   },
@@ -312,19 +344,19 @@
     "depth": 2
   },
   {
+    "id": 45730641,
+    "by": "spoiler",
+    "timeISO": "2025-10-28T09:09:15.000Z",
+    "textPlain": "I think it's just a contrived example. They probably wanted to show more than a single thing composing in a very short post given it's from their Toilet series.Replace it with `getUsers(filters)` or even a specialised function, and it starts making more sense.",
+    "parent": 45730132,
+    "depth": 2
+  },
+  {
     "id": 45730625,
     "by": "globular-toast",
     "timeISO": "2025-10-28T09:06:10.000Z",
     "textPlain": "Irrelevant. The \"bad\" code does it too. It's talking about something specific and not \"let's fix all the problems with this code\".",
     "parent": 45730132,
-    "depth": 2
-  },
-  {
-    "id": 45725751,
-    "by": "Jtsummers",
-    "timeISO": "2025-10-27T20:15:58.000Z",
-    "textPlain": "Command-Query Separation is the term for that. However, I find this statement odd:> having functions that do things without verifying preconditions are exploitableWhy would you do this? The separation between commands and queries does not mean that executing a command must succeed. It can still fail. Put queries inside the commands (but do not return the query results, that's the job of the query itself) and branch based on the results. After executing a command which may fail, you can follow it with a query to see if it succeeded and, if not, why not.https://en.wikipedia.org/wiki/Command%E2%80%93query_separati...",
-    "parent": 45725501,
     "depth": 2
   },
   {
@@ -364,38 +396,6 @@
     "by": "lmm",
     "timeISO": "2025-10-28T02:14:38.000Z",
     "textPlain": "> I have to wonder if programming should have kept pascals distinction between functions that only return one thing and procedures that go off and manipulate other things and do not give a return value.What you want is to use a language that has higher-kinded types and monads so that functions can have both effects (even multiple distinct kinds of effects) and return values, but the distinction between the two is clear, and when composing effectful functions you have to be explicit about how they compose. (You can still say \"run these three possibly-erroring functions in a pipeline and return either the successful result or an error from whichever one failed\", but you have to make a deliberate choice to).",
-    "parent": 45725583,
-    "depth": 2
-  },
-  {
-    "id": 45730415,
-    "by": "tags2k",
-    "timeISO": "2025-10-28T08:35:42.000Z",
-    "textPlain": "Since everyone's giving !opinions, in my C# DDD world you'd ideally be able to:  _unitOfWork.Begin();\n\n  var users = await _usersRepo.Load(u => u.LastLogin <= whateverDate);\n  users.CheckForExpiry();\n\n  _unitOfWork.Commit();\n\nThat then writes the \"send expiry email\" commands from the aggregate, to an outbox, which a worker then picks up to send. Simple, transactional domain logic.",
-    "parent": 45725583,
-    "depth": 2
-  },
-  {
-    "id": 45728213,
-    "by": "solid_fuel",
-    "timeISO": "2025-10-28T01:01:05.000Z",
-    "textPlain": "I may have gotten nerd sniped here, but I believe all of these examples so far have some subtle errors.  Using elixir syntax, I would think something like this covers most of the cases:    expiry_date = DateTime.now!(\"Etc/UTC\")\n\n    query = \n          from u in User,\n          where: \n            u.expiry_date > ^expiry_date \n            and u.expiry_email_sent == false,\n          select: u\n\n    MyAppRepo.all(query)\n    |> Enum.map(u, &generate_expiry_emails(&1, expiry_date))\n    |> Email.bulkSend()  # Returns {:ok, %User{}} or {:err, _reason}\n    |> Enum.filter(fn \n      {:ok, _} -> true\n      _ -> false\n    end)\n    |> Enum.map(fn {:ok, user} ->\n      User.changeset(user, %{expiry_email_sent: true})\n      |> Repo.update()\n    end)\n\nMainly a lot of these examples do the expiry filtering on the application side instead of the database side, and most would send expiry emails multiple times which may or may not be desired behavior, but definitely isn't the best behavior if you automatically rerun this job when it fails.----Edit: I actually see a few problems with this, too, since Email.bulkSend probably shouldn't know about which user each email is for.  I always see a small impedance mismatch with this sort of pipeline, since if we sent the emails individually it would be easy to wrap it in a small function that passes the user through on failure.If I were going to build a user contacting system like this I would probably want a separate table tracking emails sent, and I think that the email generation could be made pure, the function which actually sends email should probably update a record including a unique email_type id and a date last sent, providing an interface like: `send_email(user_query, email_id, email_template_function)`",
-    "parent": 45725583,
-    "depth": 2
-  },
-  {
-    "id": 45729164,
-    "by": "sandeepkd",
-    "timeISO": "2025-10-28T04:19:56.000Z",
-    "textPlain": "On the same page here, read it multiple times to see if I can convince my mind, this is bit off in terms of reading the code as its being executed. There are high chances of people making mistakes over the time with such patterns. As usual there is always a trade off involved, readability is the one taking hit here.",
-    "parent": 45725583,
-    "depth": 2
-  },
-  {
-    "id": 45725997,
-    "by": "tadfisher",
-    "timeISO": "2025-10-27T20:38:20.000Z",
-    "textPlain": "That's pretty hardcore, like you want to restrict the runtime substitution of function calls with their result values? Even Haskell doesn't go that far.Generally you'd distinguish which function call introduces the error with the function call stack, which would include the location of each function's call-site, so maybe the \"low-effort\" label is accurate. But I could see  a benefit in immediately knowing which functions are \"pure\" and \"impure\" in terms of manipulating non-local state. I don't think it changes any runtime behavior whatsoever, really, unless your runtime schedules function calls on an async queue and relies on the order in code for some reason.My verdict is, \"IDK\", but worth investigating!",
     "parent": 45725583,
     "depth": 2
   }
