@@ -3,7 +3,7 @@
     "id": 45734654,
     "by": "camel-cdr",
     "timeISO": "2025-10-28T16:03:55.000Z",
-    "textPlain": "A history about random number generation isn't complete without mentioning George Marsaglias work.He is responsible for multiply-with-carry, xorshift (the original version), KISS (a high quality generator predating the mersene twister) , the Ziggurat algorithm, dieharderFun fact, one of the earliest methods for generating random mumbers, the middle square method, actually still passes all moderm statistical randomness test suites, if you hook up a weyl sequence to it: https://arxiv.org/abs/1704.00358This, the middle square weyl sequence PRNG is my favoeite PRNG, because it's simple enough to implement from memory:    uint64_t x, weyl;\n    uint32_t msws(void) {\n        x = x * x + (weyl += CONSTANT);\n        return x = (x >> 32) | (x << 32);\n    }\n\nYou just take a number, square it, advace and add the weyl sequence to it amd finally swap the lower and upper bits, using the trucated result as the output.The CONSTANT is pretty much arbitrary, it just needs to be odd and not too regular.\nA good rule of thumb is to have no repeating or zero nibbles in each group of 4 bytes, e.g. 0xB5AD4ECEDA1CE2A9.",
+    "textPlain": "A history about random number generation isn't complete without mentioning George Marsaglias work.He is responsible for multiply-with-carry, xorshift (the original version), KISS (a high quality generator predating the mersene twister) , the Ziggurat algorithm, diehardFun fact, one of the earliest methods for generating random mumbers, the middle square method, actually still passes all moderm statistical randomness test suites, if you hook up a weyl sequence to it: https://arxiv.org/abs/1704.00358This, the middle square weyl sequence PRNG is my favoeite PRNG, because it's simple enough to implement from memory:    uint64_t x, weyl;\n    uint32_t msws(void) {\n        x = x * x + (weyl += CONSTANT);\n        return x = (x >> 32) | (x << 32);\n    }\n\nYou just take a number, square it, advace and add the weyl sequence to it amd finally swap the lower and upper bits, using the trucated result as the output.The CONSTANT is pretty much arbitrary, it just needs to be odd and not too regular.\nA good rule of thumb is to have no repeating or zero nibbles in each group of 4 bytes, e.g. 0xB5AD4ECEDA1CE2A9.",
     "parent": 45733412,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "ot",
     "timeISO": "2025-10-28T15:34:25.000Z",
     "textPlain": "> Since nobody had figured out any downsides to PCG's yet, everyone shrugged and said \"might as well just go with that then\", and that is where, as of 2019, the art currently stands. The problem is solved, and life is good.I wonder who \"everyone\" was, I'm not aware of many high-profile projects adopting PCG as a default. As of 2025, several high-profile runtimes (including all the major browsers) use xorshift variants [1]Is there a list of users of PCG?[1] See Adoption section in https://prng.di.unimi.it/",
+    "parent": 45733412,
+    "depth": 1
+  },
+  {
+    "id": 45733982,
+    "by": "derbOac",
+    "timeISO": "2025-10-28T15:17:47.000Z",
+    "textPlain": "Is there a good text on random number generation that someone on HN can recommend? I've read about various generators, pseudorandom and truly random, but those have always been scattered across various places, and I'm wondering if there's a good solid unified text on all of them, in terms of families of them and their underlying ideas, and their advantages and disadvantages.",
     "parent": 45733412,
     "depth": 1
   },
@@ -28,14 +36,6 @@
     "by": "olivia-banks",
     "timeISO": "2025-10-28T15:49:22.000Z",
     "textPlain": "I love how this is written. A lot of things nowadays on this site, if only vaguely, make me think it was written in part by an LLM, but this didn’t fall into that category. Great read, bravo!",
-    "parent": 45733412,
-    "depth": 1
-  },
-  {
-    "id": 45733982,
-    "by": "derbOac",
-    "timeISO": "2025-10-28T15:17:47.000Z",
-    "textPlain": "Is there a good text on random number generation that someone on HN can recommend? I've read about various generators, pseudorandom and truly random, but those have always been scattered across various places, and I'm wondering if there's a good solid unified text on all of them, in terms of families of them and their underlying ideas, and their advantages and disadvantages.",
     "parent": 45733412,
     "depth": 1
   },
@@ -64,18 +64,26 @@
     "depth": 1
   },
   {
-    "id": 45734790,
-    "by": "WarrenWeckesser",
-    "timeISO": "2025-10-28T16:14:29.000Z",
-    "textPlain": "The default bit generator in NumPy is PCG-64 [1].[1] https://numpy.org/doc/stable/reference/random/bit_generators...",
-    "parent": 45734233,
-    "depth": 2
-  },
-  {
     "id": 45734271,
     "by": "vlovich123",
     "timeISO": "2025-10-28T15:37:54.000Z",
     "textPlain": "It kind of doesn’t matter if there are users - there are people still stupidly using Mersenne Twister. The point is that PCG is better than xorshift and related in that family. That other high profile applications haven’t switched is besides the point that PCG is objectively better:> O'Neill proposes testing PRNGs by applying statistical tests to their reduced-size variants and determining the minimum number of internal state bits required to pass.[7] TestU01's BigCrush examines enough data to detect a period of 235, so even an ideal generator requires 36 bits of state to pass it. Some very poor generators can pass if given a large enough state;[8] passing despite a small state is a measure of an algorithm's quality, and shows how large a safety margin exists between that lower limit and the state size used in practical applications.\nPCG-RXS-M-XS (with 32-bit output) passes BigCrush with 36 bits of state (the minimum possible), PCG-XSH-RR (pcg32() above) requires 39, and PCG-XSH-RS (pcg32_fast() above) requires 49 bits of state. For comparison, xorshift*, one of the best of the alternatives, requires 40 bits of state,[5]: 19  and Mersenne twister fails despite 19937 bits of state.[9]",
+    "parent": 45734233,
+    "depth": 2
+  },
+  {
+    "id": 45735188,
+    "by": "camel-cdr",
+    "timeISO": "2025-10-28T16:42:37.000Z",
+    "textPlain": "> nobody had figured out any downsides to PCG's yetBTW, people have broken PCG already: https://hal.science/hal-02700791/file/main.pdfIt takes up to 20000 CPU hours to break the seed from 512 output bits with an unknown state, increment and multiplier. (the multiplier is usually fixed constant)",
+    "parent": 45734233,
+    "depth": 2
+  },
+  {
+    "id": 45734790,
+    "by": "WarrenWeckesser",
+    "timeISO": "2025-10-28T16:14:29.000Z",
+    "textPlain": "The default bit generator in NumPy is PCG-64 [1].[1] https://numpy.org/doc/stable/reference/random/bit_generators...",
     "parent": 45734233,
     "depth": 2
   },
