@@ -16,26 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45753628,
-    "by": "jeeybee",
-    "timeISO": "2025-10-29T21:58:43.000Z",
-    "textPlain": "If you like the “use Postgres until it breaks” approach, there’s a middle ground between hand-rolling and running Kafka/Redis/Rabbit: PGQueuer.PGQueuer is a small Python library that turns Postgres into a durable job queue using the same primitives discussed here — `FOR UPDATE SKIP LOCKED` for safe concurrent dequeue and `LISTEN/NOTIFY` to wake workers without tight polling. It’s for background jobs (not a Kafka replacement), and it shines when your app already depends on Postgres.Nice-to-haves without extra infra: per-entrypoint concurrency limits, retries/backoff, scheduling (cron-like), graceful shutdown, simple CLI install/migrations. If/when you truly outgrow it, you can move to Kafka with a clearer picture of your needs.Repo: https://github.com/janbjorge/pgqueuerDisclosure: I maintain PGQueuer.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45747975,
     "by": "vbezhenar",
     "timeISO": "2025-10-29T15:19:03.000Z",
     "textPlain": "How do you implement \"unique monotonically-increasing offset number\"?Naive approach with sequence (or serial type which uses sequence automatically) does not work. Transaction \"one\" gets number \"123\", transaction \"two\" gets number \"124\". Transaction \"two\" commits, now table contains \"122\", \"124\" rows and readers can start to process it. Then transaction \"one\" commits with its \"123\" number, but readers already past \"124\". And transaction \"one\" might never commit for various reasons (e.g. client just got power cut), so just waiting for \"123\" forever does not cut it.Notifications can help with this approach, but then you can't restart old readers (and you don't need monotonic numbers at all).",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45753693,
-    "by": "bmcahren",
-    "timeISO": "2025-10-29T22:05:02.000Z",
-    "textPlain": "A huge benefit of single-database operations at scale is point-in-time recovery for the entire system thereby not having to coordinate recovery points between data stores. Alternatively, you can treat your queue as volatile depending on the purpose.",
     "parent": 45747018,
     "depth": 1
   },
@@ -56,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45753628,
+    "by": "jeeybee",
+    "timeISO": "2025-10-29T21:58:43.000Z",
+    "textPlain": "If you like the “use Postgres until it breaks” approach, there’s a middle ground between hand-rolling and running Kafka/Redis/Rabbit: PGQueuer.PGQueuer is a small Python library that turns Postgres into a durable job queue using the same primitives discussed here — `FOR UPDATE SKIP LOCKED` for safe concurrent dequeue and `LISTEN/NOTIFY` to wake workers without tight polling. It’s for background jobs (not a Kafka replacement), and it shines when your app already depends on Postgres.Nice-to-haves without extra infra: per-entrypoint concurrency limits, retries/backoff, scheduling (cron-like), graceful shutdown, simple CLI install/migrations. If/when you truly outgrow it, you can move to Kafka with a clearer picture of your needs.Repo: https://github.com/janbjorge/pgqueuerDisclosure: I maintain PGQueuer.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45747981,
     "by": "ownagefool",
     "timeISO": "2025-10-29T15:19:17.000Z",
@@ -72,10 +64,26 @@
     "depth": 1
   },
   {
+    "id": 45753693,
+    "by": "bmcahren",
+    "timeISO": "2025-10-29T22:05:02.000Z",
+    "textPlain": "A huge benefit of single-database operations at scale is point-in-time recovery for the entire system thereby not having to coordinate recovery points between data stores. Alternatively, you can treat your queue as volatile depending on the purpose.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45747871,
     "by": "johnyzee",
     "timeISO": "2025-10-29T15:12:15.000Z",
     "textPlain": "Seems like you would at the very least need a fairly thick application layer on top of Postgres to make it look and act like a messaging system. At that point, seems like you have just built another messaging system.Unless you're a five man shop where everybody just agrees to use that one table, make sure to manage transactions right, cron job retention, YOLO clustering, etc. etc.Performance is probably last on the list of reasons to choose Kafka over Postgres.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45753855,
+    "by": "nchmy",
+    "timeISO": "2025-10-29T22:21:24.000Z",
+    "textPlain": "Seems like instead of a hand-rolled, polling Pub/sub, could instead do CDC instead with a golang logical replication/cdc library. There's surely various.Or just use NATS for queues and pubsub - dead simple, can embed in your Go app and does much more than Kafka",
     "parent": 45747018,
     "depth": 1
   },
@@ -128,14 +136,6 @@
     "depth": 1
   },
   {
-    "id": 45753602,
-    "by": "jackvanlightly",
-    "timeISO": "2025-10-29T21:56:04.000Z",
-    "textPlain": "> A 500 KB/s workload should not use KafkaThis is a simplistic take. Kafka isn't just about scale, it, like other messaging systems provide queue/streaming semantics for applications. Sure you can roll your own queue on a database for small use cases, but it adds complexity to the lives of developers. You can offload the burden of running Kafka by choosing a Kafka-as-a-service vendor, but you can't offload the additional work of the developer that comes from using a database as a queue.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45747675,
     "by": "jjice",
     "timeISO": "2025-10-29T14:58:11.000Z",
@@ -152,18 +152,18 @@
     "depth": 1
   },
   {
-    "id": 45751074,
-    "by": "nyrikki",
-    "timeISO": "2025-10-29T18:30:57.000Z",
-    "textPlain": "> The claim isn’t that Postgres is functionally equivalent to any of these specialized systems. The claim is that it handles 80%+ of their use cases with 20% of the development effort. (Pareto Principle)Lots of us that built systems when SQL was the only option, know that doesn’t hold overtime.SStable backed systems have their applications, and I have never seen dedicated Kafka teams like we used to have with DBAsWe have the tools to make decisions based on real tradeoffs.I highly recommend people dig into the appropriate tools to select vs making pre-selected products fit an unknown problem domain.Tools are tactics, not strategies, tactics should be changeable with the strategic needs.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748203,
     "by": "loftsy",
     "timeISO": "2025-10-29T15:33:06.000Z",
     "textPlain": "I am about to start a project. I know I want an event sourced architecture. That is, the system is designed around a queue, all actors push/pull into the queue. This article gives me some pause.Performance isn't a big deal for me. I had assumed that Kafka would give me things like decoupling, retry, dead-lettering, logging, schema validation, schema versioning, exactly once processing.I like Postgres, and obviously I can write a queue ontop of it, but it seems like quite a lot of effort?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45751074,
+    "by": "nyrikki",
+    "timeISO": "2025-10-29T18:30:57.000Z",
+    "textPlain": "> The claim isn’t that Postgres is functionally equivalent to any of these specialized systems. The claim is that it handles 80%+ of their use cases with 20% of the development effort. (Pareto Principle)Lots of us that built systems when SQL was the only option, know that doesn’t hold overtime.SStable backed systems have their applications, and I have never seen dedicated Kafka teams like we used to have with DBAsWe have the tools to make decisions based on real tradeoffs.I highly recommend people dig into the appropriate tools to select vs making pre-selected products fit an unknown problem domain.Tools are tactics, not strategies, tactics should be changeable with the strategic needs.",
     "parent": 45747018,
     "depth": 1
   },
@@ -184,18 +184,18 @@
     "depth": 1
   },
   {
-    "id": 45748671,
-    "by": "jasonthorsness",
-    "timeISO": "2025-10-29T16:01:42.000Z",
-    "textPlain": "Using a single DBMS for many purposes because it is so flexible and “already there” from an operations perspective is something I’ve seen over and over again. It usually goes wrong eventually with one workload/use screwing up others but maybe that’s fine and a normal part of scaling?I think a bigger issue is the DBMS themselves getting feature after feature and becoming bloated and unfocused. Add the thing to Postgres because it is convenient! At least Postgres has a decent plugin approach. But I think more use cases might be served by standalone products than by add-ons.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748076,
     "by": "dangoodmanUT",
     "timeISO": "2025-10-29T15:25:15.000Z",
     "textPlain": "96 cores to get 240MB/s is terrible. Redpanda can do this with like one or two cores",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748671,
+    "by": "jasonthorsness",
+    "timeISO": "2025-10-29T16:01:42.000Z",
+    "textPlain": "Using a single DBMS for many purposes because it is so flexible and “already there” from an operations perspective is something I’ve seen over and over again. It usually goes wrong eventually with one workload/use screwing up others but maybe that’s fine and a normal part of scaling?I think a bigger issue is the DBMS themselves getting feature after feature and becoming bloated and unfocused. Add the thing to Postgres because it is convenient! At least Postgres has a decent plugin approach. But I think more use cases might be served by standalone products than by add-ons.",
     "parent": 45747018,
     "depth": 1
   },
@@ -208,6 +208,14 @@
     "depth": 1
   },
   {
+    "id": 45748429,
+    "by": "dzonga",
+    "timeISO": "2025-10-29T15:46:20.000Z",
+    "textPlain": "what's not spoken about in the above article ?ease of use. in ruby If I want to use kafka I can use karafka. or redis streams via the redis library. likewise if kafka is too complex to run there's countless alternatives which work as well - hell even 0mq with client libraries.now with the postgres version I have to write my own stuff which I might not where it's gonna lead me.postgres is scalable, no one doubts that. but what people forget to mention is the ecosystem around certain tools.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45751841,
     "by": "mbo",
     "timeISO": "2025-10-29T19:30:29.000Z",
@@ -216,10 +224,10 @@
     "depth": 1
   },
   {
-    "id": 45748429,
-    "by": "dzonga",
-    "timeISO": "2025-10-29T15:46:20.000Z",
-    "textPlain": "what's not spoken about in the above article ?ease of use. in ruby If I want to use kafka I can use karafka. or redis streams via the redis library. likewise if kafka is too complex to run there's countless alternatives which work as well - hell even 0mq with client libraries.now with the postgres version I have to write my own stuff which I might not where it's gonna lead me.postgres is scalable, no one doubts that. but what people forget to mention is the ecosystem around certain tools.",
+    "id": 45753602,
+    "by": "jackvanlightly",
+    "timeISO": "2025-10-29T21:56:04.000Z",
+    "textPlain": "> A 500 KB/s workload should not use KafkaThis is a simplistic take. Kafka isn't just about scale, it, like other messaging systems provide queue/streaming semantics for applications. Sure you can roll your own queue on a database for small use cases, but it adds complexity to the lives of developers. You can offload the burden of running Kafka by choosing a Kafka-as-a-service vendor, but you can't offload the additional work of the developer that comes from using a database as a queue.",
     "parent": 45747018,
     "depth": 1
   },
@@ -264,14 +272,6 @@
     "depth": 1
   },
   {
-    "id": 45752722,
-    "by": "rjurney",
-    "timeISO": "2025-10-29T20:40:17.000Z",
-    "textPlain": "One bad message in a Kafka queue and guess what? The entire queue is down because it kills your workers over and over. To fix it? You have to resize the queue to zero, which means losing requests. This KILLS me. Jay Kreps says there is no reason it can't be fixed, but it never had been and this infuriates me because it happens so often :)",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748221,
     "by": "CuriouslyC",
     "timeISO": "2025-10-29T15:34:00.000Z",
@@ -280,18 +280,18 @@
     "depth": 1
   },
   {
-    "id": 45749637,
-    "by": "wagwang",
-    "timeISO": "2025-10-29T16:57:16.000Z",
-    "textPlain": "Isn't listen/notify absurdly slow and lock contentious",
+    "id": 45752722,
+    "by": "rjurney",
+    "timeISO": "2025-10-29T20:40:17.000Z",
+    "textPlain": "One bad message in a Kafka queue and guess what? The entire queue is down because it kills your workers over and over. To fix it? You have to resize the queue to zero, which means losing requests. This KILLS me. Jay Kreps says there is no reason it can't be fixed, but it never had been and this infuriates me because it happens so often :)",
     "parent": 45747018,
     "depth": 1
   },
   {
-    "id": 45752683,
-    "by": "lisbbb",
-    "timeISO": "2025-10-29T20:36:07.000Z",
-    "textPlain": "If you are doing high volume, there is no way that a SQL db is going to keep up.  I did a lot of work with Kafka but what we  constantly ran into was managing expectations--costs were higher, so the business needs to strongly justify why they need their big data toy, and joins are much harder, as well as data validation in real time.  It made for a frustrating experience most of the time--not due to the tech as much as dealing with people who don't understand the costs and benefits.On the major projects I worked on, we were \"instructed\" to use Kafka for, I guess, internal political reasons.  They already had Hadoop solutions that more or less worked, but the code was written by idiots in \"Spark/Scala\" (their favorite buzzword to act all high and mighty) and that code had zero tests (it was truly a \"test in prod\" situation there).  The Hadoop system was managed by people who would parcel out compute resources politically, as in, their friends got all they wanted while everyone else got basically none.  This was a major S&P company, Fortune 10, and the internal politics were abusive to say the least.",
+    "id": 45749637,
+    "by": "wagwang",
+    "timeISO": "2025-10-29T16:57:16.000Z",
+    "textPlain": "Isn't listen/notify absurdly slow and lock contentious",
     "parent": 45747018,
     "depth": 1
   },
@@ -316,6 +316,14 @@
     "by": "psadri",
     "timeISO": "2025-10-29T16:47:53.000Z",
     "textPlain": "A resource that would benefit the entire community is a set of ballpark figures for what kind of performance is \"normal\" given a particular hardware + data volume.  I know this is a hard problem because there is so much variation across workloads, but I think even order of magnitude ballparks would be useful.  For example, it could say things like:task: msg queuesoftware: kafkahardware: m7i.xlarge (vCPUs: 4 Memory: 16 GiB)payload: 2kb / msgpossible performance: ### - #### msgs / secondetc…So many times I've found myself wondering: is this thing behaving within an order of magnitude of a correctly setup version so that I can decide whether I should leave it alone or spend more time on it.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45752683,
+    "by": "lisbbb",
+    "timeISO": "2025-10-29T20:36:07.000Z",
+    "textPlain": "If you are doing high volume, there is no way that a SQL db is going to keep up.  I did a lot of work with Kafka but what we  constantly ran into was managing expectations--costs were higher, so the business needs to strongly justify why they need their big data toy, and joins are much harder, as well as data validation in real time.  It made for a frustrating experience most of the time--not due to the tech as much as dealing with people who don't understand the costs and benefits.On the major projects I worked on, we were \"instructed\" to use Kafka for, I guess, internal political reasons.  They already had Hadoop solutions that more or less worked, but the code was written by idiots in \"Spark/Scala\" (their favorite buzzword to act all high and mighty) and that code had zero tests (it was truly a \"test in prod\" situation there).  The Hadoop system was managed by people who would parcel out compute resources politically, as in, their friends got all they wanted while everyone else got basically none.  This was a major S&P company, Fortune 10, and the internal politics were abusive to say the least.",
     "parent": 45747018,
     "depth": 1
   },
@@ -380,14 +388,6 @@
     "by": "lumost",
     "timeISO": "2025-10-29T18:28:10.000Z",
     "textPlain": "I suspect the common issue with small scale projects is that it's not atypical for the engineers involved to perform a joint optimization of \"what will work well for this project\", and \"what will work well at my next project/job.\" Particularly in startups where the turnover/employer stability is poor - this is the optimal action for the engineers involved.Unless employees expect that their best rewards are from making their current project as simple and effective as possible - it is highly unlikely that the current project will be as simple as it could be.",
-    "parent": 45748795,
-    "depth": 2
-  },
-  {
-    "id": 45753115,
-    "by": "ozim",
-    "timeISO": "2025-10-29T21:13:05.000Z",
-    "textPlain": "Periodic polling of a DB gets bad pretty quick, queues are much better even on small scale.But then distributed queue is most likely not needed until you hit really humongous scale.",
     "parent": 45748795,
     "depth": 2
   },
