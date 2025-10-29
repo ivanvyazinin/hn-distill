@@ -8,6 +8,30 @@
     "depth": 1
   },
   {
+    "id": 45741990,
+    "by": "matthewaveryusa",
+    "timeISO": "2025-10-29T02:37:29.000Z",
+    "textPlain": "There's a section missing on the inclusion proof and what exactly the clients will be getting.If I understand this correctly each CA publishes a signed list of landmarks at some cadence (weekly)For the certs you get the landmark (a 256-bit hash) and the hashes along the merkle path to the leaf cert's hash. For a landmark that contains N certs, you need to include log2(N) * hash_len bytes and perform log2(N) hash computations.For a MTC signature that uses a 256bit hash and N=1 million that's about 20*32=620bytes.Is this the gist of it?I'm really curious about the math behind deciding the optimal landmark size and publishing cadence",
+    "parent": 45740214,
+    "depth": 1
+  },
+  {
+    "id": 45742007,
+    "by": "cryptonector",
+    "timeISO": "2025-10-29T02:38:55.000Z",
+    "textPlain": "I think MTC is best described as a new signature algorithm for signing certificates where the value is a Merkle tree inclusion proof.  This is quite clever.  I like it.",
+    "parent": 45740214,
+    "depth": 1
+  },
+  {
+    "id": 45741876,
+    "by": "tempay",
+    "timeISO": "2025-10-29T02:20:03.000Z",
+    "textPlain": "> All the information a client needs to validate a Merkle Tree Certificate can be disseminated out-of-band.The post didn't discuss it but naively this feels like it becomes a privacy issue?",
+    "parent": 45740214,
+    "depth": 1
+  },
+  {
     "id": 45741301,
     "by": "itopaloglu83",
     "timeISO": "2025-10-29T00:54:06.000Z",
@@ -24,6 +48,14 @@
     "depth": 1
   },
   {
+    "id": 45741897,
+    "by": "megous",
+    "timeISO": "2025-10-29T02:24:33.000Z",
+    "textPlain": "Ah cloudflare. But who will protect us against cloudflare???It's a privacy violating proxy after all.",
+    "parent": 45740214,
+    "depth": 1
+  },
+  {
     "id": 45740730,
     "by": "rvz",
     "timeISO": "2025-10-28T23:35:18.000Z",
@@ -32,10 +64,50 @@
     "depth": 1
   },
   {
+    "id": 45742053,
+    "by": "mcpherrinm",
+    "timeISO": "2025-10-29T02:47:29.000Z",
+    "textPlain": "Yeah. From the RFC draft:> If a new landmark is allocated every hour, signatureless certificate subtrees will span around 4,400,000 certificates, leading to 23 hashes in the inclusion proof, giving an inclusion proof size of 736 bytes, with no signatures.https://davidben.github.io/merkle-tree-certs/draft-davidben-...That's assuming 4.4 million certs per landmark, a bit bigger than your estimate.There's also a \"full certificate\" which includes signatures, for clients who don't have up-to-date landmarks. Those are big still, but if it's just for the occasional \"curl\" command, that's not the end of the world for many clients.",
+    "parent": 45741990,
+    "depth": 2
+  },
+  {
+    "id": 45742124,
+    "by": "codebje",
+    "timeISO": "2025-10-29T02:58:11.000Z",
+    "textPlain": "Using The Approved Set™ from your browser or OS carries no privacy issues: it's just another little bit of data your machine pulls down from some mothership periodically, along with everyone else. There's nothing distinguishing you from anyone else there.You may want to pull landmarks from CAs outside of The Approved Set™ for inclusion in what your machine trusts, and this means you'll need data from somewhere else periodically. All the usual privacy concerns over how you get what from where apply; if you're doing a web transaction a third party may be able to see your DNS lookup, your connection to port 443, and the amount of traffic you exchange, but they shouldn't be able to see what you asked for or what you go. Your OS or browser can snitch on you as normal, though.I don't personally see any new privacy threats, but I may not have considered all angles.",
+    "parent": 45741876,
+    "depth": 2
+  },
+  {
+    "id": 45742025,
+    "by": "cryptonector",
+    "timeISO": "2025-10-29T02:43:05.000Z",
+    "textPlain": "Vaguely.  Basically each CA will run one of these.  Relying parties (browsers) will need to fetch the Merkle tree heads periodically for at least the CAs that sign certificates for the sites the users browse, or maybe all of the WebPKI CAs rather than just those that sign certs for the visited sites.  There's on the order of 100 CAs for the whole web though, so knowledge that your browser fetched the MT heads for, say, 5 CAs, or even 1 CA, wouldn't leak much of anything about what specific sites the user is visiting.  Though if the user is visiting, say, China sites only, then you might see them only fetch the MT heads for CN, and then you might say \"aha!  it's a Chinese user\", or something, but... that's not a lot of information leaked, nor terribly useful.",
+    "parent": 45741876,
+    "depth": 2
+  },
+  {
+    "id": 45741907,
+    "by": "megous",
+    "timeISO": "2025-10-29T02:25:34.000Z",
+    "textPlain": "It would be ridiculous for cloudflare to discuss privacy issues. ;-)",
+    "parent": 45741876,
+    "depth": 2
+  },
+  {
     "id": 45741390,
     "by": "mcpherrinm",
     "timeISO": "2025-10-29T01:06:08.000Z",
     "textPlain": "Yes, the rest of the cryptography needs to be PQ-secure as well.But that's largely already true:The key exchange is now typically done with X25519MLKEM768, a hybrid of the traditional x25519 and ML-KEM-768, which is post-quantum secure.The exchanged keys typically AES-128 or AES-256 or ChaCha20.  These are likely to be much more secure against quantum computers as well (while they may be weakened, it is likely we have plenty of security margin left).Changing the key exchange or transport encryption protocols however is much, much easier, as it's negotiated and we can add new options right away.Certificates are the trickiest piece to change and upgrade, so even though Q-day is likely years away still, we need to start working on this now.Upgrading the key exchange has already happened because of the risk of capture-now, decrypt-later attacks, where you sniff traffic now and break it in the future.",
+    "parent": 45741301,
+    "depth": 2
+  },
+  {
+    "id": 45741859,
+    "by": "throwaway89201",
+    "timeISO": "2025-10-29T02:18:02.000Z",
+    "textPlain": "> Don’t we already just use the certificates to just negotiate the final encryption keys?No, since forward secret key agreement the certificate private key isn't involved at all in the secrecy of the session keys; the private key only proves the authenticity of the connection / the session keys.",
     "parent": 45741301,
     "depth": 2
   },
@@ -64,18 +136,18 @@
     "depth": 2
   },
   {
-    "id": 45741693,
-    "by": "HexDecOctBin",
-    "timeISO": "2025-10-29T01:50:15.000Z",
-    "textPlain": "> Although I could see China having access to it, which is problem.I can see USA having access to it, which is also a problem. Or any other government.",
-    "parent": 45741190,
-    "depth": 2
-  },
-  {
     "id": 45741332,
     "by": "mtoner23",
     "timeISO": "2025-10-29T00:58:01.000Z",
     "textPlain": "The fear is attackers are recording conversations today in the hopes that they can crack the encryption when we do have quantum computers in a few years",
+    "parent": 45741190,
+    "depth": 2
+  },
+  {
+    "id": 45741693,
+    "by": "HexDecOctBin",
+    "timeISO": "2025-10-29T01:50:15.000Z",
+    "textPlain": "> Although I could see China having access to it, which is problem.I can see USA having access to it, which is also a problem. Or any other government.",
     "parent": 45741190,
     "depth": 2
   },
@@ -93,6 +165,14 @@
     "timeISO": "2025-10-29T00:43:35.000Z",
     "textPlain": "Seems like you answered your own question",
     "parent": 45741190,
+    "depth": 2
+  },
+  {
+    "id": 45741922,
+    "by": "thhoooowww0101",
+    "timeISO": "2025-10-29T02:28:17.000Z",
+    "textPlain": "What's so special about cloudflare? Everyone from AWS to Akamai offers the same \"reverse proxy\" service.",
+    "parent": 45741897,
     "depth": 2
   },
   {
