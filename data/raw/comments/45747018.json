@@ -1,0 +1,266 @@
+[
+  {
+    "id": 45747991,
+    "by": "uberduper",
+    "timeISO": "2025-10-29T15:19:59.000Z",
+    "textPlain": "Has this person actually benchmarked kafka? The results they get with their 96 vcpu setup could be achieved with kafka on the 4 vcpu setup. Their results with PG are absurdly slow.If you don't need what kafka offers, don't use it. But don't pretend you're on to something with your custom 5k msg/s PG setup.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747736,
+    "by": "agentultra",
+    "timeISO": "2025-10-29T15:02:21.000Z",
+    "textPlain": "You have to be careful with the approach of using Postgres for everything. The way it locks tables and rows and the serialization levels it guarantees are not immediately obvious to a lot of folks and can become a serious bottle-neck for performance-sensitive workloads.I've been a happy Postgres user for several decades. Postgres can do a lot! But like anything, don't rely on maxims to do your engineering for you.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747975,
+    "by": "vbezhenar",
+    "timeISO": "2025-10-29T15:19:03.000Z",
+    "textPlain": "How do you implement \"unique monotonically-increasing offset number\"?Naive approach with sequence (or serial type which uses sequence automatically) does not work. Transaction \"one\" gets number \"123\", transaction \"two\" gets number \"124\". Transaction \"two\" commits, now table contains \"122\", \"124\" rows and readers can start to process it. Then transaction \"one\" commits with its \"123\" number, but readers already past \"124\". And transaction \"one\" might never commit for various reasons (e.g. client just got power cut), so just waiting for \"123\" forever does not cut it.Notifications can help with this approach, but then you can't restart old readers (and you don't need monotonic numbers at all).",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747981,
+    "by": "ownagefool",
+    "timeISO": "2025-10-29T15:19:17.000Z",
+    "textPlain": "The camps are wrong.There's poles.1. Is folks constantly adopting the new tech, whatever the motivation, and \n2. I learned a thing and shall never learn anything else, ever.Of course nobody exists actually on either pole, but the closer you are to either, the less pragmatic you are likely to be.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748054,
+    "by": "rudderdev",
+    "timeISO": "2025-10-29T15:24:10.000Z",
+    "textPlain": "Discussion on the same topic \"Postgres over Kafka\" - https://news.ycombinator.com/item?id=44445841",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748076,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-10-29T15:25:15.000Z",
+    "textPlain": "96 cores to get 240MB/s is terrible. Redpanda can do this with like one or two cores",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747818,
+    "by": "jimbokun",
+    "timeISO": "2025-10-29T15:08:07.000Z",
+    "textPlain": "For me the killer feature of Kafka was the ability to set the offset independently for each consumer.In my company most of our topics need to be consumed by more than one application/team, so this feature is a must have.  Also, the ability to move the offset backwards or forwards programmatically has been a life saver many times.Does Postgres support this functionality for their queues?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747664,
+    "by": "qsort",
+    "timeISO": "2025-10-29T14:57:18.000Z",
+    "textPlain": "I feel so seen lol. I work in data engineering and the first paragraph is me all the time. There are a lot of cool technologies (timeseries databases, vector databases, stuff like Synapse on Azure, \"lakehouses\" etc.) but they are mostly for edge cases.I'm not saying they're useless, but if I see something like that lying around, it's more likely that someone put it there based on vibes rather than an actual engineering need. Postgres is good enough for OpenAI, chances are it's good enough for you.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747871,
+    "by": "johnyzee",
+    "timeISO": "2025-10-29T15:12:15.000Z",
+    "textPlain": "Seems like you would at the very least need a fairly thick application layer on top of Postgres to make it look and act like a messaging system. At that point, seems like you have just built another messaging system.Unless you're a five man shop where everybody just agrees to use that one table, make sure to manage transactions right, cron job retention, YOLO clustering, etc. etc.Performance is probably last on the list of reasons to choose Kafka over Postgres.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747794,
+    "by": "honkostani",
+    "timeISO": "2025-10-29T15:06:48.000Z",
+    "textPlain": "Resume driven design, is running into the desert of moores plateau punishing the use of ever more useless abstractions. They get quieter, because their projects keep on dying after the revolutionary tech is introduced and they jump ship.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747675,
+    "by": "jjice",
+    "timeISO": "2025-10-29T14:58:11.000Z",
+    "textPlain": "This is a well written addition to the list of articles I need to reference on occasion to keep myself from using something new.Postgres really is a startup's best friend most of the time. Building a new product that's going to deal with a good bit of reporting that I began to look at OLAP DBs for, but had hesitation to leave PG for it. This kind of seals it for me (and of course the reference to the class \"Just Use Postgres for Everything\" post helps) that I should Just Use Postgres (R).On top of being easy to host and already being familiar with it, the resources out there for something like PG are near endless. Plus the team working on it is doing constant good work to make it even more impressive.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747870,
+    "by": "phpnode",
+    "timeISO": "2025-10-29T15:12:14.000Z",
+    "textPlain": "The more charitable version of this, rather than being explicit RDD, is that people often just don't understand their tools and are too quick to throw the baby out with the bath water in their search for silver bullets. I've seen companies invest millions of dollars in rearchitecting their systems to avoid performance problems that could be trivially solved by better use of indices and not relying on JSONB for everything. If you don't understand the tool it's easy to blame the tool itself.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747740,
+    "by": "guywithahat",
+    "timeISO": "2025-10-29T15:02:34.000Z",
+    "textPlain": "> One camp chases buzzwords\n> ...\n> The other camp chases common senseI don't really like these simplifications. Like one group obviously isn't just dumb, they're doing things for reasons you maybe don't understand. I don't know enough about data science to make a call, but I'm guessing there were reasons to use Kafka due to current hardware limits or scalability concerns, and while the issues may not be as present today that doesn't mean they used Kafka just because they heard a new word and wanted to repeat it.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747929,
+    "by": "odie5533",
+    "timeISO": "2025-10-29T15:15:47.000Z",
+    "textPlain": "How fast is failover?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747723,
+    "by": "cpursley",
+    "timeISO": "2025-10-29T15:01:32.000Z",
+    "textPlain": "Related: https://www.pgflow.devIt's built on pgmq and not married to supabase (nearly everything is in the database).Postgres is enough.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747796,
+    "by": "alecco",
+    "timeISO": "2025-10-29T15:06:52.000Z",
+    "textPlain": "Click-bait title.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747667,
+    "by": "zer00eyz",
+    "timeISO": "2025-10-29T14:57:36.000Z",
+    "textPlain": "> Should You Use Postgres? Most of the time - yes. You should always default to Postgres until the constraints prove you wrong.Kafka, GraphQL... These are the two technology's where my first question is always this: Does the person who championed/lead this project still work here?The answer is almost always \"no, they got a new job after we launched\".Resume Architecture is a real thing. Meanwhile the people left behind have to deal with a monster...",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747748,
+    "by": "sneilan1",
+    "timeISO": "2025-10-29T15:02:58.000Z",
+    "textPlain": "I'm starting to like mongodb a lot more given the python library mongomock. I find it wonderful to create tests that run my queries against mongo in code before I deploy them. Yes, mongo has a lot of quirks and you have to know aws networking to set it up with your vpc so you don't get nailed with egress costs. And it's not the same query patterns and some queries are harder and you have maintain your own schemas. But the ability to test mongo code with mongomock w/o having to run your own mongo server is SO VALUABLE. And yes, there are edge cases with mongomock not supporting something but the library is open source and pretty easy to modify. And it fails loudly which is super helpful. So if something is not supported you'll know. Maybe you might find a real nasty feature that's hard to implement but then just use a repository pattern like you would for testing postgres code in your application.https://github.com/mongomock/mongomock\nExtrapolating from my personal usage of this library to others, I'm starting to think that mongodb's 25 billion dollar valuation is partially based on this open source package :)",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747801,
+    "by": "sneilan1",
+    "timeISO": "2025-10-29T15:07:12.000Z",
+    "textPlain": "Yes, performance can be a big issue with postgres. And vertical scaling can really put a damper on things when you have a major traffic hit. Using it for kafka is misunderstanding the one of the great uses of kafka which is to help deal with traffic bursts. All of a sudden your postgres server is overwhelmed and the kafka server would be fine.",
+    "parent": 45747736,
+    "depth": 2
+  },
+  {
+    "id": 45747980,
+    "by": "fukka42",
+    "timeISO": "2025-10-29T15:19:15.000Z",
+    "textPlain": "My strategy is to use postgres first. Get the idea off the ground and switch when postgres becomes the bottleneck.It often doesn't.",
+    "parent": 45747736,
+    "depth": 2
+  },
+  {
+    "id": 45748097,
+    "by": "wosined",
+    "timeISO": "2025-10-29T15:26:24.000Z",
+    "textPlain": "I am the third pole: 3. Everything we have currently sucks and what is new will suck for some hitherto unknown reason.",
+    "parent": 45747981,
+    "depth": 2
+  },
+  {
+    "id": 45748057,
+    "by": "Jupe",
+    "timeISO": "2025-10-29T15:24:14.000Z",
+    "textPlain": "Isn't it just a matter of having each consumer use their own offset? I mean if the queue table is sequentially or time-indexed, the consumer just provides a smaller/earlier key to accomplish the offset?\n(Maybe I'm missing something here?)",
+    "parent": 45747818,
+    "depth": 2
+  },
+  {
+    "id": 45747808,
+    "by": "sumtechguy",
+    "timeISO": "2025-10-29T15:07:29.000Z",
+    "textPlain": "Kafka and other message systems like it have their uses.  But sometimes all you need is just need a database.  Now you start doing realtime streaming and notifications and event type things a messaging system is good.  You can even back it up with a boring database.  Would I start with kafka?  Probably not.  I would start with a boring databsee and then if if my bashing on the db over and over saying 'have you changed' doesnt work as good anymore then you put in a messaging system.",
+    "parent": 45747740,
+    "depth": 2
+  },
+  {
+    "id": 45748083,
+    "by": "sitestable",
+    "timeISO": "2025-10-29T15:25:46.000Z",
+    "textPlain": "The best architecture decision is the one that's still maintainable when the person who championed it leaves. Always pretend the person who maintains a project after you knows where you live and all that.",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747999,
+    "by": "bencyoung",
+    "timeISO": "2025-10-29T15:20:30.000Z",
+    "textPlain": "Kafka is great tech, never sure why people have an issue with it. Would I use it all the time? No, but where it's useful, it's really useful, and opens up whole patterns that are hard to implement other ways",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747806,
+    "by": "forgetfulness",
+    "timeISO": "2025-10-29T15:07:25.000Z",
+    "textPlain": "We’re all passing through our jobs, the value of the solutions remains in the hands of the shareholders, if you don’t try to squeeze some long-term value for your resume and long-term employability, you’re assuming a significant opportunity cost on their behalfThey’ll be fine if you made something that works, even if it was a bit faddish, make sure you take care of yourself along the way (they won’t)",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747893,
+    "by": "Groxx",
+    "timeISO": "2025-10-29T15:13:53.000Z",
+    "textPlain": "having never hosted a GraphQL service, but I can see many obvious room for problems:is there some reason GraphQL gets so much hate?  it always feels to me like it's mostly just a normal RPC system but with some incredibly useful features (pipelining, and super easy to not request data you don't need), with obvious perf issues in code and obvious room for perf abuse because it's easy to allow callers to do N+1 nonsense.so I can see why it's not popular to get stuck with for public APIs unless you have infinite money, it's relatively wide open for abuse, but private seems pretty useful because you can just smack the people abusing it.  or is it more due to specific frameworks being frustrating, or stuff like costly parsing and serialization and difficult validation?",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747751,
+    "by": "darkstar_16",
+    "timeISO": "2025-10-29T15:03:04.000Z",
+    "textPlain": "GraphQL sure, but I'm not sure I'd put kafka in the same bucket. It is a nice technology that has it's use in some cases, where postgresql would not work. It is also something a small team should not start with. Start with postgres and then move on to something else when the need arises.",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747842,
+    "by": "janwijbrand",
+    "timeISO": "2025-10-29T15:10:09.000Z",
+    "textPlain": "\"resume\" as in \"resumé\" not as in \"begin again or continue after a pause or interruption\" - it took me longer than I care to admit to get that.",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45747745,
+    "by": "kvdveer",
+    "timeISO": "2025-10-29T15:02:47.000Z",
+    "textPlain": "To be fair, this is true for all technologically interesting solutions, even when they use postgres. People championing novel solutions typically leave after the window for creativity has closed.",
+    "parent": 45747667,
+    "depth": 2
+  },
+  {
+    "id": 45748060,
+    "by": "philipallstar",
+    "timeISO": "2025-10-29T15:24:25.000Z",
+    "textPlain": "You can also do this with sqlite, running an in-memory sqlite is lightning fast and I don't think there are any edge cases. Obviously doesn't work for everything, but when sqlite is possible, it's great!",
+    "parent": 45747748,
+    "depth": 2
+  },
+  {
+    "id": 45747841,
+    "by": "candiddevmike",
+    "timeISO": "2025-10-29T15:10:02.000Z",
+    "textPlain": "Curious why you think the risk of edge cases from mocking is a worthwhile trade off vs the relatively low complexity of setting up a container to test against?",
+    "parent": 45747748,
+    "depth": 2
+  },
+  {
+    "id": 45747840,
+    "by": "pphysch",
+    "timeISO": "2025-10-29T15:10:00.000Z",
+    "textPlain": "Or just use devcontainers and have an actual Postgres DB to test against? I've even done this on a Chromebook. This is a solved problem.",
+    "parent": 45747748,
+    "depth": 2
+  }
+]
