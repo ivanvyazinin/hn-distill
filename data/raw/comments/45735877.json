@@ -16,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45743268,
+    "by": "Panzerschrek",
+    "timeISO": "2025-10-29T06:19:02.000Z",
+    "textPlain": "Great effort, but I find the whole idea somewhat flawed. If one needs speed, he can't use this C implementation, because it's several times slower. If speed isn't important, why not just using a memory safe language? And if both are important, why not using Rust?Recompiling existing software written in C using Fil-C isn't also a great idea, since some modifications are likely needed, at least for fixing bugs found with usage of Fil-C. And after these bugs are fixed, why continue using Fil-C?",
+    "parent": 45735877,
+    "depth": 1
+  },
+  {
+    "id": 45743019,
+    "by": "ridiculous_fish",
+    "timeISO": "2025-10-29T05:38:15.000Z",
+    "textPlain": "Extraordinary project. I had several questions which I believe I have answered for myself (pizlonator please correct if wrong):1. How do we prevent loading a bogus lower through misaligned store or load?Answer: Misaligned pointer load/stores are trapped; this is simply not allowed.2. How are pointer stores through a pointer implemented (e.g. `*(char **)p = s`) - does the runtime have to check if *p is \"flight\" or \"heap\" to know where to store the lower?Answer: no. Flight (i.e. local) pointers whose address is taken are not literally implemented as two adjacent words; rather the call frame is allocated with the same object layout as a heap object. The flight pointer is its \"intval\" and its paired \"lower\" is at the same offset in the \"aux\" allocation (presumably also allocated as part of the frame?).3. How are use-after-return errors prevented? Say I store a local pointer in a global variable and then return. Later, I call a new function which overwrites the original frame - can't I get a bogus `lower` this way?Answer: no. Call frames are allocated by the GC, not the usual C stack. The global reference will keep the call frame alive.That leads to the following program, which definitely should not work, and yet does. ~Amazing~ Unbelievable:    #include <stdio.h>\n    \n    char *bottles[100];\n    \n    __attribute__((noinline))\n    void beer(int count) {\n        char buf[64];\n        sprintf(buf, \"%d bottles of beer on the wall\", count);\n        bottles[count] = buf;\n    }\n    \n    int main(void) {\n        for (int i=0; i < 100; i++) beer(i);\n        for (int i=99; i >= 0; i--) puts(bottles[i]);\n    }",
+    "parent": 45735877,
+    "depth": 1
+  },
+  {
     "id": 45736476,
     "by": "gnabgib",
     "timeISO": "2025-10-28T18:02:20.000Z",
@@ -28,6 +44,14 @@
     "by": "nextaccountic",
     "timeISO": "2025-10-28T22:53:10.000Z",
     "textPlain": "Somewhat related, safe C++ proposal is not being continuedhttps://news.ycombinator.com/item?id=45234460",
+    "parent": 45735877,
+    "depth": 1
+  },
+  {
+    "id": 45743013,
+    "by": "braggerxyz",
+    "timeISO": "2025-10-29T05:37:14.000Z",
+    "textPlain": "Every time I read C and memory safety, I just think Golang. Especially for user space",
     "parent": 45735877,
     "depth": 1
   },
@@ -56,18 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45742576,
-    "by": "Cloudef",
-    "timeISO": "2025-10-29T04:19:41.000Z",
-    "textPlain": "Yeah, I was thinking nix will be probably one of the first things that can easily adapt fil-c as it already packages in a way that allows different packages to be completely independent of each other, thus fil-c's ABI compatibility does not matter. I assume other targets will be mostly enterprise distros where the perf hit and source compatibility issues are less of a concern, and memory safety is absolutely critical.Fil-c compiled flatpaks might be a interesting target as well for normal desktop users. (e.g. running a browser)",
-    "parent": 45739750,
-    "depth": 2
-  },
-  {
     "id": 45741404,
     "by": "yjftsjthsd-h",
     "timeISO": "2025-10-29T01:07:47.000Z",
     "textPlain": "That is super cool, and I will probably start running it on at least a test box shortly.How does python work? Of course I can just add filc.python to my system, but if I `python3 -m pip install whatever` will it just rebuild any C modules with the fil-c compiler?",
+    "parent": 45739750,
+    "depth": 2
+  },
+  {
+    "id": 45742576,
+    "by": "Cloudef",
+    "timeISO": "2025-10-29T04:19:41.000Z",
+    "textPlain": "Yeah, I was thinking nix will be probably one of the first things that can easily adapt Fil-C as it already packages in a way that allows different packages to be completely independent of each other, thus Fil-C's ABI compatibility does not matter. I assume other targets will be mostly enterprise distros where the perf hit and source compatibility issues are less of a concern, and memory safety is absolutely critical.Fil-C compiled flatpaks might be a interesting target as well for normal desktop users. (e.g. running a browser)I wonder if GPU graphics are possible in Fil-C land? Perhaps only if whole mesa stack is compiled using Fil-C as well, limiting GPU use to open drivers?",
     "parent": 45739750,
     "depth": 2
   },
@@ -101,6 +125,30 @@
     "timeISO": "2025-10-29T02:49:00.000Z",
     "textPlain": "Softbound + CETS was one of the old attempts I liked:https://people.cs.rutgers.edu/~santosh.nagarakatte/softbound...CCured was another:https://people.eecs.berkeley.edu/~necula/Papers/ccured_popl0...",
     "parent": 45738981,
+    "depth": 2
+  },
+  {
+    "id": 45743294,
+    "by": "mrunix",
+    "timeISO": "2025-10-29T06:23:14.000Z",
+    "textPlain": "Most software works flawlessly without modifications on Fil-C, the performance isn't *that* bad and there are applications where security is more important than performance (for example military applications)",
+    "parent": 45743268,
+    "depth": 2
+  },
+  {
+    "id": 45743132,
+    "by": "jibal",
+    "timeISO": "2025-10-29T05:55:25.000Z",
+    "textPlain": "Hmmm ... there's a danger here that people will test their programs compiled with Fil-C and think that they are safe to compile with a \"normal\" compiler. I would hope for an option to flag any undefined behavior.",
+    "parent": 45743019,
+    "depth": 2
+  },
+  {
+    "id": 45743145,
+    "by": "thomasmg",
+    "timeISO": "2025-10-29T05:57:29.000Z",
+    "textPlain": "Go programs are not fully memory-safe if they use multiple treads, due to possible data races with fat pointers: https://news.ycombinator.com/item?id=44672003",
+    "parent": 45743013,
     "depth": 2
   },
   {
