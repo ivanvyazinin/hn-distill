@@ -8,10 +8,42 @@
     "depth": 1
   },
   {
+    "id": 45748795,
+    "by": "munchbunny",
+    "timeISO": "2025-10-29T16:08:16.000Z",
+    "textPlain": "My general opinion, off the cuff, from having worked at both small (hundreds of events per hour) and large (trillions of events per hour) scales for these sorts of problems:1. Do you really need a queue? (Alternative: periodic polling of a DB)2. What's your event volume and can it fit on one node for the foreseeable future, or even serverless compute (if not too expensive)? (Alternative: lightweight single-process web service, or several instances, on one node.)3. If it can't fit on one node, do you really need a distributed queue? (Alternative: good ol' load balancing and REST API's, maybe with async semantics and retry semantics)4. If you really do need a distributed queue, then you may as well use a distributed queue, such as Kafka. Even if you take on the complexity of managing a Kafka cluster, the programming and performance semantics are simpler to reason about than trying to shoehorn a distributed queue onto a SQL DB.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45749137,
+    "by": "sc68cal",
+    "timeISO": "2025-10-29T16:27:55.000Z",
+    "textPlain": "> Postgres doesn’t seem to have any popular libraries for pub-sub9 use cases, so I had to write my own.Ok so instead of running Kafka, we're going to spend development cycles building our own?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45747736,
     "by": "agentultra",
     "timeISO": "2025-10-29T15:02:21.000Z",
     "textPlain": "You have to be careful with the approach of using Postgres for everything. The way it locks tables and rows and the serialization levels it guarantees are not immediately obvious to a lot of folks and can become a serious bottle-neck for performance-sensitive workloads.I've been a happy Postgres user for several decades. Postgres can do a lot! But like anything, don't rely on maxims to do your engineering for you.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45749150,
+    "by": "8cvor6j844qw_d6",
+    "timeISO": "2025-10-29T16:28:35.000Z",
+    "textPlain": "> Should You Use Postgres?> Most of the time - yes. You should always default to Postgres until the constraints prove you wrong.Interesting.I've also been by my seniors that I should go with PostgreSQL by default unless I have a good justification not to.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45749180,
+    "by": "heyitsdaad",
+    "timeISO": "2025-10-29T16:29:50.000Z",
+    "textPlain": "If the only tool you know is a hammer, everything starts looking like a nail.",
     "parent": 45747018,
     "depth": 1
   },
@@ -24,26 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45747981,
-    "by": "ownagefool",
-    "timeISO": "2025-10-29T15:19:17.000Z",
-    "textPlain": "The camps are wrong.There's poles.1. Is folks constantly adopting the new tech, whatever the motivation, and \n2. I learned a thing and shall never learn anything else, ever.Of course nobody exists actually on either pole, but the closer you are to either, the less pragmatic you are likely to be.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45748054,
-    "by": "rudderdev",
-    "timeISO": "2025-10-29T15:24:10.000Z",
-    "textPlain": "Discussion on the same topic \"Postgres over Kafka\" - https://news.ycombinator.com/item?id=44445841",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45748076,
-    "by": "dangoodmanUT",
-    "timeISO": "2025-10-29T15:25:15.000Z",
-    "textPlain": "96 cores to get 240MB/s is terrible. Redpanda can do this with like one or two cores",
+    "id": 45749031,
+    "by": "Copenjin",
+    "timeISO": "2025-10-29T16:22:28.000Z",
+    "textPlain": "I'm not really convinced by the comment on NOTIFY instead of the inferior (at least in theory) polling, I expect the global queue if it's really global to be only a temporary location to collect notifications before sending them and not a bottleneck. Never did any benchmark with PG or Oracle (that has a similar feature) but I expect that depending on the polling frequency and average amount of updates each solution could be the best depending on the circumstances.",
     "parent": 45747018,
     "depth": 1
   },
@@ -56,10 +72,26 @@
     "depth": 1
   },
   {
-    "id": 45747664,
-    "by": "qsort",
-    "timeISO": "2025-10-29T14:57:18.000Z",
-    "textPlain": "I feel so seen lol. I work in data engineering and the first paragraph is me all the time. There are a lot of cool technologies (timeseries databases, vector databases, stuff like Synapse on Azure, \"lakehouses\" etc.) but they are mostly for edge cases.I'm not saying they're useless, but if I see something like that lying around, it's more likely that someone put it there based on vibes rather than an actual engineering need. Postgres is good enough for OpenAI, chances are it's good enough for you.",
+    "id": 45747981,
+    "by": "ownagefool",
+    "timeISO": "2025-10-29T15:19:17.000Z",
+    "textPlain": "The camps are wrong.There's poles.1. Is folks constantly adopting the new tech, whatever the motivation, and \n2. I learned a thing and shall never learn anything else, ever.Of course nobody exists actually on either pole, but the closer you are to either, the less pragmatic you are likely to be.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748622,
+    "by": "losvedir",
+    "timeISO": "2025-10-29T15:58:31.000Z",
+    "textPlain": "Maybe I missed it in the design here, but this pseudo-Kafka Postgres implementation doesn't really handle consumer groups very well. The great thing about Kafka consumer groups is it makes it easy to spread the load over several instances running your service. They'll all connect using the same group, and different partitions will be assigned to the different instances. As you scale up or down, the partition responsibilities will be updated accordingly.You need some sort of server-side logic to manage that, and the consumer heartbeats, and generation tracking, to make sure that only the \"correct\" instances can actually commit the new offsets. Distributed systems are hard, and Kafka goes through a lot of trouble to ensure that you don't fail to process a message.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748251,
+    "by": "misja111",
+    "timeISO": "2025-10-29T15:35:40.000Z",
+    "textPlain": "> One camp chases buzzwords .. the other common senseHow is it common sense to try to re-implement Kafka in Posgres?\nYou probably need something similar but more simple. Then implement that! But if you really need something like Kafka, then .. use Kafka!IMO the author is now making the same mistake as some Kafka evangelists that try to implement a database in Kafka.",
     "parent": 45747018,
     "depth": 1
   },
@@ -68,6 +100,38 @@
     "by": "johnyzee",
     "timeISO": "2025-10-29T15:12:15.000Z",
     "textPlain": "Seems like you would at the very least need a fairly thick application layer on top of Postgres to make it look and act like a messaging system. At that point, seems like you have just built another messaging system.Unless you're a five man shop where everybody just agrees to use that one table, make sure to manage transactions right, cron job retention, YOLO clustering, etc. etc.Performance is probably last on the list of reasons to choose Kafka over Postgres.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748258,
+    "by": "this_user",
+    "timeISO": "2025-10-29T15:36:01.000Z",
+    "textPlain": "The real two camps seem to be:1) People constantly chasing the latest technology with no regard for whether it's appropriate for the situation.2) People constantly trying to shoehorn their favourite technology into everything with no regard for whether it's appropriate for the situation.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747664,
+    "by": "qsort",
+    "timeISO": "2025-10-29T14:57:18.000Z",
+    "textPlain": "I feel so seen lol. I work in data engineering and the first paragraph is me all the time. There are a lot of cool technologies (timeseries databases, vector databases, stuff like Synapse on Azure, \"lakehouses\" etc.) but they are mostly for edge cases.I'm not saying they're useless, but if I see something like that lying around, it's more likely that someone put it there based on vibes rather than an actual engineering need. Postgres is good enough for OpenAI, chances are it's good enough for you.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748671,
+    "by": "jasonthorsness",
+    "timeISO": "2025-10-29T16:01:42.000Z",
+    "textPlain": "Using a single DBMS for many purposes because it is so flexible and “already there” from an operations perspective is something I’ve seen over and over again. It usually goes wrong eventually with one workload/use screwing up others but maybe that’s fine and a normal part of scaling?I think a bigger issue is the DBMS themselves getting feature after feature and becoming bloated and unfocused. Add the thing to Postgres because it is convenient! At least Postgres has a decent plugin approach. But I think more use cases might be served by standalone products than by add-ons.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748203,
+    "by": "loftsy",
+    "timeISO": "2025-10-29T15:33:06.000Z",
+    "textPlain": "I am about to start a project. I know I want an event sourced architecture. That is, the system is designed around a queue, all actors push/pull into the queue. This article gives me some pause.Performance isn't a big deal for me. I had assumed that Kafka would give me things like decoupling, retry, dead-lettering, logging, schema validation, schema versioning, exactly once processing.I like Postgres, and obviously I can write a queue ontop of it, but it seems like quite a lot of effort?",
     "parent": 45747018,
     "depth": 1
   },
@@ -88,10 +152,58 @@
     "depth": 1
   },
   {
-    "id": 45747870,
-    "by": "phpnode",
-    "timeISO": "2025-10-29T15:12:14.000Z",
-    "textPlain": "The more charitable version of this, rather than being explicit RDD, is that people often just don't understand their tools and are too quick to throw the baby out with the bath water in their search for silver bullets. I've seen companies invest millions of dollars in rearchitecting their systems to avoid performance problems that could be trivially solved by better use of indices and not relying on JSONB for everything. If you don't understand the tool it's easy to blame the tool itself.",
+    "id": 45748818,
+    "by": "ayongpm",
+    "timeISO": "2025-10-29T16:09:44.000Z",
+    "textPlain": "Just dropping this here casually:  sup {\n      position: relative;\n      top: -0.4em;\n      line-height: 0;\n      vertical-align: baseline;\n  }",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748076,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-10-29T15:25:15.000Z",
+    "textPlain": "96 cores to get 240MB/s is terrible. Redpanda can do this with like one or two cores",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748253,
+    "by": "shikhar",
+    "timeISO": "2025-10-29T15:35:45.000Z",
+    "textPlain": "Postgres is a way better fit than Kafka if you want a large number of durable streams. But a flexible OLTP database like PG is bound to require more resources and polling loops (not even long poll!) are not a great answer for following live updates.Plug: If you need granular, durable streams in a serverless context, check out s2.dev",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748429,
+    "by": "dzonga",
+    "timeISO": "2025-10-29T15:46:20.000Z",
+    "textPlain": "what's not spoken about in the above article ?ease of use. in ruby If I want to use kafka I can use karafka. or redis streams via the redis library. likewise if kafka is too complex to run there's countless alternatives which work as well - hell even 0mq with client libraries.now with the postgres version I have to write my own stuff which I might not where it's gonna lead me.postgres is scalable, no one doubts that. but what people forget to mention is the ecosystem around certain tools.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748054,
+    "by": "rudderdev",
+    "timeISO": "2025-10-29T15:24:10.000Z",
+    "textPlain": "Discussion on the same topic \"Postgres over Kafka\" - https://news.ycombinator.com/item?id=44445841",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748221,
+    "by": "CuriouslyC",
+    "timeISO": "2025-10-29T15:34:00.000Z",
+    "textPlain": "If you don't need all the bells and whistles of Kafka, NATS Jetstream is usually the way to go.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748901,
+    "by": "oulipo2",
+    "timeISO": "2025-10-29T16:14:38.000Z",
+    "textPlain": "I want to rewrite some of my setup, we're doing IoT, and I was planning onMQTT -> Redpanda (for message logs and replay, etc) -> Postgres/Timescaledb (for data) + S3 (for archive)(and possibly Flink/RisingWave/Arroyo somewhere in order to do some alerting/incrementally updated materialized views/ etc)this seems \"simple enough\" (but I don't have any experience with Redpanda) but is indeed one more moving part compared to MQTT -> Postgres (as a queue) -> Postgres/Timescaledb + S3Questions:1. my \"fear\" would be that if I use the same Postgres for the queue and for my business database, the \"message ingestion\" part could block the \"business\" part sometimes (locks, etc)? Also perhaps when I want to update the schema of my database and not \"stop\" the inflow of messages, not sure if this would be easy?2. also that since it would write messages in the queue and then delete them, there would be a lot of GC/Vacuuming to do, compared to my business database which is mostly append-only?3. and if I split the \"Postgres queue\" from \"Postgres database\" as two different processes, of course I have \"one less tech to learn\", but I still have to get used to pgmq, integrate it, etc, is that really much easier than adding Redpanda?4. I guess most Postgres queues are also \"simple\" and don't provide \"fanout\" for multiple things (eg I want to take one of my IoT message, clean it up, store it in my timescaledb, and also archive it to S3, and also run an alert detector on it, etc)What would be the recommendation?",
     "parent": 45747018,
     "depth": 1
   },
@@ -99,7 +211,7 @@
     "id": 45747740,
     "by": "guywithahat",
     "timeISO": "2025-10-29T15:02:34.000Z",
-    "textPlain": "> One camp chases buzzwords\n> ...\n> The other camp chases common senseI don't really like these simplifications. Like one group obviously isn't just dumb, they're doing things for reasons you maybe don't understand. I don't know enough about data science to make a call, but I'm guessing there were reasons to use Kafka due to current hardware limits or scalability concerns, and while the issues may not be as present today that doesn't mean they used Kafka just because they heard a new word and wanted to repeat it.",
+    "textPlain": "> One camp chases buzzwords> ...> The other camp chases common senseI don't really like these simplifications. Like one group obviously isn't just dumb, they're doing things for reasons you maybe don't understand. I don't know enough about data science to make a call, but I'm guessing there were reasons to use Kafka due to current hardware limits or scalability concerns, and while the issues may not be as present today that doesn't mean they used Kafka just because they heard a new word and wanted to repeat it.",
     "parent": 45747018,
     "depth": 1
   },
@@ -112,6 +224,14 @@
     "depth": 1
   },
   {
+    "id": 45748293,
+    "by": "me551ah",
+    "timeISO": "2025-10-29T15:38:32.000Z",
+    "textPlain": "Imagine if historic humans had decided that only hammers are enough. That there is no need for a specialized tool like Scissors, Chisel, Axe, Wrench, Shovel , Sickle and that a hammer and fingers are enough.Use the tool which is appropriate for the job, it is trivial to write code to use them with LLMs these days and these software are mature enough to rarely cause problems and tools built for a purpose will always be more performant.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45747723,
     "by": "cpursley",
     "timeISO": "2025-10-29T15:01:32.000Z",
@@ -120,10 +240,26 @@
     "depth": 1
   },
   {
+    "id": 45748367,
+    "by": "justinhj",
+    "timeISO": "2025-10-29T15:43:03.000Z",
+    "textPlain": "As engineers we should try to use the right tool for the job, which means thinking about the development team's strengths and weaknesses as well as differentiating factors your product should focus on. Often we are working in the cloud and it's much easier to use a queue or a log database service than manage a bunch of sql servers and custom logic. It can be more cost effective too once you factor in the development time and operational costs.The fact that there is no common library that implements the authors strategy is a good sign that there is not much demand for this.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45747796,
     "by": "alecco",
     "timeISO": "2025-10-29T15:06:52.000Z",
     "textPlain": "Click-bait title.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45747870,
+    "by": "phpnode",
+    "timeISO": "2025-10-29T15:12:14.000Z",
+    "textPlain": "The more charitable version of this, rather than being explicit RDD, is that people often just don't understand their tools and are too quick to throw the baby out with the bath water in their search for silver bullets. I've seen companies invest millions of dollars in rearchitecting their systems to avoid performance problems that could be trivially solved by better use of indices and not relying on JSONB for everything. If you don't understand the tool it's easy to blame the tool itself.",
     "parent": 45747018,
     "depth": 1
   },
@@ -144,10 +280,114 @@
     "depth": 1
   },
   {
+    "id": 45748194,
+    "by": "PeterCorless",
+    "timeISO": "2025-10-29T15:32:41.000Z",
+    "textPlain": "Exactly. Just yesterday someone posted how they can do 250k messages/second with Redpanda (Kafka-compatible implementation) on their laptop.https://www.youtube.com/watch?v=7CdM1WcuoLcGetting even less than that throughput on 3x c7i.24xlarge — a total of 288 vCPUs – is bafflingly wasteful.Just because you can do something with Postgres doesn't mean you should.> 1. One camp chases buzzwords.> 2. The other camp chases common senseIn this case, is \"Postgres\" just being used as a buzzword?[Disclosure: I work for Redpanda; we provide a Kafka-compatible service.]",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45749149,
+    "by": "ljm",
+    "timeISO": "2025-10-29T16:28:34.000Z",
+    "textPlain": "I wonder if OP could have got different results if they implemented a different schema as opposed to mimicking Kafka's setup with the partitions, consumer offsets, etc.I might well be talking out of my arse but if you're going to implement pub/sub in Postgres, it'd be worth designing around its strengths and going back to basics on event sourcing.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748485,
+    "by": "jaimebuelta",
+    "timeISO": "2025-10-29T15:49:22.000Z",
+    "textPlain": "I may be reading a bit extra, but my main take on this is: \"in your app, you probably already have PostgreSQL. You don't need to set up an extra piece of infrastructure to cover your extra use case, just reuse the tool you already have\"It's very common to start adding more and more infra for use cases that, while technically can be better cover with new stuff, it can be served by already existing infrastructure, at least until you have proof that you need to grow it.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748131,
+    "by": "010101010101",
+    "timeISO": "2025-10-29T15:29:03.000Z",
+    "textPlain": "> If you don't need what kafka offers, don't use it.This is literally the point the author is making.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748118,
+    "by": "loire280",
+    "timeISO": "2025-10-29T15:27:44.000Z",
+    "textPlain": "In fact, a properly-configured Kafka cluster on minimal hardware will saturate its network link before it hits CPU or disk bottlenecks.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748606,
+    "by": "adamtulinius",
+    "timeISO": "2025-10-29T15:57:15.000Z",
+    "textPlain": "I remember doing 900k writes/s (non-replicated) already back on kafka 0.8 with a random physical server with an old fusionio drive (says something about how long ago this was :D).It's a fair point that if you already have a pgsql setup, and only need a few messages here and there, then pg is fine. But yeah, the 96 vcpu setup is absurd.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748481,
+    "by": "darth_avocado",
+    "timeISO": "2025-10-29T15:49:14.000Z",
+    "textPlain": "The 96 vcpu setup with 24xlarge instance costs about $20k/month on AWS before discounts. And one thing you don’t want in a pub sub system is a single instance taking all the read/writes. You can run a sizeable Kafka cluster for that kind of money in AWS.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748233,
+    "by": "joaohaas",
+    "timeISO": "2025-10-29T15:34:38.000Z",
+    "textPlain": "Had the same thoughts, weird it didn't include Kafka numbers.Never used Kafka myself, but we extensively use Redis queues with some scripts to ensure persistency, and we hit throughputs much higher than those in equivalent prod machines.Same for Redis pubsubs, but those are just standard non-persistent pubsubs, so maybe that gives it an upper edge.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748478,
+    "by": "ozgrakkurt",
+    "timeISO": "2025-10-29T15:49:03.000Z",
+    "textPlain": "This is why benchmarks should be hardware limit based IMO. Like I am maxing IOPS/throughput of this ssd or maxing out the network card etc.CPU is more tricky but I’m sure it can be shown somehow",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748540,
+    "by": "blenderob",
+    "timeISO": "2025-10-29T15:53:14.000Z",
+    "textPlain": "> Has this person actually benchmarked kafka?Is anyone actually reading the full article, or just reacting to the first unimpressive numbers you can find and then jumping on the first dismissive comment you can find here?Benchmarking Kafka isn't the point here. The author isn't claiming that Postgres outperforms Kafka. The argument is that Postgres can handle modest messaging workloads well enough for teams that don't want the operational complexity of running Kafka.Yes, the throughput is astoundingly low for such a powerful CPU but that's precisely the point. Now you know how well or how bad Postgres performs on a beefy machine. You don't always need Kafka-level scale. The takeaway is that Postgres can be a practical choice if you already have it in place.So rather than dismissing it over the first unimpressive number you find, maybe respond to that actual matter of TFA. Where's the line where Postgres stops being \"good enough\"? That'll be something nice to talk about.",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748296,
+    "by": "roozbeh18",
+    "timeISO": "2025-10-29T15:38:36.000Z",
+    "textPlain": "Just checked my single node Kafka setup which currently handles 695.27k e/s (average daily) into elasticsearch without breaking a sweat. kafka has been the only stable thing in this whole setup.zeek -> kafka -> logstash -> elastic",
+    "parent": 45747991,
+    "depth": 2
+  },
+  {
+    "id": 45748911,
+    "by": "oulipo2",
+    "timeISO": "2025-10-29T16:15:10.000Z",
+    "textPlain": "I want to rewrite some of my setup, we're doing IoT, and I was planning onMQTT -> Redpanda (for message logs and replay, etc) -> Postgres/Timescaledb (for data) + S3 (for archive)(and possibly Flink/RisingWave/Arroyo somewhere in order to do some alerting/incrementally updated materialized views/ etc)this seems \"simple enough\" (but I don't have any experience with Redpanda) but is indeed one more moving part compared to MQTT -> Postgres (as a queue) -> Postgres/Timescaledb + S3Questions:1. my \"fear\" would be that if I use the same Postgres for the queue and for my business database, the \"message ingestion\" part could block the \"business\" part sometimes (locks, etc)? Also perhaps when I want to update the schema of my database and not \"stop\" the inflow of messages, not sure if this would be easy?2. also that since it would write messages in the queue and then delete them, there would be a lot of GC/Vacuuming to do, compared to my business database which is mostly append-only?3. and if I split the \"Postgres queue\" from \"Postgres database\" as two different processes, of course I have \"one less tech to learn\", but I still have to get used to pgmq, integrate it, etc, is that really much easier than adding Redpanda?4. I guess most Postgres queues are also \"simple\" and don't provide \"fanout\" for multiple things (eg I want to take one of my IoT message, clean it up, store it in my timescaledb, and also archive it to S3, and also run an alert detector on it, etc)What would be the recommendation?",
+    "parent": 45748795,
+    "depth": 2
+  },
+  {
     "id": 45747801,
     "by": "sneilan1",
     "timeISO": "2025-10-29T15:07:12.000Z",
     "textPlain": "Yes, performance can be a big issue with postgres. And vertical scaling can really put a damper on things when you have a major traffic hit. Using it for kafka is misunderstanding the one of the great uses of kafka which is to help deal with traffic bursts. All of a sudden your postgres server is overwhelmed and the kafka server would be fine.",
+    "parent": 45747736,
+    "depth": 2
+  },
+  {
+    "id": 45748349,
+    "by": "SoftTalker",
+    "timeISO": "2025-10-29T15:42:06.000Z",
+    "textPlain": "This is true of any data storage. You have to understand the concurrency model and assumptions, and know where bottlenecks can happen. Even among relational databases there are significant differences.",
     "parent": 45747736,
     "depth": 2
   },
@@ -157,110 +397,6 @@
     "timeISO": "2025-10-29T15:19:15.000Z",
     "textPlain": "My strategy is to use postgres first. Get the idea off the ground and switch when postgres becomes the bottleneck.It often doesn't.",
     "parent": 45747736,
-    "depth": 2
-  },
-  {
-    "id": 45748097,
-    "by": "wosined",
-    "timeISO": "2025-10-29T15:26:24.000Z",
-    "textPlain": "I am the third pole: 3. Everything we have currently sucks and what is new will suck for some hitherto unknown reason.",
-    "parent": 45747981,
-    "depth": 2
-  },
-  {
-    "id": 45748057,
-    "by": "Jupe",
-    "timeISO": "2025-10-29T15:24:14.000Z",
-    "textPlain": "Isn't it just a matter of having each consumer use their own offset? I mean if the queue table is sequentially or time-indexed, the consumer just provides a smaller/earlier key to accomplish the offset?\n(Maybe I'm missing something here?)",
-    "parent": 45747818,
-    "depth": 2
-  },
-  {
-    "id": 45747808,
-    "by": "sumtechguy",
-    "timeISO": "2025-10-29T15:07:29.000Z",
-    "textPlain": "Kafka and other message systems like it have their uses.  But sometimes all you need is just need a database.  Now you start doing realtime streaming and notifications and event type things a messaging system is good.  You can even back it up with a boring database.  Would I start with kafka?  Probably not.  I would start with a boring databsee and then if if my bashing on the db over and over saying 'have you changed' doesnt work as good anymore then you put in a messaging system.",
-    "parent": 45747740,
-    "depth": 2
-  },
-  {
-    "id": 45748083,
-    "by": "sitestable",
-    "timeISO": "2025-10-29T15:25:46.000Z",
-    "textPlain": "The best architecture decision is the one that's still maintainable when the person who championed it leaves. Always pretend the person who maintains a project after you knows where you live and all that.",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747999,
-    "by": "bencyoung",
-    "timeISO": "2025-10-29T15:20:30.000Z",
-    "textPlain": "Kafka is great tech, never sure why people have an issue with it. Would I use it all the time? No, but where it's useful, it's really useful, and opens up whole patterns that are hard to implement other ways",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747806,
-    "by": "forgetfulness",
-    "timeISO": "2025-10-29T15:07:25.000Z",
-    "textPlain": "We’re all passing through our jobs, the value of the solutions remains in the hands of the shareholders, if you don’t try to squeeze some long-term value for your resume and long-term employability, you’re assuming a significant opportunity cost on their behalfThey’ll be fine if you made something that works, even if it was a bit faddish, make sure you take care of yourself along the way (they won’t)",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747893,
-    "by": "Groxx",
-    "timeISO": "2025-10-29T15:13:53.000Z",
-    "textPlain": "having never hosted a GraphQL service, but I can see many obvious room for problems:is there some reason GraphQL gets so much hate?  it always feels to me like it's mostly just a normal RPC system but with some incredibly useful features (pipelining, and super easy to not request data you don't need), with obvious perf issues in code and obvious room for perf abuse because it's easy to allow callers to do N+1 nonsense.so I can see why it's not popular to get stuck with for public APIs unless you have infinite money, it's relatively wide open for abuse, but private seems pretty useful because you can just smack the people abusing it.  or is it more due to specific frameworks being frustrating, or stuff like costly parsing and serialization and difficult validation?",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747751,
-    "by": "darkstar_16",
-    "timeISO": "2025-10-29T15:03:04.000Z",
-    "textPlain": "GraphQL sure, but I'm not sure I'd put kafka in the same bucket. It is a nice technology that has it's use in some cases, where postgresql would not work. It is also something a small team should not start with. Start with postgres and then move on to something else when the need arises.",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747842,
-    "by": "janwijbrand",
-    "timeISO": "2025-10-29T15:10:09.000Z",
-    "textPlain": "\"resume\" as in \"resumé\" not as in \"begin again or continue after a pause or interruption\" - it took me longer than I care to admit to get that.",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45747745,
-    "by": "kvdveer",
-    "timeISO": "2025-10-29T15:02:47.000Z",
-    "textPlain": "To be fair, this is true for all technologically interesting solutions, even when they use postgres. People championing novel solutions typically leave after the window for creativity has closed.",
-    "parent": 45747667,
-    "depth": 2
-  },
-  {
-    "id": 45748060,
-    "by": "philipallstar",
-    "timeISO": "2025-10-29T15:24:25.000Z",
-    "textPlain": "You can also do this with sqlite, running an in-memory sqlite is lightning fast and I don't think there are any edge cases. Obviously doesn't work for everything, but when sqlite is possible, it's great!",
-    "parent": 45747748,
-    "depth": 2
-  },
-  {
-    "id": 45747841,
-    "by": "candiddevmike",
-    "timeISO": "2025-10-29T15:10:02.000Z",
-    "textPlain": "Curious why you think the risk of edge cases from mocking is a worthwhile trade off vs the relatively low complexity of setting up a container to test against?",
-    "parent": 45747748,
-    "depth": 2
-  },
-  {
-    "id": 45747840,
-    "by": "pphysch",
-    "timeISO": "2025-10-29T15:10:00.000Z",
-    "textPlain": "Or just use devcontainers and have an actual Postgres DB to test against? I've even done this on a Chromebook. This is a solved problem.",
-    "parent": 45747748,
     "depth": 2
   }
 ]
