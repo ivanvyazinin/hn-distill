@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45761267,
-    "by": "ARandomerDude",
-    "timeISO": "2025-10-30T15:41:32.000Z",
-    "textPlain": "I'm solidly in camp 2, the \"common sense\" camp that doesn't care about buzzwords.That said, I don't consider running Kafka to be a headache.  I work at a mid-sized company, processing billions of Kafka events per day and it's never been a problem, even locally when I'm processing hundreds of events per day.You set it up, forget about it, and it scales endlessly.  You don't have to rewrite anything and it provides a nice separation layer between your system components.When starting out, you can easily run Kafka, DB, API on the same machine.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748795,
     "by": "munchbunny",
     "timeISO": "2025-10-29T16:08:16.000Z",
     "textPlain": "My general opinion, off the cuff, from having worked at both small (hundreds of events per hour) and large (trillions of events per hour) scales for these sorts of problems:1. Do you really need a queue? (Alternative: periodic polling of a DB)2. What's your event volume and can it fit on one node for the foreseeable future, or even serverless compute (if not too expensive)? (Alternative: lightweight single-process web service, or several instances, on one node.)3. If it can't fit on one node, do you really need a distributed queue? (Alternative: good ol' load balancing and REST API's, maybe with async semantics and retry semantics)4. If you really do need a distributed queue, then you may as well use a distributed queue, such as Kafka. Even if you take on the complexity of managing a Kafka cluster, the programming and performance semantics are simpler to reason about than trying to shoehorn a distributed queue onto a SQL DB.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45761267,
+    "by": "ARandomerDude",
+    "timeISO": "2025-10-30T15:41:32.000Z",
+    "textPlain": "I'm solidly in camp 2, the \"common sense\" camp that doesn't care about buzzwords.That said, I don't consider running Kafka to be a headache.  I work at a mid-sized company, processing billions of Kafka events per day and it's never been a problem, even locally when I'm processing hundreds of events per day.You set it up, forget about it, and it scales endlessly.  You don't have to rewrite anything and it provides a nice separation layer between your system components.When starting out, you can easily run Kafka, DB, API on the same machine.",
     "parent": 45747018,
     "depth": 1
   },
@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45761621,
-    "by": "GrumpyGoblin",
-    "timeISO": "2025-10-30T16:10:57.000Z",
-    "textPlain": "There is another aspect that many people aren't discussing, the communication aspect.For a medium to large organization with independent programs that need to talk to each other, Kafka provides an essential capability that would be much slower and higher risk with Postgres.Standardizing the flow of information across an organization is difficult. Kafka is crucial for that. To achieve that in Postgres would require either a shared database which is inherently risky or would require a customized API for access which introduces another layer of performance bottleneck and build/maintenance cost and decreases development productivity/performance. So you have a double whammy of performance degradation with an API. And for multiple consumers operating against the same events (for example: write to storage, perform action, send to data lake), with a database you need a magnitude more access, so N*X with N being the number of consumers multiplied by the query to consume. With three consumers you're tripling your database queries, which adds up fast across topics. Now you need to start fixing indexes and creating views and other workload to keep performance optimal. And at some point you're just poorly recreating Kafka in a database.The common denominator in every \"which is better\" debate is always use case. This article seems like it would primariy apply to small organizations or limited consumer need. And yea, at that point why are you using events in the first place? Use a single API or database and be done with it. This is where the buzzword thing is relevant. If you're using Kafka for your single team, single database, small organization, it's overkill.Side note: Someone mentioned Postgres as an audit log. Oh god. Done it. It was a nightmare. Ended up migrating to pub/sub with long-term storage in Mongo. which solved significant performance issues. Audit log is inheritently write once read many. There is no advantage to storing in a relational database.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45757022,
     "by": "dagss",
     "timeISO": "2025-10-30T06:37:52.000Z",
     "textPlain": "I really believe this is the way: Event log tables in SQL. I have been doing it a lot.A downside is the lack of tooling client side. For many using Kafka is worth it simply for the tooling in libraries consumer side.If you just want to write an event handler function there is a lot of boilerplate to manage around it. (Persisting read cursors etc)We introduced a company standard for one service pulling events from another service that fit well together with events stored in SQL.https://github.com/vippsas/feedapi-specNowhere close to Kafka's maturity in client side tooling but it is an approach for how a library stack could be built on top making this convenient and have the same library toolset support many storage engines. (On the server/storage side, Postgres is of course as mature as Kafka...)",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45761621,
+    "by": "GrumpyGoblin",
+    "timeISO": "2025-10-30T16:10:57.000Z",
+    "textPlain": "There is another aspect that many people aren't discussing, the communication aspect.For a medium to large organization with independent programs that need to talk to each other, Kafka provides an essential capability that would be much slower and higher risk with Postgres.Standardizing the flow of information across an organization is difficult. Kafka is crucial for that. To achieve that in Postgres would require either a shared database which is inherently risky or would require a customized API for access which introduces another layer of performance bottleneck and build/maintenance cost and decreases development productivity/performance. So you have a double whammy of performance degradation with an API. And for multiple consumers operating against the same events (for example: write to storage, perform action, send to data lake), with a database you need a magnitude more access, so N*X with N being the number of consumers multiplied by the query to consume. With three consumers you're tripling your database queries, which adds up fast across topics. Now you need to start fixing indexes and creating views and other workload to keep performance optimal. And at some point you're just poorly recreating Kafka in a database.The common denominator in every \"which is better\" debate is always use case. This article seems like it would primariy apply to small organizations or limited consumer need. And yea, at that point why are you using events in the first place? Use a single API or database and be done with it. This is where the buzzword thing is relevant. If you're using Kafka for your single team, single database, small organization, it's overkill.Side note: Someone mentioned Postgres as an audit log. Oh god. Done it. It was a nightmare. Ended up migrating to pub/sub with long-term storage in Mongo. which solved significant performance issues. Audit log is inheritently write once read many. There is no advantage to storing in a relational database.",
     "parent": 45747018,
     "depth": 1
   },
@@ -72,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45759973,
-    "by": "Nifty3929",
-    "timeISO": "2025-10-30T13:45:23.000Z",
-    "textPlain": "I do agree that too often folks are looking for the cool new widget and looking to apply it to every problem, with fancy new \"modernized\" architectures and such. And Postgres is great for so much.But I think an important point to those in camp 2 (the good guys in TFA's narrative) is to use tools for problems they were designed to solve. Postgres was not designed to be a pub-sub tool. Kafka was. Don't try to build your own pub-sub solution on top of Postgres, just use one of the products that was built for that job.Another distressing trend I see is for every product to try to be everything to everyone. I do not need that. I just need your product to do it's one thing very well, and then I will use a different product for a different thing I need.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45747818,
     "by": "jimbokun",
     "timeISO": "2025-10-29T15:08:07.000Z",
@@ -92,6 +84,14 @@
     "by": "misja111",
     "timeISO": "2025-10-29T15:35:40.000Z",
     "textPlain": "> One camp chases buzzwords .. the other common senseHow is it common sense to try to re-implement Kafka in Posgres?\nYou probably need something similar but more simple. Then implement that! But if you really need something like Kafka, then .. use Kafka!IMO the author is now making the same mistake as some Kafka evangelists that try to implement a database in Kafka.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45759973,
+    "by": "Nifty3929",
+    "timeISO": "2025-10-30T13:45:23.000Z",
+    "textPlain": "I do agree that too often folks are looking for the cool new widget and looking to apply it to every problem, with fancy new \"modernized\" architectures and such. And Postgres is great for so much.But I think an important point to those in camp 2 (the good guys in TFA's narrative) is to use tools for problems they were designed to solve. Postgres was not designed to be a pub-sub tool. Kafka was. Don't try to build your own pub-sub solution on top of Postgres, just use one of the products that was built for that job.Another distressing trend I see is for every product to try to be everything to everyone. I do not need that. I just need your product to do it's one thing very well, and then I will use a different product for a different thing I need.",
     "parent": 45747018,
     "depth": 1
   },
@@ -224,22 +224,6 @@
     "depth": 1
   },
   {
-    "id": 45758973,
-    "by": "dev_l1x_be",
-    "timeISO": "2025-10-30T11:46:41.000Z",
-    "textPlain": "Apples are sweet, I am going to eat an onion.I love these articles.> The other camp chases common senseIt is never too late to inject some tribalism into any discussion.> Trend 1 - the “Small Data” movement.404Just perfect.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45757131,
-    "by": "asah",
-    "timeISO": "2025-10-30T06:59:20.000Z",
-    "textPlain": "\"500 KB/s workload should not use Kafka\" - yyyy!!!  indeed, I'm running 5MBps logging system through a single node RDS instance costing <$1000/mon (plus 2x for failover). There's easily 4-10x headroom for growth by paying AWS more money and 3-5x+ savings by optimizing the data structure.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748203,
     "by": "loftsy",
     "timeISO": "2025-10-29T15:33:06.000Z",
@@ -256,10 +240,26 @@
     "depth": 1
   },
   {
+    "id": 45757131,
+    "by": "asah",
+    "timeISO": "2025-10-30T06:59:20.000Z",
+    "textPlain": "\"500 KB/s workload should not use Kafka\" - yyyy!!!  indeed, I'm running 5MBps logging system through a single node RDS instance costing <$1000/mon (plus 2x for failover). There's easily 4-10x headroom for growth by paying AWS more money and 3-5x+ savings by optimizing the data structure.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45748076,
     "by": "dangoodmanUT",
     "timeISO": "2025-10-29T15:25:15.000Z",
     "textPlain": "96 cores to get 240MB/s is terrible. Redpanda can do this with like one or two cores",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45758973,
+    "by": "dev_l1x_be",
+    "timeISO": "2025-10-30T11:46:41.000Z",
+    "textPlain": "Apples are sweet, I am going to eat an onion.I love these articles.> The other camp chases common senseIt is never too late to inject some tribalism into any discussion.> Trend 1 - the “Small Data” movement.404Just perfect.",
     "parent": 45747018,
     "depth": 1
   },
@@ -272,14 +272,6 @@
     "depth": 1
   },
   {
-    "id": 45757501,
-    "by": "0xDEAFBEAD",
-    "timeISO": "2025-10-30T08:08:23.000Z",
-    "textPlain": "Why does it matter how many distinct tools you use?  It seems easiest to just always use the most standard tool in the most standard way, to minimize the amount of custom code you have to write.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748253,
     "by": "shikhar",
     "timeISO": "2025-10-29T15:35:45.000Z",
@@ -288,18 +280,18 @@
     "depth": 1
   },
   {
-    "id": 45751074,
-    "by": "nyrikki",
-    "timeISO": "2025-10-29T18:30:57.000Z",
-    "textPlain": "> The claim isn’t that Postgres is functionally equivalent to any of these specialized systems. The claim is that it handles 80%+ of their use cases with 20% of the development effort. (Pareto Principle)Lots of us that built systems when SQL was the only option, know that doesn’t hold overtime.SStable backed systems have their applications, and I have never seen dedicated Kafka teams like we used to have with DBAsWe have the tools to make decisions based on real tradeoffs.I highly recommend people dig into the appropriate tools to select vs making pre-selected products fit an unknown problem domain.Tools are tactics, not strategies, tactics should be changeable with the strategic needs.",
+    "id": 45757501,
+    "by": "0xDEAFBEAD",
+    "timeISO": "2025-10-30T08:08:23.000Z",
+    "textPlain": "Why does it matter how many distinct tools you use?  It seems easiest to just always use the most standard tool in the most standard way, to minimize the amount of custom code you have to write.",
     "parent": 45747018,
     "depth": 1
   },
   {
-    "id": 45758457,
-    "by": "suyash",
-    "timeISO": "2025-10-30T10:45:09.000Z",
-    "textPlain": "Postgres isn't ideal, you need a timeseries database for streaming data.",
+    "id": 45751074,
+    "by": "nyrikki",
+    "timeISO": "2025-10-29T18:30:57.000Z",
+    "textPlain": "> The claim isn’t that Postgres is functionally equivalent to any of these specialized systems. The claim is that it handles 80%+ of their use cases with 20% of the development effort. (Pareto Principle)Lots of us that built systems when SQL was the only option, know that doesn’t hold overtime.SStable backed systems have their applications, and I have never seen dedicated Kafka teams like we used to have with DBAsWe have the tools to make decisions based on real tradeoffs.I highly recommend people dig into the appropriate tools to select vs making pre-selected products fit an unknown problem domain.Tools are tactics, not strategies, tactics should be changeable with the strategic needs.",
     "parent": 45747018,
     "depth": 1
   },
@@ -316,6 +308,14 @@
     "by": "jasonthorsness",
     "timeISO": "2025-10-29T16:01:42.000Z",
     "textPlain": "Using a single DBMS for many purposes because it is so flexible and “already there” from an operations perspective is something I’ve seen over and over again. It usually goes wrong eventually with one workload/use screwing up others but maybe that’s fine and a normal part of scaling?I think a bigger issue is the DBMS themselves getting feature after feature and becoming bloated and unfocused. Add the thing to Postgres because it is convenient! At least Postgres has a decent plugin approach. But I think more use cases might be served by standalone products than by add-ons.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45758457,
+    "by": "suyash",
+    "timeISO": "2025-10-30T10:45:09.000Z",
+    "textPlain": "Postgres isn't ideal, you need a timeseries database for streaming data.",
     "parent": 45747018,
     "depth": 1
   },

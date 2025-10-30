@@ -1,1 +1,18 @@
-[]
+[
+  {
+    "id": 45762488,
+    "by": "ryanschneider",
+    "timeISO": "2025-10-30T17:19:45.000Z",
+    "textPlain": "Even cooler, let's say you need to \"update\" a subset of your parquet files after they are written.  Once you have your parquet files in a ducklake, you can \"virtually\" update them (the files themselves aren't touched, just new ones created).  Something like:- create your frozen ducklake- run whatever \"normal\" mutation query you want to run (DELETE, UPDATE, MERGE INTO)- use `ducklake_rewrite_data_files` to make new files w/ mutations applied, then optionally run `ducklake_merge_adjacent_files` to compact the files as well (though this might cause all files to change).- call `ducklake_list_files` to get the new set of active files.- update your upstream \"source of truth\" with this new list, optionally deleting any files no longer referenced.The net result should be that any files \"touched\" by your updates will have new updated versions alongside them, while any that were unchanged should just be returned in the list files operation as is.",
+    "parent": 45702831,
+    "depth": 1
+  },
+  {
+    "id": 45762210,
+    "by": "gopalv",
+    "timeISO": "2025-10-30T16:57:12.000Z",
+    "textPlain": "The useful part is that duckdb is so easy to use as a client with an embedded server, because duckdb is a great client (+ a library).Similar to how git can serve a repo from a simple http server with no git installed on that (git update-server-info).The frozen part is what iceberg promised in the beginning, away from Hive's mutable metastore.Point to a manifest file + parquet/orc & all you need to query it is S3 API calls (there is no metadata/table server, the server is the client).> Creating and publishing a Frozen DuckLake with about 11 billion rows, stored in 4,030 S3-based Parquet files took about 22 minutes on my MacBookHard to pin down how much of it is CPU and how much is IO from s3, but doing something like HLL over all the columns + rows is pretty heavy on the CPU.",
+    "parent": 45702831,
+    "depth": 1
+  }
+]
