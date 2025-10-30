@@ -1,5 +1,13 @@
 [
   {
+    "id": 45764080,
+    "by": "DenisM",
+    "timeISO": "2025-10-30T19:15:27.000Z",
+    "textPlain": "IUUC they built a EBS replacement on top of NVME attached to a dynamically sized fleet of EC2 instances.The advantage is that it’s allocating pages on demand from an elastic pool of storage so it appears as an infinite block device. Another advantage is cheap COW clones.The downside is (probably) specialized tuning for Postgres access patterns. I shudder to think what went into page metadata management. Perhaps it’s similar to e.g. SQL Server buffer pool manager).It’s not clear to me why it’s better than Aurora design - on the surface page servers are higher level concepts and should allow more holistic optimizations (and less page write traffic due to shipping log in lieu of whole pages). Is also not clear what stopped Amazon from doing the same (perhaps EBS serving more diverse access patterns?).Very cool!",
+    "parent": 45748484,
+    "depth": 1
+  },
+  {
     "id": 45760278,
     "by": "0xbadcafebee",
     "timeISO": "2025-10-30T14:17:35.000Z",
@@ -88,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45763239,
-    "by": "_rs",
-    "timeISO": "2025-10-30T18:17:16.000Z",
-    "textPlain": "> Detaching and reattaching EBS volumes can take 10s for healthy volumes to 20m for failed onesIs there a source for the 20m time limit for failed EBS volumes? I experienced this at work for the first time recently but couldn't find anything documenting the 20m SLA (and it did take just about 20 full minutes).",
+    "id": 45763759,
+    "by": "jread",
+    "timeISO": "2025-10-30T18:49:45.000Z",
+    "textPlain": "I'm working on graduate research evaluating AWS control and data plane performance.EBS volume attachment is typically ~11s for GP2/GP3 and ~20-25s for other types.1ms read / 5ms write latencies seem high for 4k blocks. IO1/IO2 is typically ~0.5ms RW, and GP2/GP3 ~0.6ms read and ~0.94ms write.References:\nhttps://cloudlooking.glass/matrix/#aws.ebs.us-east-1--cp--at...\nhttps://cloudlooking.glass/matrix/#aws.ebs.*--dp--rand-*&aws...",
     "parent": 45760278,
     "depth": 2
   },
@@ -100,6 +108,14 @@
     "by": "hedora",
     "timeISO": "2025-10-30T14:45:42.000Z",
     "textPlain": "Thanks for the summary.Note that those numbers are terrible vs. a physical disk, especially latency, which should be < 1ms read, << 1ms write.(That assumes async replication of the write ahead log to a secondary.  Otherwise, write latency should be ~ 1 rtt, which is still << 5ms.)Stacking storage like this isn’t great, but PG wasn’t really designed for performance or HA.  (I don’t have a better concrete solution for ansi SQL that works today.)",
+    "parent": 45760278,
+    "depth": 2
+  },
+  {
+    "id": 45763239,
+    "by": "_rs",
+    "timeISO": "2025-10-30T18:17:16.000Z",
+    "textPlain": "> Detaching and reattaching EBS volumes can take 10s for healthy volumes to 20m for failed onesIs there a source for the 20m time limit for failed EBS volumes? I experienced this at work for the first time recently but couldn't find anything documenting the 20m SLA (and it did take just about 20 full minutes).",
     "parent": 45760278,
     "depth": 2
   },
