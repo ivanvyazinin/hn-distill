@@ -3,15 +3,23 @@
     "id": 45758371,
     "by": "sigmoid10",
     "timeISO": "2025-10-30T10:31:57.000Z",
-    "textPlain": ">we confirm this result empirically through billions of collision tests on six state-of-the-art language models, and observe no collisionsThis sounds like a mistake.  They used (among others) GPT2, which has an output vector of ~50k tokens. They also kind of arbitrarily define a collision threshold as an l2 distance smaller than 10^-6 for two vectors. Since the outputs are normalized, that corresponds to a ridiculously tiny patch on the surface of the unit sphere. Just intuitively, in such a high dimensional space, two random vectors are basically orthogonal. I would expect the chance of two inputs to map to the same output under these constraints to be astronomically small (like less than one in 10^10000 or something). Even worse than your chances of finding a hash collision in sha256. Their claim certainly does not sound like something you could verify by testing a few billion examples. Although I'd love to see a detailed calculation. The paper is certainly missing one.",
+    "textPlain": ">we confirm this result empirically through billions of collision tests on six state-of-the-art language models, and observe no collisionsThis sounds like a mistake.  They used (among others) GPT2, which has pretty big space vectors. They also kind of arbitrarily define a collision threshold as an l2 distance smaller than 10^-6 for two vectors. Since the outputs are normalized, that corresponds to a ridiculously tiny patch on the surface of the unit sphere. Just intuitively, in such a high dimensional space, two random vectors are basically orthogonal. I would expect the chance of two inputs to map to the same output under these constraints to be astronomically small (like less than one in 10^10000 or something). Even worse than your chances of finding a hash collision in sha256. Their claim certainly does not sound like something you could verify by testing a few billion examples. Although I'd love to see a detailed calculation. The paper is certainly missing one.",
     "parent": 45758093,
     "depth": 1
   },
   {
-    "id": 45758702,
-    "by": "mowkdizz",
-    "timeISO": "2025-10-30T11:13:24.000Z",
-    "textPlain": "I think I'm misunderstanding the abstract, but are they trying to say that given a LLM output, they can tell me what the input is? Or given an output AND the intermediate layer weights? If it is the first option, I could use as input 1 \"Only respond with 'OK'\" and \"Please only respond with 'OK'\" which leads to 2 inputs producing the same output.",
+    "id": 45759158,
+    "by": "yosito",
+    "timeISO": "2025-10-30T12:13:03.000Z",
+    "textPlain": "In layman's terms, this seems to mean that given a certain unedited LLM output, plus complete information about the LLM, they can determine what prompt was used to create the output. Except that in practice this works almost never. Am I understanding correctly?",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45759159,
+    "by": "stared",
+    "timeISO": "2025-10-30T12:13:06.000Z",
+    "textPlain": "It reminded me of \"Text embeddings reveal almost as much as text\" from 2023 (https://news.ycombinator.com/item?id=37867635) - and yes, they do cite it.It has a huge implication for privacy. There is some \"mental model\" that embedding vectors are like hash - so you can store them in database, even though you would not store plain text.It is an incorrect assumption - as a good embedding stores ALL - not just the general gist, but dates, names, passwords.There is an easy fix to that - a random rotation; preserves all distances.",
     "parent": 45758093,
     "depth": 1
   },
@@ -24,6 +32,22 @@
     "depth": 1
   },
   {
+    "id": 45758765,
+    "by": "spuz",
+    "timeISO": "2025-10-30T11:21:48.000Z",
+    "textPlain": "I remember hearing an argument once that said LLMs must be capable of learning abstract ideas because the size of their weight model (typically GBs) is so much smaller than the size of their training data (typically TBs or PBs). So either the models are throwing away most of the training data, they are compressing the data beyond the known limits, or they are abstracting the data into more efficient forms. That's why an LLM (I tested this on Grok) can give you a summary of chapter 18 of Mary Shelley's Frankenstein, but cannot reproduce a paragraph from the same text verbatim.I am sure I am not understanding this paper correctly because it sounds like they are claiming that model weights can be used to produce the original input text representing an extraordinary level of text compression.",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45759298,
+    "by": "RA_Fisher",
+    "timeISO": "2025-10-30T12:31:43.000Z",
+    "textPlain": "This claim's so big that it requires theoretical proof, empirical analysis isn't convincing (given the size of the claim). Causal inference experts have long known that many inputs map to outputs (that's why identification of the inputs that actually caused a given output is a never-ending task).",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
     "id": 45758672,
     "by": "frumiousirc",
     "timeISO": "2025-10-30T11:09:46.000Z",
@@ -32,10 +56,66 @@
     "depth": 1
   },
   {
+    "id": 45759226,
+    "by": "Marshferm",
+    "timeISO": "2025-10-30T12:20:22.000Z",
+    "textPlain": "Quoting Timos Moraitis a Neuromorphic PhD\"For reasons like this, \"in-context learning\" is not an accurate term for transformers. It's projection and storage, nothing is learnt.This new paper has attracted a lot of interest, and it's nice that it proves things formally and empirically, but it looks like people are surprised by it, even though it was clear.\"https://x.com/timos_m/status/1983625714202010111",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45758702,
+    "by": "mowkdizz",
+    "timeISO": "2025-10-30T11:13:24.000Z",
+    "textPlain": "I think I'm misunderstanding the abstract, but are they trying to say that given a LLM output, they can tell me what the input is? Or given an output AND the intermediate layer weights? If it is the first option, I could use as input 1 \"Only respond with 'OK'\" and \"Please only respond with 'OK'\" which leads to 2 inputs producing the same output.",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45758969,
+    "by": "saurik",
+    "timeISO": "2025-10-30T11:46:09.000Z",
+    "textPlain": "This is very similar (and maybe even the same thing) to some recent work (published earlier this year) by the people at Ritual AI on attacking attempts to obfuscate LLM inference (which leads to the design for their defense against this, which involves breaking up the prompt token sequences and handing them to multiple computers, making it so no individual machine has access to sufficient states from the hidden layer in a row).https://arxiv.org/abs/2505.18332https://arxiv.org/abs/2507.05228",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45759168,
+    "by": "adamddev1",
+    "timeISO": "2025-10-30T12:14:30.000Z",
+    "textPlain": "Could this be a way to check for AI plagiarism? Given a chunk of text would you be able to (almost) prove that it came from a prompt saying \"Write me a short essay on ___\" ?",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45759393,
+    "by": "spacecadet",
+    "timeISO": "2025-10-30T12:42:57.000Z",
+    "textPlain": "I find this interesting. I have tools that attempt to reverse engineer black box models through auto-prompting and analysis of the outputs/tokens. I have used this to develop prompt injection attacks that \"steer\" output, but have never tried to use the data to recreate an exact input...",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
     "id": 45758552,
     "by": "patrick0d",
     "timeISO": "2025-10-30T10:56:14.000Z",
     "textPlain": "paper looks nice! i think what they found was that they can recover the input sequence by trying all tokens from the vocab and finding a unique state. they do a forward pass to check each possible token at a given depth. i think this is since the model will encode the sequence in the mid flight token so this encoding is revealed to be unique by their paper. so one prompt of 'the cat sat on the mat' and 'the dog sat on the mat' can be recovered as distinct states via each token being encoded (unclear mechanism but it would be shocking if this wasn't the case) in the token (mid flight residual).",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45758990,
+    "by": "nephanth",
+    "timeISO": "2025-10-30T11:48:38.000Z",
+    "textPlain": "\"And hence invertible\" <- does every output embedding combination have an associated input ? Are they able to construct it or is this just an existence result ?",
+    "parent": 45758093,
+    "depth": 1
+  },
+  {
+    "id": 45758900,
+    "by": "acetofenone",
+    "timeISO": "2025-10-30T11:37:26.000Z",
+    "textPlain": "Actually if you prompt: \nAnswer to this question with \"ok, got it\"Answer:\n>Ok, got itAnswer to this question with exactly \"ok, got it\"Answer:\n>Ok, got itHence is not injective",
     "parent": 45758093,
     "depth": 1
   },
@@ -64,11 +144,51 @@
     "depth": 1
   },
   {
+    "id": 45759255,
+    "by": "vitus",
+    "timeISO": "2025-10-30T12:24:15.000Z",
+    "textPlain": "I envy your intuition about high-dimensional spaces, as I have none (other than \"here lies dragons\"). (I think your intuition is broadly correct, seeing as billions of collision tests feels quite inadequate given the size of the space.)> Just intuitively, in such a high dimensional space, two random vectors are basically orthogonal.What's the intuition here? Law of large numbers?And how is orthogonality related to distance? Expansion of |a-b|^2 = |a|^2 + |b|^2 - 2<a,b> = 2 - 2<a,b> which is roughly 2 if the unit vectors are basically orthogonal?> Since the outputs are normalized, that corresponds to a ridiculously tiny patch on the surface of the unit sphere. Since the outputs are normalized, that corresponds to a ridiculously tiny patch on the surface of the unit sphere.I also have no intuition regarding the surface of the unit sphere in high-dimensional vector spaces. I believe it vanishes. I suppose this patch also vanishes in terms of area. But what's the relative rate of those terms going to zero?",
+    "parent": 45758371,
+    "depth": 2
+  },
+  {
+    "id": 45758899,
+    "by": "Arnt",
+    "timeISO": "2025-10-30T11:37:14.000Z",
+    "textPlain": "As I read it, what they did there was a sanity-check by trusting the birthday paradox. Kind of: \"If you get orthogonal vectors due to mere chance once, that's okay, but you try it billions of times and still get orthogonal vectors every time, mere chance seems a very unlikely explanation.\"",
+    "parent": 45758371,
+    "depth": 2
+  },
+  {
+    "id": 45758767,
+    "by": "gnfargbl",
+    "timeISO": "2025-10-30T11:21:55.000Z",
+    "textPlain": "The nature of high-dimensional spaces kind of intuitively supports the argument for invertability though, no? In the sense that:> I would expect the chance of two inputs to map to the same output under these constraints to be astronomically small.",
+    "parent": 45758371,
+    "depth": 2
+  },
+  {
     "id": 45758567,
     "by": "sebastianmestre",
     "timeISO": "2025-10-30T10:58:35.000Z",
     "textPlain": "I think that the latent space that GPT-2 uses has 768 dimensions (i.e. embedding vectors have that many components).",
     "parent": 45758371,
+    "depth": 2
+  },
+  {
+    "id": 45759227,
+    "by": "ctenb",
+    "timeISO": "2025-10-30T12:20:32.000Z",
+    "textPlain": "No, it's about the distribution being injective, not a single sampled response. So you need a lot of outputs of the same prompt, and know the LLM, and then you should in theory be able to reconstruct the original prompt.",
+    "parent": 45759158,
+    "depth": 2
+  },
+  {
+    "id": 45759232,
+    "by": "eapriv",
+    "timeISO": "2025-10-30T12:21:22.000Z",
+    "textPlain": "No, it says nothing about LLM output being invertible.",
+    "parent": 45759158,
     "depth": 2
   },
   {
@@ -88,6 +208,62 @@
     "depth": 2
   },
   {
+    "id": 45758843,
+    "by": "simiones",
+    "timeISO": "2025-10-30T11:31:16.000Z",
+    "textPlain": "> If I am understanding this paper correctly, they are claiming that the model weights can be inverted in order to produce the original input text.No, that is not the claim at all. They are instead claiming that given an LLM output that is a summary of chapter 18 of Mary Shelley's Frankenstein, you can tell that the input prompt that led to this output was \"give me a summary of chapter 18 of Mary Shelley's Frankenstein\". Of course, this relies on the exact wording: for this to be true, it means that if you had asked \"give me a summary of chapter 18 of Frankenstein by Mary Shelley\", you would necessarily receive a (slightly) different result.Importantly, this needs to be understood as a claim about an LLM run with temperature = 0. Obviously, if the infra introduces randomness, this result no longer perfectly holds (but there may still be a way to recover it by running a more complex statistical analysis of the results, of course).Edit: their claim may be something more complex, after reading the paper. I'm not sure that their result applies to the final output, or it's restricted to knowing the internal state at some pre-output layer.",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45758871,
+    "by": "ruune",
+    "timeISO": "2025-10-30T11:33:46.000Z",
+    "textPlain": "Clarification [0] by the authors. In short: no, you can't.[0] https://x.com/GladiaLab/status/1983812121713418606",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45759436,
+    "by": "AlienRobot",
+    "timeISO": "2025-10-30T12:47:00.000Z",
+    "textPlain": "I'm not sure if I would call it \"abstracting.\"Imagine that you have an a spreadsheet that dates from the beginning of the universe to its end. It contains two columns: the date, and how many days it has been since the universe was born. That's very big spreadsheet with lots of data in it. If you plot it, it creates a seemingly infinite diagonal line.But it can be \"abstracted\" as Y=X. And that's what ML does.",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45758997,
+    "by": "RA_Fisher",
+    "timeISO": "2025-10-30T11:49:26.000Z",
+    "textPlain": "For sure! Measuring parameters given data is central to statistics. It’s a way to concentrate information for practical use. Sufficient statistics are very interesting, bc once computed, they provably contain as much information as the data (lossless).  Love statistics, it’s so cool!",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45758815,
+    "by": "saurik",
+    "timeISO": "2025-10-30T11:26:36.000Z",
+    "textPlain": "The input isn't the training data, the input is the prompt.",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45759218,
+    "by": "thaumasiotes",
+    "timeISO": "2025-10-30T12:19:38.000Z",
+    "textPlain": "> Wouldn't that mean LLMs represent an insanely efficient form of text compression?This is a good question worth thinking about.The output, as defined here (I'm assuming by reading the comment thread), is a set of one value between 0 and 1 for every token the model can treat as \"output\". The fact that LLM tokens tend not to be words makes this somewhat difficult to work with. If there are n output tokens and the probability the model assigns to each of them is represented by a float32, then the output of the model will be one of at most (2³²)ⁿ = 2³²ⁿ values; this is an upper bound on the size of the output universe.The input is not the training data but what you might think of as the prompt. Remember that the model answers the question \"given the text xx x xxx xxxxxx x, what will the next token in that text be?\" The input is the text we're asking about, here xx x xxx xxxxxx x.The input universe is defined by what can fit in the model's context window. If it's represented in terms of the same tokens that are used as representations of output, then it is bounded above by n+1 (the same n we used to bound the size of the output universe) to the power of \"the length of the context window\".Let's assume there are maybe somewhere between 10,000 and 100,000 tokens, and the context window is 32768 (2¹⁵) tokens long.Say there are 16384 = 2^14 tokens. Then our bound on the input universe is roughly (2^14)^(2^15). And our bound on the output universe is roughly 2^[(2^5)(2^14)] = 2^(2^19).(2^14)^(2^15) = 2^(14·2^15) < 2^(16·2^15) = 2^(2^19), and 2^(2^19) was our approximate number of possible output values, so there are more potential output values than input values and the output can represent the input losslessly.For a bigger vocabulary with 2^17 (=131,072) tokens, this conclusion won't change. The output universe is estimated at (2^(2^5))^(2^17) = 2^(2^22); the input universe is (2^17)^(2^15) = 2^(17·2^15) < 2^(32·2^15) = 2^(2^20). This is a huge gap; we can see that in this m",
+    "parent": 45758765,
+    "depth": 2
+  },
+  {
+    "id": 45758807,
+    "by": "simiones",
+    "timeISO": "2025-10-30T11:25:39.000Z",
+    "textPlain": "I think their claims are limited to the \"theoretical\" LLM, not to the way we typically use one.The LLM itself has a fixed size input and a fixed size, deterministic output. The input is the initial value for each neuron in the input layer. The LLM output is the vector of final outputs of each neuron in the output layer.  For most normal interactions, these vectors are almost entirely 0s.Of course, when we say LLM, we typically consider infrastructure that abstracts these things for us. Especially we typically use infra that takes the LLM outputs as probabilities, and thus typically produces different results even for the exact same input - but that's just a choice in how to interpret these values, the values themselves are identical. Similarly on the input side, the max input is typically called a \"context window\". You can feed more input into the LLM infra than the context window, but that's not actual input to the model itself - the LLM infra will simply pick a part of your input and feed that part into the model weights.",
+    "parent": 45758672,
+    "depth": 2
+  },
+  {
     "id": 45758698,
     "by": "brna-2",
     "timeISO": "2025-10-30T11:12:41.000Z",
@@ -96,11 +272,67 @@
     "depth": 2
   },
   {
+    "id": 45758845,
+    "by": "ndr",
+    "timeISO": "2025-10-30T11:31:22.000Z",
+    "textPlain": "That's not what you get out of LLMs.LLMs produce a distribution from which to sample the next token.\nThen there's a loop that samples the next token and feeds it back to to the model until it samples a EndOfSequence token.In your example the two distributions might be {\"OK\": 0.997, EOS: 0.003} vs {\"OK\": 0.998, EOS: 0.002} and what I think the authors claim is that they can invert that distribution to find which input caused it.I don't know how they go beyond one iteration, as they surely can't deterministically invert the sampling.",
+    "parent": 45758702,
+    "depth": 2
+  },
+  {
+    "id": 45758880,
+    "by": "simiones",
+    "timeISO": "2025-10-30T11:35:07.000Z",
+    "textPlain": "Edit: reading the paper, I'm no longer sure about my statement below. The algorithm they introduce claims to do this: \"We now show how this property can be used\nin practice to reconstruct the exact input prompt given hidden states at some layer [emp. mine]\". It's not clear to me from the paper if this layer can also be the final output layer, or if it must be a hidden layer.They claim that they can reverse the LLM (get prompt from LLM response) by only knowing the output layer values, the intermediate layers remain hidden. So, Their claim is that indeed you shouldn't be able to do that (note that this claim applies to the numerical model outputs, not necessarily to the output a chat interface would show you, which goes through some randomization).",
+    "parent": 45758702,
+    "depth": 2
+  },
+  {
+    "id": 45759247,
+    "by": "ape4",
+    "timeISO": "2025-10-30T12:23:03.000Z",
+    "textPlain": "Or maybe paste the essay into the question and ask what prompt was used to produce it.",
+    "parent": 45759168,
+    "depth": 2
+  },
+  {
+    "id": 45759295,
+    "by": "thaumasiotes",
+    "timeISO": "2025-10-30T12:31:24.000Z",
+    "textPlain": "> Building upon this property, we further provide a practical algorithm, SɪᴘIᴛ, that reconstructs the exact input from hidden activations",
+    "parent": 45758990,
+    "depth": 2
+  },
+  {
+    "id": 45759041,
+    "by": "morcus",
+    "timeISO": "2025-10-30T11:55:02.000Z",
+    "textPlain": "I don't think they're claiming surjectivity here. They're just saying the mapping is injective, so for a given output there should be a unique input to construct it.",
+    "parent": 45758990,
+    "depth": 2
+  },
+  {
+    "id": 45758914,
+    "by": "nephanth",
+    "timeISO": "2025-10-30T11:39:21.000Z",
+    "textPlain": "They are looking at the continuous embeddings, not at the discrete words inferred from them",
+    "parent": 45758900,
+    "depth": 2
+  },
+  {
     "id": 45758542,
     "by": "singularity2001",
     "timeISO": "2025-10-30T10:54:13.000Z",
     "textPlain": "The prompt is reconstructable from the (latent) representation vector but obviously not from the output",
     "parent": 45758293,
+    "depth": 2
+  },
+  {
+    "id": 45759015,
+    "by": "simiones",
+    "timeISO": "2025-10-30T11:51:56.000Z",
+    "textPlain": "They can't. Biological neural networks have no resemblance to the artificial neural networks of the kind used in LLMs. The only similarity is based on a vague computational abstraction of the very primitive understanding of how brains and nerve cells worked we had in the 50s when the first \"neural network\" was invented.",
+    "parent": 45758224,
     "depth": 2
   },
   {
@@ -117,6 +349,14 @@
     "timeISO": "2025-10-30T10:35:51.000Z",
     "textPlain": "These pieces of \"understanding\" mostly don't even applied to other LLMs.",
     "parent": 45758224,
+    "depth": 2
+  },
+  {
+    "id": 45758754,
+    "by": "MattRix",
+    "timeISO": "2025-10-30T11:20:16.000Z",
+    "textPlain": "yes, you’re misunderstanding it",
+    "parent": 45758508,
     "depth": 2
   }
 ]
