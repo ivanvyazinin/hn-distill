@@ -1,17 +1,9 @@
 [
   {
-    "id": 45759445,
-    "by": "nightskyblue",
-    "timeISO": "2025-10-30T12:47:39.000Z",
-    "textPlain": "When I found out that option B was already merged [1] I got very excited because the current behavior is still very unintuitive to me and one of the few areas where I prefer the behavior from Latex.\nUnfortunately, the changes were reverted shortly after because they discovered deeper issues with the new old design [2]. As far as I can see, there hasn't been any further progress on this, sadly.[1] https://github.com/typst/typst/pull/6442[2] https://github.com/typst/typst/pull/7084",
-    "parent": 45697450,
-    "depth": 1
-  },
-  {
     "id": 45759442,
     "by": "weinzierl",
     "timeISO": "2025-10-30T12:47:21.000Z",
-    "textPlain": "I had my gripes with LaTeX but the backslash in front of every macro was never one of them. I think it helps not only machine parsing but very much my human visual parsing.BTW one related trap in LaTeX is if a macro without parameters removes the space that delimits it from the output. The article mentions this in passing but does not say what Typst's solution is. Do Typst functions always require parentheses?",
+    "textPlain": "I had my gripes with LaTeX but the backslash in front of every macro was never one of them. I think it helps not only machine parsing but very much my human visual parsing.BTW one related trap in LaTeX is if a macro without parameters removes the trailing space from the output. The article mentions this in passing but does not say what Typst's solution is. Do Typst functions always require parentheses?I'm also confused about the following syntax and especially where the function ends:    table.header([A], [B]) // This one is clear\n\n    table.header()[A] // Makes sense, [A] turns magically into last param\n\n    table.header()[A][B] // Slightly confusing, why would [B] also belong to the function? But OK.\n\n    table.header()[A] [B] // Totally confusing, why is this an error now?\n\nFor the last case: If it is a parameter list a space should not matter, if it is not [B] should not be part of the function and treated as unrelated.",
     "parent": 45697450,
     "depth": 1
   },
@@ -20,6 +12,14 @@
     "by": "MayeulC",
     "timeISO": "2025-10-30T12:13:51.000Z",
     "textPlain": "In LaTeX that would be close to option 2:    e^{|x|}\n    f_{i(x)}\n\nExcept with {} for grouping, which I think is a good thing, as {} are never rendered, unlike parenthesis.I haven't used Typst much, so I am a bit wary of typesetting engines that are \"too smart\": It can be problematic when introducing new notations, which is quite common.",
+    "parent": 45697450,
+    "depth": 1
+  },
+  {
+    "id": 45759445,
+    "by": "nightskyblue",
+    "timeISO": "2025-10-30T12:47:39.000Z",
+    "textPlain": "When I found out that option B was already merged [1] I got very excited because the current behavior is still very unintuitive to me and one of the few areas where I prefer the behavior from Latex.\nUnfortunately, the changes were reverted shortly after because they discovered deeper issues with the new old design [2]. As far as I can see, there hasn't been any further progress on this, sadly.[1] https://github.com/typst/typst/pull/6442[2] https://github.com/typst/typst/pull/7084",
     "parent": 45697450,
     "depth": 1
   },
@@ -40,11 +40,43 @@
     "depth": 1
   },
   {
+    "id": 45759777,
+    "by": "runarberg",
+    "timeISO": "2025-10-30T13:23:19.000Z",
+    "textPlain": "In mathup[1] I handle this by allowing authors to strategically place space around groups they want to operate on:    e^ x-1  <- \"e with x minus one as superscript\"\n    e^x - 1  <- \"e with x as superscript minus one. Same as e^x-1\"\n    f_ i(x)  <- \"f with i of x as subscript\"\n    f_i (x) <- \"f with i as subscript of x. Same as f_i(x)\"\n\nI also implemented invisible operators (plus, times, function application, and separator) with special operators (`.+`, `.*`, `.$`, and `.,` respectively) so authors can be explicit about their intentions (and output more accessible expressions)    f_i .$ (x)\n    a / b.*(1 - x)\n    sum_ X_ i.,j\n\n1: https://mathup.xyz/",
+    "parent": 45697450,
+    "depth": 1
+  },
+  {
+    "id": 45759662,
+    "by": "andrepd",
+    "timeISO": "2025-10-30T13:11:42.000Z",
+    "textPlain": "I really don't see the problem with the current notation. I find that is very simple and intuitive: function calls bind tightly, use a space to change that.f_i(x) vs f_i (x)1/x(a+b) vs 1/x (a+b)ab vs a bSo simple. Being too \"smart\" invariably leads to more headaches and confusion than just having a simple, consistent rule.",
+    "parent": 45697450,
+    "depth": 1
+  },
+  {
+    "id": 45759678,
+    "by": "IshKebab",
+    "timeISO": "2025-10-30T13:12:39.000Z",
+    "textPlain": "They missed another option: require brackets where it would otherwise be ambiguous.",
+    "parent": 45697450,
+    "depth": 1
+  },
+  {
     "id": 45759213,
     "by": "fn-mote",
     "timeISO": "2025-10-30T12:19:23.000Z",
     "textPlain": "The post should lead with the proposed conclusion (revert and require explicit grouping) so that the reader can think about the arguments knowing the conclusion.",
     "parent": 45697450,
     "depth": 1
+  },
+  {
+    "id": 45759762,
+    "by": "fweimer",
+    "timeISO": "2025-10-30T13:22:06.000Z",
+    "textPlain": "I find https://github.com/typst/typst/pull/7072#issuecomment-338580... more enlightening about what's going on. Specifically the difference between these three:   1/2(x + y)\n   1/x(x + y)\n   1/2^x(x + y)\n\nWith a programming language background, that's just odd to reconcile. If 1/2 is treated as a rational integer literal, it's possible to explain the difference between the first two. (And apparently this difference is wildly expected, uncommon as fractions as literals are in programming languages.) But then the last one should turn into (½)ˣ(x+y) because the exponentiation should not slip inside the literal. (I expect the different outcome in the comment is not the result of an algebraic simplification in his case. I really wish they had used 2/3 as the fraction to clarify this.)It seems that TeX users struggled with this at one point, too. That's why LaTeX users generally write $\\frac{a}{b}$ instead of $a \\over x$. Copious use of braces not rendered in the output certainly avoids precedence issues.",
+    "parent": 45759445,
+    "depth": 2
   }
 ]
