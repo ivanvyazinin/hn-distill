@@ -1,5 +1,29 @@
 [
   {
+    "id": 45764252,
+    "by": "PaulHoule",
+    "timeISO": "2025-10-30T19:29:51.000Z",
+    "textPlain": "It seems to me that async io struggles whenever people try it.For instance it is where Rust goes to die because it subverts the stack-based paradigm behind ownership.  I used to find it was fun to write little applications like web servers in aio Python,  particularly if message queues and websockets were involved,  but for ordinary work you're better off using gunicorn.  The trouble is that conventional async i/o solutions are all single threaded and in an age where it's common to have a 16 core machine on your desktop it makes no sense.  It would be like starting a chess game dumping out all your pieces except for your King.Unfashionable languages like Java and .NET that have quality multithreaded runtimes are the way to go because they provide a single paradigm to manage both concurrency and parallelism.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45764840,
+    "by": "comex",
+    "timeISO": "2025-10-30T20:18:58.000Z",
+    "textPlain": "It's worth noting that this is not async/await in the sense of essentially every other language that uses those terms.In other languages, when the compiler sees an async function, it compiles it into a state machine or 'coroutine', where the function can suspend itself at designated points marked with `await`, and be resumed later.In Zig, the compiler used to support coroutines but this was removed.  In the new design, `async` and `await` are just functions.  In the threaded implementation used in the demo, `await` just blocks the thread until the operation is done.To be fair, the bottom of the post explains that there are two other Io implementations being planned.One of them is \"stackless coroutines\", which would be similar to traditional async/await.  However, from the discussion so far this seems a bit like vaporware.  As discussed in [1], andrewrk explicitly rejected the idea of just (re-)adding normal async/await keywords, and instead wants a different design, as tracked in issue 23446.  But in issue 23446 the seems to be zero agreement on how the feature would work, how it would improve on traditional async/await, or how it would avoid function coloring.The other implementation being planned is \"stackful coroutines\".  From what I can tell, this has more of a plan and is more promising, but there are significant unknowns.The basis of the design is similar to green threads or fibers.  Low-level code generation would be identical to normal synchronous code, with no state machine transform.  Instead, a library would implement suspension by swapping out the native register state and stack, just like the OS kernel does when switching between OS threads.  By itself, this has been implemented many times before, in libraries for C and in the runtimes of languages like Go.  But it has the key limitation that you don't know how much stack to allocate.  If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too l",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45764400,
+    "by": "thefaux",
+    "timeISO": "2025-10-30T19:41:32.000Z",
+    "textPlain": "I find the direction of zig confusing. Is it supposed to be a simple language or a complex one? Low level or high level? This feature is to me a strange mix of high and low level functionality and quite complex.The io interface looks like OO but violates the Liskov substitution principle. For me, this does not solve the function color problem, but instead hides it. Every function with an IO interface cannot be reasoned about locally because of unexpected interactions with the io parameter input. This is particularly nasty when IO objects are shared across library boundaries. I now need to understand how the library internally manages io if I share that object with my internal code. Code that worked in one context may surprisingly not work in another context. As a library author, how do I handle an io object that doesn't behave as I expect?Trying to solve this problem at the language level fundamentally feels like a mistake to me because you can't anticipate in advance all of the potential use cases for something as broad as io. That's not to say that this direction shouldn't be explored, but if it were my project, I would separate this into another package that I would not call standard.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
     "id": 45751541,
     "by": "synergy20",
     "timeISO": "2025-10-29T19:07:27.000Z",
@@ -40,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45764393,
+    "by": "MRson",
+    "timeISO": "2025-10-30T19:41:07.000Z",
+    "textPlain": "[dead]",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
     "id": 45755281,
     "by": "pragmatic",
     "timeISO": "2025-10-30T01:14:13.000Z",
@@ -48,10 +80,42 @@
     "depth": 1
   },
   {
+    "id": 45764498,
+    "by": "nrds",
+    "timeISO": "2025-10-30T19:50:29.000Z",
+    "textPlain": "TL;DR. Zig now has an effect system with multiple handlers for alloc and io effects. But the designer doesn't know anything about effect systems and it's not algebraic, probably. Will be interesting to see how this develops.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45764885,
+    "by": "brandonbloom",
+    "timeISO": "2025-10-30T20:23:21.000Z",
+    "textPlain": "If you watched the video closely, you'll have noticed that this design parameterizes the code by an `io` interface, which enables pluggable implementations. Correctly written code in this style can work transparently with evented or threaded runtimes.",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
+    "id": 45764505,
+    "by": "vlovich123",
+    "timeISO": "2025-10-30T19:51:25.000Z",
+    "textPlain": "> Unfashionable languages like Java and .NET that have quality multithreaded runtimes are the way to go because they provide a single paradigm to manage both concurrency and parallelism.At the cost of not being able to actually provide the same throughput, latency, or memory usage that lower level languages that don't enforce the same performance pessimizing abstractions on everything can. Engineering is about tradeoffs but pretending like Java or .NET have solved this is naiive.",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
+    "id": 45764284,
+    "by": "erichocean",
+    "timeISO": "2025-10-30T19:31:41.000Z",
+    "textPlain": "Project Loom makes Java in particular really nice, virtual threads can \"block\" without blocking the underlying OS thread. No callbacks at all, and you can even use Structured Concurrency to implement all sorts of Go- and Erlang-like patterns.(I use it from Clojure, where it pairs great with the \"thread\" version of core.async (i.e. Go-style) channels.)",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
     "id": 45764038,
     "by": "pron",
     "timeISO": "2025-10-30T19:12:06.000Z",
-    "textPlain": "I don't think any language that's not well-established, let alone one that isn't stabilised yet, would have a strong selling point if what you're looking for right now is to write production code that you'll maintain for at least a decade to come (I mean, companies do use languages that aren't as established as C, including Zig, in production apps, but that's certainly not for everyone).But if you're open to learning languages for tinkering/education purposes, I would say that Zig has several significant \"intrinsic\" advantages compared to C.* It's much more expressive (it's at least as expressive as C++), while still being a very simple language (you can learn it fully in a few days).* Its cross-compilation tooling is something of a marvel.* It offers not only spatial memory safety, but protection from other kinds of undefined behaviour such as tagged unions.",
+    "textPlain": "I don't think any language that's not well-established, let alone one that isn't stabilised yet, would have a strong selling point if what you're looking for right now is to write production code that you'll maintain for a decade or more to come (I mean, companies do use languages that aren't as established as C in production apps, including Zig, but that's certainly not for everyone).But if you're open to learning languages for tinkering/education purposes, I would say that Zig has several significant \"intrinsic\" advantages compared to C.* It's much more expressive (it's at least as expressive as C++), while still being a very simple language (you can learn it fully in a few days).* Its cross-compilation tooling is something of a marvel.* It offers not only spatial memory safety, but protection from other kinds of undefined behaviour, in the form of things like tagged unions.",
     "parent": 45751541,
     "depth": 2
   },
@@ -120,22 +184,6 @@
     "depth": 2
   },
   {
-    "id": 45751508,
-    "by": "speed_spread",
-    "timeISO": "2025-10-29T19:05:11.000Z",
-    "textPlain": "I agree, async is way more popular than it should be. At least (AFAIU) Zig doesn't color functions so there won't be a big ecosystem rift between blocking and async libraries.",
-    "parent": 45751234,
-    "depth": 2
-  },
-  {
-    "id": 45752791,
-    "by": "duped",
-    "timeISO": "2025-10-29T20:46:42.000Z",
-    "textPlain": "It sounds like your trouble with async is mistaking concurrency for parallelism.",
-    "parent": 45751234,
-    "depth": 2
-  },
-  {
     "id": 45751877,
     "by": "01HNNWZ0MV43FF",
     "timeISO": "2025-10-29T19:32:41.000Z",
@@ -144,10 +192,26 @@
     "depth": 2
   },
   {
+    "id": 45751508,
+    "by": "speed_spread",
+    "timeISO": "2025-10-29T19:05:11.000Z",
+    "textPlain": "I agree, async is way more popular than it should be. At least (AFAIU) Zig doesn't color functions so there won't be a big ecosystem rift between blocking and async libraries.",
+    "parent": 45751234,
+    "depth": 2
+  },
+  {
     "id": 45752230,
     "by": "tomck",
     "timeISO": "2025-10-29T19:58:39.000Z",
     "textPlain": ">  I do fully understand people who can't get their heads around threads and prefer asyncThis is a bizarre remarkAsync/await isn't \"for when you can't get your head around threads\", it's a completely orthogonal conceptCase in point: javascript has async/await, but everything is singlethreaded, there is no parallelismAsync/await is basically just coroutines/generators underneath.Phrasing async as 'for people who can't get their heads around threads' makes it sound like you're just insecure that you never learned how async works yet, and instead of just sitting down + learning it you would rather compensateAsync is probably a more complex model than threads/fibers for expressing concurrency. It's fine to say that, it's fine to not have learned it if that works for you, but it's silly to put one above the other as if understanding threads makes async/await irrelevant> The stdlib isn't too bad but last time I checked a lot of crates.io is filled with async functions for stuff that doesn't actually blockCan you provide an example? I haven't found that to be the case last time I used rust, but I don't use rust a great deal anymore",
+    "parent": 45751234,
+    "depth": 2
+  },
+  {
+    "id": 45752791,
+    "by": "duped",
+    "timeISO": "2025-10-29T20:46:42.000Z",
+    "textPlain": "It sounds like your trouble with async is mistaking concurrency for parallelism.",
     "parent": 45751234,
     "depth": 2
   },
