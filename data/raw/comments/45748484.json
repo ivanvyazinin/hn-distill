@@ -3,7 +3,31 @@
     "id": 45760278,
     "by": "0xbadcafebee",
     "timeISO": "2025-10-30T14:17:35.000Z",
-    "textPlain": "[delayed]",
+    "textPlain": "There's a ton of jargon here. Summarized...Why EBS didn't work:  - EBS costs for allocation\n  - EBS is slow at restores from snapshot (faster to spin up a database from a Postgres backup stored in S3 than from an EBS snapshot in S3)\n  - EBS only lets you attach 24 volumes per instance\n  - EBS only lets you resize once every 6–24 hours, you can't shrink or adjust continuously\n  - Detaching and reattaching EBS volumes can take 10s for healthy volumes to 20m for failed ones, so failover takes longer\n\nWhy all this matters:  - their AI agents are all ephemeral snapshots; they constantly destroy and rebuild EBS volumes\n\nWhat didn't work:  - local NVMe/bare metal: need 2-3x nodes for durability, too expensive; snapshot restores are too slow\n  - custom page-server psql storage architecture: too complex/expensive to maintain\n\nTheir solution:  - block COWs\n  - volume changes (new/snapshot/delete) are a metadata change\n  - storage space is logical (effectively infinite) not bound to disk primitives\n  - multi-tenant by default\n  - versioned, replicated k/v transactions, horizontally scalable\n  - independent service layer abstracts blocks into volumes, is the security/tenant boundary, enforces limits\n  - user-space block device, pins i/o queues to cpus, supports zero-copy, resizing; depends on Linux primitives for performance limits\n\nPerformance stats (single volume):  - (latency/IOPS benchmarks: 4 KB blocks; throughput benchmarks: 512 KB blocks)\n  - read: 110,000 IOPS and 1.375 GB/s (bottlenecked by network bandwidth\n  - write: 40,000–67,000 IOPS and 500–700 MB/s, synchronousy replicated\n  - single-block read latency ~1 ms, write latency ~5 ms",
+    "parent": 45748484,
+    "depth": 1
+  },
+  {
+    "id": 45760862,
+    "by": "unsolved73",
+    "timeISO": "2025-10-30T15:05:59.000Z",
+    "textPlain": "TimescaleDB was such a great project!I'm really sad to see them waste the opportunity and instead build an nth managed cloud on top of AWS, chasing buzzword after buzzword.Had they made deals with cloud providers to offer managed TimescaleDB so they can focus on their core value proposition they could have won the timeseries business, but ClickHouse made them irrelevant and Neon already has won the \"Postgres for agents\" business thanks to a better architecture than this.",
+    "parent": 45748484,
+    "depth": 1
+  },
+  {
+    "id": 45760474,
+    "by": "maherbeg",
+    "timeISO": "2025-10-30T14:35:34.000Z",
+    "textPlain": "This has a similar flavor to xata.io's SimplyBlock based storage system\n* https://xata.io/blog/xata-postgres-with-data-branching-and-p...\n* https://www.simplyblock.io/It's a great way to mix copy on write and effectively logical splitting of physical nodes. It's something I've wanted to build at a previous role.",
+    "parent": 45748484,
+    "depth": 1
+  },
+  {
+    "id": 45760818,
+    "by": "stefanha",
+    "timeISO": "2025-10-30T15:02:20.000Z",
+    "textPlain": "@graveland Which Linux interface was used for the userspace block driver (ublk, nbd, tcmu-runner, NVMe-over-TCP, etc)? Why did you choose it?Also, were existing network or distributed file systems not suitable? This use case sounds like Ceph might fit, for example.",
     "parent": 45748484,
     "depth": 1
   },
@@ -30,6 +54,46 @@
     "textPlain": "pretty cool",
     "parent": 45748484,
     "depth": 1
+  },
+  {
+    "id": 45760605,
+    "by": "hedora",
+    "timeISO": "2025-10-30T14:45:42.000Z",
+    "textPlain": "Thanks for the summary.Note that those numbers are terrible vs. a physical disk, especially latency, which should be < 1ms read, << 1ms write.(That assumes async replication of the write ahead log to a secondary.  Otherwise, write latency should be ~ 1 rtt, which is still << 5ms.)Stacking storage like this isn’t great, but PG wasn’t really designed for performance or HA.  (I don’t have a better concrete solution for ansi SQL that works today.)",
+    "parent": 45760278,
+    "depth": 2
+  },
+  {
+    "id": 45760689,
+    "by": "bradyd",
+    "timeISO": "2025-10-30T14:52:33.000Z",
+    "textPlain": "> EBS only lets you resize once every 6–24 hoursIs that even true? I've resized an EBS instance a few minutes after another resize before.",
+    "parent": 45760278,
+    "depth": 2
+  },
+  {
+    "id": 45760841,
+    "by": "thesz",
+    "timeISO": "2025-10-30T15:04:24.000Z",
+    "textPlain": "What does EBS mean?It is used in first line of the text but no explanation was given.",
+    "parent": 45760278,
+    "depth": 2
+  },
+  {
+    "id": 45760634,
+    "by": "znpy",
+    "timeISO": "2025-10-30T14:48:09.000Z",
+    "textPlain": "Reminds me of about ten years ago when a large media customer was running NetApp on cloud to get most of what you just wrote on AWS (because EBS features sucked/sucks very bad and are also crazy expensive).I did not set that up myself, but the colleague that worked on that told me that enabling tcp multipath for iscsi yielded significant performance gains.",
+    "parent": 45760278,
+    "depth": 2
+  },
+  {
+    "id": 45760970,
+    "by": "graveland",
+    "timeISO": "2025-10-30T15:16:35.000Z",
+    "textPlain": "There's some secret sauce there I don't know if I'm allowed to talk about yet, so I'll just address the existing tech that we didn't use: most things either didn't have a good enough license, cost too much, would take a TON of ramp-up and expertise we don't currently have to manage and maintain, but generally speaking, our stuff allows us to fully control it.Entirely programmable storage so far has allowed us to try a few different things to try and make things efficient and give us the features we want. We've been able to try different dedup methods, copy-on-write styles, different compression methods and types, different sharding strategies... All just as a start. We can easily and quickly create a new experimental storage backends and see exactly how pg performs with it side-by-side with other backends.We're a kubernetes shop, and we have our own CSI plugin, so we can also transparently run a pg HA pair with one pg server using EBS and the other running in our new storage layer, and easily bounce between storage types with nothing but a switchover event.",
+    "parent": 45760818,
+    "depth": 2
   },
   {
     "id": 45759847,
