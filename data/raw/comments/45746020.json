@@ -1,5 +1,21 @@
 [
   {
+    "id": 45765244,
+    "by": "pyrolistical",
+    "timeISO": "2025-10-30T20:56:48.000Z",
+    "textPlain": "Oh boy. Example 7 is a bit of a mindfuck. You get the returned string in both in await and cancel.Feels like this violates zig “no hidden control flow” principle. I kinda see how it doesn’t. But it sure feels like a violation.  But I also don’t see how they can retain the spirit of the principle with async code.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45764400,
+    "by": "thefaux",
+    "timeISO": "2025-10-30T19:41:32.000Z",
+    "textPlain": "I find the direction of zig confusing. Is it supposed to be a simple language or a complex one? Low level or high level? This feature is to me a strange mix of high and low level functionality and quite complex.The io interface looks like OO but violates the Liskov substitution principle. For me, this does not solve the function color problem, but instead hides it. Every function with an IO interface cannot be reasoned about locally because of unexpected interactions with the io parameter input. This is particularly nasty when IO objects are shared across library boundaries. I now need to understand how the library internally manages io if I share that object with my internal code. Code that worked in one context may surprisingly not work in another context. As a library author, how do I handle an io object that doesn't behave as I expect?Trying to solve this problem at the language level fundamentally feels like a mistake to me because you can't anticipate in advance all of the potential use cases for something as broad as io. That's not to say that this direction shouldn't be explored, but if it were my project, I would separate this into another package that I would not call standard.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
     "id": 45764252,
     "by": "PaulHoule",
     "timeISO": "2025-10-30T19:29:51.000Z",
@@ -12,14 +28,6 @@
     "by": "comex",
     "timeISO": "2025-10-30T20:18:58.000Z",
     "textPlain": "It's worth noting that this is not async/await in the sense of essentially every other language that uses those terms.In other languages, when the compiler sees an async function, it compiles it into a state machine or 'coroutine', where the function can suspend itself at designated points marked with `await`, and be resumed later.In Zig, the compiler used to support coroutines but this was removed.  In the new design, `async` and `await` are just functions.  In the threaded implementation used in the demo, `await` just blocks the thread until the operation is done.To be fair, the bottom of the post explains that there are two other Io implementations being planned.One of them is \"stackless coroutines\", which would be similar to traditional async/await.  However, from the discussion so far this seems a bit like vaporware.  As discussed in [1], andrewrk explicitly rejected the idea of just (re-)adding normal async/await keywords, and instead wants a different design, as tracked in issue 23446.  But in issue 23446 the seems to be zero agreement on how the feature would work, how it would improve on traditional async/await, or how it would avoid function coloring.The other implementation being planned is \"stackful coroutines\".  From what I can tell, this has more of a plan and is more promising, but there are significant unknowns.The basis of the design is similar to green threads or fibers.  Low-level code generation would be identical to normal synchronous code, with no state machine transform.  Instead, a library would implement suspension by swapping out the native register state and stack, just like the OS kernel does when switching between OS threads.  By itself, this has been implemented many times before, in libraries for C and in the runtimes of languages like Go.  But it has the key limitation that you don't know how much stack to allocate.  If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too l",
-    "parent": 45746020,
-    "depth": 1
-  },
-  {
-    "id": 45764400,
-    "by": "thefaux",
-    "timeISO": "2025-10-30T19:41:32.000Z",
-    "textPlain": "I find the direction of zig confusing. Is it supposed to be a simple language or a complex one? Low level or high level? This feature is to me a strange mix of high and low level functionality and quite complex.The io interface looks like OO but violates the Liskov substitution principle. For me, this does not solve the function color problem, but instead hides it. Every function with an IO interface cannot be reasoned about locally because of unexpected interactions with the io parameter input. This is particularly nasty when IO objects are shared across library boundaries. I now need to understand how the library internally manages io if I share that object with my internal code. Code that worked in one context may surprisingly not work in another context. As a library author, how do I handle an io object that doesn't behave as I expect?Trying to solve this problem at the language level fundamentally feels like a mistake to me because you can't anticipate in advance all of the potential use cases for something as broad as io. That's not to say that this direction shouldn't be explored, but if it were my project, I would separate this into another package that I would not call standard.",
     "parent": 45746020,
     "depth": 1
   },
@@ -88,11 +96,19 @@
     "depth": 1
   },
   {
-    "id": 45764885,
-    "by": "brandonbloom",
-    "timeISO": "2025-10-30T20:23:21.000Z",
-    "textPlain": "If you watched the video closely, you'll have noticed that this design parameterizes the code by an `io` interface, which enables pluggable implementations. Correctly written code in this style can work transparently with evented or threaded runtimes.",
-    "parent": 45764252,
+    "id": 45765486,
+    "by": "rdtsc",
+    "timeISO": "2025-10-30T21:16:57.000Z",
+    "textPlain": "> Feels like this violates zig “no hidden control flow” principle.A hot take here is that the whole async thing is a hidden control flow. Some people noticed that ever since plain callbacks were touted as a \"webscale\" way to do concurrency. The sequence of callbacks being executed or canceled forms a hidden, implicit control flow running concurrently with the main control logic. It can be harder to debug and manage than threads.But that said, unless, Zig adds a runtime with its own scheduler and turns into a bytecode VM, there is not much it can do. Co-routines and green threads have been done before in C and C-like languages, but not sure how easily the would fit with Zig and its philosophy.",
+    "parent": 45765244,
+    "depth": 2
+  },
+  {
+    "id": 45765042,
+    "by": "mordnis",
+    "timeISO": "2025-10-30T20:39:22.000Z",
+    "textPlain": "Couldn't the same thing be said about functions that accept allocators?",
+    "parent": 45764400,
     "depth": 2
   },
   {
@@ -104,10 +120,26 @@
     "depth": 2
   },
   {
+    "id": 45764885,
+    "by": "brandonbloom",
+    "timeISO": "2025-10-30T20:23:21.000Z",
+    "textPlain": "If you watched the video closely, you'll have noticed that this design parameterizes the code by an `io` interface, which enables pluggable implementations. Correctly written code in this style can work transparently with evented or threaded runtimes.",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
     "id": 45764284,
     "by": "erichocean",
     "timeISO": "2025-10-30T19:31:41.000Z",
     "textPlain": "Project Loom makes Java in particular really nice, virtual threads can \"block\" without blocking the underlying OS thread. No callbacks at all, and you can even use Structured Concurrency to implement all sorts of Go- and Erlang-like patterns.(I use it from Clojure, where it pairs great with the \"thread\" version of core.async (i.e. Go-style) channels.)",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
+    "id": 45764939,
+    "by": "andrewmcwatters",
+    "timeISO": "2025-10-30T20:29:30.000Z",
+    "textPlain": "[dead]",
     "parent": 45764252,
     "depth": 2
   },
