@@ -1,5 +1,13 @@
 [
   {
+    "id": 45757022,
+    "by": "dagss",
+    "timeISO": "2025-10-30T06:37:52.000Z",
+    "textPlain": "I really believe this is the way: Event log tables in SQL. I have been doing it a lot.A downside is the lack of tooling client side. For many using Kafka is worth it simply for the tooling in libraries consumer side.If you just want to write an event handler function there is a lot of boilerplate to manage around it. (Persisting read cursors etc)We introduced a company standard for one service pulling events from another service that fit well together with this events stored in SQL.https://github.com/vippsas/feedapi-specNowhere close to Kafka's maturity in client side tooling but it is an approach for how a library stack could be built on top making this convenient and have the same library toolset support many storage engines. (On the server/storage side, Postgres is of course as mature as Kafka...)",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45748795,
     "by": "munchbunny",
     "timeISO": "2025-10-29T16:08:16.000Z",
@@ -16,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45747975,
-    "by": "vbezhenar",
-    "timeISO": "2025-10-29T15:19:03.000Z",
-    "textPlain": "How do you implement \"unique monotonically-increasing offset number\"?Naive approach with sequence (or serial type which uses sequence automatically) does not work. Transaction \"one\" gets number \"123\", transaction \"two\" gets number \"124\". Transaction \"two\" commits, now table contains \"122\", \"124\" rows and readers can start to process it. Then transaction \"one\" commits with its \"123\" number, but readers already past \"124\". And transaction \"one\" might never commit for various reasons (e.g. client just got power cut), so just waiting for \"123\" forever does not cut it.Notifications can help with this approach, but then you can't restart old readers (and you don't need monotonic numbers at all).",
+    "id": 45757131,
+    "by": "asah",
+    "timeISO": "2025-10-30T06:59:20.000Z",
+    "textPlain": "\"500 KB/s workload should not use Kafka\" - yyyy!!!  indeed, I'm running 5MBps logging system through a single node RDS instance costing <$1000/mon (plus 2x for failover). There's easily 4-10x headroom for growth by paying AWS more money and 3-5x+ savings by optimizing the data structure.",
     "parent": 45747018,
     "depth": 1
   },
   {
-    "id": 45756292,
-    "by": "spectraldrift",
-    "timeISO": "2025-10-30T03:59:35.000Z",
-    "textPlain": "> Should You Use Postgres? Most of the time - yesThis made me wonder about a tangential statistic that would, in all likelihood, be impossible to derive:If we looked at all database systems running at any given time, what proportion does each technology represent (e.g., Postgres vs. MySQL vs. [your favorite DB])? You could try to measure this in a few ways: bytes written/read, total rows, dollars of revenue served, etc.It would be very challenging to land on a widely agreeable definition. We'd quickly get into the territory of what counts as a \"database\" and whether to include file systems, blockchains, or even paper. Still, it makes me wonder. I feel like such a question would be immensely interesting to answer.Because then we might have a better definition of \"most of the time.\"",
+    "id": 45747975,
+    "by": "vbezhenar",
+    "timeISO": "2025-10-29T15:19:03.000Z",
+    "textPlain": "How do you implement \"unique monotonically-increasing offset number\"?Naive approach with sequence (or serial type which uses sequence automatically) does not work. Transaction \"one\" gets number \"123\", transaction \"two\" gets number \"124\". Transaction \"two\" commits, now table contains \"122\", \"124\" rows and readers can start to process it. Then transaction \"one\" commits with its \"123\" number, but readers already past \"124\". And transaction \"one\" might never commit for various reasons (e.g. client just got power cut), so just waiting for \"123\" forever does not cut it.Notifications can help with this approach, but then you can't restart old readers (and you don't need monotonic numbers at all).",
     "parent": 45747018,
     "depth": 1
   },
@@ -40,18 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45756676,
-    "by": "woile",
-    "timeISO": "2025-10-30T05:20:44.000Z",
-    "textPlain": "There are a few things missing I think.I think kafka makes easy to create an event driven architecture. This is particularly useful when you have many teams. They are properly isolated from each other.And with many teams, another problem comes, there's no guarantee that queries are gonna be properly written, then postgres' performance may be hindered.Given this, I think using Kafka in companies with many teams can be useful, even if the data they move is not insanely big.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45756652,
-    "by": "udave",
-    "timeISO": "2025-10-30T05:14:23.000Z",
-    "textPlain": "I find the distinction between queue and pub sub system quite poor. A pub sub system is just a persistent queue at its core, the only distinction is you have multiple queues for each subscriber, hence multiple readers. everything else stays the same. Ordering is expected to be strict in both cases. The Durability factor is also baked in both systems. On the question of bounded and unbounded queue: does not message queues also spill to disk in order to prevent OOM scenarios?",
+    "id": 45756292,
+    "by": "spectraldrift",
+    "timeISO": "2025-10-30T03:59:35.000Z",
+    "textPlain": "> Should You Use Postgres? Most of the time - yesThis made me wonder about a tangential statistic that would, in all likelihood, be impossible to derive:If we looked at all database systems running at any given time, what proportion does each technology represent (e.g., Postgres vs. MySQL vs. [your favorite DB])? You could try to measure this in a few ways: bytes written/read, total rows, dollars of revenue served, etc.It would be very challenging to land on a widely agreeable definition. We'd quickly get into the territory of what counts as a \"database\" and whether to include file systems, blockchains, or even paper. Still, it makes me wonder. I feel like such a question would be immensely interesting to answer.Because then we might have a better definition of \"most of the time.\"",
     "parent": 45747018,
     "depth": 1
   },
@@ -80,6 +80,22 @@
     "depth": 1
   },
   {
+    "id": 45756652,
+    "by": "udave",
+    "timeISO": "2025-10-30T05:14:23.000Z",
+    "textPlain": "I find the distinction between queue and pub sub system quite poor. A pub sub system is just a persistent queue at its core, the only distinction is you have multiple queues for each subscriber, hence multiple readers. everything else stays the same. Ordering is expected to be strict in both cases. The Durability factor is also baked in both systems. On the question of bounded and unbounded queue: does not message queues also spill to disk in order to prevent OOM scenarios?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45756676,
+    "by": "woile",
+    "timeISO": "2025-10-30T05:20:44.000Z",
+    "textPlain": "There are a few things missing I think.I think kafka makes easy to create an event driven architecture. This is particularly useful when you have many teams. They are properly isolated from each other.And with many teams, another problem comes, there's no guarantee that queries are gonna be properly written, then postgres' performance may be hindered.Given this, I think using Kafka in companies with many teams can be useful, even if the data they move is not insanely big.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45753693,
     "by": "bmcahren",
     "timeISO": "2025-10-29T22:05:02.000Z",
@@ -88,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45754628,
-    "by": "brikym",
-    "timeISO": "2025-10-29T23:48:33.000Z",
-    "textPlain": "If you don't mind Redis then use Redis Streams. It gives you an eventlog without worrying about postgres performance issues and has consumer groups.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748622,
     "by": "losvedir",
     "timeISO": "2025-10-29T15:58:31.000Z",
     "textPlain": "Maybe I missed it in the design here, but this pseudo-Kafka Postgres implementation doesn't really handle consumer groups very well. The great thing about Kafka consumer groups is it makes it easy to spread the load over several instances running your service. They'll all connect using the same group, and different partitions will be assigned to the different instances. As you scale up or down, the partition responsibilities will be updated accordingly.You need some sort of server-side logic to manage that, and the consumer heartbeats, and generation tracking, to make sure that only the \"correct\" instances can actually commit the new offsets. Distributed systems are hard, and Kafka goes through a lot of trouble to ensure that you don't fail to process a message.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45754628,
+    "by": "brikym",
+    "timeISO": "2025-10-29T23:48:33.000Z",
+    "textPlain": "If you don't mind Redis then use Redis Streams. It gives you an eventlog without worrying about postgres performance issues and has consumer groups.",
     "parent": 45747018,
     "depth": 1
   },
@@ -144,14 +160,6 @@
     "depth": 1
   },
   {
-    "id": 45756737,
-    "by": "lmm",
-    "timeISO": "2025-10-30T05:36:19.000Z",
-    "textPlain": "If Kakfa had come first, no-one would ever pick Postgres. Yes, it offers a lot of fancy functionality. But most of that functionality is overengineered stuff you don't need, and/or causes more problems than it solves (e.g. transactions sound great until you have to deal with the deadlocks and realise they don't actually help you solve any business problems). Meanwhile with no true master-master HA in the base system you have to use a single point of failure server or a flaky (and probably expensive) third-party addon.Just use Kafka. Even if you don't need speed or scalability, it's reliable, resilient, simple and well-factored, and gives you far fewer opportunities to architect your system wrong and paint yourself into a corner than Postgres does.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45753628,
     "by": "jeeybee",
     "timeISO": "2025-10-29T21:58:43.000Z",
@@ -188,6 +196,22 @@
     "by": "loftsy",
     "timeISO": "2025-10-29T15:33:06.000Z",
     "textPlain": "I am about to start a project. I know I want an event sourced architecture. That is, the system is designed around a queue, all actors push/pull into the queue. This article gives me some pause.Performance isn't a big deal for me. I had assumed that Kafka would give me things like decoupling, retry, dead-lettering, logging, schema validation, schema versioning, exactly once processing.I like Postgres, and obviously I can write a queue ontop of it, but it seems like quite a lot of effort?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45748429,
+    "by": "dzonga",
+    "timeISO": "2025-10-29T15:46:20.000Z",
+    "textPlain": "what's not spoken about in the above article ?ease of use. in ruby If I want to use kafka I can use karafka. or redis streams via the redis library. likewise if kafka is too complex to run there's countless alternatives which work as well - hell even 0mq with client libraries.now with the postgres version I have to write my own stuff which I might not where it's gonna lead me.postgres is scalable, no one doubts that. but what people forget to mention is the ecosystem around certain tools.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45756737,
+    "by": "lmm",
+    "timeISO": "2025-10-30T05:36:19.000Z",
+    "textPlain": "If Kakfa had come first, no-one would ever pick Postgres. Yes, it offers a lot of fancy functionality. But most of that functionality is overengineered stuff you don't need, and/or causes more problems than it solves (e.g. transactions sound great until you have to deal with the deadlocks and realise they don't actually help you solve any business problems). Meanwhile with no true master-master HA in the base system you have to use a single point of failure server or a flaky (and probably expensive) third-party addon.Just use Kafka. Even if you don't need speed or scalability, it's reliable, resilient, simple and well-factored, and gives you far fewer opportunities to architect your system wrong and paint yourself into a corner than Postgres does.",
     "parent": 45747018,
     "depth": 1
   },
@@ -232,14 +256,6 @@
     "depth": 1
   },
   {
-    "id": 45753855,
-    "by": "nchmy",
-    "timeISO": "2025-10-29T22:21:24.000Z",
-    "textPlain": "Seems like instead of a hand-rolled, polling Pub/sub, could instead do CDC instead with a golang logical replication/cdc library. There's surely various.Or just use NATS for queues and pubsub - dead simple, can embed in your Go app and does much more than Kafka",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748671,
     "by": "jasonthorsness",
     "timeISO": "2025-10-29T16:01:42.000Z",
@@ -248,26 +264,18 @@
     "depth": 1
   },
   {
+    "id": 45753855,
+    "by": "nchmy",
+    "timeISO": "2025-10-29T22:21:24.000Z",
+    "textPlain": "Seems like instead of a hand-rolled, polling Pub/sub, could instead do CDC instead with a golang logical replication/cdc library. There's surely various.Or just use NATS for queues and pubsub - dead simple, can embed in your Go app and does much more than Kafka",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45749031,
     "by": "Copenjin",
     "timeISO": "2025-10-29T16:22:28.000Z",
     "textPlain": "I'm not really convinced by the comment on NOTIFY instead of the inferior (at least in theory) polling, I expect the global queue if it's really global to be only a temporary location to collect notifications before sending them and not a bottleneck. Never did any benchmark with PG or Oracle (that has a similar feature) but I expect that depending on the polling frequency and average amount of updates each solution could be the best depending on the circumstances.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45748429,
-    "by": "dzonga",
-    "timeISO": "2025-10-29T15:46:20.000Z",
-    "textPlain": "what's not spoken about in the above article ?ease of use. in ruby If I want to use kafka I can use karafka. or redis streams via the redis library. likewise if kafka is too complex to run there's countless alternatives which work as well - hell even 0mq with client libraries.now with the postgres version I have to write my own stuff which I might not where it's gonna lead me.postgres is scalable, no one doubts that. but what people forget to mention is the ecosystem around certain tools.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45756631,
-    "by": "aussieguy1234",
-    "timeISO": "2025-10-30T05:08:10.000Z",
-    "textPlain": "I've found Kafka to be not particularly great with languages other than Java, if Confluent schemaregisty is involved.I had fun working with the schema registy from TypeScript.",
     "parent": 45747018,
     "depth": 1
   },
@@ -336,6 +344,14 @@
     "depth": 1
   },
   {
+    "id": 45756631,
+    "by": "aussieguy1234",
+    "timeISO": "2025-10-30T05:08:10.000Z",
+    "textPlain": "I've found Kafka to be not particularly great with languages other than Java, if Confluent schemaregisty is involved.I had fun working with the schema registy from TypeScript.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45748818,
     "by": "ayongpm",
     "timeISO": "2025-10-29T16:09:44.000Z",
@@ -352,18 +368,18 @@
     "depth": 1
   },
   {
-    "id": 45755453,
-    "by": "smoyer",
-    "timeISO": "2025-10-30T01:37:27.000Z",
-    "textPlain": "Kafka is fast ... And MongoDB is web scale [0].  I completely agree that we shouldn't go chasing each new technical bauble but we are also wasting breath on those that do.0. https://youtu.be/b2F-DItXtZs?si=vrB-UxCHIgMYGKFt",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45749180,
     "by": "heyitsdaad",
     "timeISO": "2025-10-29T16:29:50.000Z",
     "textPlain": "If the only tool you know is a hammer, everything starts looking like a nail.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45755453,
+    "by": "smoyer",
+    "timeISO": "2025-10-30T01:37:27.000Z",
+    "textPlain": "Kafka is fast ... And MongoDB is web scale [0].  I completely agree that we shouldn't go chasing each new technical bauble but we are also wasting breath on those that do.0. https://youtu.be/b2F-DItXtZs?si=vrB-UxCHIgMYGKFt",
     "parent": 45747018,
     "depth": 1
   },
@@ -380,22 +396,6 @@
     "by": "psadri",
     "timeISO": "2025-10-29T16:47:53.000Z",
     "textPlain": "A resource that would benefit the entire community is a set of ballpark figures for what kind of performance is \"normal\" given a particular hardware + data volume.  I know this is a hard problem because there is so much variation across workloads, but I think even order of magnitude ballparks would be useful.  For example, it could say things like:task: msg queuesoftware: kafkahardware: m7i.xlarge (vCPUs: 4 Memory: 16 GiB)payload: 2kb / msgpossible performance: ### - #### msgs / secondetc…So many times I've found myself wondering: is this thing behaving within an order of magnitude of a correctly setup version so that I can decide whether I should leave it alone or spend more time on it.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45752722,
-    "by": "rjurney",
-    "timeISO": "2025-10-29T20:40:17.000Z",
-    "textPlain": "One bad message in a Kafka queue and guess what? The entire queue is down because it kills your workers over and over. To fix it? You have to resize the queue to zero, which means losing requests. This KILLS me. Jay Kreps says there is no reason it can't be fixed, but it never had been and this infuriates me because it happens so often :)",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45748293,
-    "by": "me551ah",
-    "timeISO": "2025-10-29T15:38:32.000Z",
-    "textPlain": "Imagine if historic humans had decided that only hammers are enough. That there is no need for a specialized tool like Scissors, Chisel, Axe, Wrench, Shovel , Sickle and that a hammer and fingers are enough.Use the tool which is appropriate for the job, it is trivial to write code to use them with LLMs these days and these software are mature enough to rarely cause problems and tools built for a purpose will always be more performant.",
     "parent": 45747018,
     "depth": 1
   }
