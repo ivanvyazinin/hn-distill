@@ -1,9 +1,25 @@
 [
   {
+    "id": 45758704,
+    "by": "coldtea",
+    "timeISO": "2025-10-30T11:13:38.000Z",
+    "textPlain": ">The claim is that it handles 80%+ of their use cases with 20% of the development effort. (Pareto Principle)The Pareto principle is not some guarantee applicable to everything and anything saying that any X will handle 80% of some other thing's use cases with 20% the effort.One can see how irrelevant its invocation is if we reverse: does Kafka also handle 80% of what Postgres does with 20% the effort? If not, what makes Postgres especially the \"Pareto 80%\" one in this comparison? Did Vilfredo Pareto had Postgres specifically in mind when forming the principle?Pareto principle concerns situations where power-law distributions emerge. Not arbitrary server software comparisons.Just say Postgres covers a lot of use cases people mindlessly go to shiny new software for that they don't really need, and is more battled tested, mature, and widely supported.The Pareto principle is a red herring.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45748795,
     "by": "munchbunny",
     "timeISO": "2025-10-29T16:08:16.000Z",
     "textPlain": "My general opinion, off the cuff, from having worked at both small (hundreds of events per hour) and large (trillions of events per hour) scales for these sorts of problems:1. Do you really need a queue? (Alternative: periodic polling of a DB)2. What's your event volume and can it fit on one node for the foreseeable future, or even serverless compute (if not too expensive)? (Alternative: lightweight single-process web service, or several instances, on one node.)3. If it can't fit on one node, do you really need a distributed queue? (Alternative: good ol' load balancing and REST API's, maybe with async semantics and retry semantics)4. If you really do need a distributed queue, then you may as well use a distributed queue, such as Kafka. Even if you take on the complexity of managing a Kafka cluster, the programming and performance semantics are simpler to reason about than trying to shoehorn a distributed queue onto a SQL DB.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45758638,
+    "by": "LinXitoW",
+    "timeISO": "2025-10-30T11:06:08.000Z",
+    "textPlain": "Isn't one gigantic advantage with Postgres the ACID part?It seems to me that the hardest part of going for a MQ/distributed log like Kafka is re-working existing code to now handle the lack of ACID stuff. Things that are trivial with Postgres, like exactly once delivery, are huge undertakings without ACID.Personally, I don't have much experience with this, so maybe I'm just missing something?",
     "parent": 45747018,
     "depth": 1
   },
@@ -56,18 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45758272,
-    "by": "sherinjosephroy",
-    "timeISO": "2025-10-30T10:16:26.000Z",
-    "textPlain": "Good reminder: if your message load is modest, sticking with something you know (like Postgres) might be wiser than going full-Kafka. Complexity adds cost, and you only need big guns when you're really under fire.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45756292,
-    "by": "spectraldrift",
-    "timeISO": "2025-10-30T03:59:35.000Z",
-    "textPlain": "> Should You Use Postgres? Most of the time - yesThis made me wonder about a tangential statistic that would, in all likelihood, be impossible to derive:If we looked at all database systems running at any given time, what proportion does each technology represent (e.g., Postgres vs. MySQL vs. [your favorite DB])? You could try to measure this in a few ways: bytes written/read, total rows, dollars of revenue served, etc.It would be very challenging to land on a widely agreeable definition. We'd quickly get into the territory of what counts as a \"database\" and whether to include file systems, blockchains, or even paper. Still, it makes me wonder. I feel like such a question would be immensely interesting to answer.Because then we might have a better definition of \"most of the time.\"",
+    "id": 45758457,
+    "by": "suyash",
+    "timeISO": "2025-10-30T10:45:09.000Z",
+    "textPlain": "Postgres isn't ideal, you need a timeseries database for streaming data.",
     "parent": 45747018,
     "depth": 1
   },
@@ -80,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 45756292,
+    "by": "spectraldrift",
+    "timeISO": "2025-10-30T03:59:35.000Z",
+    "textPlain": "> Should You Use Postgres? Most of the time - yesThis made me wonder about a tangential statistic that would, in all likelihood, be impossible to derive:If we looked at all database systems running at any given time, what proportion does each technology represent (e.g., Postgres vs. MySQL vs. [your favorite DB])? You could try to measure this in a few ways: bytes written/read, total rows, dollars of revenue served, etc.It would be very challenging to land on a widely agreeable definition. We'd quickly get into the territory of what counts as a \"database\" and whether to include file systems, blockchains, or even paper. Still, it makes me wonder. I feel like such a question would be immensely interesting to answer.Because then we might have a better definition of \"most of the time.\"",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45754628,
     "by": "brikym",
     "timeISO": "2025-10-29T23:48:33.000Z",
@@ -88,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45753693,
-    "by": "bmcahren",
-    "timeISO": "2025-10-29T22:05:02.000Z",
-    "textPlain": "A huge benefit of single-database operations at scale is point-in-time recovery for the entire system thereby not having to coordinate recovery points between data stores. Alternatively, you can treat your queue as volatile depending on the purpose.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45748622,
     "by": "losvedir",
     "timeISO": "2025-10-29T15:58:31.000Z",
     "textPlain": "Maybe I missed it in the design here, but this pseudo-Kafka Postgres implementation doesn't really handle consumer groups very well. The great thing about Kafka consumer groups is it makes it easy to spread the load over several instances running your service. They'll all connect using the same group, and different partitions will be assigned to the different instances. As you scale up or down, the partition responsibilities will be updated accordingly.You need some sort of server-side logic to manage that, and the consumer heartbeats, and generation tracking, to make sure that only the \"correct\" instances can actually commit the new offsets. Distributed systems are hard, and Kafka goes through a lot of trouble to ensure that you don't fail to process a message.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45753693,
+    "by": "bmcahren",
+    "timeISO": "2025-10-29T22:05:02.000Z",
+    "textPlain": "A huge benefit of single-database operations at scale is point-in-time recovery for the entire system thereby not having to coordinate recovery points between data stores. Alternatively, you can treat your queue as volatile depending on the purpose.",
     "parent": 45747018,
     "depth": 1
   },
@@ -120,26 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45757501,
-    "by": "0xDEAFBEAD",
-    "timeISO": "2025-10-30T08:08:23.000Z",
-    "textPlain": "Why does it matter how many distinct tools you use?  It seems easiest to just always use the most standard tool in the most standard way, to minimize the amount of custom code you have to write.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45749786,
     "by": "ryandvm",
     "timeISO": "2025-10-29T17:05:56.000Z",
     "textPlain": "I think my only complaint about Kafka is the widespread misunderstanding that it is a suitable replacement for a work queue. I should not be having to explain to an enterprise architect the distinction between a distributed work queue and event streaming platform.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45757131,
-    "by": "asah",
-    "timeISO": "2025-10-30T06:59:20.000Z",
-    "textPlain": "\"500 KB/s workload should not use Kafka\" - yyyy!!!  indeed, I'm running 5MBps logging system through a single node RDS instance costing <$1000/mon (plus 2x for failover). There's easily 4-10x headroom for growth by paying AWS more money and 3-5x+ savings by optimizing the data structure.",
     "parent": 45747018,
     "depth": 1
   },
@@ -152,6 +152,22 @@
     "depth": 1
   },
   {
+    "id": 45757131,
+    "by": "asah",
+    "timeISO": "2025-10-30T06:59:20.000Z",
+    "textPlain": "\"500 KB/s workload should not use Kafka\" - yyyy!!!  indeed, I'm running 5MBps logging system through a single node RDS instance costing <$1000/mon (plus 2x for failover). There's easily 4-10x headroom for growth by paying AWS more money and 3-5x+ savings by optimizing the data structure.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45757501,
+    "by": "0xDEAFBEAD",
+    "timeISO": "2025-10-30T08:08:23.000Z",
+    "textPlain": "Why does it matter how many distinct tools you use?  It seems easiest to just always use the most standard tool in the most standard way, to minimize the amount of custom code you have to write.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45756652,
     "by": "udave",
     "timeISO": "2025-10-30T05:14:23.000Z",
@@ -160,18 +176,18 @@
     "depth": 1
   },
   {
-    "id": 45756676,
-    "by": "woile",
-    "timeISO": "2025-10-30T05:20:44.000Z",
-    "textPlain": "There are a few things missing I think.I think kafka makes easy to create an event driven architecture. This is particularly useful when you have many teams. They are properly isolated from each other.And with many teams, another problem comes, there's no guarantee that queries are gonna be properly written, then postgres' performance may be hindered.Given this, I think using Kafka in companies with many teams can be useful, even if the data they move is not insanely big.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45749137,
     "by": "sc68cal",
     "timeISO": "2025-10-29T16:27:55.000Z",
     "textPlain": "> Postgres doesn’t seem to have any popular libraries for pub-sub9 use cases, so I had to write my own.Ok so instead of running Kafka, we're going to spend development cycles building our own?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45756676,
+    "by": "woile",
+    "timeISO": "2025-10-30T05:20:44.000Z",
+    "textPlain": "There are a few things missing I think.I think kafka makes easy to create an event driven architecture. This is particularly useful when you have many teams. They are properly isolated from each other.And with many teams, another problem comes, there's no guarantee that queries are gonna be properly written, then postgres' performance may be hindered.Given this, I think using Kafka in companies with many teams can be useful, even if the data they move is not insanely big.",
     "parent": 45747018,
     "depth": 1
   },
@@ -208,14 +224,6 @@
     "depth": 1
   },
   {
-    "id": 45753855,
-    "by": "nchmy",
-    "timeISO": "2025-10-29T22:21:24.000Z",
-    "textPlain": "Seems like instead of a hand-rolled, polling Pub/sub, could instead do CDC instead with a golang logical replication/cdc library. There's surely various.Or just use NATS for queues and pubsub - dead simple, can embed in your Go app and does much more than Kafka",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45750412,
     "by": "jdboyd",
     "timeISO": "2025-10-29T17:43:36.000Z",
@@ -224,10 +232,26 @@
     "depth": 1
   },
   {
+    "id": 45753855,
+    "by": "nchmy",
+    "timeISO": "2025-10-29T22:21:24.000Z",
+    "textPlain": "Seems like instead of a hand-rolled, polling Pub/sub, could instead do CDC instead with a golang logical replication/cdc library. There's surely various.Or just use NATS for queues and pubsub - dead simple, can embed in your Go app and does much more than Kafka",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
     "id": 45748203,
     "by": "loftsy",
     "timeISO": "2025-10-29T15:33:06.000Z",
     "textPlain": "I am about to start a project. I know I want an event sourced architecture. That is, the system is designed around a queue, all actors push/pull into the queue. This article gives me some pause.Performance isn't a big deal for me. I had assumed that Kafka would give me things like decoupling, retry, dead-lettering, logging, schema validation, schema versioning, exactly once processing.I like Postgres, and obviously I can write a queue ontop of it, but it seems like quite a lot of effort?",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45758272,
+    "by": "sherinjosephroy",
+    "timeISO": "2025-10-30T10:16:26.000Z",
+    "textPlain": "Good reminder: if your message load is modest, sticking with something you know (like Postgres) might be wiser than going full-Kafka. Complexity adds cost, and you only need big guns when you're really under fire.",
     "parent": 45747018,
     "depth": 1
   },
@@ -312,18 +336,18 @@
     "depth": 1
   },
   {
-    "id": 45751841,
-    "by": "mbo",
-    "timeISO": "2025-10-29T19:30:29.000Z",
-    "textPlain": "This is an article in desperate need for some data visualizations. I do not think it does an effective job of communicating differences in performance.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
     "id": 45749231,
     "by": "bleonard",
     "timeISO": "2025-10-29T16:32:45.000Z",
     "textPlain": "I am excited about the Rails defaults where background and cache and sockets are all database driven. For normal-sized projects that still need those things, it's a huge win in simplicity.",
+    "parent": 45747018,
+    "depth": 1
+  },
+  {
+    "id": 45751841,
+    "by": "mbo",
+    "timeISO": "2025-10-29T19:30:29.000Z",
+    "textPlain": "This is an article in desperate need for some data visualizations. I do not think it does an effective job of communicating differences in performance.",
     "parent": 45747018,
     "depth": 1
   },
@@ -372,30 +396,6 @@
     "by": "CuriouslyC",
     "timeISO": "2025-10-29T15:34:00.000Z",
     "textPlain": "If you don't need all the bells and whistles of Kafka, NATS Jetstream is usually the way to go.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45749180,
-    "by": "heyitsdaad",
-    "timeISO": "2025-10-29T16:29:50.000Z",
-    "textPlain": "If the only tool you know is a hammer, everything starts looking like a nail.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45756631,
-    "by": "aussieguy1234",
-    "timeISO": "2025-10-30T05:08:10.000Z",
-    "textPlain": "I've found Kafka to be not particularly great with languages other than Java, if Confluent schemaregisty is involved.I had fun working with the schema registy from TypeScript.",
-    "parent": 45747018,
-    "depth": 1
-  },
-  {
-    "id": 45755453,
-    "by": "smoyer",
-    "timeISO": "2025-10-30T01:37:27.000Z",
-    "textPlain": "Kafka is fast ... And MongoDB is web scale [0].  I completely agree that we shouldn't go chasing each new technical bauble but we are also wasting breath on those that do.0. https://youtu.be/b2F-DItXtZs?si=vrB-UxCHIgMYGKFt",
     "parent": 45747018,
     "depth": 1
   }
