@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45764840,
-    "by": "comex",
-    "timeISO": "2025-10-30T20:18:58.000Z",
-    "textPlain": "It's worth noting that this is not async/await in the sense of essentially every other language that uses those terms.In other languages, when the compiler sees an async function, it compiles it into a state machine or 'coroutine', where the function can suspend itself at designated points marked with `await`, and be resumed later.In Zig, the compiler used to support coroutines but this was removed.  In the new design, `async` and `await` are just functions.  In the threaded implementation used in the demo, `await` just blocks the thread until the operation is done.To be fair, the bottom of the post explains that there are two other Io implementations being planned.One of them is \"stackless coroutines\", which would be similar to traditional async/await.  However, from the discussion so far this seems a bit like vaporware.  As discussed in [1], andrewrk explicitly rejected the idea of just (re-)adding normal async/await keywords, and instead wants a different design, as tracked in issue 23446.  But in issue 23446 the seems to be zero agreement on how the feature would work, how it would improve on traditional async/await, or how it would avoid function coloring.The other implementation being planned is \"stackful coroutines\".  From what I can tell, this has more of a plan and is more promising, but there are significant unknowns.The basis of the design is similar to green threads or fibers.  Low-level code generation would be identical to normal synchronous code, with no state machine transform.  Instead, a library would implement suspension by swapping out the native register state and stack, just like the OS kernel does when switching between OS threads.  By itself, this has been implemented many times before, in libraries for C and in the runtimes of languages like Go.  But it has the key limitation that you don't know how much stack to allocate.  If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too l",
-    "parent": 45746020,
-    "depth": 1
-  },
-  {
     "id": 45766652,
     "by": "ozgrakkurt",
     "timeISO": "2025-10-30T23:27:48.000Z",
     "textPlain": "Really really hope they make it easy and ergonomic to integrate with single threaded cooperative scheduling paradigm like seastar or glommio.I wrote a library that I use for this but it would be really nice to be able to cleanly integrate it into async/await.https://github.com/steelcake/csio",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45764840,
+    "by": "comex",
+    "timeISO": "2025-10-30T20:18:58.000Z",
+    "textPlain": "It's worth noting that this is not async/await in the sense of essentially every other language that uses those terms.In other languages, when the compiler sees an async function, it compiles it into a state machine or 'coroutine', where the function can suspend itself at designated points marked with `await`, and be resumed later.In Zig, the compiler used to support coroutines but this was removed.  In the new design, `async` and `await` are just functions.  In the threaded implementation used in the demo, `await` just blocks the thread until the operation is done.To be fair, the bottom of the post explains that there are two other Io implementations being planned.One of them is \"stackless coroutines\", which would be similar to traditional async/await.  However, from the discussion so far this seems a bit like vaporware.  As discussed in [1], andrewrk explicitly rejected the idea of just (re-)adding normal async/await keywords, and instead wants a different design, as tracked in issue 23446.  But in issue 23446 the seems to be zero agreement on how the feature would work, how it would improve on traditional async/await, or how it would avoid function coloring.The other implementation being planned is \"stackful coroutines\".  From what I can tell, this has more of a plan and is more promising, but there are significant unknowns.The basis of the design is similar to green threads or fibers.  Low-level code generation would be identical to normal synchronous code, with no state machine transform.  Instead, a library would implement suspension by swapping out the native register state and stack, just like the OS kernel does when switching between OS threads.  By itself, this has been implemented many times before, in libraries for C and in the runtimes of languages like Go.  But it has the key limitation that you don't know how much stack to allocate.  If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too l",
     "parent": 45746020,
     "depth": 1
   },
@@ -120,6 +120,22 @@
     "depth": 2
   },
   {
+    "id": 45767861,
+    "by": "hmmokidk",
+    "timeISO": "2025-10-31T02:59:58.000Z",
+    "textPlain": "First thought is that IO is just hard",
+    "parent": 45764400,
+    "depth": 2
+  },
+  {
+    "id": 45767666,
+    "by": "hoppp",
+    "timeISO": "2025-10-31T02:21:30.000Z",
+    "textPlain": "I thought the same, that zig is too low level to have async implemented in the language. It's experimental and probably going to change",
+    "parent": 45764400,
+    "depth": 2
+  },
+  {
     "id": 45766831,
     "by": "lvass",
     "timeISO": "2025-10-30T23:49:39.000Z",
@@ -136,10 +152,10 @@
     "depth": 2
   },
   {
-    "id": 45767231,
-    "by": "josephg",
-    "timeISO": "2025-10-31T00:55:52.000Z",
-    "textPlain": "> It seems to me that async io struggles whenever people try it.Promises work great in javascript, either in the browser or in node/bun. They're easy to use, and easy to reason about (once you understand them). And the language has plenty of features for using them in lots of ways - for example, Promise.all(), \"for await\" loops, async generators and so on. I love this stuff. Its fast, simple to use and easy to reason about (once you understand it).Personally I've always thought the \"function coloring problem\" was overstated. I'm happy to have some codepaths which are async and some which aren't. Mixing sync and async code willy nilly is a code smell.Personally I'd be happy to see more explicit effects (function colors) in my languages. For example, I'd like to be able to mark which functions can't panic. Or effects for non-divergence, or capability safety, and so on.",
+    "id": 45767949,
+    "by": "seabrookmx",
+    "timeISO": "2025-10-31T03:12:30.000Z",
+    "textPlain": "> but for ordinary work you're better off using gunicornI'd like to see some evidence for this. Other than simplicity, IMO there's very little reason to use synchronous Python for a web server these days. Streaming files, websockets, etc. are all areas where it's almost a necessity, to say nothing of the performance advantage for typical CRUD workloads. The developer ergonomics are also much better if you have to talk to multiple downstream services or perform actions outside of the request context. Needing to manage a thread pool for this or defer to a system like Celery is a ton more code (and infrastructure, typically).> async i/o solutions are all single threadedAnd your typical gunicorn web server is single threaded as well. Yes you can spin up more workers (processes), but you can also do that with an asgi server and get significantly higher performance per process / for the same memory footprint. You can even use uvicorn as a gunicorn worker type, and continue to use it as your process supervisor.",
     "parent": 45764252,
     "depth": 2
   },
@@ -148,6 +164,14 @@
     "by": "vlovich123",
     "timeISO": "2025-10-30T19:51:25.000Z",
     "textPlain": "> Unfashionable languages like Java and .NET that have quality multithreaded runtimes are the way to go because they provide a single paradigm to manage both concurrency and parallelism.At the cost of not being able to actually provide the same throughput, latency, or memory usage that lower level languages that don't enforce the same performance pessimizing abstractions on everything can. Engineering is about tradeoffs but pretending like Java or .NET have solved this is naiive.",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
+    "id": 45767231,
+    "by": "josephg",
+    "timeISO": "2025-10-31T00:55:52.000Z",
+    "textPlain": "> It seems to me that async io struggles whenever people try it.Promises work great in javascript, either in the browser or in node/bun. They're easy to use, and easy to reason about (once you understand them). And the language has plenty of features for using them in lots of ways - for example, Promise.all(), \"for await\" loops, async generators and so on. I love this stuff. Its fast, simple to use and easy to reason about (once you understand it).Personally I've always thought the \"function coloring problem\" was overstated. I'm happy to have some codepaths which are async and some which aren't. Mixing sync and async code willy nilly is a code smell.Personally I'd be happy to see more explicit effects (function colors) in my languages. For example, I'd like to be able to mark which functions can't panic. Or effects for non-divergence, or capability safety, and so on.",
     "parent": 45764252,
     "depth": 2
   },
