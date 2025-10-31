@@ -1,17 +1,17 @@
 [
   {
-    "id": 45766329,
-    "by": "andyferris",
-    "timeISO": "2025-10-30T22:51:29.000Z",
-    "textPlain": "Personally I find this really cool.One thing I like about the design is it locks in some of the \"platforms\" concepts seen in other languages (e.g. Roc), but in a way that goes with Zig's \"no hidden control flow\" mantra.The downstream effect is that it will be normal to create your own non-posix analogue of `io` for wherever you want code to hook into. Writing a game engine? Let users interact with a set of effectful functions you inject into their scripts.As a \"platform\" writer (like the game engine), essentially you get to create a sandbox. The missing piece may be controlling access to calling arbitrary extern C functions - possibly that capability would need to be provided by `io` to create a fool-proof guarantees about what some code you call does. (The debug printing is another uncontrolled effect).",
-    "parent": 45746020,
-    "depth": 1
-  },
-  {
     "id": 45764400,
     "by": "thefaux",
     "timeISO": "2025-10-30T19:41:32.000Z",
     "textPlain": "I find the direction of zig confusing. Is it supposed to be a simple language or a complex one? Low level or high level? This feature is to me a strange mix of high and low level functionality and quite complex.The io interface looks like OO but violates the Liskov substitution principle. For me, this does not solve the function color problem, but instead hides it. Every function with an IO interface cannot be reasoned about locally because of unexpected interactions with the io parameter input. This is particularly nasty when IO objects are shared across library boundaries. I now need to understand how the library internally manages io if I share that object with my internal code. Code that worked in one context may surprisingly not work in another context. As a library author, how do I handle an io object that doesn't behave as I expect?Trying to solve this problem at the language level fundamentally feels like a mistake to me because you can't anticipate in advance all of the potential use cases for something as broad as io. That's not to say that this direction shouldn't be explored, but if it were my project, I would separate this into another package that I would not call standard.",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45766329,
+    "by": "andyferris",
+    "timeISO": "2025-10-30T22:51:29.000Z",
+    "textPlain": "Personally I find this really cool.One thing I like about the design is it locks in some of the \"platforms\" concepts seen in other languages (e.g. Roc), but in a way that goes with Zig's \"no hidden control flow\" mantra.The downstream effect is that it will be normal to create your own non-posix analogue of `io` for wherever you want code to hook into. Writing a game engine? Let users interact with a set of effectful functions you inject into their scripts.As a \"platform\" writer (like the game engine), essentially you get to create a sandbox. The missing piece may be controlling access to calling arbitrary extern C functions - possibly that capability would need to be provided by `io` to create a fool-proof guarantees about what some code you call does. (The debug printing is another uncontrolled effect).",
     "parent": 45746020,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "comex",
     "timeISO": "2025-10-30T20:18:58.000Z",
     "textPlain": "It's worth noting that this is not async/await in the sense of essentially every other language that uses those terms.In other languages, when the compiler sees an async function, it compiles it into a state machine or 'coroutine', where the function can suspend itself at designated points marked with `await`, and be resumed later.In Zig, the compiler used to support coroutines but this was removed.  In the new design, `async` and `await` are just functions.  In the threaded implementation used in the demo, `await` just blocks the thread until the operation is done.To be fair, the bottom of the post explains that there are two other Io implementations being planned.One of them is \"stackless coroutines\", which would be similar to traditional async/await.  However, from the discussion so far this seems a bit like vaporware.  As discussed in [1], andrewrk explicitly rejected the idea of just (re-)adding normal async/await keywords, and instead wants a different design, as tracked in issue 23446.  But in issue 23446 the seems to be zero agreement on how the feature would work, how it would improve on traditional async/await, or how it would avoid function coloring.The other implementation being planned is \"stackful coroutines\".  From what I can tell, this has more of a plan and is more promising, but there are significant unknowns.The basis of the design is similar to green threads or fibers.  Low-level code generation would be identical to normal synchronous code, with no state machine transform.  Instead, a library would implement suspension by swapping out the native register state and stack, just like the OS kernel does when switching between OS threads.  By itself, this has been implemented many times before, in libraries for C and in the runtimes of languages like Go.  But it has the key limitation that you don't know how much stack to allocate.  If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too l",
+    "parent": 45746020,
+    "depth": 1
+  },
+  {
+    "id": 45766652,
+    "by": "ozgrakkurt",
+    "timeISO": "2025-10-30T23:27:48.000Z",
+    "textPlain": "Really really hope they make it easy and ergonomic to integrate with single threaded cooperative scheduling paradigm like seastar or glommio.I wrote a library that I use for this but it would be really nice to be able to cleanly integrate it into async/await.https://github.com/steelcake/csio",
     "parent": 45746020,
     "depth": 1
   },
@@ -104,11 +112,35 @@
     "depth": 1
   },
   {
+    "id": 45766608,
+    "by": "throwawaymaths",
+    "timeISO": "2025-10-30T23:22:35.000Z",
+    "textPlain": "i think you are missing that a proper io interface should encapsulate all abstractions that care about asynchrony and patterns thereof.  is that possible?  we will find out.  It's not unreasonable to be skeptical but can you come up with a concrete example?> As a library author, how do I handle an io object that doesn't behave as I expectyou ship with tests against the four or five default patterns in the stdlib and if anyone wants to do anything substantially crazier to the point that it doesnt work, thats on them, they can submit a PR and you can curbstomp it if you want.> function coloringi recommend reading the function coloring article.  there are five criteria that describe what make up the function coloring problem, it's not just that there are \"more than one class of function calling conventions\"",
+    "parent": 45764400,
+    "depth": 2
+  },
+  {
+    "id": 45766831,
+    "by": "lvass",
+    "timeISO": "2025-10-30T23:49:39.000Z",
+    "textPlain": "It's more about allowing a-library-fits-all than forcing it. You don't have to ask for io, you just should, if you are writing a library. You can even do it the Rust way and write different libraries for example for users who want or don't want async if you really want to.",
+    "parent": 45764400,
+    "depth": 2
+  },
+  {
     "id": 45765042,
     "by": "mordnis",
     "timeISO": "2025-10-30T20:39:22.000Z",
     "textPlain": "Couldn't the same thing be said about functions that accept allocators?",
     "parent": 45764400,
+    "depth": 2
+  },
+  {
+    "id": 45767231,
+    "by": "josephg",
+    "timeISO": "2025-10-31T00:55:52.000Z",
+    "textPlain": "> It seems to me that async io struggles whenever people try it.Promises work great in javascript, either in the browser or in node/bun. They're easy to use, and easy to reason about (once you understand them). And the language has plenty of features for using them in lots of ways - for example, Promise.all(), \"for await\" loops, async generators and so on. I love this stuff. Its fast, simple to use and easy to reason about (once you understand it).Personally I've always thought the \"function coloring problem\" was overstated. I'm happy to have some codepaths which are async and some which aren't. Mixing sync and async code willy nilly is a code smell.Personally I'd be happy to see more explicit effects (function colors) in my languages. For example, I'd like to be able to mark which functions can't panic. Or effects for non-divergence, or capability safety, and so on.",
+    "parent": 45764252,
     "depth": 2
   },
   {
@@ -120,10 +152,10 @@
     "depth": 2
   },
   {
-    "id": 45766162,
-    "by": "hinkley",
-    "timeISO": "2025-10-30T22:29:57.000Z",
-    "textPlain": "I know that it depends on how much you disentangle your network code from your business logic. The question is the degree. Is it enough, or does it just dull the pain?If you give your business logic the complete message or send it a stream, then the flow of ownership stays much cleaner. And the unit tests stay substantially easier to write and more importantly, to maintain.I know too many devs who don't see when they bias their decisions to avoid making changes that will lead to conflict with bad unit tests and declare that our testing strategy is Just Fine. It's easier to show than to debate, but it still takes an open mind to accept the demonstration.",
+    "id": 45766592,
+    "by": "pron",
+    "timeISO": "2025-10-30T23:21:13.000Z",
+    "textPlain": "> Unfashionable languages like Java and .NET that have quality multithreaded runtimes are the way to go because they provide a single paradigm to manage both concurrency and parallelism.First, that would be Java and Go, not Java and .NET, as .NET offers a separate construct (async/await) for high-throughput concurrency.Second, while \"unfashionable\" in some sense, I guess, it's no wonder that Java is many times popular than any \"fashionable\" language. Also, if \"fashionable\" means \"much discussed on HN\", then that has historically been a terrible predictor of language success. There's almost an inverse correlation between how much a language is discussed on HN and its long-term success, and that's not surprising, as it's the less commonplace things that are more interesting to talk about. HN is more Vogue magazine than the New York Times.",
     "parent": 45764252,
     "depth": 2
   },
@@ -132,6 +164,14 @@
     "by": "brandonbloom",
     "timeISO": "2025-10-30T20:23:21.000Z",
     "textPlain": "If you watched the video closely, you'll have noticed that this design parameterizes the code by an `io` interface, which enables pluggable implementations. Correctly written code in this style can work transparently with evented or threaded runtimes.",
+    "parent": 45764252,
+    "depth": 2
+  },
+  {
+    "id": 45766162,
+    "by": "hinkley",
+    "timeISO": "2025-10-30T22:29:57.000Z",
+    "textPlain": "I know that it depends on how much you disentangle your network code from your business logic. The question is the degree. Is it enough, or does it just dull the pain?If you give your business logic the complete message or send it a stream, then the flow of ownership stays much cleaner. And the unit tests stay substantially easier to write and more importantly, to maintain.I know too many devs who don't see when they bias their decisions to avoid making changes that will lead to conflict with bad unit tests and declare that our testing strategy is Just Fine. It's easier to show than to debate, but it still takes an open mind to accept the demonstration.",
     "parent": 45764252,
     "depth": 2
   },
@@ -157,6 +197,14 @@
     "timeISO": "2025-10-30T21:16:57.000Z",
     "textPlain": "> Feels like this violates zig “no hidden control flow” principle.A hot take here is that the whole async thing is a hidden control flow. Some people noticed that ever since plain callbacks were touted as a \"webscale\" way to do concurrency. The sequence of callbacks being executed or canceled forms a hidden, implicit control flow running concurrently with the main control logic. It can be harder to debug and manage than threads.But that said, unless, Zig adds a runtime with its own scheduler and turns into a bytecode VM, there is not much it can do. Co-routines and green threads have been done before in C and C-like languages, but not sure how easily the would fit with Zig and its philosophy.",
     "parent": 45765244,
+    "depth": 2
+  },
+  {
+    "id": 45766842,
+    "by": "wahern",
+    "timeISO": "2025-10-30T23:50:47.000Z",
+    "textPlain": "> But it has the key limitation that you don't know how much stack to allocate. If you allocate too much stack in advance, you end up being not much cheaper than OS threads; but if you allocate too little stack, you can easily hit stack overflow.With a 64-bit address space you can reserve large contiguous chunks (e.g. 2MB), while only allocating the minimum necessary for the optimistic case. The real problem isn't memory usage, per se, it's all the VMA manipulation and noise. In particular, setting up guard pages requires a separate VMA region for each guard (usually two per stack, above and below). Linux recently got a new madvise feature, MADV_GUARD_INSTALL/MADV_GUARD_REMOVE, which lets you add cheap guard pages without installing a distinct, separate guard page. (https://lwn.net/Articles/1011366/) This is the type of feature that could be used to improve the overhead of stackful coroutines/fibers. In theory fibers should be able to outperform explicit async/await code, because in the non-recursive, non-dynamic call case a fiber's stack can be stack-allocated by the caller, thus being no more costly than allocating a similar async/await call frame, yet in the recursive and dynamic call cases you can avoid dynamic frame bouncing, which in the majority of situations is unnecessary--the poor performance of dynamic frame allocation/deallocation in deep dynamic call chains is the reason Go switched from segmented stacks to moveable stacks.Another major cost of fibers/thread is context switching--most existing solutions save and restore all registers. But for coroutines (stackless or stackful), there's no need to do this. See, e.g., https://photonlibos.github.io/blog/stackful-coroutine-made-f..., which tweaked clang to erase this cost and bring it line with normal function calls.> Go addresses this by allocating chunks of stack on demand, but that still imposes a cost and a dependency on dynamic allocation.The dynamic allocation problem exists the same whether using sta",
+    "parent": 45764840,
     "depth": 2
   },
   {
