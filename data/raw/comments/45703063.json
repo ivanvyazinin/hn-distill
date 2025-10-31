@@ -1,1 +1,114 @@
-[]
+[
+  {
+    "id": 45770267,
+    "by": "flaie",
+    "timeISO": "2025-10-31T10:08:15.000Z",
+    "textPlain": "Good article.Maybe you could look up the Try monad API (Scala or Vavr works in Java + Kotlin), by using some extra helper methods you can have something probably a little bit lighter to use.I believe your example would look like the following with the Try monad (in Java):  public UserDTO register(UserRegistrationRequest registrationRequest) {\n    return Try.of(() -> authService.userExists(registrationRequest.email))\n      .filter(Objects::isNull, () -> badRequest(\"user already exists\"))\n      .map(userId -> authService.register(registrationRequest.email, registrationRequest.password))\n      .get();\n  }\n\nThe login() function would be using the same pattern to call authService.verify() then filtering nonNull and signing the JWT, so it would be the same pattern for both.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770161,
+    "by": "jillesvangurp",
+    "timeISO": "2025-10-31T09:52:56.000Z",
+    "textPlain": "Since this looks like Kotlin, worth pointing out that there is a kotlin class in the standard library called Result. I've been using that for a few things. One place that I'm on the fence about but that seems to work well for us is using this in API clients.We have a pretty standard Spring Boot server with the usual reactive kotlin suspend controllers. Our api client is different. We were early adopters of kotlin-js on our frontend. Not something I necessarily recommend but through circumstances it was the right choice for us and it has worked well for us in the last five years. But it was a rough ride especially the first three of those.As a consequence, our API client is multiplatform. For every API endpoint, there's a suspend function in the client library. And it returns a Result<T> where T is the deserialized object (via kotlinx serialization, which is multiplatform).On the client side, consuming a result object is similar to dealing with promises. It even has a fold function that takes a success and error block. Basically failures fall into three groups: 1) failures (any 4xx code) that probably indicate client side bugs related to validation or things that at least need to be handled (show a message to the user), 2) internal server errors (500) that need to be fixed on the server, and 3) intermittent failures (e.g. 502, 503) which usually means: wait, try again, and hope the problem goes away.What I like about Result is making the error handling explicit. But it feels a bit weird to client side construct an Exception only to stuff it into a Result.error(...) instead of actually throwing it. IMHO there's a bit of language friction there. I also haven't seen too many public APIs that use Result. But that being said, our multiplatform client works well for our use.But I can't expose it to Javascript in its current form; which is something I have been considering to do. This is possible with special annotations and would mean our multiplatform client would be usab",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770232,
+    "by": "paduc",
+    "timeISO": "2025-10-31T10:03:28.000Z",
+    "textPlain": "For the typescript world, there is neverthrow[0] which offers a similar Result type.[0]: https://github.com/supermacro/neverthrow",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770288,
+    "by": "lachenmayer",
+    "timeISO": "2025-10-31T10:10:11.000Z",
+    "textPlain": "Stick your services into the type too, and you have `Effect`[0], the ultimate monad :)[0]: https://effect.website/",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770233,
+    "by": "pshirshov",
+    "timeISO": "2025-10-31T10:03:40.000Z",
+    "textPlain": "Ah, Either. Didn't recognize you from the first glance.Now we need to invent do-notation, higher kinds and typeclasses and this code would be well composable.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770262,
+    "by": "tyteen4a03",
+    "timeISO": "2025-10-31T10:07:14.000Z",
+    "textPlain": "Smells like something that Effect-TS is designed to solve in the TypeScript world.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770064,
+    "by": "anon-3988",
+    "timeISO": "2025-10-31T09:40:19.000Z",
+    "textPlain": "With the ? syntax in Rust results and exceptions are the same thing. I posit that the former is superior. It is unfortunate that results have worse performance but I don't see any reason why. Results that bubbles up all the way ought to be identical to an uncaught exception.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770171,
+    "by": "phplovesong",
+    "timeISO": "2025-10-31T09:54:36.000Z",
+    "textPlain": "This is why Haxe is awesome. You can target a sloppy langauge and still get the benefits os a ML-like typesystem.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770076,
+    "by": "_ZeD_",
+    "timeISO": "2025-10-31T09:42:14.000Z",
+    "textPlain": "gosh...        try {\n            val user = authService.register(registrationRequest.email, registrationRequest.password)\n\n            return user\n        } catch (exception: Exception) {\n            // log exception\n            throw exception\n        }\n\nno, no, no!the whole point of the exceptions (and moreso of the unchecked ones) is to be transparent!if you don't know what to do with an exception do NOT try to handle itthat snippet should just be    return authService.register(registrationRequest.email, registrationRequest.password)",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770242,
+    "by": "rockyj",
+    "timeISO": "2025-10-31T10:04:31.000Z",
+    "textPlain": "Thank you, a very insightful comment :) As a side note, my latest post (on the same website) is on \"reactive\" Java / suspend functions in Kotlin.",
+    "parent": 45770161,
+    "depth": 2
+  },
+  {
+    "id": 45770253,
+    "by": "pshirshov",
+    "timeISO": "2025-10-31T10:06:02.000Z",
+    "textPlain": "Promise<Result<number, string>>\n\neverywhere or  type EitherT[F[_], E, A] = F[Either[E, A]]\n\nand then  def dosomething(): F[String, Number]\n\n?Isn't this beautiful: https://github.com/7mind/distage-example/blob/develop/bifunc... ?",
+    "parent": 45770232,
+    "depth": 2
+  },
+  {
+    "id": 45770335,
+    "by": "rcxdude",
+    "timeISO": "2025-10-31T10:18:07.000Z",
+    "textPlain": "Exceptions can tradeoff happy-path performance for more overhead on the slow path. For example, an exception implementation can make it so that callers can assume the 'Ok' result always appears, because an exception causes a seperate unwinding mechanism to occur that walks the stack back, bypassing that entirely. In contrast every caller to a function that returns a Result must have a branch on that result, and this repeats for each part of the callstack.This also means that exceptions can have stacktraces that only incur a cost on the unhappy path and even only if that exception is uncaught. While if you want a trace for a bad Result you are going to be doing a lot of extra book-keeping that will be thrown awayIn general I agree that Results are the better abstraction, but there are sadly some tradeoffs that seem to be hard to overcome.",
+    "parent": 45770064,
+    "depth": 2
+  },
+  {
+    "id": 45770199,
+    "by": "CGamesPlay",
+    "timeISO": "2025-10-31T09:58:52.000Z",
+    "textPlain": "I'm gonna plug my favorite note on this topic: https://ericlippert.com/2008/09/10/vexing-exceptions/Both snippets suffer from being too limited. The first, as you point out, catches too many exceptions. But the second.... What happens if the email address is taken? That's hardly exceptional, but it's an exception that the caller has to handle. Your natural response might be to check if the email address is taken before calling register, but that's just a race condition now. So you really need a result-returning function, or to catch some (but probably not all) of the possible exceptions from the method.",
+    "parent": 45770076,
+    "depth": 2
+  },
+  {
+    "id": 45770087,
+    "by": "rockyj",
+    "timeISO": "2025-10-31T09:43:56.000Z",
+    "textPlain": "I agree, this was just a sample code to show how usually imperative if / else / try / catch code is written. What is also possible is we catch the exception, log it and throw another one.",
+    "parent": 45770076,
+    "depth": 2
+  }
+]
