@@ -1,9 +1,9 @@
 [
   {
-    "id": 45770991,
-    "by": "tyleo",
-    "timeISO": "2025-10-31T11:49:44.000Z",
-    "textPlain": "I always think more languages should support Result… but only to handle expected error states. For example, you may expect that some functions may time out or that a user may attempt an action with an invalid configuration (e.g., malformed JSON).Exceptions should be reserved for developer errors like edge cases that haven’t been considered or invalid bounds which mistakenly went unchecked.",
+    "id": 45772269,
+    "by": "hotpotat",
+    "timeISO": "2025-10-31T14:19:26.000Z",
+    "textPlain": "With regard to AI, why not throw this whole article in an .md file and point CLAUDE.md to it? Codex is better at following rules so maybe you’d have more luck with that. But yeah, AI won’t code your way by default. People expect way too much out of the interns, they need direction.",
     "parent": 45703063,
     "depth": 1
   },
@@ -16,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45770991,
+    "by": "tyleo",
+    "timeISO": "2025-10-31T11:49:44.000Z",
+    "textPlain": "I always think more languages should support Result… but only to handle expected error states. For example, you may expect that some functions may time out or that a user may attempt an action with an invalid configuration (e.g., malformed JSON).Exceptions should be reserved for developer errors like edge cases that haven’t been considered or invalid bounds which mistakenly went unchecked.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45771909,
+    "by": "DrakeDeaton",
+    "timeISO": "2025-10-31T13:43:56.000Z",
+    "textPlain": "There's certainly situations where this pattern creates some tricky ambiguity, but more often than not Result is quite an ergonomic pattern to work with.In case it's useful for anyone, here is a simple plug-in-play TypeScript version:```type Ok<T = void> = T extends undefined ? { ok: true; } : { ok: true; val: T; };type Err<E extends ResultError = ResultError> = { ok: false; err: E; };type Result<T = void, E = ResultError> = { ok: true; val: T; } | { ok: false; err: E | ResultError; };class ResultError extends Error {\n  override name = \"ResultError\" as const;\n  context?: unknown;\n  constructor (message: string, context?: unknown) {\n    super(message);\n    this.context = context;\n  }\n}const ok = <T = void>(val?: T): Ok<T> => ({\n  ok: true,\n  val: val,\n} as Ok<T>);const err = (errType: string, context: unknown = {}): Err<ResultError> => ({\n  err: new ResultError(errType, context),\n  ok: false,\n});``````const actionTaker = await op().then(ok).catch(err);if (result.ok) \n  // handle errorelse\n  // use result```I will be forever grateful to the developer first introduced to this pattern!",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
     "id": 45770161,
     "by": "jillesvangurp",
     "timeISO": "2025-10-31T09:52:56.000Z",
@@ -24,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45771455,
-    "by": "Thorrez",
-    "timeISO": "2025-10-31T12:50:27.000Z",
-    "textPlain": "The imperative code has    // log exception\n\nwhich doesn't exist in the Result version.",
-    "parent": 45703063,
-    "depth": 1
-  },
-  {
     "id": 45770816,
     "by": "iandanforth",
     "timeISO": "2025-10-31T11:24:15.000Z",
     "textPlain": "Not a fan. Code branches and this is Good Thing(TM). Result violates the single responsibility principle and tries to make what are distinct paths into a single thing. If your language has exceptions and returned values as distinct constructs then obfuscating them with Result means you end up fighting the language which becomes apparent fairly quickly. It's also a frustrating experience to want to interact with returned values directly and constantly have to deal with a polymorphic wrapper.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45771455,
+    "by": "Thorrez",
+    "timeISO": "2025-10-31T12:50:27.000Z",
+    "textPlain": "The imperative code has    // log exception\n\nwhich doesn't exist in the Result version.",
     "parent": 45703063,
     "depth": 1
   },
@@ -128,18 +144,18 @@
     "depth": 1
   },
   {
-    "id": 45770233,
-    "by": "pshirshov",
-    "timeISO": "2025-10-31T10:03:40.000Z",
-    "textPlain": "Ah, Either. Didn't recognize you from the first glance.Now we need to invent do-notation, higher kinds and typeclasses and this code would be well composable.",
-    "parent": 45703063,
-    "depth": 1
-  },
-  {
     "id": 45770171,
     "by": "phplovesong",
     "timeISO": "2025-10-31T09:54:36.000Z",
     "textPlain": "This is why Haxe is awesome. You can target a sloppy langauge and still get the benefits os a ML-like typesystem.",
+    "parent": 45703063,
+    "depth": 1
+  },
+  {
+    "id": 45770233,
+    "by": "pshirshov",
+    "timeISO": "2025-10-31T10:03:40.000Z",
+    "textPlain": "Ah, Either. Didn't recognize you from the first glance.Now we need to invent do-notation, higher kinds and typeclasses and this code would be well composable.",
     "parent": 45703063,
     "depth": 1
   },
@@ -150,6 +166,14 @@
     "textPlain": "This is really just a syntactical issue. Not one of types or semantics.Non trivial operations have errors when the happy path fails. And with web apps IO can fail anytime, anywhere for any reasons.Sometimes you want to handle them locally, sometimes globally. The question is how ergonomic it is to handle this all for a variety of use cases.We keep reinventing the wheel because we insist that our own use cases are “special” and “unique”, but they really aren’t.Personally, I think Java’s proposal on catching errors in switches, next to ordinary data is the right step forward.Monads are great. You can do lots of great things in them, but ergonomic they are not. We should avoid polluting our type systems where possible.",
     "parent": 45703063,
     "depth": 1
+  },
+  {
+    "id": 45772086,
+    "by": "teraflop",
+    "timeISO": "2025-10-31T14:02:30.000Z",
+    "textPlain": "I find it kind of funny that this is almost exactly how Java's much-maligned \"checked exceptions\" work. Everything old is new again.In Java, when you declare a function that returns type T but might also throw exceptions of type A or B, the language treats it as though the function returned a Result<T, A|B>. And it forces the caller to either handle all possible cases, or declare that you're rethrowing the exception, in which case the behavior is the same as Rust's ? operator. (Except better, because you get stack traces for free.)",
+    "parent": 45770991,
+    "depth": 2
   },
   {
     "id": 45771350,
@@ -168,14 +192,6 @@
     "depth": 2
   },
   {
-    "id": 45771748,
-    "by": "geon",
-    "timeISO": "2025-10-31T13:26:25.000Z",
-    "textPlain": "There are cases when you need to store the result of a function regardless of if it succeeded or threw. Like if you need to tell the user that an error occurred. In those situations, a `Result` can make a lot of sense.Arguably, `Result` can also help when it is important that error are dealt with and not just allowed to bubble up.",
-    "parent": 45770816,
-    "depth": 2
-  },
-  {
     "id": 45771065,
     "by": "vjerancrnjak",
     "timeISO": "2025-10-31T11:59:59.000Z",
@@ -188,6 +204,22 @@
     "by": "mpalmer",
     "timeISO": "2025-10-31T11:53:46.000Z",
     "textPlain": "Result violates the single responsibility principle and tries to make what are distinct paths into a single thing.\n\nYou're trying to equate code paths (outcome handling) with values (outcomes), and that seems a more unfortunate category error.",
+    "parent": 45770816,
+    "depth": 2
+  },
+  {
+    "id": 45771748,
+    "by": "geon",
+    "timeISO": "2025-10-31T13:26:25.000Z",
+    "textPlain": "There are cases when you need to store the result of a function regardless of if it succeeded or threw. Like if you need to tell the user that an error occurred. In those situations, a `Result` can make a lot of sense.Arguably, `Result` can also help when it is important that error are dealt with and not just allowed to bubble up.",
+    "parent": 45770816,
+    "depth": 2
+  },
+  {
+    "id": 45771978,
+    "by": "MangoToupe",
+    "timeISO": "2025-10-31T13:51:42.000Z",
+    "textPlain": "> Result violates the single responsibility principle and tries to make what are distinct paths into a single thing.Only in languages that struggle to represent multiple shapes of values with a single type. I don't think I ever want to use a language with exceptions again.",
     "parent": 45770816,
     "depth": 2
   },
