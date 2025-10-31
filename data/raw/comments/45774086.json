@@ -1,5 +1,21 @@
 [
   {
+    "id": 45777349,
+    "by": "hitekker",
+    "timeISO": "2025-10-31T22:25:32.000Z",
+    "textPlain": "Skimming through, this document feels thorough and transparent. Clearly, a hard lesson learned. The footnotes, in particular, caught my eye https://rfd.shared.oxide.computer/rfd/397#_external_referenc...> Why does this situation suck? It’s clear that many of us haven’t been aware of cancellation safety and it seems likely there are many cancellation issues all over Omicron. It’s awfully stressful to find out while we’re working so hard to ship a product ASAP that we have some unknown number of arbitrarily bad bugs that we cannot easily even find. It’s also frustrating that this feels just like the memory safety issues in C that we adopted Rust to get away from: there’s some dynamic property that the programmer is responsible for guaranteeing, the compiler is unable to provide any help with it, the failure mode for getting it wrong is often undebuggable (by construction, the program has not done something it should have, so it’s not like there’s a log message or residual state you could see in a debugger or console), and the failure mode for getting it wrong can be arbitrarily damaging (crashes, hangs, data corruption, you name it). Add on that this behavior is apparently mostly undocumented outside of one macro in one (popular) crate in the async/await ecosystem and yeah, this is frustrating. This feels antithetical to what many of us understood to be a core principle of Rust, that we avoid such insidious runtime behavior by forcing the programmer to demonstrate at compile-time that the code is well-formed",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45777448,
+    "by": "Dagonfly",
+    "timeISO": "2025-10-31T22:35:26.000Z",
+    "textPlain": "That's a really subtle version of the deadlock described in withoutboats FuturesUnordered post [0]When using “intra-task” concurrency, you really have to ensure that none of the futures are starving.Spawning task should probably be the default. For timeouts use tokio::select! but make sure all pending futures are owned by it. I would never recommend FuturesUnordered unless you really test all edge-cases.[0] https://without.boats/blog/futures-unordered/",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45776779,
     "by": "singron",
     "timeISO": "2025-10-31T21:14:51.000Z",
@@ -32,22 +48,6 @@
     "depth": 1
   },
   {
-    "id": 45776550,
-    "by": "dvt",
-    "timeISO": "2025-10-31T20:50:16.000Z",
-    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45776711,
-    "by": "OptionOfT",
-    "timeISO": "2025-10-31T21:07:27.000Z",
-    "textPlain": "Minor nitpick:> In this case, what’s dropped is &mut future1No, nothing is dropped as the `select!` macro doesn't own the future. The reason you'd do this is to be able to poll the future again:https://tokio.rs/tokio/tutorial/select#resuming-an-async-ope...The `select!` macro cancels the other branches by dropping them and dropping a reference in Rust doesn't do anything.But still, this is an amazing blog-post. It does feel like the unfortunate marriage of `&mut branch` not dropping (because not owned by `select!`) and futures not advancing on their own.Things that require quite detailed Rust knowledge.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776307,
     "by": "orthecreedence",
     "timeISO": "2025-10-31T20:23:56.000Z",
@@ -64,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45776966,
-    "by": "wbl",
-    "timeISO": "2025-10-31T21:36:21.000Z",
-    "textPlain": "Sadly I'm away from my bookshelf but I think Concurrent ML solved this issue.",
+    "id": 45776550,
+    "by": "dvt",
+    "timeISO": "2025-10-31T20:50:16.000Z",
+    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
     "parent": 45774086,
     "depth": 1
   },
@@ -80,18 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45776951,
-    "by": "forrestthewoods",
-    "timeISO": "2025-10-31T21:33:30.000Z",
-    "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
+    "id": 45776966,
+    "by": "wbl",
+    "timeISO": "2025-10-31T21:36:21.000Z",
+    "textPlain": "Sadly I'm away from my bookshelf but I think Concurrent ML solved this issue.",
     "parent": 45774086,
     "depth": 1
   },
   {
-    "id": 45777234,
-    "by": "octoberfranklin",
-    "timeISO": "2025-10-31T22:09:13.000Z",
-    "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
+    "id": 45776951,
+    "by": "forrestthewoods",
+    "timeISO": "2025-10-31T21:33:30.000Z",
+    "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
     "parent": 45774086,
     "depth": 1
   },
@@ -104,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45777188,
+    "id": 45777234,
     "by": "octoberfranklin",
-    "timeISO": "2025-10-31T22:02:49.000Z",
-    "textPlain": "It’s really important to understand what’s happening hereThen maybe you should take a moment to pick more descriptive identifiers than future1, future2, future3, do_stuff, and do_async_thing.  This coding style is atrocious.",
+    "timeISO": "2025-10-31T22:09:13.000Z",
+    "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
     "parent": 45774086,
     "depth": 1
   },
@@ -120,10 +120,34 @@
     "depth": 1
   },
   {
+    "id": 45777188,
+    "by": "octoberfranklin",
+    "timeISO": "2025-10-31T22:02:49.000Z",
+    "textPlain": "It’s really important to understand what’s happening hereThen maybe you should take a moment to pick more descriptive identifiers than future1, future2, future3, do_stuff, and do_async_thing.  This coding style is atrocious.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776711,
+    "by": "OptionOfT",
+    "timeISO": "2025-10-31T21:07:27.000Z",
+    "textPlain": "- wrong -",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45776870,
     "by": "oconnor663",
     "timeISO": "2025-10-31T21:24:30.000Z",
     "textPlain": "> I wonder if there is a similar idea possible with tokio? E.g. if you are awaiting a Mutex held by a future that \"can't run\", then poll that future instead.Something like this could make sense for Tokio tasks. (I don't know how complicated their task scheduler is; maybe it already does stuff like this?) But it's not possible for futures within a task, as in this post. This goes all the way back to the \"futures are inert\" design of async Rust: You don't necessarily need to communicate with the runtime at all to create a future or to poll it or to stop polling it. You only need to talk to the runtime at the task level, either to spawn new tasks, or to wake up your own task. Futures are pretty much just plain old structs, and Tokio doesn't know how many futures my async function creates internally, any more than it knows about my integers or strings or hash maps.",
+    "parent": 45776779,
+    "depth": 2
+  },
+  {
+    "id": 45777553,
+    "by": "johnisgood",
+    "timeISO": "2025-10-31T22:47:59.000Z",
+    "textPlain": "Off-topic but that code looks quite... complicated as opposed to what I would write in Erlang, Elixir, Go, or even C. Maybe it is just me.",
     "parent": 45776779,
     "depth": 2
   },
@@ -136,10 +160,26 @@
     "depth": 2
   },
   {
+    "id": 45777348,
+    "by": "elchananHaas",
+    "timeISO": "2025-10-31T22:25:25.000Z",
+    "textPlain": "My view of this is that its closer to the basic 2 lock Deadlock.Thread 1 acquires A. \nThread 2 acquires B.\nThread 1 tries to acquire B.\nThread 2 tries to acquire A.In this case, the role \"A\" is being played by the front of the Mutex's lock queue. Role \"B\" is being played by the Tokio's actively executed task.Based on this understanding, I agree that the surprising behavior is due to Tokio's Mutex/Lock Queue implementation. If this was an OS Mutex, and a thread waiting for the Mutex can't wake for some reason, the OS can wake a different thread waiting for that Mutex. I think the difficulty in this approach has to do with how Rust's async is implemented. My guess is the algorithm for releasing a lock goes something like this:1. Pop the head of the wait queue. \n2. Poll the top level tokio::spawn'ed task of the Future that is holding the Mutex.What you want is something like thisFor each Future in the wait queue (Front to Back):\n    Poll the Future. \n    If Success - \n       Break\n???Something if everything fails???The reason this doesn't work has to do with how futures compose. Futures compile to states within a state machine. What happens when a future polled within the wait queue completes? How is control flow handed back to the caller?I guess you might be able to have some fallback that polls the futures independently then polls the top level future to try and get things unstuck. But this could cause confusing behavior where futures are being polled even though no code path within your code is await'ing them. Maybe this is better though?",
+    "parent": 45776779,
+    "depth": 2
+  },
+  {
+    "id": 45777340,
+    "by": "mycoliza",
+    "timeISO": "2025-10-31T22:24:45.000Z",
+    "textPlain": "Indeed, you are correct (and hi Matthias!). After we got to the bottom of this deadlock, my coworkers and I had one of our characteristic \"how could we have prevented this?\" conversations, and reached the somewhat sad conclusion that actually, there was basically nothing we could easily blame for this. All the Tokio primitives involved were working precisely as they were supposed to. The only thing that would have prevented this without completely re-designing Rust's async from the ground up would be to ban the use of `&mut future`s in `select!`...but that eliminates a lot of correct code, too. Not being able to do that would make it pretty hard to express a lot of things that many applications might reasonably want to express, as you described. I discussed this a bit in this comment[1] as well.On the other hand, it also wasn't our coworker who had written the code where we found the bug who was to blame, either. It wasn't a case of sloppy programming; he had done everything correctly and put the pieces together the way you were supposed to. All the pieces worked as they were supposed to, and his code seemed to be using them correctly, but the interaction of these pieces resulted in a deadlock that it would have been very difficult for him to anticipate.So, our conclusion was, wow, this just kind of sucks. Not an indictment of async Rust as a whole, but an unfortunate emergent behavior arising from an interaction of individually well-designed pieces. Just something you gotta watch out for, I guess. And that's pretty sad to have to admit.[1] https://news.ycombinator.com/item?id=45776868",
+    "parent": 45777191,
+    "depth": 2
+  },
+  {
     "id": 45777316,
     "by": "octoberfranklin",
     "timeISO": "2025-10-31T22:20:39.000Z",
-    "textPlain": "> However you also wouldn’t be able run use select! in a while loop and try to acquire the same lock (or read from the same channel) without losing your position in the queue.No, you just have to have select!() on a bunch of owned Futures return the futures that weren't selected.  Then you don't lose state.  Yes, this is awkward, but it's the only logically coherent way.  There is probably some macro voodoo that makes it ergonomic.For the real root cause: https://news.ycombinator.com/item?id=45777234",
+    "textPlain": "> However you also wouldn’t be able run use select! in a while loop and try to acquire the same lock (or read from the same channel) without losing your position in the queue.No, just have select!() on a bunch of owned Futures return the futures that weren't selected instead of dropping them.  Then you don't lose state.  Yes, this is awkward, but it's the only logically coherent way.  There is probably some macro voodoo that makes it ergonomic.  But even this doesn't fix the root cause because dropping an owned Future isn't guaranteed to cancel it cleanly.For the real root cause: https://news.ycombinator.com/item?id=45777234",
     "parent": 45777191,
     "depth": 2
   },
@@ -160,6 +200,14 @@
     "depth": 2
   },
   {
+    "id": 45777596,
+    "by": "mdasen",
+    "timeISO": "2025-10-31T22:53:03.000Z",
+    "textPlain": "I'd recommend watching this video: https://www.infoq.com/presentations/rust-2019/; and reading this: https://tokio.rs/blog/2020-04-preemptionI'm not the right person to write a tl;dr, but here goes.For actors, you're basically talking about green threads. Rust had a hard constraint that calls to C not have overhead and so green threads were out. C is going to expect an actual stack so you have to basically spin up a real stack from your green-thread stack, call the C function, then translate it back. I think Erlang also does some magic where it will move things to a separate thread pool so that the C FFI can block without blocking the rest of your Erlang actors.Generally, async/await has lower overhead because it gets compiled down to a state machine and event loop. Languages like Go and Erlang are great, but Rust is a systems programming language looking for zero cost abstractions rather than just \"it's fast.\"To some extent, you can trade overhead for ease. Garbage collectors are easy, but they come with overhead compared to Rust's borrow checker method or malloc/free.To an extent it's about tradeoffs and what you're trying to make. Erlang and Go were trying to build something different where different tradeoffs made sense.",
+    "parent": 45776483,
+    "depth": 2
+  },
+  {
     "id": 45776637,
     "by": "the__alchemist",
     "timeISO": "2025-10-31T21:00:53.000Z",
@@ -176,11 +224,11 @@
     "depth": 2
   },
   {
-    "id": 45776791,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T21:16:30.000Z",
-    "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
-    "parent": 45776550,
+    "id": 45776768,
+    "by": "bcantrill",
+    "timeISO": "2025-10-31T21:13:19.000Z",
+    "textPlain": "Indeed. One of the interesting side effects of being a remote company that records everything[0] is that we have the instant where the \"1000 piece puzzle just clicks together\" recorded, and it's honestly pretty wild.  In this case, it was very much a shared brainstorming between four engineers (Eliza, Sean, John and Dave) -- and there is almost a passing of the baton where they start to imagine the kind of scenario that could induce this and then realize that those are exactly the conditions that exist in the software.We are (on brand?) going to do a podcast episode on this on Monday[1]; ahead of that conversation I'm going to get a clip of that video out, just because it's interesting to see the team work together to debug it.[0] https://rfd.shared.oxide.computer/rfd/0537[1] https://discord.gg/QrcKGTTPrF?event=1433923627988029462",
+    "parent": 45776307,
     "depth": 2
   },
   {
@@ -192,35 +240,27 @@
     "depth": 2
   },
   {
+    "id": 45776791,
+    "by": "oconnor663",
+    "timeISO": "2025-10-31T21:16:30.000Z",
+    "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
+    "parent": 45776550,
+    "depth": 2
+  },
+  {
+    "id": 45777449,
+    "by": "dap",
+    "timeISO": "2025-10-31T22:35:32.000Z",
+    "textPlain": "(author here)Although the design of the `tokio::select!` macro creates ways to run into this behavior, I don't believe the problem is specific to `tokio`.  Why wouldn't the example from the post using Streams happen with any other executor?",
+    "parent": 45776550,
+    "depth": 2
+  },
+  {
     "id": 45776605,
     "by": "raggi",
     "timeISO": "2025-10-31T20:57:16.000Z",
     "textPlain": "i forget if this part unwinds to the exact same place, but some of this kind of design constraint in tokio stems from the much earlier language capabilities and is prohibitive to adjust without breaking the user ecosystem.one of the key advertised selling points in some of the other runtimes was specifically around behavior of tasks on drop of their join handles for example, for reasons closely related to this post.",
     "parent": 45776550,
-    "depth": 2
-  },
-  {
-    "id": 45776751,
-    "by": "DAlperin",
-    "timeISO": "2025-10-31T21:11:43.000Z",
-    "textPlain": "I think the next sentence clarifies pretty well.> In this case, what’s dropped is &mut future1. But future1 is not dropped, so the actual future is not cancelled.",
-    "parent": 45776711,
-    "depth": 2
-  },
-  {
-    "id": 45776759,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T21:12:27.000Z",
-    "textPlain": "The author clearly understands these details. I think it's just a question of wording: did we \"drop a reference (which has no effect)\" or did we \"not drop anything (because references don't implement Drop)\"?",
-    "parent": 45776711,
-    "depth": 2
-  },
-  {
-    "id": 45776768,
-    "by": "bcantrill",
-    "timeISO": "2025-10-31T21:13:19.000Z",
-    "textPlain": "Indeed. One of the interesting side effects of being a remote company that records everything[0] is that we have the instant where the \"1000 piece puzzle just clicks together\" recorded, and it's honestly pretty wild.  In this case, it was very much a shared brainstorming between four engineers (Eliza, Sean, John and Dave) -- and there is almost a passing of the baton where they start to imagine the kind of scenario that could induce this and then realize that those are exactly the conditions that exist in the software.We are (on brand?) going to do a podcast episode on this on Monday[1]; ahead of that conversation I'm going to get a clip of that video out, just because it's interesting to see the team work together to debug it.[0] https://rfd.shared.oxide.computer/rfd/0537[1] https://discord.gg/QrcKGTTPrF?event=1433923627988029462",
-    "parent": 45776307,
     "depth": 2
   },
   {
@@ -256,11 +296,59 @@
     "depth": 2
   },
   {
+    "id": 45777647,
+    "by": "amelius",
+    "timeISO": "2025-10-31T22:59:52.000Z",
+    "textPlain": "Async code is simpler because you're implicitly holding a lock on the CPU. That's also why you should stay away from it, because it increases latency. Especially since Rust is about speed and responsiveness. In general, async programming in Rust makes no sense.",
+    "parent": 45776951,
+    "depth": 2
+  },
+  {
+    "id": 45777689,
+    "by": "comex",
+    "timeISO": "2025-10-31T23:04:47.000Z",
+    "textPlain": "JS shouldn't have a direct equivalent because JS async functions are eager.  Once you call an async function, it will keep running even if the caller doesn't await it, or stops awaiting it.  So in the scenario described, the function next in line for the lock would always have a chance to acquire and release it.  The problem in Rust is that async functions are lazy and only run while they're being polled/awaited (unless wrapped in tasks).  A function that's next in line for the lock might never acquire it if it's not being polled, blocking progress for other functions that are being polled.",
+    "parent": 45776491,
+    "depth": 2
+  },
+  {
     "id": 45776546,
     "by": "raggi",
     "timeISO": "2025-10-31T20:49:59.000Z",
     "textPlain": "yes, you can produce similar issues with promise guarded states and so on as well, it's a fairly common issue in async programming, but can be surprising when it's hidden by layers of abstraction / far up/down a call-chain.",
     "parent": 45776491,
+    "depth": 2
+  },
+  {
+    "id": 45777338,
+    "by": "littlestymaar",
+    "timeISO": "2025-10-31T22:24:31.000Z",
+    "textPlain": "I genuinely don't understand why people use select! at all given how much of a footgun it is.",
+    "parent": 45777234,
+    "depth": 2
+  },
+  {
+    "id": 45777698,
+    "by": "dap",
+    "timeISO": "2025-10-31T23:06:15.000Z",
+    "textPlain": "Is it possible that those names are intentionally chosen and actually do carry meaning?",
+    "parent": 45777188,
+    "depth": 2
+  },
+  {
+    "id": 45776751,
+    "by": "DAlperin",
+    "timeISO": "2025-10-31T21:11:43.000Z",
+    "textPlain": "I think the next sentence clarifies pretty well.> In this case, what’s dropped is &mut future1. But future1 is not dropped, so the actual future is not cancelled.",
+    "parent": 45776711,
+    "depth": 2
+  },
+  {
+    "id": 45776759,
+    "by": "oconnor663",
+    "timeISO": "2025-10-31T21:12:27.000Z",
+    "textPlain": "The author clearly understands these details. I think it's just a question of wording: did we \"drop a reference (which has no effect)\" or did we \"not drop anything (because references don't implement Drop)\"?",
+    "parent": 45776711,
     "depth": 2
   }
 ]
