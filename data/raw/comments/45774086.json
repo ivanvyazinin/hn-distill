@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45780587,
-    "by": "crabmusket",
-    "timeISO": "2025-11-01T10:24:02.000Z",
-    "textPlain": "This feels like the sort of thing that has led to the development of deterministic simulation testing (DST) techniques as pioneered by FoundationDB and TigerBeetle.https://notes.eatonphil.com/2024-08-20-deterministic-simulat...I hope something like this becomes popular in the Rust/Tokio space. It seems like Turmoil is that?https://tokio.rs/blog/2023-01-03-announcing-turmoil",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777191,
     "by": "Matthias247",
     "timeISO": "2025-10-31T22:03:35.000Z",
@@ -52,6 +44,14 @@
     "by": "jacquesm",
     "timeISO": "2025-10-31T20:43:04.000Z",
     "textPlain": "If any rust designers are lurking about here: what made you decide to go for the async design pattern instead of the actor pattern, which - to me at least - seems so much cleaner and so much harder to get wrong?Ever since I started using Erlang it felt like I finally found 'the right way' when before then I did a lot of work with sockets and asynchronous worker threads. But even though it usually worked as advertised it had a large number of really nasty pitfalls which the actor model seemed to - effortlessy - step aside.So I'm seriously wondering what the motivation was. I get why JS uses async, there isn't any other way there, by the time they added async it was too late to change the fundamentals of the language to such a degree. But rust was a clean slate.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45780587,
+    "by": "crabmusket",
+    "timeISO": "2025-11-01T10:24:02.000Z",
+    "textPlain": "This feels like the sort of thing that has led to the development of deterministic simulation testing (DST) techniques as pioneered by FoundationDB and TigerBeetle.https://notes.eatonphil.com/2024-08-20-deterministic-simulat...I hope something like this becomes popular in the Rust/Tokio space. It seems like Turmoil is that?https://tokio.rs/blog/2023-01-03-announcing-turmoil",
     "parent": 45774086,
     "depth": 1
   },
@@ -152,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45780047,
-    "by": "lowbloodsugar",
-    "timeISO": "2025-11-01T08:21:37.000Z",
-    "textPlain": "I know this is going to sound trite, but “don’t do that”. It’s no different than deciding to poll the win32 event queue inside an a method you executed in response to polling the event queue. Nested shit is always going to cause a bug. I guess each new generation just has to learn.",
+    "id": 45781104,
+    "by": "imtringued",
+    "timeISO": "2025-11-01T12:24:31.000Z",
+    "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
     "parent": 45774086,
     "depth": 1
   },
@@ -172,6 +172,14 @@
     "by": "forrestthewoods",
     "timeISO": "2025-10-31T21:33:30.000Z",
     "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45780047,
+    "by": "lowbloodsugar",
+    "timeISO": "2025-11-01T08:21:37.000Z",
+    "textPlain": "I know this is going to sound trite, but “don’t do that”. It’s no different than deciding to poll the win32 event queue inside an a method you executed in response to polling the event queue. Nested shit is always going to cause a bug. I guess each new generation just has to learn.",
     "parent": 45774086,
     "depth": 1
   },
@@ -388,14 +396,6 @@
     "by": "amluto",
     "timeISO": "2025-10-31T21:59:46.000Z",
     "textPlain": "I’m not convinced that this can help in a meaningful way.Fundamentally, if you have two coroutines (or cooperatively scheduled threads or whatever), and one of them holds a lock, and the other one is awaiting the lock, and you don’t schedule the first one, you’re stuck.I wonder if there’s a form of structured concurrency that would help.  If I create two futures and start both of them (in Rust this means polling each one once) but do not continue to poll both, then I’m sort of making a mistake.So imagine a world where, to poll a future at all, I need to have a nursery, and the nursery is passed in from my task and down the call stack. When I create a future, I can pass in my nursery, but that future then gets an exclusive reference to my future until it’s complete or cancelled. If I want to create more than one future that are live concurrently, I need to create a FutureGroup (that gets an exclusive reference to my nursery) and that allows me to create multiple sub-nurseries that can be used to make futures but cannot be used to poll them — instead I poll the FutureGroup.(I have yet to try using an async/await system or a reactor or anything of the sort that is not very easy to screw up.  My current pet peeve is this pattern:    data = await thingy.read()\n\nWhat if thingy.read() succeeds but I am cancelled? This gets nasty is most programming languages.  Python: the docs on when I can get cancelled are almost nonexistent, and it’s not obviously possible to catch the  CancelledError such that I still have data and can therefore save it somewhere so it’s not lost.  Rust: what if thingy thinks it has returned the data but I’m never polled again? Maybe this can’t happen if I’m careful, but that requires more thought than I’m really happy with.)",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45776433,
-    "by": "cogman10",
-    "timeISO": "2025-10-31T20:37:17.000Z",
-    "textPlain": "The ideas that have been batted around is called \"async drop\" [1]And it looks like it's still just an unaddressed well known problem [2].Honestly, once the Mozilla sackening of rust devs happened it seems like the language has been practically rudderless.  The RFC system seems almost dead as a lot of the main contributors are no longer working on rust.This initiative hasn't had motion since 2021. [3][1] https://rust-lang.github.io/async-fundamentals-initiative/ro...[2] https://rust-lang.github.io/async-fundamentals-initiative/[3] https://github.com/rust-lang/async-fundamentals-initiative",
     "parent": 45776277,
     "depth": 2
   }
