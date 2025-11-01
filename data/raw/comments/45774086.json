@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45779372,
-    "by": "jcalvinowens",
-    "timeISO": "2025-11-01T05:00:13.000Z",
-    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777448,
     "by": "Dagonfly",
     "timeISO": "2025-10-31T22:35:26.000Z",
@@ -36,6 +28,14 @@
     "by": "Matthias247",
     "timeISO": "2025-10-31T22:03:35.000Z",
     "textPlain": "As far as I remember from building these things with others within the async rust ecosystem (hey Eliza!) was that there was a certain tradeoff: if you wouldn’t be able to select on references, you couldn’t run into this issue. However you also wouldn’t be able run use select! in a while loop and try to acquire the same lock (or read from the same channel) without losing your position in the queue.I fully agree that this and the cancellation issues discussed before can lead to surprising issues even to seasoned Rust experts. But I’m not sure what really can be improved under the main operating model of async rust (every future can be dropped).But compared to working with callbacks the amount of surprising things is still rather low :)",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779372,
+    "by": "jcalvinowens",
+    "timeISO": "2025-11-01T05:00:13.000Z",
+    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
     "parent": 45774086,
     "depth": 1
   },
@@ -64,14 +64,6 @@
     "depth": 1
   },
   {
-    "id": 45779328,
-    "by": "ideaformlabs",
-    "timeISO": "2025-11-01T04:48:52.000Z",
-    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776307,
     "by": "orthecreedence",
     "timeISO": "2025-10-31T20:23:56.000Z",
@@ -80,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45779255,
-    "by": "bilbo-b-baggins",
-    "timeISO": "2025-11-01T04:29:31.000Z",
-    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "id": 45776875,
+    "by": "arjie",
+    "timeISO": "2025-10-31T21:24:59.000Z",
+    "textPlain": "Wow, that makes sense afterwards but I would not have guessed at it immediately looking at the code. Very insidious. Great blogpost.",
     "parent": 45774086,
     "depth": 1
   },
@@ -96,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 45778792,
-    "by": "qouteall",
-    "timeISO": "2025-11-01T02:30:37.000Z",
-    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
+    "id": 45779328,
+    "by": "ideaformlabs",
+    "timeISO": "2025-11-01T04:48:52.000Z",
+    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
     "parent": 45774086,
     "depth": 1
   },
@@ -112,18 +104,26 @@
     "depth": 1
   },
   {
-    "id": 45778534,
-    "by": "jhhh",
-    "timeISO": "2025-11-01T01:31:18.000Z",
-    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
+    "id": 45778792,
+    "by": "qouteall",
+    "timeISO": "2025-11-01T02:30:37.000Z",
+    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
     "parent": 45774086,
     "depth": 1
   },
   {
-    "id": 45776875,
-    "by": "arjie",
-    "timeISO": "2025-10-31T21:24:59.000Z",
-    "textPlain": "Wow, that makes sense afterwards but I would not have guessed at it immediately looking at the code. Very insidious. Great blogpost.",
+    "id": 45779255,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-11-01T04:29:31.000Z",
+    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45778534,
+    "by": "jhhh",
+    "timeISO": "2025-11-01T01:31:18.000Z",
+    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
     "parent": 45774086,
     "depth": 1
   },
@@ -144,14 +144,6 @@
     "depth": 1
   },
   {
-    "id": 45778522,
-    "by": "mdasen",
-    "timeISO": "2025-11-01T01:29:48.000Z",
-    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776966,
     "by": "wbl",
     "timeISO": "2025-10-31T21:36:21.000Z",
@@ -164,6 +156,14 @@
     "by": "forrestthewoods",
     "timeISO": "2025-10-31T21:33:30.000Z",
     "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45778522,
+    "by": "mdasen",
+    "timeISO": "2025-11-01T01:29:48.000Z",
+    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
     "parent": 45774086,
     "depth": 1
   },
@@ -280,6 +280,14 @@
     "depth": 2
   },
   {
+    "id": 45779516,
+    "by": "oconnor663",
+    "timeISO": "2025-11-01T05:49:36.000Z",
+    "textPlain": "> This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.`future1` did run for a bit, and it got far enough to acquire the mutex. (As the article mentioned, technically it took a position in a queue that means it will get the mutex, but that's morally the same thing here.) Then it was \"paused\". I put \"paused\" in scare quotes because it kind of makes futures sound like processes or threads, which have a \"life of their own\" until/unless something \"interrupts\" them, but an important part of this story is that Rust futures aren't really like that. When you get down to the details, they're more like a struct or a class that just sits there being data unless you call certain methods on it (repeatedly). That's what the `.await` keyword does for you, but when you use more interesting constructs like `select!`, you start to get more of the details in your face.It's hard to be more concrete than that without getting into an overwhelming amount of detail. I wrote a set of blog posts that try to cover it without hand-waving the details away, but they're not short, and they do require some Rust background: https://jacko.io/async_intro.html",
+    "parent": 45779372,
+    "depth": 2
+  },
+  {
     "id": 45776498,
     "by": "sunshowers",
     "timeISO": "2025-10-31T20:45:34.000Z",
@@ -388,14 +396,6 @@
     "by": "oconnor663",
     "timeISO": "2025-10-31T21:16:30.000Z",
     "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
-    "parent": 45776550,
-    "depth": 2
-  },
-  {
-    "id": 45777449,
-    "by": "dap",
-    "timeISO": "2025-10-31T22:35:32.000Z",
-    "textPlain": "(author here)Although the design of the `tokio::select!` macro creates ways to run into this behavior, I don't believe the problem is specific to `tokio`.  Why wouldn't the example from the post using Streams happen with any other executor?",
     "parent": 45776550,
     "depth": 2
   }
