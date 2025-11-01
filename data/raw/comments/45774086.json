@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45779372,
+    "by": "jcalvinowens",
+    "timeISO": "2025-11-01T05:00:13.000Z",
+    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45777448,
     "by": "Dagonfly",
     "timeISO": "2025-10-31T22:35:26.000Z",
@@ -20,14 +28,6 @@
     "by": "singron",
     "timeISO": "2025-10-31T21:14:51.000Z",
     "textPlain": "This sounds very similar to priority inversion. E.g. if you have Thread T_high running at high priority and thread T_low running at low priority, and T_low holds a lock that T_high wants to acquire, T_high won't get to run until T_low gets scheduled.The OS can detect this and make T_low \"inherit\" the priority of T_high. I wonder if there is a similar idea possible with tokio? E.g. if you are awaiting a Mutex held by a future that \"can't run\", then poll that future instead. I would guess detecting the \"can't run\" case would require quite a bit of overhead, but maybe it can be done.I think an especially difficult factor is that you don't even need to use a direct await.    let future1 = do_async_thing(\"op1\", lock.clone()).boxed();\n    tokio::select! {\n      _ = &mut future1 => {\n        println!(\"do_stuff: arm1 future finished\");\n      }\n      _ = sleep(Duration::from_millis(500)) => {\n        // No .await, but both will futurelock on future1.\n        tokio::select! {\n          _ = do_async_thing(\"op2\", lock.clone()) => {},\n          _ = do_async_thing(\"op3\", lock.clone()) => {},\n        };\n      }\n    };\n\nI.e. so \"can't run\" detector needs to determine that no other task will run the future, and the future isn't in the current set of things being polled by this task.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45779198,
-    "by": "mleonhard",
-    "timeISO": "2025-11-01T04:14:43.000Z",
-    "textPlain": "> // Start a background task that takes the lock and holds it for a few seconds.Holding a lock while waiting for IO can destroy a system's performance.  With async Rust, we can prevent this by making the MutexGuard !Send, so it cannot be held across an await.  Specifically, because it is !Send, it cannot be stored in the Future [2], so it must be dropped immediately, freeing the lock.  This also prevents Futurelock deadlock.This is how I wrote safina::sync::Mutex [0].  I did try to make it Send, like Tokio's MutexGuard, but stopped when I realized that it would become very complicated or require unsafe.> You could imagine an unfair Mutex that always woke up all waiters and let them race to grab the lock again. That would not suffer from risk of futurelock, but it would have the thundering herd problem plus all the liveness issues associated with unfair synchronization primitives.Thundering herd is when clients overload servers.  This simple Mutex has O(n^2) runtime: every task must acquire and release the mutex, which adds all waiting tasks to the scheduler queue.  In practice, scheduling a task is very fast (~600ns).  As long as polling the lock-mutex-future is fast and you have <500 waiting tasks, then the O(n^2) runtime is fine.Performance is hard to predict.  I wrote Safina using the simplest possible implementations and assumed they would be slow.  Then I wrote some micro-benchmarks and found that some parts (like the async Mutex) actually outperform Tokio's complicated versions [1].  I spent days coding optimizations that did not improve performance (work stealing) or even reduced performance (thread affinity).  Now I'm hesitant to believe assumptions and predictions about performance, even if they are based on profiling data.[0] https://docs.rs/safina/latest/safina/sync/struct.MutexGuard....[1] https://docs.rs/safina/latest/safina/index.html#benchmark[2] Multi-threaded async executors require futures to be Send.",
     "parent": 45774086,
     "depth": 1
   },
@@ -56,10 +56,42 @@
     "depth": 1
   },
   {
+    "id": 45779198,
+    "by": "mleonhard",
+    "timeISO": "2025-11-01T04:14:43.000Z",
+    "textPlain": "> // Start a background task that takes the lock and holds it for a few seconds.Holding a lock while waiting for IO can destroy a system's performance.  With async Rust, we can prevent this by making the MutexGuard !Send, so it cannot be held across an await.  Specifically, because it is !Send, it cannot be stored in the Future [2], so it must be dropped immediately, freeing the lock.  This also prevents Futurelock deadlock.This is how I wrote safina::sync::Mutex [0].  I did try to make it Send, like Tokio's MutexGuard, but stopped when I realized that it would become very complicated or require unsafe.> You could imagine an unfair Mutex that always woke up all waiters and let them race to grab the lock again. That would not suffer from risk of futurelock, but it would have the thundering herd problem plus all the liveness issues associated with unfair synchronization primitives.Thundering herd is when clients overload servers.  This simple Mutex has O(n^2) runtime: every task must acquire and release the mutex, which adds all waiting tasks to the scheduler queue.  In practice, scheduling a task is very fast (~600ns).  As long as polling the lock-mutex-future is fast and you have <500 waiting tasks, then the O(n^2) runtime is fine.Performance is hard to predict.  I wrote Safina using the simplest possible implementations and assumed they would be slow.  Then I wrote some micro-benchmarks and found that some parts (like the async Mutex) actually outperform Tokio's complicated versions [1].  I spent days coding optimizations that did not improve performance (work stealing) or even reduced performance (thread affinity).  Now I'm hesitant to believe assumptions and predictions about performance, even if they are based on profiling data.[0] https://docs.rs/safina/latest/safina/sync/struct.MutexGuard....[1] https://docs.rs/safina/latest/safina/index.html#benchmark[2] Multi-threaded async executors require futures to be Send.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779328,
+    "by": "ideaformlabs",
+    "timeISO": "2025-11-01T04:48:52.000Z",
+    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45776307,
     "by": "orthecreedence",
     "timeISO": "2025-10-31T20:23:56.000Z",
     "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779255,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-11-01T04:29:31.000Z",
+    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776277,
+    "by": "Sytten",
+    "timeISO": "2025-10-31T20:21:17.000Z",
+    "textPlain": "I am wondering if there is a larger RFC for Rust to force users to not hold a variable across await points.In my mind futurelock is similar to keeping a sync lock across an await point. We have nothing right now to force a drop and I think the solution to that problem would help here.",
     "parent": 45774086,
     "depth": 1
   },
@@ -104,14 +136,6 @@
     "depth": 1
   },
   {
-    "id": 45776277,
-    "by": "Sytten",
-    "timeISO": "2025-10-31T20:21:17.000Z",
-    "textPlain": "I am wondering if there is a larger RFC for Rust to force users to not hold a variable across await points.In my mind futurelock is similar to keeping a sync lock across an await point. We have nothing right now to force a drop and I think the solution to that problem would help here.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45778599,
     "by": "tick_tock_tick",
     "timeISO": "2025-11-01T01:45:35.000Z",
@@ -124,14 +148,6 @@
     "by": "mdasen",
     "timeISO": "2025-11-01T01:29:48.000Z",
     "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45777969,
-    "by": "levodelellis",
-    "timeISO": "2025-10-31T23:49:37.000Z",
-    "textPlain": "In October alone I seen 5+ articles and comments about multi-threading and I don't know whyI always said if your code locks or use atomics, it's wrong. Everyone says I'm wrong but you get things like what's described in the article. I'd like to recommend a solution but there's pretty much no reasonable way to implement multi-threading when you're not an expert. I heard Erlang and Elixir are good but I haven't tried them so I can't really comment",
     "parent": 45774086,
     "depth": 1
   },
@@ -188,6 +204,14 @@
     "by": "OptionOfT",
     "timeISO": "2025-10-31T21:07:27.000Z",
     "textPlain": "- wrong -",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45777969,
+    "by": "levodelellis",
+    "timeISO": "2025-10-31T23:49:37.000Z",
+    "textPlain": "In October alone I seen 5+ articles and comments about multi-threading and I don't know whyI always said if your code locks or use atomics, it's wrong. Everyone says I'm wrong but you get things like what's described in the article. I'd like to recommend a solution but there's pretty much no reasonable way to implement multi-threading when you're not an expert. I heard Erlang and Elixir are good but I haven't tried them so I can't really comment",
     "parent": 45774086,
     "depth": 1
   },
@@ -304,6 +328,38 @@
     "depth": 2
   },
   {
+    "id": 45776533,
+    "by": "ameliaquining",
+    "timeISO": "2025-10-31T20:48:30.000Z",
+    "textPlain": "There's an existing lint that lets you prohibit instances of specific types from being held across await points: https://rust-lang.github.io/rust-clippy/stable/index.html#aw...",
+    "parent": 45776277,
+    "depth": 2
+  },
+  {
+    "id": 45776480,
+    "by": "sunshowers",
+    "timeISO": "2025-10-31T20:42:52.000Z",
+    "textPlain": "Note that forcing a drop of a lock guard has its own issues, particularly around leaving the guarded data in an invalid state. I cover this a bit in my talk that Bryan linked to in the OP [1].[1] timestamped: https://youtu.be/zrv5Cy1R7r4?t=1067",
+    "parent": 45776277,
+    "depth": 2
+  },
+  {
+    "id": 45777165,
+    "by": "amluto",
+    "timeISO": "2025-10-31T21:59:46.000Z",
+    "textPlain": "I’m not convinced that this can help in a meaningful way.Fundamentally, if you have two coroutines (or cooperatively scheduled threads or whatever), and one of them holds a lock, and the other one is awaiting the lock, and you don’t schedule the first one, you’re stuck.I wonder if there’s a form of structured concurrency that would help.  If I create two futures and start both of them (in Rust this means polling each one once) but do not continue to poll both, then I’m sort of making a mistake.So imagine a world where, to poll a future at all, I need to have a nursery, and the nursery is passed in from my task and down the call stack. When I create a future, I can pass in my nursery, but that future then gets an exclusive reference to my future until it’s complete or cancelled. If I want to create more than one future that are live concurrently, I need to create a FutureGroup (that gets an exclusive reference to my nursery) and that allows me to create multiple sub-nurseries that can be used to make futures but cannot be used to poll them — instead I poll the FutureGroup.(I have yet to try using an async/await system or a reactor or anything of the sort that is not very easy to screw up.  My current pet peeve is this pattern:    data = await thingy.read()\n\nWhat if thingy.read() succeeds but I am cancelled? This gets nasty is most programming languages.  Python: the docs on when I can get cancelled are almost nonexistent, and it’s not obviously possible to catch the  CancelledError such that I still have data and can therefore save it somewhere so it’s not lost.  Rust: what if thingy thinks it has returned the data but I’m never polled again? Maybe this can’t happen if I’m careful, but that requires more thought than I’m really happy with.)",
+    "parent": 45776277,
+    "depth": 2
+  },
+  {
+    "id": 45776433,
+    "by": "cogman10",
+    "timeISO": "2025-10-31T20:37:17.000Z",
+    "textPlain": "The ideas that have been batted around is called \"async drop\" [1]And it looks like it's still just an unaddressed well known problem [2].Honestly, once the Mozilla sackening of rust devs happened it seems like the language has been practically rudderless.  The RFC system seems almost dead as a lot of the main contributors are no longer working on rust.This initiative hasn't had motion since 2021. [3][1] https://rust-lang.github.io/async-fundamentals-initiative/ro...[2] https://rust-lang.github.io/async-fundamentals-initiative/[3] https://github.com/rust-lang/async-fundamentals-initiative",
+    "parent": 45776277,
+    "depth": 2
+  },
+  {
     "id": 45777999,
     "by": "wrs",
     "timeISO": "2025-10-31T23:53:45.000Z",
@@ -341,62 +397,6 @@
     "timeISO": "2025-10-31T22:35:32.000Z",
     "textPlain": "(author here)Although the design of the `tokio::select!` macro creates ways to run into this behavior, I don't believe the problem is specific to `tokio`.  Why wouldn't the example from the post using Streams happen with any other executor?",
     "parent": 45776550,
-    "depth": 2
-  },
-  {
-    "id": 45776605,
-    "by": "raggi",
-    "timeISO": "2025-10-31T20:57:16.000Z",
-    "textPlain": "i forget if this part unwinds to the exact same place, but some of this kind of design constraint in tokio stems from the much earlier language capabilities and is prohibitive to adjust without breaking the user ecosystem.one of the key advertised selling points in some of the other runtimes was specifically around behavior of tasks on drop of their join handles for example, for reasons closely related to this post.",
-    "parent": 45776550,
-    "depth": 2
-  },
-  {
-    "id": 45776533,
-    "by": "ameliaquining",
-    "timeISO": "2025-10-31T20:48:30.000Z",
-    "textPlain": "There's an existing lint that lets you prohibit instances of specific types from being held across await points: https://rust-lang.github.io/rust-clippy/stable/index.html#aw...",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45776480,
-    "by": "sunshowers",
-    "timeISO": "2025-10-31T20:42:52.000Z",
-    "textPlain": "Note that forcing a drop of a lock guard has its own issues, particularly around leaving the guarded data in an invalid state. I cover this a bit in my talk that Bryan linked to in the OP [1].[1] timestamped: https://youtu.be/zrv5Cy1R7r4?t=1067",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45777165,
-    "by": "amluto",
-    "timeISO": "2025-10-31T21:59:46.000Z",
-    "textPlain": "I’m not convinced that this can help in a meaningful way.Fundamentally, if you have two coroutines (or cooperatively scheduled threads or whatever), and one of them holds a lock, and the other one is awaiting the lock, and you don’t schedule the first one, you’re stuck.I wonder if there’s a form of structured concurrency that would help.  If I create two futures and start both of them (in Rust this means polling each one once) but do not continue to poll both, then I’m sort of making a mistake.So imagine a world where, to poll a future at all, I need to have a nursery, and the nursery is passed in from my task and down the call stack. When I create a future, I can pass in my nursery, but that future then gets an exclusive reference to my future until it’s complete or cancelled. If I want to create more than one future that are live concurrently, I need to create a FutureGroup (that gets an exclusive reference to my nursery) and that allows me to create multiple sub-nurseries that can be used to make futures but cannot be used to poll them — instead I poll the FutureGroup.(I have yet to try using an async/await system or a reactor or anything of the sort that is not very easy to screw up.  My current pet peeve is this pattern:    data = await thingy.read()\n\nWhat if thingy.read() succeeds but I am cancelled? This gets nasty is most programming languages.  Python: the docs on when I can get cancelled are almost nonexistent, and it’s not obviously possible to catch the  CancelledError such that I still have data and can therefore save it somewhere so it’s not lost.  Rust: what if thingy thinks it has returned the data but I’m never polled again? Maybe this can’t happen if I’m careful, but that requires more thought than I’m really happy with.)",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45776433,
-    "by": "cogman10",
-    "timeISO": "2025-10-31T20:37:17.000Z",
-    "textPlain": "The ideas that have been batted around is called \"async drop\" [1]And it looks like it's still just an unaddressed well known problem [2].Honestly, once the Mozilla sackening of rust devs happened it seems like the language has been practically rudderless.  The RFC system seems almost dead as a lot of the main contributors are no longer working on rust.This initiative hasn't had motion since 2021. [3][1] https://rust-lang.github.io/async-fundamentals-initiative/ro...[2] https://rust-lang.github.io/async-fundamentals-initiative/[3] https://github.com/rust-lang/async-fundamentals-initiative",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45779188,
-    "by": "clarkmcc",
-    "timeISO": "2025-11-01T04:11:12.000Z",
-    "textPlain": "I can’t say whether it was rushed out, but it’s clearly not everything it was advertised to be. Early on, the big talking point was that the async implementation was so modular you could swap runtimes like Lego bricks. In reality, that’s nowhere near true. Changing runtimes means changing every I/O dependency (mutexes, networking, fs), because everything is tightly coupled to the runtime. I raised this in a Reddit thread some time ago, and the feedback there reinforced that I'm not the only one with a sour Rust async taste in my mouth. https://www.reddit.com/r/rust/comments/1f4z84r/is_it_fair_to...",
-    "parent": 45778599,
-    "depth": 2
-  },
-  {
-    "id": 45778709,
-    "by": "kibwen",
-    "timeISO": "2025-11-01T02:09:28.000Z",
-    "textPlain": "There's a lot of improvements I could think of for async Rust, but there's basically nothing I would change about the fundamentals that underlie it (other than some tweaks to Pin, maybe, and I could quibble over some syntax). There's nothing rushed about it; it's a great foundation that demonstrably just needs someone to finish building the house on top of it (and, to continue the analogy, needs someone to finish building the sub-basement (cough, generalized coroutines)).",
-    "parent": 45778599,
     "depth": 2
   }
 ]
