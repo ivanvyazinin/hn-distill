@@ -24,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 45779198,
+    "by": "mleonhard",
+    "timeISO": "2025-11-01T04:14:43.000Z",
+    "textPlain": "> // Start a background task that takes the lock and holds it for a few seconds.Holding a lock while waiting for IO can destroy a system's performance.  With async Rust, we can prevent this by making the MutexGuard !Send, so it cannot be held across an await.  Specifically, because it is !Send, it cannot be stored in the Future [2], so it must be dropped immediately, freeing the lock.  This also prevents Futurelock deadlock.This is how I wrote safina::sync::Mutex [0].  I did try to make it Send, like Tokio's MutexGuard, but stopped when I realized that it would become very complicated or require unsafe.> You could imagine an unfair Mutex that always woke up all waiters and let them race to grab the lock again. That would not suffer from risk of futurelock, but it would have the thundering herd problem plus all the liveness issues associated with unfair synchronization primitives.Thundering herd is when clients overload servers.  This simple Mutex has O(n^2) runtime: every task must acquire and release the mutex, which adds all waiting tasks to the scheduler queue.  In practice, scheduling a task is very fast (~600ns).  As long as polling the lock-mutex-future is fast and you have <500 waiting tasks, then the O(n^2) runtime is fine.Performance is hard to predict.  I wrote Safina using the simplest possible implementations and assumed they would be slow.  Then I wrote some micro-benchmarks and found that some parts (like the async Mutex) actually outperform Tokio's complicated versions [1].  I spent days coding optimizations that did not improve performance (work stealing) or even reduced performance (thread affinity).  Now I'm hesitant to believe assumptions and predictions about performance, even if they are based on profiling data.[0] https://docs.rs/safina/latest/safina/sync/struct.MutexGuard....[1] https://docs.rs/safina/latest/safina/index.html#benchmark[2] Multi-threaded async executors require futures to be Send.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45777191,
     "by": "Matthias247",
     "timeISO": "2025-10-31T22:03:35.000Z",
@@ -48,14 +56,6 @@
     "depth": 1
   },
   {
-    "id": 45778792,
-    "by": "qouteall",
-    "timeISO": "2025-11-01T02:30:37.000Z",
-    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776307,
     "by": "orthecreedence",
     "timeISO": "2025-10-31T20:23:56.000Z",
@@ -64,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45778534,
-    "by": "jhhh",
-    "timeISO": "2025-11-01T01:31:18.000Z",
-    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
+    "id": 45778792,
+    "by": "qouteall",
+    "timeISO": "2025-11-01T02:30:37.000Z",
+    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
     "parent": 45774086,
     "depth": 1
   },
@@ -76,6 +76,14 @@
     "by": "quietbritishjim",
     "timeISO": "2025-10-31T23:46:37.000Z",
     "textPlain": "Wow, it is simply outrageous that Rust doesn't just allow all active tasks to make progress. It creates a whole class of incomprehensible bugs, like this one, for no reason. Can any Rust experts explain why it's done this way? It seems like an unforced error.In Python, I often use the Trio library, which offers \"structured, concurrency\": tasks are (only) spawned into lexical scopes, and they are all completed (waited for) before that scope is left. That includes waiting for any cancelled tasks (which are allowed to do useful async work, including waiting for any of their own task scopes to complete).Could Rust do something like that? It's far easier to reason about than traditional async programs, which seems up Rust's street. As a bonus it seems to solve this problem, since a Rust equivalent would presumably have all tasks implicitly polled by their owning scope.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45778534,
+    "by": "jhhh",
+    "timeISO": "2025-11-01T01:31:18.000Z",
+    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
     "parent": 45774086,
     "depth": 1
   },
@@ -96,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45778599,
-    "by": "tick_tock_tick",
-    "timeISO": "2025-11-01T01:45:35.000Z",
-    "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776277,
     "by": "Sytten",
     "timeISO": "2025-10-31T20:21:17.000Z",
     "textPlain": "I am wondering if there is a larger RFC for Rust to force users to not hold a variable across await points.In my mind futurelock is similar to keeping a sync lock across an await point. We have nothing right now to force a drop and I think the solution to that problem would help here.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45778599,
+    "by": "tick_tock_tick",
+    "timeISO": "2025-11-01T01:45:35.000Z",
+    "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
     "parent": 45774086,
     "depth": 1
   },
@@ -182,6 +190,14 @@
     "textPlain": "- wrong -",
     "parent": 45774086,
     "depth": 1
+  },
+  {
+    "id": 45779161,
+    "by": "csande17",
+    "timeISO": "2025-11-01T04:02:34.000Z",
+    "textPlain": "In case anyone else was confused: the link/quote in this comment are from the previous \"async cancellation issue\" write-up, which describes a situation where you \"drop\" a future: the code in the async function stops running, and all the destructors on its local variables are executed.The new write-up from OP is that you can \"forget\" a future (or just hold onto it longer than you meant to), in which case the code in the async function stops running but the destructors are NOT executed.Both of these behaviors are allowed by Rust's fairly narrow definition of \"safety\" (which allows memory leaks, deadlocks, infinite loops, and, obviously, logic bugs), but I can see why you'd be disappointed if you bought into the broader philosophy of Rust making it easier to write correct software. Even the Rust team themselves aren't immune -- see the \"leakpocalypse\" from before 1.0.",
+    "parent": 45777349,
+    "depth": 2
   },
   {
     "id": 45778263,
@@ -336,14 +352,6 @@
     "depth": 2
   },
   {
-    "id": 45778709,
-    "by": "kibwen",
-    "timeISO": "2025-11-01T02:09:28.000Z",
-    "textPlain": "There's a lot of improvements I could think of for async Rust, but there's basically nothing I would change about the fundamentals that underlie it (other than some tweaks to Pin, maybe, and I could quibble over some syntax). There's nothing rushed about it; it's a great foundation that demonstrably just needs someone to finish building the house on top of it (and, to continue the analogy, needs someone to finish building the sub-basement (cough, generalized coroutines)).",
-    "parent": 45778599,
-    "depth": 2
-  },
-  {
     "id": 45776533,
     "by": "ameliaquining",
     "timeISO": "2025-10-31T20:48:30.000Z",
@@ -376,27 +384,19 @@
     "depth": 2
   },
   {
-    "id": 45778828,
-    "by": "mjevans",
-    "timeISO": "2025-11-01T02:39:33.000Z",
-    "textPlain": "Difference in Go is that you've _expressly_ constructed a dependency ring.  Should Go or any runtime go out of it's way to detect a dependency ring?This the programming equivalent of using welding (locks) to make a chain loop, you've just done it with the 3D space impossible two links case.As with the sin of .await(no deadline), the sin here is not adding a deadline.",
-    "parent": 45778522,
+    "id": 45779188,
+    "by": "clarkmcc",
+    "timeISO": "2025-11-01T04:11:12.000Z",
+    "textPlain": "I can’t say whether it was rushed out, but it’s clearly not everything it was advertised to be. Early on, the big talking point was that the async implementation was so modular you could swap runtimes like Lego bricks. In reality, that’s nowhere near true. Changing runtimes means changing every I/O dependency (mutexes, networking, fs), because everything is tightly coupled to the runtime. I raised this in a Reddit thread some time ago, and the feedback there reinforced that I'm not the only one with a sour Rust async taste in my mouth. https://www.reddit.com/r/rust/comments/1f4z84r/is_it_fair_to...",
+    "parent": 45778599,
     "depth": 2
   },
   {
-    "id": 45778817,
-    "by": "jhhh",
-    "timeISO": "2025-11-01T02:37:23.000Z",
-    "textPlain": "I wrote a version of the article's code in Java and couldn't figure out why it was working until reading your example. I see now that the channel operations in Go must rendezvous which I assume matches Rust's Future behavior. Whereas, the Java CompletableFuture operations I was using to mimic the select aren't required to meet.  Thanks for writing this.",
-    "parent": 45778522,
-    "depth": 2
-  },
-  {
-    "id": 45777647,
-    "by": "amelius",
-    "timeISO": "2025-10-31T22:59:52.000Z",
-    "textPlain": "Async code is simpler because you're implicitly holding a lock on the CPU. That's also why you should stay away from it: it increases latency. Especially since Rust is about speed and responsiveness. In general, async programming in Rust makes little sense.",
-    "parent": 45776951,
+    "id": 45778709,
+    "by": "kibwen",
+    "timeISO": "2025-11-01T02:09:28.000Z",
+    "textPlain": "There's a lot of improvements I could think of for async Rust, but there's basically nothing I would change about the fundamentals that underlie it (other than some tweaks to Pin, maybe, and I could quibble over some syntax). There's nothing rushed about it; it's a great foundation that demonstrably just needs someone to finish building the house on top of it (and, to continue the analogy, needs someone to finish building the sub-basement (cough, generalized coroutines)).",
+    "parent": 45778599,
     "depth": 2
   }
 ]
