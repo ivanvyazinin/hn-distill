@@ -176,18 +176,18 @@
     "depth": 1
   },
   {
-    "id": 45776491,
-    "by": "moralestapia",
-    "timeISO": "2025-10-31T20:44:47.000Z",
-    "textPlain": "Hmm, curious to see if this could happen on JS. I'll reproduce the code.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777234,
     "by": "octoberfranklin",
     "timeISO": "2025-10-31T22:09:13.000Z",
     "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776491,
+    "by": "moralestapia",
+    "timeISO": "2025-10-31T20:44:47.000Z",
+    "textPlain": "Hmm, curious to see if this could happen on JS. I'll reproduce the code.",
     "parent": 45774086,
     "depth": 1
   },
@@ -312,18 +312,18 @@
     "depth": 2
   },
   {
-    "id": 45776798,
-    "by": "the__alchemist",
-    "timeISO": "2025-10-31T21:16:58.000Z",
-    "textPlain": "Your application needs concurrency. So, the answer is... switch your entire application, code style, and libraries it uses into a separate domain that is borderline incompatible with normal one? And has its own dialects that have their own compatibility barriers? Doesn't make sense to me.",
-    "parent": 45776483,
-    "depth": 2
-  },
-  {
     "id": 45777596,
     "by": "mdasen",
     "timeISO": "2025-10-31T22:53:03.000Z",
     "textPlain": "I'd recommend watching this video: https://www.infoq.com/presentations/rust-2019/; and reading this: https://tokio.rs/blog/2020-04-preemptionI'm not the right person to write a tl;dr, but here goes.For actors, you're basically talking about green threads. Rust had a hard constraint that calls to C not have overhead and so green threads were out. C is going to expect an actual stack so you have to basically spin up a real stack from your green-thread stack, call the C function, then translate it back. I think Erlang also does some magic where it will move things to a separate thread pool so that the C FFI can block without blocking the rest of your Erlang actors.Generally, async/await has lower overhead because it gets compiled down to a state machine and event loop. Languages like Go and Erlang are great, but Rust is a systems programming language looking for zero cost abstractions rather than just \"it's fast.\"To some extent, you can trade overhead for ease. Garbage collectors are easy, but they come with overhead compared to Rust's borrow checker method or malloc/free.To an extent it's about tradeoffs and what you're trying to make. Erlang and Go were trying to build something different where different tradeoffs made sense.EDIT: I'd also note that before Go introduced preemption, it too would have \"pitfalls\". If a goroutine didn't trigger a stack reallocation (like function calls that would make it grow the stack) or do something that would yield (like blocking IO), it could starve other goroutines. Now Go does preemption checks so that the scheduler can interrupt hot loops. I think Erlang works somewhat similarly to Rust in scheduling in that its actors have a certain budget, every function call decrements their budget, and when they run of of budget they have to yield back to the scheduler.",
+    "parent": 45776483,
+    "depth": 2
+  },
+  {
+    "id": 45776798,
+    "by": "the__alchemist",
+    "timeISO": "2025-10-31T21:16:58.000Z",
+    "textPlain": "Your application needs concurrency. So, the answer is... switch your entire application, code style, and libraries it uses into a separate domain that is borderline incompatible with normal one? And has its own dialects that have their own compatibility barriers? Doesn't make sense to me.",
     "parent": 45776483,
     "depth": 2
   },
@@ -333,6 +333,14 @@
     "timeISO": "2025-10-31T21:00:53.000Z",
     "textPlain": "I'm surprised learning this too. I know the hobby embedded, and HTTP-server OSS ecosystem have committed to Async, but I didn't expect Oxide would.",
     "parent": 45776483,
+    "depth": 2
+  },
+  {
+    "id": 45780445,
+    "by": "dvratil",
+    "timeISO": "2025-11-01T09:51:06.000Z",
+    "textPlain": "I would guess this is just to make the explanation of the bug easier.In real world, the futurelock could occur even with very short locks, it just wouldn't be so deterministic. Having a minimal reproducer that you have to run a thousand times and it will maybe futurelock doesn't really make for a good example :)",
+    "parent": 45779198,
     "depth": 2
   },
   {
@@ -389,14 +397,6 @@
     "timeISO": "2025-11-01T08:40:53.000Z",
     "textPlain": "This is why I use a threadpool instead. Cant deal with the complexity of async code.",
     "parent": 45779328,
-    "depth": 2
-  },
-  {
-    "id": 45777999,
-    "by": "wrs",
-    "timeISO": "2025-10-31T23:53:45.000Z",
-    "textPlain": "It's hard to answer the question because of unclear terminology (tasks vs. futures). There are ways to do structured concurrency in Rust, but they are for tasks, not futures. There's not really a concept of \"active futures\" (other than calling an \"active future\" one that returned Pending the last time you polled it).A task is the thing that drives progress by polling some futures. But one of those futures may want to handle polling for other futures that it made, which is where this arises.As the article says, one option is to spawn everything as a task, but that doesn't solve all problems, and precludes some useful ways of using futures.",
-    "parent": 45777951,
     "depth": 2
   }
 ]
