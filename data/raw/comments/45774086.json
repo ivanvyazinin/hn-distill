@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45776463,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T20:41:14.000Z",
-    "textPlain": "> FAQ: doesn’t future1 get cancelled?I guess cancellation is really two different things, which usually happen at the ~same time, but not in this case: 1) the future stops getting polled, and 2) the future gets dropped. In this example the drop is delayed, and because the future is holding a guard,* the delay has side effects. So the future \"has been cancelled\" in the sense that it will never again make forward progress, but it \"hasn't been cancelled yet\" in the sense that it's still holding resources. I wonder if it's practical to say \"make sure those two things always happen together\"?* Technically a Tokio-internal `Acquire` future that owns a queue position to get a guard, but it sounds like the exact same bug could manifest after it got the guard too, so let's call it a guard.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776483,
     "by": "jacquesm",
     "timeISO": "2025-10-31T20:43:04.000Z",
@@ -48,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45776463,
+    "by": "oconnor663",
+    "timeISO": "2025-10-31T20:41:14.000Z",
+    "textPlain": "> FAQ: doesn’t future1 get cancelled?I guess cancellation is really two different things, which usually happen at the ~same time, but not in this case: 1) the future stops getting polled, and 2) the future gets dropped. In this example the drop is delayed, and because the future is holding a guard,* the delay has side effects. So the future \"has been cancelled\" in the sense that it will never again make forward progress, but it \"hasn't been cancelled yet\" in the sense that it's still holding resources. I wonder if it's practical to say \"make sure those two things always happen together\"?* Technically a Tokio-internal `Acquire` future that owns a queue position to get a guard, but it sounds like the exact same bug could manifest after it got the guard too, so let's call it a guard.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45779372,
     "by": "jcalvinowens",
     "timeISO": "2025-11-01T05:00:13.000Z",
     "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45780047,
+    "by": "lowbloodsugar",
+    "timeISO": "2025-11-01T08:21:37.000Z",
+    "textPlain": "I know this is going to sound trite, but “don’t do that”. It’s no different than deciding to poll the win32 event queue inside an a method you executed in response to polling the event queue. Nested shit is always going to cause a bug. I guess each new generation just has to learn.",
     "parent": 45774086,
     "depth": 1
   },
@@ -104,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45779328,
-    "by": "ideaformlabs",
-    "timeISO": "2025-11-01T04:48:52.000Z",
-    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
+    "id": 45776550,
+    "by": "dvt",
+    "timeISO": "2025-10-31T20:50:16.000Z",
+    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
     "parent": 45774086,
     "depth": 1
   },
@@ -120,18 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45776550,
-    "by": "dvt",
-    "timeISO": "2025-10-31T20:50:16.000Z",
-    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45779255,
-    "by": "bilbo-b-baggins",
-    "timeISO": "2025-11-01T04:29:31.000Z",
-    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "id": 45779328,
+    "by": "ideaformlabs",
+    "timeISO": "2025-11-01T04:48:52.000Z",
+    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
     "parent": 45774086,
     "depth": 1
   },
@@ -140,6 +140,14 @@
     "by": "tick_tock_tick",
     "timeISO": "2025-11-01T01:45:35.000Z",
     "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779255,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-11-01T04:29:31.000Z",
+    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
     "parent": 45774086,
     "depth": 1
   },
@@ -168,14 +176,6 @@
     "depth": 1
   },
   {
-    "id": 45779692,
-    "by": "samdoesnothing",
-    "timeISO": "2025-11-01T06:46:02.000Z",
-    "textPlain": "LOL. All the Rust evangelists talk about safety when stuff like this exists? JFC. Can we stop calling Rust safe now? Finally? I mean we all know deep in our hearts that trivial memory safety doesn't mean programs are correct or \"safe\" by any means but its nice to have proof that Rust is fundamentally unsafe for asynchronous tasks at least. Or at least \"unsound\".Structured concurrency will always win IMO.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776491,
     "by": "moralestapia",
     "timeISO": "2025-10-31T20:44:47.000Z",
@@ -188,6 +188,14 @@
     "by": "octoberfranklin",
     "timeISO": "2025-10-31T22:09:13.000Z",
     "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779692,
+    "by": "samdoesnothing",
+    "timeISO": "2025-11-01T06:46:02.000Z",
+    "textPlain": "LOL. All the Rust evangelists talk about safety when stuff like this exists? JFC. Can we stop calling Rust safe now? Finally? I mean we all know deep in our hearts that trivial memory safety doesn't mean programs are correct or \"safe\" by any means but its nice to have proof that Rust is fundamentally unsafe for asynchronous tasks at least. Or at least \"unsound\".Structured concurrency will always win IMO.",
     "parent": 45774086,
     "depth": 1
   },
@@ -389,14 +397,6 @@
     "timeISO": "2025-10-31T23:51:10.000Z",
     "textPlain": "So there's a distinction between a task and a future. A future doesn't do anything until it's polled, and since there's nothing special about async runtimes (it's just user level code), it's always possible to create futures and never poll them, or stop polling them.A task is a different construct and usually tied to the runtime. If you look at the suggestions in the RFD they call out using a task explicitly instead of polling a future in place.There's some debate to be had over what constitutes \"cancellation.\" The article and most colloquial definitions I've heard define it as a future being dropped before being polled to completion. Which is very clean - if you want to cancel a future, just drop it. Since Rust strongly encourages RAII, cleanup can go in drop implementations.A much tougher definition of cancellation is \"the future is never polled again\" which is what the article hits on. The future isn't dropped but its poll is also unreachable, hence the deadlock.",
     "parent": 45777951,
-    "depth": 2
-  },
-  {
-    "id": 45779188,
-    "by": "clarkmcc",
-    "timeISO": "2025-11-01T04:11:12.000Z",
-    "textPlain": "I can’t say whether it was rushed out, but it’s clearly not everything it was advertised to be. Early on, the big talking point was that the async implementation was so modular you could swap runtimes like Lego bricks. In reality, that’s nowhere near true. Changing runtimes means changing every I/O dependency (mutexes, networking, fs), because everything is tightly coupled to the runtime. I raised this in a Reddit thread some time ago, and the feedback there reinforced that I'm not the only one with a sour Rust async taste in my mouth. https://www.reddit.com/r/rust/comments/1f4z84r/is_it_fair_to...",
-    "parent": 45778599,
     "depth": 2
   }
 ]
