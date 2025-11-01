@@ -1,5 +1,13 @@
 [
   {
+    "id": 45784808,
+    "by": "EionRobb",
+    "timeISO": "2025-11-01T19:57:20.000Z",
+    "textPlain": "One of the biggest contributors I've had in the past for SQLite blocking was disk fragmentation.We had some old Android tablets using our app 8 hours a day for 3-4 years. They'd complain if locking errors and slowness but every time they'd copy their data to send to us, we couldn't replicate, even on the same hardware. It wasn't until we bought one user a new device and got them to send us the old one that we could check it out. We thought maybe the ssd had worn out over the few years of continual use but installing a dev copy of our app was super fast. In the end what did work was to \"defrag\" the db file by copying it to a new location, deleting the original, then moving it back to the same name. Boom, no more \"unable to open database\" errors, no more slow downs.I tried this on Jellyfin dbs a few months ago after running it for years and then suddenly running into performance issues, it made a big difference there too.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
     "id": 45781519,
     "by": "asa400",
     "timeISO": "2025-11-01T13:32:31.000Z",
@@ -24,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45784778,
+    "by": "tombert",
+    "timeISO": "2025-11-01T19:54:41.000Z",
+    "textPlain": "Does this mean I can finally load-balance with multiple Jellyfin instances?A million years ago, back when I still used Emby, I was annoyed that I couldn't use it across multiple in Docker Swarm due to locking of SQLite.  It really annoyed me, enough to where I started (but never completed) a driver to change the DB to postgres [1].  I ended up moving everything over to a single server, which is mostly fine unless I have multiple people transcoding at the same time.If this is actually fixed then I might have an excuse to rearchitect my home server setup again.[1] https://github.com/Tombert/embypostgres",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
     "id": 45781682,
     "by": "stefanos82",
     "timeISO": "2025-11-01T13:56:15.000Z",
     "textPlain": "When hctree [1] becomes stable in SQLite, it will be the only database I will be using lol!I presume the `hc` part in project's code name should be High Concurrency.[1] https://sqlite.org/hctree/doc/hctree/doc/hctree/index.html",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45782315,
+    "by": "ricardobeat",
+    "timeISO": "2025-11-01T15:17:11.000Z",
+    "textPlain": "Articles like this leave me with an uneasy feeling that the “solutions” are just blind workarounds - more debugging/research should be able to expose exactly what the problem is, now that would be something worth sharing.",
     "parent": 45781298,
     "depth": 1
   },
@@ -56,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45782315,
-    "by": "ricardobeat",
-    "timeISO": "2025-11-01T15:17:11.000Z",
-    "textPlain": "Articles like this leave me with an uneasy feeling that the “solutions” are just blind workarounds - more debugging/research should be able to expose exactly what the problem is, now that would be something worth sharing.",
+    "id": 45782293,
+    "by": "mangecoeur",
+    "timeISO": "2025-11-01T15:14:42.000Z",
+    "textPlain": "Sqlite is a great bit of technology but sometimes I read articles like this and think, maybe they should have used postgres. I you don’t specifically need the “one file portability” aspect of sqlite, or its not embedded (in which case you shouldn’t have concurrency issues), Postgres is easy to get running and solves these problems.",
     "parent": 45781298,
     "depth": 1
   },
@@ -68,14 +92,6 @@
     "by": "fitsumbelay",
     "timeISO": "2025-11-01T18:11:45.000Z",
     "textPlain": "Very helpful and a model for how technical posts should be written: clarity, concision, anchor links that summarize the top lines. It was a pleasure to read.",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
-    "id": 45782293,
-    "by": "mangecoeur",
-    "timeISO": "2025-11-01T15:14:42.000Z",
-    "textPlain": "Sqlite is a great bit of technology but sometimes I read articles like this and think, maybe they should have used postgres. I you don’t specifically need the “one file portability” aspect of sqlite, or its not embedded (in which case you shouldn’t have concurrency issues), Postgres is easy to get running and solves these problems.",
     "parent": 45781298,
     "depth": 1
   },
@@ -102,6 +118,14 @@
     "textPlain": "> So an application that wants to use SQLite as its database needs to be the only one accessing it.No. It uses OS level locks. fcntl(). You can access it from how many ever processes. The only rule is, single writer (at a time).> When another part of the application wants to read data, it reads from the actual database, then scans the WAL for modifications and applies them on the fly.Also wrong.  WAL does not contain modifications, it contains the full pages. A reader checks the WAL, and if it finds the page it won't even read the DB. It's a bit like a cache in this sense, that's why shared cache mode was discouraged in favour of WAL (in addition to its other benefits). Multiple versions of a page can exist in the WAL (from different transactions), but each reader sees a consistent snapshot which is the newest version of each page up to its snapshot point.> For some reason on some systems that run Jellyfin when a transaction takes place the SQLite engine reports the database is locked and instead of waiting for the transaction to be resolved the engine refuses to wait and just crashesYou can set a timeout for this - busy_timeout.> ReproducibleThere's nothing unreliable here. It will fail every single time. If it doesn't, then the write finished too fast for the read to notice and return SQLite busy. Not sure what they are seeing.> The solutionSo they've reimplemented SQLites serialisation, as well as SQLites busy_timeout in C#?> \"engine\", \"crash\"Sqlite is not an engine. It's literally functions you link into your app. It also doesn't crash, it returns sqlite_busy. Maybe EF throws an exception on top of that.I have to say, this article betrays a lack of fundamental DB knowledge and only knowing ORMs. Understand the DB and then use the ORM on top of it. Or atleast, don't flame the DB (context: blame-y tone of article) if you haven't bothered to understand it. Speaking of ORMs ...> EF CoreYou're telling me that burj khalifa of abstractions doesn't have room to tune SQL",
     "parent": 45781298,
     "depth": 1
+  },
+  {
+    "id": 45784954,
+    "by": "Multicomp",
+    "timeISO": "2025-11-01T20:16:14.000Z",
+    "textPlain": "Would the SQLite vacuum function help with that?",
+    "parent": 45784808,
+    "depth": 2
   },
   {
     "id": 45782026,
@@ -184,6 +208,14 @@
     "depth": 2
   },
   {
+    "id": 45784731,
+    "by": "kccqzy",
+    "timeISO": "2025-11-01T19:50:27.000Z",
+    "textPlain": "Articles like this give me the feeling that the author did a little bit of research and shared a suboptimal solution, and was hoping that experts on HN would present better solutions. Wasn't there a saying about how the best way to get correct answers is to post not just the question but the wrong answers to it?",
+    "parent": 45782315,
+    "depth": 2
+  },
+  {
     "id": 45782392,
     "by": "asa400",
     "timeISO": "2025-11-01T15:25:48.000Z",
@@ -208,6 +240,14 @@
     "depth": 2
   },
   {
+    "id": 45784918,
+    "by": "o11c",
+    "timeISO": "2025-11-01T20:11:04.000Z",
+    "textPlain": "Even with postgres, you don't have to use the system instance; there's nothing stopping you from running the server as a child process.You probably need to support this for your testsuite anyway.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
     "id": 45782829,
     "by": "abound",
     "timeISO": "2025-11-01T16:12:40.000Z",
@@ -216,10 +256,10 @@
     "depth": 2
   },
   {
-    "id": 45782932,
-    "by": "thayne",
-    "timeISO": "2025-11-01T16:24:52.000Z",
-    "textPlain": "Using postgres would make it significantly more complicated for Jellyfin users to install and set up Jellyfin. And then users would need to worry about migrating the databases when PostgreSQL has a major version upgrade. An embedded database like sqlite is a much better fit for something like Jellyfin.",
+    "id": 45784757,
+    "by": "petters",
+    "timeISO": "2025-11-01T19:53:30.000Z",
+    "textPlain": "Jellyfin is mostly for a single household, right? Sqlite should be much more than sufficient for Jellyfin (if used correctly). Unfortunately, reading this article you get the impression that they are not using it optimally",
     "parent": 45782293,
     "depth": 2
   },
@@ -228,6 +268,14 @@
     "by": "amaccuish",
     "timeISO": "2025-11-01T17:32:20.000Z",
     "textPlain": "Their whole recent rewrite of the DB code (to Entity Framework) is to allow the user choice of DB in future.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782932,
+    "by": "thayne",
+    "timeISO": "2025-11-01T16:24:52.000Z",
+    "textPlain": "Using postgres would make it significantly more complicated for Jellyfin users to install and set up Jellyfin. And then users would need to worry about migrating the databases when PostgreSQL has a major version upgrade. An embedded database like sqlite is a much better fit for something like Jellyfin.",
     "parent": 45782293,
     "depth": 2
   },
