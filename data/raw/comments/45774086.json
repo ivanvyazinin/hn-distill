@@ -112,14 +112,6 @@
     "depth": 1
   },
   {
-    "id": 45782176,
-    "by": "e-dant",
-    "timeISO": "2025-11-01T15:03:38.000Z",
-    "textPlain": "A masterclass in debugging",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777951,
     "by": "quietbritishjim",
     "timeISO": "2025-10-31T23:46:37.000Z",
@@ -132,6 +124,14 @@
     "by": "ideaformlabs",
     "timeISO": "2025-11-01T04:48:52.000Z",
     "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45782176,
+    "by": "e-dant",
+    "timeISO": "2025-11-01T15:03:38.000Z",
+    "textPlain": "A masterclass in debugging",
     "parent": 45774086,
     "depth": 1
   },
@@ -160,14 +160,6 @@
     "depth": 1
   },
   {
-    "id": 45781548,
-    "by": "ajross",
-    "timeISO": "2025-11-01T13:38:19.000Z",
-    "textPlain": "Trying to get my head around this.  It seems like the \"rootest\" cause here is a paradigm clash between lock fairness and async futures.A fair lock[1] is designed to wake up the longest-waiting task, since it got to the queue first and might otherwise be starved if the algorithm doesn't guarantee it gets to the head of the queue.BUT CRITICALLY: a future isn't a task.  It's not a thread, it's not guaranteed to \"run\".  It's just a flag that gets set somewhere.  But it can consume that wakeup nonetheless.  So it's possible to \"wake up\"[2] a future that isn't actually being polled, and won't be, until something else that is waiting on the resource that just tried to wake it up.I don't see that these concepts are ever going to work together.  You can't have locks generating wakeup events that aren't consumed.  If you're going to use them with async, you need to do something like a broadcast to guarantee that every waiter sees an event.Stated differently: the lock is signalling an edge-triggered interrupt, but rust async demands level sensititivity.[1] In one sense of fair.  There are others, like \"switch now\" vs. \"defer context switch\", but that's not relevant here.[2] Which doesn't actually wake anything up, thus the bug.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776951,
     "by": "forrestthewoods",
     "timeISO": "2025-10-31T21:33:30.000Z",
@@ -176,10 +168,10 @@
     "depth": 1
   },
   {
-    "id": 45776966,
-    "by": "wbl",
-    "timeISO": "2025-10-31T21:36:21.000Z",
-    "textPlain": "Sadly I'm away from my bookshelf but I think Concurrent ML solved this issue.",
+    "id": 45781548,
+    "by": "ajross",
+    "timeISO": "2025-11-01T13:38:19.000Z",
+    "textPlain": "Trying to get my head around this.  It seems like the \"rootest\" cause here is a paradigm clash between lock fairness and async futures.A fair lock[1] is designed to wake up the longest-waiting task, since it got to the queue first and might otherwise be starved if the algorithm doesn't guarantee it gets to the head of the queue.BUT CRITICALLY: a future isn't a task.  It's not a thread, it's not guaranteed to \"run\".  It's just a flag that gets set somewhere.  But it can consume that wakeup nonetheless.  So it's possible to \"wake up\"[2] a future that isn't actually being polled, and won't be, until something else that is waiting on the resource that just tried to wake it up.I don't see that these concepts are ever going to work together.  You can't have locks generating wakeup events that aren't consumed.  If you're going to use them with async, you need to do something like a broadcast to guarantee that every waiter sees an event.Stated differently: the lock is signalling an edge-triggered interrupt, but rust async demands level sensititivity.[1] In one sense of fair.  There are others, like \"switch now\" vs. \"defer context switch\", but that's not relevant here.[2] Which doesn't actually wake anything up, thus the bug.",
     "parent": 45774086,
     "depth": 1
   },
@@ -188,6 +180,14 @@
     "by": "mdasen",
     "timeISO": "2025-11-01T01:29:48.000Z",
     "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776966,
+    "by": "wbl",
+    "timeISO": "2025-10-31T21:36:21.000Z",
+    "textPlain": "Sadly I'm away from my bookshelf but I think Concurrent ML solved this issue.",
     "parent": 45774086,
     "depth": 1
   },
@@ -208,18 +208,18 @@
     "depth": 1
   },
   {
-    "id": 45781104,
-    "by": "imtringued",
-    "timeISO": "2025-11-01T12:24:31.000Z",
-    "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777234,
     "by": "octoberfranklin",
     "timeISO": "2025-10-31T22:09:13.000Z",
     "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45781104,
+    "by": "imtringued",
+    "timeISO": "2025-11-01T12:24:31.000Z",
+    "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
     "parent": 45774086,
     "depth": 1
   },
@@ -376,6 +376,14 @@
     "depth": 2
   },
   {
+    "id": 45783200,
+    "by": "ufmace",
+    "timeISO": "2025-11-01T16:53:42.000Z",
+    "textPlain": "Considering this issue did also make me think - maybe the real footgun here is the async mutex. I think a better \"rule\" to avoid this issue might be something like, don't just use the tokio async mutex by default just because it's there and you're in an async function; instead default to a sync mutex that errors when held across awaits and think very hard about what you're really doing before you switch to the async one.",
+    "parent": 45779198,
+    "depth": 2
+  },
+  {
     "id": 45781201,
     "by": "yxhuvud",
     "timeISO": "2025-11-01T12:42:48.000Z",
@@ -389,14 +397,6 @@
     "timeISO": "2025-11-01T09:51:06.000Z",
     "textPlain": "I would guess this is just to make the explanation of the bug easier.In real world, the futurelock could occur even with very short locks, it just wouldn't be so deterministic. Having a minimal reproducer that you have to run a thousand times and it will maybe futurelock doesn't really make for a good example :)",
     "parent": 45779198,
-    "depth": 2
-  },
-  {
-    "id": 45781872,
-    "by": "dap",
-    "timeISO": "2025-11-01T14:24:23.000Z",
-    "textPlain": "Your confusion is very natural:> It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then.This gets at why this felt like a big deal when we ran into this.  This is how it would work with threads.  Tasks and futures hook into our intuitive understanding of how things work with threads.  (And for tasks, that's probably still a fair mental model, as far as I know.)  But futures within a task are different because of the inversion of control: tasks must poll them for them to keep running.  The problem here is that the task that's responsible for polling this future has essentially forgotten about it.  The analogous thing with threads would seem to be something like if the kernel forgot to enqueue some runnable thread on a run queue.",
-    "parent": 45779372,
     "depth": 2
   }
 ]

@@ -8,6 +8,22 @@
     "depth": 1
   },
   {
+    "id": 45783082,
+    "by": "thayne",
+    "timeISO": "2025-11-01T16:40:17.000Z",
+    "textPlain": "There seem to be some misunderstandings in this:> If your application fully manages this file, the assumption must be made that your application is the sole owner of this file, and nobody else will tinker with it while you are writing data to it.Kind of, but sqlite does locking for you, so you don't have to do anything to ensure your process is the only one writing to the db file.> [The WAL] allows multiple parallel writes to take place and get enqueued into the WAL.The WAL doesn't allow multiple parallel writes. It just allows reads to be concurrent with a single write transaction.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45783001,
+    "by": "ddtaylor",
+    "timeISO": "2025-11-01T16:32:20.000Z",
+    "textPlain": "I have encountered this problem on Jellyfin before. It works like a dream, but there are some very strange circumstances that can cause the database to become locked and then just not work until I restart the docker container. If I check the logs it just says stuff about the database being locked. It happens quite rarely and seems to be when we fidget in the menus on the smart TV like starting to watch a show to realize it's the wrong episode as you click the button, then spam the back button, etc.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
     "id": 45781619,
     "by": "mickeyp",
     "timeISO": "2025-11-01T13:48:31.000Z",
@@ -24,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45782370,
-    "by": "Leherenn",
-    "timeISO": "2025-11-01T15:23:01.000Z",
-    "textPlain": "A bit off topic, but there seems to be quite a few SQLite experts here.We're having troubles with memory usage when using SQLite in-memory DBs with \"a lot\" of inserts and deletes. Like maybe inserting up to a 100k rows in 5 minutes, deleting them all after 5 minutes, and doing this for days on end. We see memory usage slowly creeping up over hours/days when doing that.Any settings that would help with that? It's particularly bad on macOS, we've had instances where we reached 1GB of memory usage according to Activity Monitor after a week or so.",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
     "id": 45782293,
     "by": "mangecoeur",
     "timeISO": "2025-11-01T15:14:42.000Z",
     "textPlain": "Sqlite is a great bit of technology but sometimes I read articles like this and think, maybe they should have used postgres. I you don’t specifically need the “one file portability” aspect of sqlite, or its not embedded (in which case you shouldn’t have concurrency issues), Postgres is easy to get running and solves these problems.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45782370,
+    "by": "Leherenn",
+    "timeISO": "2025-11-01T15:23:01.000Z",
+    "textPlain": "A bit off topic, but there seems to be quite a few SQLite experts here.We're having troubles with memory usage when using SQLite in-memory DBs with \"a lot\" of inserts and deletes. Like maybe inserting up to a 100k rows in 5 minutes, deleting them all after 5 minutes, and doing this for days on end. We see memory usage slowly creeping up over hours/days when doing that.Any settings that would help with that? It's particularly bad on macOS, we've had instances where we reached 1GB of memory usage according to Activity Monitor after a week or so.",
     "parent": 45781298,
     "depth": 1
   },
@@ -80,6 +96,14 @@
     "depth": 2
   },
   {
+    "id": 45781639,
+    "by": "summarity",
+    "timeISO": "2025-11-01T13:50:19.000Z",
+    "textPlain": "I've always tried to avoid situations that could lead to SQLITE_BUSY. SQLITE_BUSY is an architecture smell. For standard SQLite in WAL, I usually structure an app with a read \"connection\" pool, and a single-entry write connection pool. Making the application aware of who _actually_ holds the write lock gives you the ability to proactively design access patterns, not try to react in the moment, and to get observability into lock contention, etc.",
+    "parent": 45781519,
+    "depth": 2
+  },
+  {
     "id": 45781634,
     "by": "mickeyp",
     "timeISO": "2025-11-01T13:49:53.000Z",
@@ -88,10 +112,10 @@
     "depth": 2
   },
   {
-    "id": 45781639,
-    "by": "summarity",
-    "timeISO": "2025-11-01T13:50:19.000Z",
-    "textPlain": "I've always tried to avoid situations that could lead to SQLITE_BUSY. SQLITE_BUSY is an architecture smell. For standard SQLite in WAL, I usually structure an app with a read \"connection\" pool, and a single-entry write connection pool. Making the application aware of who _actually_ holds the write lock gives you the ability to proactively design access patterns, not try to react in the moment, and to get observability into lock contention, etc.",
+    "id": 45783088,
+    "by": "chasil",
+    "timeISO": "2025-11-01T16:40:37.000Z",
+    "textPlain": "In an Oracle database, there is only one process that is allowed to write to tablespace datafiles, the DBWR (or its slaves). Running transactions can write to ram buffers and the redo logs only.A similar design for SQLite would design for only one writer, with all other processes passing their SQL to it.",
     "parent": 45781519,
     "depth": 2
   },
@@ -136,6 +160,46 @@
     "depth": 2
   },
   {
+    "id": 45782829,
+    "by": "abound",
+    "timeISO": "2025-11-01T16:12:40.000Z",
+    "textPlain": "Jellyfin is a self-hostable media server. If they \"used Postgres\", that means anyone who runs it needs Postgres. I think SQLite is the better choice for this kind of application, if one is going to choose a single database instead of some pluggable layer",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782932,
+    "by": "thayne",
+    "timeISO": "2025-11-01T16:24:52.000Z",
+    "textPlain": "Using postgres would make it significantly more complicated for Jellyfin users to install and set up Jellyfin. And then users would need to worry about migrating the databases when PostgreSQL has a major version upgrade. An embedded database like sqlite is a much better fit for something like Jellyfin.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782930,
+    "by": "throwaway894345",
+    "timeISO": "2025-11-01T16:24:42.000Z",
+    "textPlain": "As a user of Jellyfin, I’m very sad that it doesn’t just use Postgres. I basically have to run an NFS system just for Jellyfin so that its data can be available to it no matter which node it gets scheduled on and also that there are never multiple instances running at the same time, even during deployments (e.g., I need to take care that deployments completely stop the first Jellyfin instance before starting the subsequent instance). There are so many unnecessary single points of failure, and Postgres would make a pretty big one go away (never mind addressing the parallelism problems that plague the developers).Jellyfin is by far the least reliable application I run, but it also seems to be best in class.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782439,
+    "by": "eduction",
+    "timeISO": "2025-11-01T15:30:30.000Z",
+    "textPlain": "100%. I specifically clicked for the “why you should care” and was disappointed I could not find it.I certainly don’t mind if someone is pushing the limits of what SQLite is designed for but personally I’d just rather invest the (rather small) overhead of setting up a db server if I need a lot of concurrency.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782906,
+    "by": "bambax",
+    "timeISO": "2025-11-01T16:21:12.000Z",
+    "textPlain": "Jellyfin is a media server app that gets installed on a great variety of platforms and while it would certainly be possible to add a postgres server to the install, the choice of sqlite is more than justified here IMHO.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
     "id": 45782392,
     "by": "asa400",
     "timeISO": "2025-11-01T15:25:48.000Z",
@@ -149,30 +213,6 @@
     "timeISO": "2025-11-01T15:26:29.000Z",
     "textPlain": "sounds like normal behavior of adjusting buffers to better fit the usecase, not sure if it applies to sqlite or if sqlite even implements dynamic buffers.",
     "parent": 45782370,
-    "depth": 2
-  },
-  {
-    "id": 45782906,
-    "by": "bambax",
-    "timeISO": "2025-11-01T16:21:12.000Z",
-    "textPlain": "Jellyfin is a media server app that gets installed on a great variety of platforms and while it would certainly be possible to add a postgres server to the install, the choice of sqlite is more than justified here IMHO.",
-    "parent": 45782293,
-    "depth": 2
-  },
-  {
-    "id": 45782829,
-    "by": "abound",
-    "timeISO": "2025-11-01T16:12:40.000Z",
-    "textPlain": "Jellyfin is a self-hostable media server. If they \"used Postgres\", that means anyone who runs it needs Postgres. I think SQLite is the better choice for this kind of application, if one is going to choose a single database instead of some pluggable layer",
-    "parent": 45782293,
-    "depth": 2
-  },
-  {
-    "id": 45782439,
-    "by": "eduction",
-    "timeISO": "2025-11-01T15:30:30.000Z",
-    "textPlain": "100%. I specifically clicked for the “why you should care” and was disappointed I could not find it.I certainly don’t mind if someone is pushing the limits of what SQLite is designed for but personally I’d just rather invest the (rather small) overhead of setting up a db server if I need a lot of concurrency.",
-    "parent": 45782293,
     "depth": 2
   },
   {
