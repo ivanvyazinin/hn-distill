@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45784133,
+    "by": "mpeklar",
+    "timeISO": "2025-11-01T18:38:11.000Z",
+    "textPlain": "When considering this issue alongside with RFD 397, it seems to me that the problem is actually using future drops as an implicit (!) cancellation signal. This makes drop handlers responsible for handling every cancellation-related task, which they are not very good at. If a future is not immediately dropped after selecting on it, you get futurelock, and if it is, you get an async cancellation correctness problem, where the only way to try and interact with the cancellation execution flow is to use drop handlers (maybe in the form of scope guards).Sadly, the only solution I know of is to use an explicit cancellation signal, and to modify ~everything to work with it. In that world, almost all async functions would need to accept a cancellation parameter of some sort, like a Go Context or like the tokio-utils CancellationToken, and explicitly check it every time they await a function. The new select!-equivalent would need to signal cancellations and then keep polling all unfinished cancellation-aware futures in a loop until they finished, and maybe immediately drop all non-aware futures to prevent futurelock. The entire Tokio API would need to be wrapped to take into account cancellation tokens, as well as any other async library you would want to use.A lot of work, and you would need to do something if cancel-aware futures get dropped anyway. What a mess.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45777448,
     "by": "Dagonfly",
     "timeISO": "2025-10-31T22:35:26.000Z",
@@ -208,18 +216,18 @@
     "depth": 1
   },
   {
-    "id": 45777234,
-    "by": "octoberfranklin",
-    "timeISO": "2025-10-31T22:09:13.000Z",
-    "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45781104,
     "by": "imtringued",
     "timeISO": "2025-11-01T12:24:31.000Z",
     "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45777234,
+    "by": "octoberfranklin",
+    "timeISO": "2025-10-31T22:09:13.000Z",
+    "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
     "parent": 45774086,
     "depth": 1
   },
@@ -384,19 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45781201,
-    "by": "yxhuvud",
-    "timeISO": "2025-11-01T12:42:48.000Z",
-    "textPlain": "Work stealing is more a technique to function better when architecture is pessimal (think mixing slow and fast tasks in one queue) than something that make things go faster in general. It also tend to shuffle around complexity a bit, in ways that are sometimes nice.Same thing with task preemption, though that one has less organisatorial impact.In general, getting something to perform well enough on specific tasks is a lot easier than performing well enough on tasks in general. At the same time, most tasks have kinda specific needs when you start looking at them..",
-    "parent": 45779198,
-    "depth": 2
-  },
-  {
-    "id": 45780445,
-    "by": "dvratil",
-    "timeISO": "2025-11-01T09:51:06.000Z",
-    "textPlain": "I would guess this is just to make the explanation of the bug easier.In real world, the futurelock could occur even with very short locks, it just wouldn't be so deterministic. Having a minimal reproducer that you have to run a thousand times and it will maybe futurelock doesn't really make for a good example :)",
-    "parent": 45779198,
+    "id": 45779516,
+    "by": "oconnor663",
+    "timeISO": "2025-11-01T05:49:36.000Z",
+    "textPlain": "> This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.`future1` did run for a bit, and it got far enough to acquire the mutex. (As the article mentioned, technically it took a position in a queue that means it will get the mutex, but that's morally the same thing here.) Then it was \"paused\". I put \"paused\" in scare quotes because it kind of makes futures sound like processes or threads, which have a \"life of their own\" until/unless something \"interrupts\" them, but an important part of this story is that Rust futures aren't really like that. When you get down to the details, they're more like a struct or a class that just sits there being data unless you call certain methods on it (repeatedly). That's what the `.await` keyword does for you, but when you use more interesting constructs like `select!`, you start to get more of the details in your face.It's hard to be more concrete than that without getting into an overwhelming amount of detail. I wrote a set of blog posts that try to cover it without hand-waving the details away, but they're not short, and they do require some Rust background: https://jacko.io/async_intro.html",
+    "parent": 45779372,
     "depth": 2
   }
 ]
