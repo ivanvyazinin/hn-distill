@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45779372,
-    "by": "jcalvinowens",
-    "timeISO": "2025-11-01T05:00:13.000Z",
-    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776463,
     "by": "oconnor663",
     "timeISO": "2025-10-31T20:41:14.000Z",
@@ -52,6 +44,14 @@
     "by": "jacquesm",
     "timeISO": "2025-10-31T20:43:04.000Z",
     "textPlain": "If any rust designers are lurking about here: what made you decide to go for the async design pattern instead of the actor pattern, which - to me at least - seems so much cleaner and so much harder to get wrong?Ever since I started using Erlang it felt like I finally found 'the right way' when before then I did a lot of work with sockets and asynchronous worker threads. But even though it usually worked as advertised it had a large number of really nasty pitfalls which the actor model seemed to - effortlessy - step aside.So I'm seriously wondering what the motivation was. I get why JS uses async, there isn't any other way there, by the time they added async it was too late to change the fundamentals of the language to such a degree. But rust was a clean slate.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779372,
+    "by": "jcalvinowens",
+    "timeISO": "2025-11-01T05:00:13.000Z",
+    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
     "parent": 45774086,
     "depth": 1
   },
@@ -88,14 +88,6 @@
     "depth": 1
   },
   {
-    "id": 45779328,
-    "by": "ideaformlabs",
-    "timeISO": "2025-11-01T04:48:52.000Z",
-    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45777951,
     "by": "quietbritishjim",
     "timeISO": "2025-10-31T23:46:37.000Z",
@@ -112,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45779255,
-    "by": "bilbo-b-baggins",
-    "timeISO": "2025-11-01T04:29:31.000Z",
-    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "id": 45779328,
+    "by": "ideaformlabs",
+    "timeISO": "2025-11-01T04:48:52.000Z",
+    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
     "parent": 45774086,
     "depth": 1
   },
@@ -132,6 +124,14 @@
     "by": "dvt",
     "timeISO": "2025-10-31T20:50:16.000Z",
     "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779255,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-11-01T04:29:31.000Z",
+    "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
     "parent": 45774086,
     "depth": 1
   },
@@ -164,6 +164,14 @@
     "by": "mdasen",
     "timeISO": "2025-11-01T01:29:48.000Z",
     "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45779692,
+    "by": "samdoesnothing",
+    "timeISO": "2025-11-01T06:46:02.000Z",
+    "textPlain": "LOL. All the Rust evangelists talk about safety when stuff like this exists? JFC. Can we stop calling Rust safe now? Finally? I mean we all know deep in our hearts that trivial memory safety doesn't mean programs are correct or \"safe\" by any means but its nice to have proof that Rust is fundamentally unsafe for asynchronous tasks at least. Or at least \"unsound\".Structured concurrency will always win IMO.",
     "parent": 45774086,
     "depth": 1
   },
@@ -280,14 +288,6 @@
     "depth": 2
   },
   {
-    "id": 45779516,
-    "by": "oconnor663",
-    "timeISO": "2025-11-01T05:49:36.000Z",
-    "textPlain": "> This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.`future1` did run for a bit, and it got far enough to acquire the mutex. (As the article mentioned, technically it took a position in a queue that means it will get the mutex, but that's morally the same thing here.) Then it was \"paused\". I put \"paused\" in scare quotes because it kind of makes futures sound like processes or threads, which have a \"life of their own\" until/unless something \"interrupts\" them, but an important part of this story is that Rust futures aren't really like that. When you get down to the details, they're more like a struct or a class that just sits there being data unless you call certain methods on it (repeatedly). That's what the `.await` keyword does for you, but when you use more interesting constructs like `select!`, you start to get more of the details in your face.It's hard to be more concrete than that without getting into an overwhelming amount of detail. I wrote a set of blog posts that try to cover it without hand-waving the details away, but they're not short, and they do require some Rust background: https://jacko.io/async_intro.html",
-    "parent": 45779372,
-    "depth": 2
-  },
-  {
     "id": 45776498,
     "by": "sunshowers",
     "timeISO": "2025-10-31T20:45:34.000Z",
@@ -325,6 +325,14 @@
     "timeISO": "2025-10-31T21:00:53.000Z",
     "textPlain": "I'm surprised learning this too. I know the hobby embedded, and HTTP-server OSS ecosystem have committed to Async, but I didn't expect Oxide would.",
     "parent": 45776483,
+    "depth": 2
+  },
+  {
+    "id": 45779516,
+    "by": "oconnor663",
+    "timeISO": "2025-11-01T05:49:36.000Z",
+    "textPlain": "> This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.`future1` did run for a bit, and it got far enough to acquire the mutex. (As the article mentioned, technically it took a position in a queue that means it will get the mutex, but that's morally the same thing here.) Then it was \"paused\". I put \"paused\" in scare quotes because it kind of makes futures sound like processes or threads, which have a \"life of their own\" until/unless something \"interrupts\" them, but an important part of this story is that Rust futures aren't really like that. When you get down to the details, they're more like a struct or a class that just sits there being data unless you call certain methods on it (repeatedly). That's what the `.await` keyword does for you, but when you use more interesting constructs like `select!`, you start to get more of the details in your face.It's hard to be more concrete than that without getting into an overwhelming amount of detail. I wrote a set of blog posts that try to cover it without hand-waving the details away, but they're not short, and they do require some Rust background: https://jacko.io/async_intro.html",
+    "parent": 45779372,
     "depth": 2
   },
   {
@@ -384,19 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45776868,
-    "by": "mycoliza",
-    "timeISO": "2025-10-31T21:24:23.000Z",
-    "textPlain": "What could `tokio::select!` do differently here to prevent bugs like this?In the case of `select!`, it is a direct consequence of the ability to poll a `&mut` reference to a future in a `select!` arm, where the future is not dropped should another future win the \"race\" of the select. This is not really a choice Tokio made when designing `select!`, but is instead due to the existence of implementations of `Future` for `&mut T: Future + Unpin`[1] and `Pin<T: Future>`[2] in the standard library.Tokio's `select!` macro cannot easily stop the user from doing this, and, furthermore, the fact that you can do this is useful --- there are many legitimate reasons you might want to continue polling a future if another branch of the select completes first. It's desirable to be able to express the idea that we want to continually poll drive one asynchronous operation to completion while periodically checking if some other thing has happened and taking action based on that, and then continue driving forward the ongoing operation. That was precisely what the code in which we found the bug was doing, and it is a pretty reasonable thing to want to do; a version of the `select!` macro which disallows that would limit its usefulness. The issue arises specifically from the fact that the `&mut future` has been polled to a state in which it has acquired, but not released, a shared lock or lock-like resource, and then another arm of the `select!` completes first and the body of that branch runs async code that also awaits that shared resource.If you can think of an API change which Tokio could make that would solve this problem, I'd love to hear it. But, having spent some time trying to think of one myself, I'm not sure how it would be done without limiting the ability to express code that one might reasonably want to be able to write, and without making fundamental changes to the design of Rust async as a whole.[1] https://doc.rust-lang.org/stable/std/future/trait.Future.htm...\n[2]: http",
-    "parent": 45776550,
-    "depth": 2
-  },
-  {
-    "id": 45776791,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T21:16:30.000Z",
-    "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
-    "parent": 45776550,
+    "id": 45779188,
+    "by": "clarkmcc",
+    "timeISO": "2025-11-01T04:11:12.000Z",
+    "textPlain": "I can’t say whether it was rushed out, but it’s clearly not everything it was advertised to be. Early on, the big talking point was that the async implementation was so modular you could swap runtimes like Lego bricks. In reality, that’s nowhere near true. Changing runtimes means changing every I/O dependency (mutexes, networking, fs), because everything is tightly coupled to the runtime. I raised this in a Reddit thread some time ago, and the feedback there reinforced that I'm not the only one with a sour Rust async taste in my mouth. https://www.reddit.com/r/rust/comments/1f4z84r/is_it_fair_to...",
+    "parent": 45778599,
     "depth": 2
   }
 ]
