@@ -56,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45782176,
+    "by": "e-dant",
+    "timeISO": "2025-11-01T15:03:38.000Z",
+    "textPlain": "A masterclass in debugging",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45780587,
     "by": "crabmusket",
     "timeISO": "2025-11-01T10:24:02.000Z",
@@ -120,14 +128,6 @@
     "depth": 1
   },
   {
-    "id": 45781548,
-    "by": "ajross",
-    "timeISO": "2025-11-01T13:38:19.000Z",
-    "textPlain": "Trying to get my head around this.  It seems like the \"rootest\" cause here is a paradigm clash between lock fairness and async futures.A fair lock[1] is designed to wake up the longest-waiting task, since it got to the queue first and might otherwise be starved if the algorithm doesn't guarantee it gets to the head of the queue.BUT CRITICALLY: a future isn't a task.  It's not a thread, it's not guaranteed to \"run\".  It's just a flag that gets set somewhere.  But it can consume that wakeup nonetheless.  So it's possible to \"wake up\"[2] a future that isn't actually being polled, and won't be, until something else that is waiting on the resource that just tried to wake it up.I don't see that these concepts are ever going to work together.  You can't have locks generating wakeup events that aren't consumed.  If you're going to use them with async, you need to do something like a broadcast to guarantee that every waiter sees an event.Stated differently: the lock is signalling an edge-triggered interrupt, but rust async demands level sensititivity.[1] In one sense of fair.  There are others, like \"switch now\" vs. \"defer context switch\", but that's not relevant here.[2] Which doesn't actually wake anything up, thus the bug.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45779328,
     "by": "ideaformlabs",
     "timeISO": "2025-11-01T04:48:52.000Z",
@@ -148,6 +148,14 @@
     "by": "tick_tock_tick",
     "timeISO": "2025-11-01T01:45:35.000Z",
     "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45781548,
+    "by": "ajross",
+    "timeISO": "2025-11-01T13:38:19.000Z",
+    "textPlain": "Trying to get my head around this.  It seems like the \"rootest\" cause here is a paradigm clash between lock fairness and async futures.A fair lock[1] is designed to wake up the longest-waiting task, since it got to the queue first and might otherwise be starved if the algorithm doesn't guarantee it gets to the head of the queue.BUT CRITICALLY: a future isn't a task.  It's not a thread, it's not guaranteed to \"run\".  It's just a flag that gets set somewhere.  But it can consume that wakeup nonetheless.  So it's possible to \"wake up\"[2] a future that isn't actually being polled, and won't be, until something else that is waiting on the resource that just tried to wake it up.I don't see that these concepts are ever going to work together.  You can't have locks generating wakeup events that aren't consumed.  If you're going to use them with async, you need to do something like a broadcast to guarantee that every waiter sees an event.Stated differently: the lock is signalling an edge-triggered interrupt, but rust async demands level sensititivity.[1] In one sense of fair.  There are others, like \"switch now\" vs. \"defer context switch\", but that's not relevant here.[2] Which doesn't actually wake anything up, thus the bug.",
     "parent": 45774086,
     "depth": 1
   },
@@ -176,6 +184,14 @@
     "depth": 1
   },
   {
+    "id": 45778522,
+    "by": "mdasen",
+    "timeISO": "2025-11-01T01:29:48.000Z",
+    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45780047,
     "by": "lowbloodsugar",
     "timeISO": "2025-11-01T08:21:37.000Z",
@@ -184,10 +200,10 @@
     "depth": 1
   },
   {
-    "id": 45778522,
-    "by": "mdasen",
-    "timeISO": "2025-11-01T01:29:48.000Z",
-    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
+    "id": 45776491,
+    "by": "moralestapia",
+    "timeISO": "2025-10-31T20:44:47.000Z",
+    "textPlain": "Hmm, curious to see if this could happen on JS. I'll reproduce the code.",
     "parent": 45774086,
     "depth": 1
   },
@@ -204,14 +220,6 @@
     "by": "octoberfranklin",
     "timeISO": "2025-10-31T22:09:13.000Z",
     "textPlain": "For anybody who wants to cut to the chase, it's this:> The behavior of tokio::select! is to poll all branches' futures only until one of them returns `Ready`. At that point, it drops the other branches' futures and only runs the body of the branch that’s ready.This is, unfortunately, doing what it's supposed to do: acting as a footgun.The design of tokio::select!() implicitly assumes it can cancel tasks cleanly by simply dropping them.  We learned the hard way back in the Java days that you cannot kill threads cleanly all the time.  Unsurprisingly, the same thing is true for async tasks.  But I guess every generation of programmers has to re-learn this lesson.  Because, you know, actually learning from history would be too easy.Unfortunately there are a bunch of footguns in tokio (and async-std too).  The state-machine transformation inside rustc is a thing of beauty, but the libraries and APIs layered on top of that should have been iterated many more times before being rolled out into widespread use.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45776491,
-    "by": "moralestapia",
-    "timeISO": "2025-10-31T20:44:47.000Z",
-    "textPlain": "Hmm, curious to see if this could happen on JS. I'll reproduce the code.",
     "parent": 45774086,
     "depth": 1
   },
@@ -280,14 +288,6 @@
     "depth": 2
   },
   {
-    "id": 45777270,
-    "by": "Veserv",
-    "timeISO": "2025-10-31T22:13:20.000Z",
-    "textPlain": "I thought Rust async is a colored stackless coroutine model and thus it would be unsafe to continue execution of previously executing async functions.To explain, generally speaking, stackless coroutine async only need coloring because they are actually “independent stack”less coroutines. What they actually do is that they share the stack for their local state. This forces async function execution to proceed in LIFO order so you do not blow away the stack of the async function executing immediately after which demands state machine transforms to be safe. This is why you need coloring unlike stackful coroutine models which can execute, yield, and complete in arbitrary order since their local state is preserved in a safe location.",
-    "parent": 45776779,
-    "depth": 2
-  },
-  {
     "id": 45777553,
     "by": "johnisgood",
     "timeISO": "2025-10-31T22:47:59.000Z",
@@ -296,10 +296,26 @@
     "depth": 2
   },
   {
+    "id": 45777270,
+    "by": "Veserv",
+    "timeISO": "2025-10-31T22:13:20.000Z",
+    "textPlain": "I thought Rust async is a colored stackless coroutine model and thus it would be unsafe to continue execution of previously executing async functions.To explain, generally speaking, stackless coroutine async only need coloring because they are actually “independent stack”less coroutines. What they actually do is that they share the stack for their local state. This forces async function execution to proceed in LIFO order so you do not blow away the stack of the async function executing immediately after which demands state machine transforms to be safe. This is why you need coloring unlike stackful coroutine models which can execute, yield, and complete in arbitrary order since their local state is preserved in a safe location.",
+    "parent": 45776779,
+    "depth": 2
+  },
+  {
     "id": 45777348,
     "by": "elchananHaas",
     "timeISO": "2025-10-31T22:25:25.000Z",
     "textPlain": "My view of this is that its closer to the basic 2 lock Deadlock.Thread 1 acquires A. \nThread 2 acquires B.\nThread 1 tries to acquire B.\nThread 2 tries to acquire A.In this case, the role \"A\" is being played by the front of the Mutex's lock queue. Role \"B\" is being played by the Tokio's actively executed task.Based on this understanding, I agree that the surprising behavior is due to Tokio's Mutex/Lock Queue implementation. If this was an OS Mutex, and a thread waiting for the Mutex can't wake for some reason, the OS can wake a different thread waiting for that Mutex. I think the difficulty in this approach has to do with how Rust's async is implemented. My guess is the algorithm for releasing a lock goes something like this:1. Pop the head of the wait queue. \n2. Poll the top level tokio::spawn'ed task of the Future that is holding the Mutex.What you want is something like thisFor each Future in the wait queue (Front to Back):\n    Poll the Future. \n    If Success - \n       Break\n???Something if everything fails???The reason this doesn't work has to do with how futures compose. Futures compile to states within a state machine. What happens when a future polled within the wait queue completes? How is control flow handed back to the caller?I guess you might be able to have some fallback that polls the futures independently then polls the top level future to try and get things unstuck. But this could cause confusing behavior where futures are being polled even though no code path within your code is await'ing them. Maybe this is better though?",
+    "parent": 45776779,
+    "depth": 2
+  },
+  {
+    "id": 45781986,
+    "by": "dboreham",
+    "timeISO": "2025-11-01T14:42:57.000Z",
+    "textPlain": "Which is why \"async\" is a pox on our house. System threads can and do address these edge issues. User level concurrency generally doesn't (perhaps with the exceptions of golang and erlang).",
     "parent": 45776779,
     "depth": 2
   },
@@ -376,27 +392,11 @@
     "depth": 2
   },
   {
-    "id": 45779516,
-    "by": "oconnor663",
-    "timeISO": "2025-11-01T05:49:36.000Z",
-    "textPlain": "> This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.`future1` did run for a bit, and it got far enough to acquire the mutex. (As the article mentioned, technically it took a position in a queue that means it will get the mutex, but that's morally the same thing here.) Then it was \"paused\". I put \"paused\" in scare quotes because it kind of makes futures sound like processes or threads, which have a \"life of their own\" until/unless something \"interrupts\" them, but an important part of this story is that Rust futures aren't really like that. When you get down to the details, they're more like a struct or a class that just sits there being data unless you call certain methods on it (repeatedly). That's what the `.await` keyword does for you, but when you use more interesting constructs like `select!`, you start to get more of the details in your face.It's hard to be more concrete than that without getting into an overwhelming amount of detail. I wrote a set of blog posts that try to cover it without hand-waving the details away, but they're not short, and they do require some Rust background: https://jacko.io/async_intro.html",
+    "id": 45781872,
+    "by": "dap",
+    "timeISO": "2025-11-01T14:24:23.000Z",
+    "textPlain": "Your confusion is very natural:> It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then.This gets at why this felt like a big deal when we ran into this.  This is how it would work with threads.  Tasks and futures hook into our intuitive understanding of how things work with threads.  (And for tasks, that's probably still a fair mental model, as far as I know.)  But futures within a task are different because of the inversion of control: tasks must poll them for them to keep running.  The problem here is that the task that's responsible for polling this future has essentially forgotten about it.  The analogous thing with threads would seem to be something like if the kernel forgot to enqueue some runnable thread on a run queue.",
     "parent": 45779372,
-    "depth": 2
-  },
-  {
-    "id": 45776768,
-    "by": "bcantrill",
-    "timeISO": "2025-10-31T21:13:19.000Z",
-    "textPlain": "Indeed. One of the interesting side effects of being a remote company that records everything[0] is that we have the instant where the \"1000 piece puzzle just clicks together\" recorded, and it's honestly pretty wild.  In this case, it was very much a shared brainstorming between four engineers (Eliza, Sean, John and Dave) -- and there is almost a passing of the baton where they start to imagine the kind of scenario that could induce this and then realize that those are exactly the conditions that exist in the software.We are (on brand?) going to do a podcast episode on this on Monday[1]; ahead of that conversation I'm going to get a clip of that video out, just because it's interesting to see the team work together to debug it.[0] https://rfd.shared.oxide.computer/rfd/0537[1] https://discord.gg/QrcKGTTPrF?event=1433923627988029462",
-    "parent": 45776307,
-    "depth": 2
-  },
-  {
-    "id": 45776791,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T21:16:30.000Z",
-    "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
-    "parent": 45776550,
     "depth": 2
   }
 ]
