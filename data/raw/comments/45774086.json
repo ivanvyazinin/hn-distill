@@ -48,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45778599,
-    "by": "tick_tock_tick",
-    "timeISO": "2025-11-01T01:45:35.000Z",
-    "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
+    "id": 45778792,
+    "by": "qouteall",
+    "timeISO": "2025-11-01T02:30:37.000Z",
+    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776307,
+    "by": "orthecreedence",
+    "timeISO": "2025-10-31T20:23:56.000Z",
+    "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
     "parent": 45774086,
     "depth": 1
   },
@@ -72,26 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45776307,
-    "by": "orthecreedence",
-    "timeISO": "2025-10-31T20:23:56.000Z",
-    "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776875,
     "by": "arjie",
     "timeISO": "2025-10-31T21:24:59.000Z",
     "textPlain": "Wow, that makes sense afterwards but I would not have guessed at it immediately looking at the code. Very insidious. Great blogpost.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45778522,
-    "by": "mdasen",
-    "timeISO": "2025-11-01T01:29:48.000Z",
-    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
     "parent": 45774086,
     "depth": 1
   },
@@ -104,10 +96,26 @@
     "depth": 1
   },
   {
+    "id": 45778599,
+    "by": "tick_tock_tick",
+    "timeISO": "2025-11-01T01:45:35.000Z",
+    "textPlain": "It seems more and more clear every day that async was rushed out the door way to quickly in Rust.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
     "id": 45776277,
     "by": "Sytten",
     "timeISO": "2025-10-31T20:21:17.000Z",
     "textPlain": "I am wondering if there is a larger RFC for Rust to force users to not hold a variable across await points.In my mind futurelock is similar to keeping a sync lock across an await point. We have nothing right now to force a drop and I think the solution to that problem would help here.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45778522,
+    "by": "mdasen",
+    "timeISO": "2025-11-01T01:29:48.000Z",
+    "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
     "parent": 45774086,
     "depth": 1
   },
@@ -272,6 +280,14 @@
     "depth": 2
   },
   {
+    "id": 45776768,
+    "by": "bcantrill",
+    "timeISO": "2025-10-31T21:13:19.000Z",
+    "textPlain": "Indeed. One of the interesting side effects of being a remote company that records everything[0] is that we have the instant where the \"1000 piece puzzle just clicks together\" recorded, and it's honestly pretty wild.  In this case, it was very much a shared brainstorming between four engineers (Eliza, Sean, John and Dave) -- and there is almost a passing of the baton where they start to imagine the kind of scenario that could induce this and then realize that those are exactly the conditions that exist in the software.We are (on brand?) going to do a podcast episode on this on Monday[1]; ahead of that conversation I'm going to get a clip of that video out, just because it's interesting to see the team work together to debug it.[0] https://rfd.shared.oxide.computer/rfd/0537[1] https://discord.gg/QrcKGTTPrF?event=1433923627988029462",
+    "parent": 45776307,
+    "depth": 2
+  },
+  {
     "id": 45777999,
     "by": "wrs",
     "timeISO": "2025-10-31T23:53:45.000Z",
@@ -285,14 +301,6 @@
     "timeISO": "2025-10-31T23:51:10.000Z",
     "textPlain": "So there's a distinction between a task and a future. A future doesn't do anything until it's polled, and since there's nothing special about async runtimes (it's just user level code), it's always possible to create futures and never poll them, or stop polling them.A task is a different construct and usually tied to the runtime. If you look at the suggestions in the RFD they call out using a task explicitly instead of polling a future in place.There's some debate to be had over what constitutes \"cancellation.\" The article and most colloquial definitions I've heard define it as a future being dropped before being polled to completion. Which is very clean - if you want to cancel a future, just drop it. Since Rust strongly encourages RAII, cleanup can go in drop implementations.A much tougher definition of cancellation is \"the future is never polled again\" which is what the article hits on. The future isn't dropped but its poll is also unreachable, hence the deadlock.",
     "parent": 45777951,
-    "depth": 2
-  },
-  {
-    "id": 45776768,
-    "by": "bcantrill",
-    "timeISO": "2025-10-31T21:13:19.000Z",
-    "textPlain": "Indeed. One of the interesting side effects of being a remote company that records everything[0] is that we have the instant where the \"1000 piece puzzle just clicks together\" recorded, and it's honestly pretty wild.  In this case, it was very much a shared brainstorming between four engineers (Eliza, Sean, John and Dave) -- and there is almost a passing of the baton where they start to imagine the kind of scenario that could induce this and then realize that those are exactly the conditions that exist in the software.We are (on brand?) going to do a podcast episode on this on Monday[1]; ahead of that conversation I'm going to get a clip of that video out, just because it's interesting to see the team work together to debug it.[0] https://rfd.shared.oxide.computer/rfd/0537[1] https://discord.gg/QrcKGTTPrF?event=1433923627988029462",
-    "parent": 45776307,
     "depth": 2
   },
   {
@@ -328,6 +336,14 @@
     "depth": 2
   },
   {
+    "id": 45778709,
+    "by": "kibwen",
+    "timeISO": "2025-11-01T02:09:28.000Z",
+    "textPlain": "There's a lot of improvements I could think of for async Rust, but there's basically nothing I would change about the fundamentals that underlie it (other than some tweaks to Pin, maybe, and I could quibble over some syntax). There's nothing rushed about it; it's a great foundation that demonstrably just needs someone to finish building the house on top of it (and, to continue the analogy, needs someone to finish building the sub-basement (cough, generalized coroutines)).",
+    "parent": 45778599,
+    "depth": 2
+  },
+  {
     "id": 45776533,
     "by": "ameliaquining",
     "timeISO": "2025-10-31T20:48:30.000Z",
@@ -360,19 +376,19 @@
     "depth": 2
   },
   {
-    "id": 45777993,
-    "by": "umvi",
-    "timeISO": "2025-10-31T23:52:39.000Z",
-    "textPlain": "> I always said if your code locks or use atomics, it's wrong. Everyone says I'm wrong but you get things like what's described in the article.Ok so say you are simulating high energy photons (x-rays) flowing through a 3d patient volume. You need to simulate 2 billion particles propagating through the patient in order to get an accurate estimation of how the radiation is distributed. How do you accomplish this without locks or atomics without the simulation taking 100 hours to run? Obviously it would take forever to simulate 1 particle at a time, but without locks or atomics the particles will step on each others' toes when updating radiation distribution in the patient. I suppose you could have 2 billion copies of the patient's volume in memory and each particle gets its own private copy and then you merge them all at the end...",
-    "parent": 45777969,
+    "id": 45778828,
+    "by": "mjevans",
+    "timeISO": "2025-11-01T02:39:33.000Z",
+    "textPlain": "Difference in Go is that you've _expressly_ constructed a dependency ring.  Should Go or any runtime go out of it's way to detect a dependency ring?This the programming equivalent of using welding (locks) to make a chain loop, you've just done it with the 3D space impossible two links case.As with the sin of .await(no deadline), the sin here is not adding a deadline.",
+    "parent": 45778522,
     "depth": 2
   },
   {
-    "id": 45778558,
-    "by": "levodelellis",
-    "timeISO": "2025-11-01T01:35:29.000Z",
-    "textPlain": "To clarify by \"your code\" I mean your code excluding a library. A good library would make it impossible to deadlock. When I wrote mine I never called outside code during a lock so it was impossible for it to deadlock. My atomic code had auditing and test. I don't recommend people to write their own thread library unless they want to put a lot of work into it",
-    "parent": 45777969,
+    "id": 45778817,
+    "by": "jhhh",
+    "timeISO": "2025-11-01T02:37:23.000Z",
+    "textPlain": "I wrote a version of the article's code in Java and couldn't figure out why it was working until reading your example. I see now that the channel operations in Go must rendezvous which I assume matches Rust's Future behavior. Whereas, the Java CompletableFuture operations I was using to mimic the select aren't required to meet.  Thanks for writing this.",
+    "parent": 45778522,
     "depth": 2
   },
   {
@@ -381,22 +397,6 @@
     "timeISO": "2025-10-31T22:59:52.000Z",
     "textPlain": "Async code is simpler because you're implicitly holding a lock on the CPU. That's also why you should stay away from it: it increases latency. Especially since Rust is about speed and responsiveness. In general, async programming in Rust makes little sense.",
     "parent": 45776951,
-    "depth": 2
-  },
-  {
-    "id": 45777689,
-    "by": "comex",
-    "timeISO": "2025-10-31T23:04:47.000Z",
-    "textPlain": "JS shouldn't have a direct equivalent because JS async functions are eager.  Once you call an async function, it will keep running even if the caller doesn't await it, or stops awaiting it.  So in the scenario described, the function next in line for the lock would always have a chance to acquire and release it.  The problem in Rust is that async functions are lazy and only run while they're being polled/awaited (unless wrapped in tasks).  A function that's next in line for the lock might never acquire it if it's not being polled, blocking progress for other functions that are being polled.",
-    "parent": 45776491,
-    "depth": 2
-  },
-  {
-    "id": 45776546,
-    "by": "raggi",
-    "timeISO": "2025-10-31T20:49:59.000Z",
-    "textPlain": "yes, you can produce similar issues with promise guarded states and so on as well, it's a fairly common issue in async programming, but can be surprising when it's hidden by layers of abstraction / far up/down a call-chain.",
-    "parent": 45776491,
     "depth": 2
   }
 ]
