@@ -1,25 +1,9 @@
 [
   {
-    "id": 45782315,
-    "by": "ricardobeat",
-    "timeISO": "2025-11-01T15:17:11.000Z",
-    "textPlain": "Articles like this leave me with an uneasy feeling that the “solutions” are just blind workarounds - more debugging/research should be able to expose exactly what the problem is, now that would be something worth sharing.",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
     "id": 45781519,
     "by": "asa400",
     "timeISO": "2025-11-01T13:32:31.000Z",
     "textPlain": "In SQLite, transactions by default start in “deferred” mode. This means they do not take a write lock until they attempt to perform a write.You get SQLITE_BUSY when transaction #1 starts in read mode, transaction #2 starts in write mode, and then transaction #1 attempts to upgrade from read to write mode while transaction #2 still holds the write lock.The fix is to set a busy_timeout and to begin any transaction that does a write (any write, even if it is not the first operation in the transaction) in “immediate” mode rather than “deferred” mode.https://zeroclarkthirty.com/2024-10-19-sqlite-database-is-lo...",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
-    "id": 45782293,
-    "by": "mangecoeur",
-    "timeISO": "2025-11-01T15:14:42.000Z",
-    "textPlain": "Sqlite is a great bit of technology but sometimes I read articles like this and think, maybe they should have used postgres. I you don’t specifically need the “one file portability” aspect of sqlite, or its not embedded (in which case you shouldn’t have concurrency issues), Postgres is easy to get running and solves these problems.",
     "parent": 45781298,
     "depth": 1
   },
@@ -36,6 +20,30 @@
     "by": "stefanos82",
     "timeISO": "2025-11-01T13:56:15.000Z",
     "textPlain": "When hctree [1] becomes stable in SQLite, it will be the only database I will be using lol!I presume the `hc` part in project's code name should be High Concurrency.[1] https://sqlite.org/hctree/doc/hctree/doc/hctree/index.html",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45782370,
+    "by": "Leherenn",
+    "timeISO": "2025-11-01T15:23:01.000Z",
+    "textPlain": "A bit off topic, but there seems to be quite a few SQLite experts here.We're having troubles with memory usage when using SQLite in-memory DBs with \"a lot\" of inserts and deletes. Like maybe inserting up to a 100k rows in 5 minutes, deleting them all after 5 minutes, and doing this for days on end. We see memory usage slowly creeping up over hours/days when doing that.Any settings that would help with that? It's particularly bad on macOS, we've had instances where we reached 1GB of memory usage according to Activity Monitor after a week or so.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45782293,
+    "by": "mangecoeur",
+    "timeISO": "2025-11-01T15:14:42.000Z",
+    "textPlain": "Sqlite is a great bit of technology but sometimes I read articles like this and think, maybe they should have used postgres. I you don’t specifically need the “one file portability” aspect of sqlite, or its not embedded (in which case you shouldn’t have concurrency issues), Postgres is easy to get running and solves these problems.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45782315,
+    "by": "ricardobeat",
+    "timeISO": "2025-11-01T15:17:11.000Z",
+    "textPlain": "Articles like this leave me with an uneasy feeling that the “solutions” are just blind workarounds - more debugging/research should be able to expose exactly what the problem is, now that would be something worth sharing.",
     "parent": 45781298,
     "depth": 1
   },
@@ -59,7 +67,7 @@
     "id": 45782030,
     "by": "porridgeraisin",
     "timeISO": "2025-11-01T14:48:08.000Z",
-    "textPlain": "> So an application that wants to use SQLite as its database needs to be the only one accessing it.No. It uses OS level locks. fcntl(). You can access it from how many ever processes. The only rule is, single writer.> When another part of the application wants to read data, it reads from the actual database, then scans the WAL for modifications and applies them on the fly.Also wrong.  WAL does not contain modifications, it contains the full pages. WAL contains the latest version of every page, either that or the page won't even be there. A reader checks the WAL, and if it finds the page it won't even read the DB. It's a bit like a cache in this sense, that's why shared cache mode was discouraged in favour of WAL (in addition to its other benefits).> For some reason on some systems that run Jellyfin when a transaction takes place the SQLite engine reports the database is locked and instead of waiting for the transaction to be resolved the engine refuses to wait and just crashesYou can set a timeout for this - busy_timeout.> ReproducibleThere's nothing unreliable here. It will fail every single time. If it doesn't, then the write finished too fast for the read to notice and return SQLite busy. Not sure what they are seeing.> The solutionSo they've reimplemented SQLites serialisation, as well as SQLites busy_timeout in C#?> \"engine\", \"crash\"Sqlite is not an engine. It's literally functions you link into your app. It also doesn't crash, it returns sqlite_busy. Maybe EF throws an exception on top of that.I have to say, this article betrays a lack of fundamental DB knowledge and only knowing ORMs. Understand the DB and then use the ORM on top of it. Or atleast, don't flame the DB (context: blame-y tone of article) if you haven't bothered to understand it. Speaking of ORMs ...> EF CoreYou're telling me that burj khalifa of abstractions doesn't have room to tune SQLite to what web devs expect?",
+    "textPlain": "> So an application that wants to use SQLite as its database needs to be the only one accessing it.No. It uses OS level locks. fcntl(). You can access it from how many ever processes. The only rule is, single writer (at a time).> When another part of the application wants to read data, it reads from the actual database, then scans the WAL for modifications and applies them on the fly.Also wrong.  WAL does not contain modifications, it contains the full pages. A reader checks the WAL, and if it finds the page it won't even read the DB. It's a bit like a cache in this sense, that's why shared cache mode was discouraged in favour of WAL (in addition to its other benefits). Multiple versions of a page can exist in the WAL (from different transactions), but each reader sees a consistent snapshot which is the newest version of each page up to its snapshot point.> For some reason on some systems that run Jellyfin when a transaction takes place the SQLite engine reports the database is locked and instead of waiting for the transaction to be resolved the engine refuses to wait and just crashesYou can set a timeout for this - busy_timeout.> ReproducibleThere's nothing unreliable here. It will fail every single time. If it doesn't, then the write finished too fast for the read to notice and return SQLite busy. Not sure what they are seeing.> The solutionSo they've reimplemented SQLites serialisation, as well as SQLites busy_timeout in C#?> \"engine\", \"crash\"Sqlite is not an engine. It's literally functions you link into your app. It also doesn't crash, it returns sqlite_busy. Maybe EF throws an exception on top of that.I have to say, this article betrays a lack of fundamental DB knowledge and only knowing ORMs. Understand the DB and then use the ORM on top of it. Or atleast, don't flame the DB (context: blame-y tone of article) if you haven't bothered to understand it. Speaking of ORMs ...> EF CoreYou're telling me that burj khalifa of abstractions doesn't have room to tune SQL",
     "parent": 45781298,
     "depth": 1
   },
@@ -80,6 +88,14 @@
     "depth": 2
   },
   {
+    "id": 45781639,
+    "by": "summarity",
+    "timeISO": "2025-11-01T13:50:19.000Z",
+    "textPlain": "I've always tried to avoid situations that could lead to SQLITE_BUSY. SQLITE_BUSY is an architecture smell. For standard SQLite in WAL, I usually structure an app with a read \"connection\" pool, and a single-entry write connection pool. Making the application aware of who _actually_ holds the write lock gives you the ability to proactively design access patterns, not try to react in the moment, and to get observability into lock contention, etc.",
+    "parent": 45781519,
+    "depth": 2
+  },
+  {
     "id": 45781577,
     "by": "tlaverdure",
     "timeISO": "2025-11-01T13:42:59.000Z",
@@ -88,10 +104,10 @@
     "depth": 2
   },
   {
-    "id": 45781639,
-    "by": "summarity",
-    "timeISO": "2025-11-01T13:50:19.000Z",
-    "textPlain": "I've always tried to avoid situations that could lead to SQLITE_BUSY. SQLITE_BUSY is an architecture smell. For standard SQLite in WAL, I usually structure an app with a read \"connection\" pool, and a single-entry write connection pool. Making the application aware of who _actually_ holds the write lock gives you the ability to proactively design access patterns, not try to react in the moment, and to get observability into lock contention, etc.",
+    "id": 45782543,
+    "by": "kijin",
+    "timeISO": "2025-11-01T15:41:41.000Z",
+    "textPlain": "Wouldn't that \"fix\" make the problem worse on the whole, by making transactions hold onto write locks longer than necessary? (Not trying to disagree, just curious about potential downsides.)",
     "parent": 45781519,
     "depth": 2
   },
@@ -120,6 +136,46 @@
     "depth": 2
   },
   {
+    "id": 45782392,
+    "by": "asa400",
+    "timeISO": "2025-11-01T15:25:48.000Z",
+    "textPlain": "Are you running vacuums at all? auto_vacuum enabled at all?https://sqlite.org/lang_vacuum.html",
+    "parent": 45782370,
+    "depth": 2
+  },
+  {
+    "id": 45782400,
+    "by": "kachapopopow",
+    "timeISO": "2025-11-01T15:26:29.000Z",
+    "textPlain": "sounds like normal behavior of adjusting buffers to better fit the usecase, not sure if it applies to sqlite or if sqlite even implements dynamic buffers.",
+    "parent": 45782370,
+    "depth": 2
+  },
+  {
+    "id": 45782906,
+    "by": "bambax",
+    "timeISO": "2025-11-01T16:21:12.000Z",
+    "textPlain": "Jellyfin is a media server app that gets installed on a great variety of platforms and while it would certainly be possible to add a postgres server to the install, the choice of sqlite is more than justified here IMHO.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782829,
+    "by": "abound",
+    "timeISO": "2025-11-01T16:12:40.000Z",
+    "textPlain": "Jellyfin is a self-hostable media server. If they \"used Postgres\", that means anyone who runs it needs Postgres. I think SQLite is the better choice for this kind of application, if one is going to choose a single database instead of some pluggable layer",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45782439,
+    "by": "eduction",
+    "timeISO": "2025-11-01T15:30:30.000Z",
+    "textPlain": "100%. I specifically clicked for the “why you should care” and was disappointed I could not find it.I certainly don’t mind if someone is pushing the limits of what SQLite is designed for but personally I’d just rather invest the (rather small) overhead of setting up a db server if I need a lot of concurrency.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
     "id": 45782285,
     "by": "zie",
     "timeISO": "2025-11-01T15:13:43.000Z",
@@ -128,11 +184,27 @@
     "depth": 2
   },
   {
+    "id": 45782358,
+    "by": "sethev",
+    "timeISO": "2025-11-01T15:22:09.000Z",
+    "textPlain": "Have you tried it?What you're describing sounds like it would work fine to me. The blog post  is misleading imho - it implies that SQLite doesn't handle concurrency at all. In reality, you can perform a bunch of writes in parallel and SQLite will handle running them one after the other internally. This works across applications and processes, you just need to use SQLite to interact with the database. The blog post is also misleading when it implies that the application has to manage access to the database file in some way.Yes, it's correct that only one of those writes will execute at a time but it's not like you have to account for that in your code, especially in a batch-style process like you're describing. In your Python code, you'll just update a row and it will look like that happens concurrently with other updates.I'll bet that your call to ChatGPT will take far longer than updating the row, even accounting for time when the write is waiting for its turn in SQLite.Use WAL-mode for the best performance (and to reduce SQLITE_BUSY errors).",
+    "parent": 45781964,
+    "depth": 2
+  },
+  {
     "id": 45781983,
     "by": "mickeyp",
     "timeISO": "2025-11-01T14:42:38.000Z",
-    "textPlain": "You can't. You have a single writer - it's one of the many reasons sqlite is terrible for serious work.You'll need a multiprocessing Queue and a writer that picks off sentences one by one and commits it.",
+    "textPlain": "Edit: disregard. I read it as he'd done it and had contention problems.You can't. You have a single writer - it's one of the many reasons sqlite is terrible for serious work.You'll need a multiprocessing Queue and a writer that picks off sentences one by one and commits it.",
     "parent": 45781964,
+    "depth": 2
+  },
+  {
+    "id": 45782868,
+    "by": "yellow_lead",
+    "timeISO": "2025-11-01T16:17:15.000Z",
+    "textPlain": "C# devs*",
+    "parent": 45782030,
     "depth": 2
   }
 ]
