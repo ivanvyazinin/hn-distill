@@ -1,9 +1,9 @@
 [
   {
-    "id": 45781114,
-    "by": "daemontus",
-    "timeISO": "2025-11-01T12:26:17.000Z",
-    "textPlain": "I may be completely out of line here, but isn't the story on ARM very very different? I vaguely recall the whole point of having stuff like weak atomics being that on x86, those don't do anything, but on ARM they are essential for cache coherency and memory ordering? But then again, I may just be conflating memory ordering and coherency.",
+    "id": 45781224,
+    "by": "ashvardanian",
+    "timeISO": "2025-11-01T12:46:33.000Z",
+    "textPlain": "Here's my favorite practically applicable cache-related fact: even on x86 on recent server CPUs, cache-coherency protocols may be operating at a different granularity than the cache line size. A typical case with new Intel server CPUs is operating at the granularity of 2 consecutive cache lines. Some thread-pool implementations like CrossBeam in Rust and my ForkUnion in Rust and C++, explicitly document that and align objects to 128 bytes [1]:  /**\n   *  @brief Defines variable alignment to avoid false sharing.\n   *  @see https://en.cppreference.com/w/cpp/thread/hardware_destructive_interference_size\n   *  @see https://docs.rs/crossbeam-utils/latest/crossbeam_utils/struct.CachePadded.html\n   *\n   *  The C++ STL way to do it is to use `std::hardware_destructive_interference_size` if available:\n   *\n   *  @code{.cpp}\n   *  #if defined(__cpp_lib_hardware_interference_size)\n   *  static constexpr std::size_t default_alignment_k = std::hardware_destructive_interference_size;\n   *  #else\n   *  static constexpr std::size_t default_alignment_k = alignof(std::max_align_t);\n   *  #endif\n   *  @endcode\n   *\n   *  That however results into all kinds of ABI warnings with GCC, and suboptimal alignment choice,\n   *  unless you hard-code `--param hardware_destructive_interference_size=64` or disable the warning\n   *  with `-Wno-interference-size`.\n   */\n  static constexpr std::size_t default_alignment_k = 128;\n\nAs mentioned in the docstring above, using STL's `std::hardware_destructive_interference_size` won't help you. On ARM, this issue becomes even more pronounced, so concurrency-heavy code should ideally be compiled multiple times for different coherence protocols and leverage \"dynamic dispatch\", similar to how I & others handle SIMD instructions in libraries that need to run on a very diverse set of platforms.[1] https://github.com/ashvardanian/ForkUnion/blob/46666f6347ece...",
     "parent": 45767178,
     "depth": 1
   },
@@ -12,6 +12,14 @@
     "by": "QuaternionsBhop",
     "timeISO": "2025-11-01T11:45:07.000Z",
     "textPlain": "Since the CPU is doing cache coherency transparently, perhaps there should be some sort of way to promise that an application is well-behaved in order to access a lower-level non-transparent instruction set to manually manage the cache coherency from the application level.  Or perhaps applications can never be trusted with that level of control over the hardware.  The MESI model reminded me of Rust's ownership and borrowing.  The pattern also appears in OpenGL vs Vulkan drivers, implicit sync vs explicit sync.  Yet another example would be the cache management work involved in squeezing out maximum throughput CUDA on an enterprise GPU.",
+    "parent": 45767178,
+    "depth": 1
+  },
+  {
+    "id": 45781114,
+    "by": "daemontus",
+    "timeISO": "2025-11-01T12:26:17.000Z",
+    "textPlain": "I may be completely out of line here, but isn't the story on ARM very very different? I vaguely recall the whole point of having stuff like weak atomics being that on x86, those don't do anything, but on ARM they are essential for cache coherency and memory ordering? But then again, I may just be conflating memory ordering and coherency.",
     "parent": 45767178,
     "depth": 1
   },
@@ -45,6 +53,14 @@
     "timeISO": "2025-11-01T12:29:36.000Z",
     "textPlain": "There are some knobs that newer processors give for cache control, mostly to partition or reserve cache space to improve security or reduce cache contention between processes.Actual manual cache management is way too much of an implementation detail for a general-purpose CPU to expose; doing so would deeply tie code to a specific set of processor behavior. Cache sizes and even hierarchies change often between processor generations, and some internal cache behavior has changed within a generation as a result of microcode and/or hardware steppings. Actual cache control would be like MIPS exposing delay slots but so much worse (at least older delay slots really only turn into performance issues, older cache control would easily turn into correctness issues).Really the only way to make this work is for the final compilation/\"specialization\" step to occur on the specific device in question, like with a processor using binary translation (e.g. Transmeta, Nvidia Denver) or specialization (e.g. Mill) or a system that effectively enforces runtime compilation (e.g. runtime shader/program compilation in OpenGL and OpenCL).",
     "parent": 45780916,
+    "depth": 2
+  },
+  {
+    "id": 45781211,
+    "by": "Lwerewolf",
+    "timeISO": "2025-11-01T12:44:35.000Z",
+    "textPlain": "I'm pretty sure that most cases of x86 reordering issues are a matter of the compiler reordering things, which isn't (afaik) solved with just \"volatile\". Caveat - haven't dealt with this for at least over a year (multicore sync without using OS primitives in general).",
+    "parent": 45780994,
     "depth": 2
   }
 ]

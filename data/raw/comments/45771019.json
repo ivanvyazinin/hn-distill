@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45780660,
-    "by": "aaptel",
-    "timeISO": "2025-11-01T10:46:27.000Z",
-    "textPlain": "How much overhead does the recording have?I want to debug custom kernel filesystem issues on a 96 CPUs machine. My benchmark is building the Linux Kernel def config with make -j96.\nI have tried ftrace before but it's making everything 100x slower...",
-    "parent": 45771019,
-    "depth": 1
-  },
-  {
     "id": 45775886,
     "by": "knlb",
     "timeISO": "2025-10-31T19:40:26.000Z",
@@ -28,6 +20,14 @@
     "by": "mattyyeung",
     "timeISO": "2025-11-01T05:20:29.000Z",
     "textPlain": "Does anybody have advice on how to embed perfetto UI into local tool? I'm currently using the old catapult chrome trace viewer to visualise and inspect scheduler outputs but there are some shiny features in perfetto that would be great.Background: My company designs machines that automate medical laboratory tests. Many applications have a fun scheduling problem at their core, think 'job shop' with a bunch of biology-enforced constraints.To help design these systems our tool allows an engineer to (a) enter a 'recipe' and resource constraints of a hypothetical system (b) use our fancy scheduling engine to simulate the system, (c) output a 'trace' of how each piece of equipment is scheduled and (d) display some basic statistics.Currently this is implemented as a single .html file - the GUI is vanilla js, the scheduler is cross-compiled to wasm and embedded and the output trace json is injected into an iframe containing chrome trace viewer.Because the design process is quite iterative, a single button press to run the simulation and display the output is desirable.I understand that perfetto has chosen not to support embedding, fair enough. plugins seem to require hosting/maintaining my own fork. Any other ideas?",
+    "parent": 45771019,
+    "depth": 1
+  },
+  {
+    "id": 45780660,
+    "by": "aaptel",
+    "timeISO": "2025-11-01T10:46:27.000Z",
+    "textPlain": "How much overhead does the recording have?I want to debug custom kernel filesystem issues on a 96 CPUs machine. My benchmark is building the Linux Kernel def config with make -j96.\nI have tried ftrace before but it's making everything 100x slower...",
     "parent": 45771019,
     "depth": 1
   },
@@ -72,11 +72,11 @@
     "depth": 1
   },
   {
-    "id": 45781090,
+    "id": 45781229,
     "by": "lalitmaganti",
-    "timeISO": "2025-11-01T12:22:39.000Z",
-    "textPlain": "> I have tried ftrace before but it's making everything 100x slower...If ftrace is making things 100x slower, I'm not sure that Perfetto is going to help you very much: fundamentally, for kernel stuff, it uses ftrace under the hood!",
-    "parent": 45780660,
+    "timeISO": "2025-11-01T12:48:13.000Z",
+    "textPlain": "Thanks for the detailed comment!> overwhelmingly it gets used because of their integration with the exceptionally simple JSON tracing formatSo in the open source community maybe, but it's use in the Android organization in Google is ubiquitous. Obviously, people outside the company don't see this, but we do. And I think even outside, there are a fair number of people using it for Android/Linux related things.> UI should just get split off into its own thingBy split off, do you mean from a \"branding\" perspective? Or like separate as its own technical entity? If the former, maybe a reasonable idea but I think rebranding now would lose a lot of the \"name recognition\" which comes with the Perfetto name.If the latter, there are two problems as I see it:\n1) The UI uses the trace processor as its \"backend\". And the trace processor is deeply integrated into the rest of Perfetto.\n2) If it's split off, who maintains it?> it's just very strange to me that the UI will always be showing things like \"syscall trace\" or \"connect a device\" when I am looking at GPU kernels or network spansOnly in the recording page right? At least from the timeline perspective, everything should be only related with your trace. And in practice, we've been working on the last year or so on \"pluginizing\" the UI - basically turning the UI into a modular set of components and separating the \"core\" of the UI (which doesn't know anything about Android or Chrome and reasons purely in terms of \"tracks\", \"slices\", \"counters\" etc).So it's actually possible to just totally remove all the parts of the UI you don't care about by going around and turning off things on the \"Plugins\" page.  Obviously, most people are not going to do that but maybe we can offer them a \"one click\" solution when they first open the UI to do so?> because I get the impression that they don't even really particularly like supporting what everyone else is using it for.This is not true, we actually really do like supporting it for other peo",
+    "parent": 45780986,
     "depth": 2
   },
   {
@@ -93,6 +93,14 @@
     "timeISO": "2025-11-01T05:26:47.000Z",
     "textPlain": "Perfetto does support embedding though I concede it's not as seamless as it was with chrome://tracing.As with Chrome://tracing, you can put the UI inside an iframe and pass the trace to the UI via postMessage (see https://perfetto.dev/docs/visualization/deep-linking-to-perf...). There are quite a few people that do this: the big ones I'm aware of is the Rust language CI for performance (https://github.com/rust-lang/rustc-perf/issues/1857) and Flutter Devtools (https://github.com/flutter/devtools/pull/4386/files).There's also an effort via contributions from some external folk to add more \"proper\" support for embedding (i.e. compiling Perfetto directly into a larger application, more like a library). That discussion is happening at https://github.com/google/perfetto/pull/2267 and the PRs spawned off it. We're hoping to have some more public documentation on this once that effort finishes up.",
     "parent": 45779436,
+    "depth": 2
+  },
+  {
+    "id": 45781090,
+    "by": "lalitmaganti",
+    "timeISO": "2025-11-01T12:22:39.000Z",
+    "textPlain": "> How much overhead does the recording have?Very much a symptom of what you are trying to record! See below> I have tried ftrace before but it's making everything 100x slower...If ftrace is making things 100x slower, I'm not sure that Perfetto is going to help you very much: fundamentally, for kernel stuff, it uses ftrace under the hood!",
+    "parent": 45780660,
     "depth": 2
   },
   {

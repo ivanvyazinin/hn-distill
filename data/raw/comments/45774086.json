@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45776463,
-    "by": "oconnor663",
-    "timeISO": "2025-10-31T20:41:14.000Z",
-    "textPlain": "> FAQ: doesn’t future1 get cancelled?I guess cancellation is really two different things, which usually happen at the ~same time, but not in this case: 1) the future stops getting polled, and 2) the future gets dropped. In this example the drop is delayed, and because the future is holding a guard,* the delay has side effects. So the future \"has been cancelled\" in the sense that it will never again make forward progress, but it \"hasn't been cancelled yet\" in the sense that it's still holding resources. I wonder if it's practical to say \"make sure those two things always happen together\"?* Technically a Tokio-internal `Acquire` future that owns a queue position to get a guard, but it sounds like the exact same bug could manifest after it got the guard too, so let's call it a guard.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776483,
     "by": "jacquesm",
     "timeISO": "2025-10-31T20:43:04.000Z",
@@ -48,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45780587,
-    "by": "crabmusket",
-    "timeISO": "2025-11-01T10:24:02.000Z",
-    "textPlain": "This feels like the sort of thing that has led to the development of deterministic simulation testing (DST) techniques as pioneered by FoundationDB and TigerBeetle.https://notes.eatonphil.com/2024-08-20-deterministic-simulat...I hope something like this becomes popular in the Rust/Tokio space. It seems like Turmoil is that?https://tokio.rs/blog/2023-01-03-announcing-turmoil",
+    "id": 45776463,
+    "by": "oconnor663",
+    "timeISO": "2025-10-31T20:41:14.000Z",
+    "textPlain": "> FAQ: doesn’t future1 get cancelled?I guess cancellation is really two different things, which usually happen at the ~same time, but not in this case: 1) the future stops getting polled, and 2) the future gets dropped. In this example the drop is delayed, and because the future is holding a guard,* the delay has side effects. So the future \"has been cancelled\" in the sense that it will never again make forward progress, but it \"hasn't been cancelled yet\" in the sense that it's still holding resources. I wonder if it's practical to say \"make sure those two things always happen together\"?* Technically a Tokio-internal `Acquire` future that owns a queue position to get a guard, but it sounds like the exact same bug could manifest after it got the guard too, so let's call it a guard.",
     "parent": 45774086,
     "depth": 1
   },
@@ -60,6 +52,14 @@
     "by": "mleonhard",
     "timeISO": "2025-11-01T04:14:43.000Z",
     "textPlain": "> // Start a background task that takes the lock and holds it for a few seconds.Holding a lock while waiting for IO can destroy a system's performance.  With async Rust, we can prevent this by making the MutexGuard !Send, so it cannot be held across an await.  Specifically, because it is !Send, it cannot be stored in the Future [2], so it must be dropped immediately, freeing the lock.  This also prevents Futurelock deadlock.This is how I wrote safina::sync::Mutex [0].  I did try to make it Send, like Tokio's MutexGuard, but stopped when I realized that it would become very complicated or require unsafe.> You could imagine an unfair Mutex that always woke up all waiters and let them race to grab the lock again. That would not suffer from risk of futurelock, but it would have the thundering herd problem plus all the liveness issues associated with unfair synchronization primitives.Thundering herd is when clients overload servers.  This simple Mutex has O(n^2) runtime: every task must acquire and release the mutex, which adds all waiting tasks to the scheduler queue.  In practice, scheduling a task is very fast (~600ns).  As long as polling the lock-mutex-future is fast and you have <500 waiting tasks, then the O(n^2) runtime is fine.Performance is hard to predict.  I wrote Safina using the simplest possible implementations and assumed they would be slow.  Then I wrote some micro-benchmarks and found that some parts (like the async Mutex) actually outperform Tokio's complicated versions [1].  I spent days coding optimizations that did not improve performance (work stealing) or even reduced performance (thread affinity).  Now I'm hesitant to believe assumptions and predictions about performance, even if they are based on profiling data.[0] https://docs.rs/safina/latest/safina/sync/struct.MutexGuard....[1] https://docs.rs/safina/latest/safina/index.html#benchmark[2] Multi-threaded async executors require futures to be Send.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45780587,
+    "by": "crabmusket",
+    "timeISO": "2025-11-01T10:24:02.000Z",
+    "textPlain": "This feels like the sort of thing that has led to the development of deterministic simulation testing (DST) techniques as pioneered by FoundationDB and TigerBeetle.https://notes.eatonphil.com/2024-08-20-deterministic-simulat...I hope something like this becomes popular in the Rust/Tokio space. It seems like Turmoil is that?https://tokio.rs/blog/2023-01-03-announcing-turmoil",
     "parent": 45774086,
     "depth": 1
   },
@@ -76,6 +76,14 @@
     "by": "orthecreedence",
     "timeISO": "2025-10-31T20:23:56.000Z",
     "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45776550,
+    "by": "dvt",
+    "timeISO": "2025-10-31T20:50:16.000Z",
+    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
     "parent": 45774086,
     "depth": 1
   },
@@ -112,14 +120,6 @@
     "depth": 1
   },
   {
-    "id": 45776550,
-    "by": "dvt",
-    "timeISO": "2025-10-31T20:50:16.000Z",
-    "textPlain": "> &mut future1 is dropped, but this is just a reference and so has no effect. Importantly, the future itself (future1) is not dropped.There's a lot of talk about Rust's await implementation, but I don't really think that's the issue here. After all, Rust doesn't guarantee convergence. Tokio, on the other hand (being a library that handles multi-threading), should (at least when using its own constructs, e.g. the `select!` macro).So, since the crux of the problem is the `tokio::select!` macro, it seems like a pretty clear tokio bug. Side note, I never looked at it before, but the macro[1] is absolutely hideous.[1] https://docs.rs/tokio/1.34.0/src/tokio/macros/select.rs.html",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45778792,
     "by": "qouteall",
     "timeISO": "2025-11-01T02:30:37.000Z",
@@ -152,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45781104,
-    "by": "imtringued",
-    "timeISO": "2025-11-01T12:24:31.000Z",
-    "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
+    "id": 45776951,
+    "by": "forrestthewoods",
+    "timeISO": "2025-10-31T21:33:30.000Z",
+    "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
     "parent": 45774086,
     "depth": 1
   },
@@ -164,14 +164,6 @@
     "by": "wbl",
     "timeISO": "2025-10-31T21:36:21.000Z",
     "textPlain": "Sadly I'm away from my bookshelf but I think Concurrent ML solved this issue.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45776951,
-    "by": "forrestthewoods",
-    "timeISO": "2025-10-31T21:33:30.000Z",
-    "textPlain": "I feel like I’m pretty good at writing multithreaded code. I’ve done it a lot. As long as you use primitives like Rust Mutex that enforce correctness for data access (ie no accessing data without the lock) it’s pretty simple. Define a clean boundary API and you’re off to the races.async code is so so so much more complex. It’s so hard to read and rationalize. I could not follow this post. I tried. But it’s just a full extra order of complexity.Which is a shame because async code is supposed to make code simpler! But I’m increasingly unconfident that’s true.",
     "parent": 45774086,
     "depth": 1
   },
@@ -188,6 +180,14 @@
     "by": "mdasen",
     "timeISO": "2025-11-01T01:29:48.000Z",
     "textPlain": "I rewrote this in Go and it also deadlocks. It doesn't seem to be something that's Rust specific.I'm going to write down the order of events.1. Background task takes the lock and holds it for 5 seconds.2. Async Thing 1 tries to take the lock, but must wait for background task to release it. It is next in line to get the lock.3. We fire off a goroutine that's just sleeping for a second.4. Select wants to find a channel that is finished. The sleepChan finishes first (since it's sleeping for 1 second) while Async Thing 1 is still waiting 4 more seconds for the lock. So select will execute the sleepChan case.5. That case fires off Async Thing 2. Async Thing 2 is waiting for the lock, but it is second in line to get the lock after Async Thing 1.6. Async Thing 1 gets the lock and is ready to write to its channel - but the main is paused trying to read from c2, not c1. Main is \"awaiting\" on c2 via \"<-c2\". Async Thing 1 can't give up its lock until it writes to c1. It can't write to c1 until c1 is \"awaited\" via \"<-c1\". But the program has already gone into the other case and until the sleepChan case finishes, it won't try to await c1. But it will never finish its case because its case depends on c1 finishing first.You can use buffered channels in Go so that Async Thing 1 can write to c1 without main reading from it, but as the article notes you could use join_all in Rust.But the issue is that you're saying with \"select\" in either Go or Rust \"get me the first one that finishes\" and then in the branch that finishes first, you are awaiting a lock that will get resolved when you read the other branch. It just doesn't feel like something that is Rust specific.    func main() {\n        lock := sync.Mutex{}\n        c1 := make(chan string)\n        c2 := make(chan string)\n        sleepChan := make(chan bool)    \n        \n        go start_background_task(&lock)\n        time.Sleep(1 * time.Millisecond) //make sure it schedules start_background_task first\n\n        go do_async_thing(c1,",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45781104,
+    "by": "imtringued",
+    "timeISO": "2025-11-01T12:24:31.000Z",
+    "textPlain": "Based on the description:>This RFD describes futurelock: a type of deadlock where a resource owned by Future A is required for another Future B to proceed, while the Task responsible for both Futures is no longer polling A. Futurelock is a particularly subtle risk in writing asynchronous Rust.I was honestly wondering how you could possibly cause this in any sane code base. How can an async task hold a lock and keep it open? It sounds illogical, because critical sections are meant to be short and never interrupted by anything. You're also never allowed to panic, which means you have to write no panic Rust code inside a critical section. Critical sections are very similar to unsafe blocks, but with the caveat that they cannot cause complete take over of your application.So how exactly did they bring about the impossible? They put an await call inside the critical section. The part of the code base that is not allowed to be subject to arbitrary delays. Massive facepalm.When you invoke await inside a critical section, you're essentially saying \"I hereby accept that this critical section will last an indeterminate amount of time, I am fully aware of what the code I'm calling is doing and I am willing to accept the possibility that the release of the lock may never come, even if my own code is one hundred percent correct, since the await call may contain an explicit or implicit deadlock\"",
     "parent": 45774086,
     "depth": 1
   },
@@ -352,6 +352,14 @@
     "depth": 2
   },
   {
+    "id": 45781201,
+    "by": "yxhuvud",
+    "timeISO": "2025-11-01T12:42:48.000Z",
+    "textPlain": "Work stealing is more a technique to function better when architecture is pessimal (think mixing slow and fast tasks in one queue) than something that make things go faster in general. It also tend to shuffle around complexity a bit, in ways that are sometimes nice.Same thing with task preemption, though that one has less organisatorial impact.In general, getting something to perform well enough on specific tasks is a lot easier than performing well enough on tasks in general. At the same time, most tasks have kinda specific needs when you start looking at them..",
+    "parent": 45779198,
+    "depth": 2
+  },
+  {
     "id": 45780445,
     "by": "dvratil",
     "timeISO": "2025-11-01T09:51:06.000Z",
@@ -376,27 +384,19 @@
     "depth": 2
   },
   {
-    "id": 45776533,
-    "by": "ameliaquining",
-    "timeISO": "2025-10-31T20:48:30.000Z",
-    "textPlain": "There's an existing lint that lets you prohibit instances of specific types from being held across await points: https://rust-lang.github.io/rust-clippy/stable/index.html#aw...",
-    "parent": 45776277,
+    "id": 45776791,
+    "by": "oconnor663",
+    "timeISO": "2025-10-31T21:16:30.000Z",
+    "textPlain": "There's nothing `select!` could do here to force `future1` to drop, because it doesn't receive ownership of `future1`. If we wanted to force this, we'd have to forbid `select!` from polling futures by reference, but that's a pretty fundamental capability that we often rely on to `select!` in a loop for example. The blanket `impl<F> Future for &mut F where F: Future ...` isn't a Tokio thing either; that's in the standard library.",
+    "parent": 45776550,
     "depth": 2
   },
   {
-    "id": 45776480,
-    "by": "sunshowers",
-    "timeISO": "2025-10-31T20:42:52.000Z",
-    "textPlain": "Note that forcing a drop of a lock guard has its own issues, particularly around leaving the guarded data in an invalid state. I cover this a bit in my talk that Bryan linked to in the OP [1].[1] timestamped: https://youtu.be/zrv5Cy1R7r4?t=1067",
-    "parent": 45776277,
-    "depth": 2
-  },
-  {
-    "id": 45777165,
-    "by": "amluto",
-    "timeISO": "2025-10-31T21:59:46.000Z",
-    "textPlain": "I’m not convinced that this can help in a meaningful way.Fundamentally, if you have two coroutines (or cooperatively scheduled threads or whatever), and one of them holds a lock, and the other one is awaiting the lock, and you don’t schedule the first one, you’re stuck.I wonder if there’s a form of structured concurrency that would help.  If I create two futures and start both of them (in Rust this means polling each one once) but do not continue to poll both, then I’m sort of making a mistake.So imagine a world where, to poll a future at all, I need to have a nursery, and the nursery is passed in from my task and down the call stack. When I create a future, I can pass in my nursery, but that future then gets an exclusive reference to my future until it’s complete or cancelled. If I want to create more than one future that are live concurrently, I need to create a FutureGroup (that gets an exclusive reference to my nursery) and that allows me to create multiple sub-nurseries that can be used to make futures but cannot be used to poll them — instead I poll the FutureGroup.(I have yet to try using an async/await system or a reactor or anything of the sort that is not very easy to screw up.  My current pet peeve is this pattern:    data = await thingy.read()\n\nWhat if thingy.read() succeeds but I am cancelled? This gets nasty is most programming languages.  Python: the docs on when I can get cancelled are almost nonexistent, and it’s not obviously possible to catch the  CancelledError such that I still have data and can therefore save it somewhere so it’s not lost.  Rust: what if thingy thinks it has returned the data but I’m never polled again? Maybe this can’t happen if I’m careful, but that requires more thought than I’m really happy with.)",
-    "parent": 45776277,
+    "id": 45776868,
+    "by": "mycoliza",
+    "timeISO": "2025-10-31T21:24:23.000Z",
+    "textPlain": "What could `tokio::select!` do differently here to prevent bugs like this?In the case of `select!`, it is a direct consequence of the ability to poll a `&mut` reference to a future in a `select!` arm, where the future is not dropped should another future win the \"race\" of the select. This is not really a choice Tokio made when designing `select!`, but is instead due to the existence of implementations of `Future` for `&mut T: Future + Unpin`[1] and `Pin<T: Future>`[2] in the standard library.Tokio's `select!` macro cannot easily stop the user from doing this, and, furthermore, the fact that you can do this is useful --- there are many legitimate reasons you might want to continue polling a future if another branch of the select completes first. It's desirable to be able to express the idea that we want to continually poll drive one asynchronous operation to completion while periodically checking if some other thing has happened and taking action based on that, and then continue driving forward the ongoing operation. That was precisely what the code in which we found the bug was doing, and it is a pretty reasonable thing to want to do; a version of the `select!` macro which disallows that would limit its usefulness. The issue arises specifically from the fact that the `&mut future` has been polled to a state in which it has acquired, but not released, a shared lock or lock-like resource, and then another arm of the `select!` completes first and the body of that branch runs async code that also awaits that shared resource.If you can think of an API change which Tokio could make that would solve this problem, I'd love to hear it. But, having spent some time trying to think of one myself, I'm not sure how it would be done without limiting the ability to express code that one might reasonably want to be able to write, and without making fundamental changes to the design of Rust async as a whole.[1] https://doc.rust-lang.org/stable/std/future/trait.Future.htm...\n[2]: http",
+    "parent": 45776550,
     "depth": 2
   }
 ]
