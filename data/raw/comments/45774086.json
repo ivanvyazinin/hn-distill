@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45776483,
-    "by": "jacquesm",
-    "timeISO": "2025-10-31T20:43:04.000Z",
-    "textPlain": "If any rust designers are lurking about here: what made you decide to go for the async design pattern instead of the actor pattern, which - to me at least - seems so much cleaner and so much harder to get wrong?Ever since I started using Erlang it felt like I finally found 'the right way' when before then I did a lot of work with sockets and asynchronous worker threads. But even though it usually worked as advertised it had a large number of really nasty pitfalls which the actor model seemed to - effortlessy - step aside.So I'm seriously wondering what the motivation was. I get why JS uses async, there isn't any other way there, by the time they added async it was too late to change the fundamentals of the language to such a degree. But rust was a clean slate.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
     "id": 45776463,
     "by": "oconnor663",
     "timeISO": "2025-10-31T20:41:14.000Z",
@@ -48,18 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45779372,
-    "by": "jcalvinowens",
-    "timeISO": "2025-11-01T05:00:13.000Z",
-    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
-    "parent": 45774086,
-    "depth": 1
-  },
-  {
-    "id": 45780047,
-    "by": "lowbloodsugar",
-    "timeISO": "2025-11-01T08:21:37.000Z",
-    "textPlain": "I know this is going to sound trite, but “don’t do that”. It’s no different than deciding to poll the win32 event queue inside an a method you executed in response to polling the event queue. Nested shit is always going to cause a bug. I guess each new generation just has to learn.",
+    "id": 45776483,
+    "by": "jacquesm",
+    "timeISO": "2025-10-31T20:43:04.000Z",
+    "textPlain": "If any rust designers are lurking about here: what made you decide to go for the async design pattern instead of the actor pattern, which - to me at least - seems so much cleaner and so much harder to get wrong?Ever since I started using Erlang it felt like I finally found 'the right way' when before then I did a lot of work with sockets and asynchronous worker threads. But even though it usually worked as advertised it had a large number of really nasty pitfalls which the actor model seemed to - effortlessy - step aside.So I'm seriously wondering what the motivation was. I get why JS uses async, there isn't any other way there, by the time they added async it was too late to change the fundamentals of the language to such a degree. But rust was a clean slate.",
     "parent": 45774086,
     "depth": 1
   },
@@ -72,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45776307,
-    "by": "orthecreedence",
-    "timeISO": "2025-10-31T20:23:56.000Z",
-    "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
+    "id": 45779372,
+    "by": "jcalvinowens",
+    "timeISO": "2025-11-01T05:00:13.000Z",
+    "textPlain": "I have very little Rust experience... but I'm hung up on this:> The lock is given to future1> future1 cannot run (and therefore cannot drop the Mutex) until the task starts running it.This seems like a contradiction to me. How can future1 acquire the Mutex in the first place, if it cannot run? The word \"given\" is really odd to me.Why would do_async_thing() not immediately run the prints, return, and drop the lock after acquiring it? Why does future1 need to be \"polled\" for that to happen? I get that due to the select! behavior, the result of future1 is not consumed, but I don't understand how that prevents it from releasing the mutex.It's more typical in my experience that the act of granting the lock to a thread is what makes it runnable, and it runs right then. Having to take some explicit second action to make that happen seems fundamentally broken to me...EDIT: Rephrased for clarity.",
     "parent": 45774086,
     "depth": 1
   },
   {
-    "id": 45776875,
-    "by": "arjie",
-    "timeISO": "2025-10-31T21:24:59.000Z",
-    "textPlain": "Wow, that makes sense afterwards but I would not have guessed at it immediately looking at the code. Very insidious. Great blogpost.",
+    "id": 45776307,
+    "by": "orthecreedence",
+    "timeISO": "2025-10-31T20:23:56.000Z",
+    "textPlain": "Great read, and the example code makes sense. This stuff can be a nightmare to find, but once you do it's like a giant 1000 piece puzzle just clicks together instantly.",
     "parent": 45774086,
     "depth": 1
   },
@@ -96,18 +80,26 @@
     "depth": 1
   },
   {
-    "id": 45777951,
-    "by": "quietbritishjim",
-    "timeISO": "2025-10-31T23:46:37.000Z",
-    "textPlain": "Wow, it is simply outrageous that Rust doesn't just allow all active tasks to make progress. It creates a whole class of incomprehensible bugs, like this one, for no reason. Can any Rust experts explain why it's done this way? It seems like an unforced error.In Python, I often use the Trio library, which offers \"structured, concurrency\": tasks are (only) spawned into lexical scopes, and they are all completed (waited for) before that scope is left. That includes waiting for any cancelled tasks (which are allowed to do useful async work, including waiting for any of their own task scopes to complete).Could Rust do something like that? It's far easier to reason about than traditional async programs, which seems up Rust's street. As a bonus it seems to solve this problem, since a Rust equivalent would presumably have all tasks implicitly polled by their owning scope.",
+    "id": 45776875,
+    "by": "arjie",
+    "timeISO": "2025-10-31T21:24:59.000Z",
+    "textPlain": "Wow, that makes sense afterwards but I would not have guessed at it immediately looking at the code. Very insidious. Great blogpost.",
     "parent": 45774086,
     "depth": 1
   },
   {
-    "id": 45778792,
-    "by": "qouteall",
-    "timeISO": "2025-11-01T02:30:37.000Z",
-    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
+    "id": 45779328,
+    "by": "ideaformlabs",
+    "timeISO": "2025-11-01T04:48:52.000Z",
+    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45777951,
+    "by": "quietbritishjim",
+    "timeISO": "2025-10-31T23:46:37.000Z",
+    "textPlain": "Wow, it is simply outrageous that Rust doesn't just allow all active tasks to make progress. It creates a whole class of incomprehensible bugs, like this one, for no reason. Can any Rust experts explain why it's done this way? It seems like an unforced error.In Python, I often use the Trio library, which offers \"structured, concurrency\": tasks are (only) spawned into lexical scopes, and they are all completed (waited for) before that scope is left. That includes waiting for any cancelled tasks (which are allowed to do useful async work, including waiting for any of their own task scopes to complete).Could Rust do something like that? It's far easier to reason about than traditional async programs, which seems up Rust's street. As a bonus it seems to solve this problem, since a Rust equivalent would presumably have all tasks implicitly polled by their owning scope.",
     "parent": 45774086,
     "depth": 1
   },
@@ -120,18 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45778534,
-    "by": "jhhh",
-    "timeISO": "2025-11-01T01:31:18.000Z",
-    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
+    "id": 45778792,
+    "by": "qouteall",
+    "timeISO": "2025-11-01T02:30:37.000Z",
+    "textPlain": "Simplify: tokio::select! will discard other futures when one future progress.The discarded futures will never be run again.Normally when a future is discarded it's dropped. When a future holding lock is dropped, lock is released, but it's passing future borrow to select so the discarded future is not dropped while holding lock.So it leaves a future that holds a lock that will never run again.",
     "parent": 45774086,
     "depth": 1
   },
   {
-    "id": 45779328,
-    "by": "ideaformlabs",
-    "timeISO": "2025-11-01T04:48:52.000Z",
-    "textPlain": "It’s kind of wild how even the most careful Rust code can run into issues like this, really shows how deep async programming goes.",
+    "id": 45778534,
+    "by": "jhhh",
+    "timeISO": "2025-11-01T01:31:18.000Z",
+    "textPlain": "I read this once over and the part that doesn't seem to make sense to me is why the runtime chose, when there are two execution contexts up to the lock() in both future1 and future3, to wake up the main thread instead? I get why in a fair lock it would pick future1 but I don't get how that causes a different thread than the one holding the lock to execute.",
     "parent": 45774086,
     "depth": 1
   },
@@ -148,6 +140,14 @@
     "by": "bilbo-b-baggins",
     "timeISO": "2025-11-01T04:29:31.000Z",
     "textPlain": "I’m just gonna make a new language that has future borrowing semantics and future lifetimes to solve this.",
+    "parent": 45774086,
+    "depth": 1
+  },
+  {
+    "id": 45780047,
+    "by": "lowbloodsugar",
+    "timeISO": "2025-11-01T08:21:37.000Z",
+    "textPlain": "I know this is going to sound trite, but “don’t do that”. It’s no different than deciding to poll the win32 event queue inside an a method you executed in response to polling the event queue. Nested shit is always going to cause a bug. I guess each new generation just has to learn.",
     "parent": 45774086,
     "depth": 1
   },
@@ -384,18 +384,18 @@
     "depth": 2
   },
   {
+    "id": 45780136,
+    "by": "24f0bacc7c72d0a",
+    "timeISO": "2025-11-01T08:40:53.000Z",
+    "textPlain": "This is why I use a threadpool instead. Cant deal with the complexity of async code.",
+    "parent": 45779328,
+    "depth": 2
+  },
+  {
     "id": 45777999,
     "by": "wrs",
     "timeISO": "2025-10-31T23:53:45.000Z",
     "textPlain": "It's hard to answer the question because of unclear terminology (tasks vs. futures). There are ways to do structured concurrency in Rust, but they are for tasks, not futures. There's not really a concept of \"active futures\" (other than calling an \"active future\" one that returned Pending the last time you polled it).A task is the thing that drives progress by polling some futures. But one of those futures may want to handle polling for other futures that it made, which is where this arises.As the article says, one option is to spawn everything as a task, but that doesn't solve all problems, and precludes some useful ways of using futures.",
-    "parent": 45777951,
-    "depth": 2
-  },
-  {
-    "id": 45777974,
-    "by": "duped",
-    "timeISO": "2025-10-31T23:51:10.000Z",
-    "textPlain": "So there's a distinction between a task and a future. A future doesn't do anything until it's polled, and since there's nothing special about async runtimes (it's just user level code), it's always possible to create futures and never poll them, or stop polling them.A task is a different construct and usually tied to the runtime. If you look at the suggestions in the RFD they call out using a task explicitly instead of polling a future in place.There's some debate to be had over what constitutes \"cancellation.\" The article and most colloquial definitions I've heard define it as a future being dropped before being polled to completion. Which is very clean - if you want to cancel a future, just drop it. Since Rust strongly encourages RAII, cleanup can go in drop implementations.A much tougher definition of cancellation is \"the future is never polled again\" which is what the article hits on. The future isn't dropped but its poll is also unreachable, hence the deadlock.",
     "parent": 45777951,
     "depth": 2
   }
