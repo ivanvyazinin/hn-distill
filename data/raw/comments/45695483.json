@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45789696,
-    "by": "jurschreuder",
-    "timeISO": "2025-11-02T12:03:00.000Z",
-    "textPlain": "In a way this is strange because there us a huuuge new area of vulnerabilities caused by LLMs writing code that DWARFS the read/write out of array bounds issues C has.",
-    "parent": 45695483,
-    "depth": 1
-  },
-  {
     "id": 45788686,
     "by": "Animats",
     "timeISO": "2025-11-02T08:16:13.000Z",
     "textPlain": "The article doesn't address the hard problem of figuring out array sizes.\nThere's some work going on as part of the DARPA TRACTOR program to work on that.\nThis area, of course, is the usual cause of buffer overflows.The goal is to convert C pointers to Rust arrays, pointer arithmetic to Rust slices, and array allocations to Vec initialization. The hard problem is figuring out the sizes of arrays, which is going to require global analysis down the call chain.If you're going to publish papers on this, please address that problem.",
+    "parent": 45695483,
+    "depth": 1
+  },
+  {
+    "id": 45789696,
+    "by": "jurschreuder",
+    "timeISO": "2025-11-02T12:03:00.000Z",
+    "textPlain": "In a way this is strange because there us a huuuge new area of vulnerabilities caused by LLMs writing code that DWARFS the read/write out of array bounds issues C has.",
     "parent": 45695483,
     "depth": 1
   },
@@ -44,6 +44,14 @@
     "by": "pizza234",
     "timeISO": "2025-11-02T12:30:19.000Z",
     "textPlain": "> Automatically translating C to unsafe Rust is pointless, the resultant code is harder to read and there's no improvement in understanding how to get the code maintainable and safe, that requires tons of manual work by someone with a deep understanding of the codebase.I have experience on a (nontrivial) translation of a \"very unsafe\" C codebase to Rust, and it's not true that there is no value in this type of work.The first step, automatic translation from C to Rust via tools, immediately revealed bugs in the original codebase. This step alone is worth spending some time on the operation.Ports from C to Rust aren't a binary distribution of \"all safe\" or no port at all. Some projects, for example ClamAV, are adopting a mixed approach - (part/most of) new code in Rust, and some translation of existing functionalities to Rust.In general, I think that automatic porting of C to Rust is, in real world, an academic exercise. This is because C codebases designed without safety in mind, simply need to be redesigned, so the domain in not really \"how to port C to Rust\" - it's \"how to redesign and unsafe C codebase to a safe one\" first of all. Additionally, I believe that in such cases, maintaining the implementation details is impossible - unsafety is a design, after all.I personally advocate for very precisely scoped ports, where it can be beneficial (safety an stability); where that's not possible, I agree, better abandon early.",
+    "parent": 45789740,
+    "depth": 2
+  },
+  {
+    "id": 45790834,
+    "by": "the__alchemist",
+    "timeISO": "2025-11-02T15:07:57.000Z",
+    "textPlain": "My 2C: What we need isn't a translater, but painless FFI. The FFI tools avail like cc and bindgen make working results most of the time, but they need [manual] wrapping.It's kind of a similar situation (Although a bit more complicated) exposing Rust libs in python; PyO3/maturin do the job, but you have to manually wrap.So... I would like tools that call C code from rust, but with slices etc instead of pointers.",
     "parent": 45789740,
     "depth": 2
   },
@@ -80,6 +88,14 @@
     "depth": 2
   },
   {
+    "id": 45789224,
+    "by": "uecker",
+    "timeISO": "2025-11-02T10:18:31.000Z",
+    "textPlain": "Of course, one you have identifies the bounds to each pointer you could just do bounds checking in C.",
+    "parent": 45788686,
+    "depth": 2
+  },
+  {
     "id": 45790196,
     "by": "cue_the_strings",
     "timeISO": "2025-11-02T13:28:43.000Z",
@@ -88,11 +104,19 @@
     "depth": 2
   },
   {
-    "id": 45789224,
-    "by": "uecker",
-    "timeISO": "2025-11-02T10:18:31.000Z",
-    "textPlain": "Of course, one you have identifies the bounds to each pointer you could just do bounds checking in C.",
-    "parent": 45788686,
+    "id": 45790836,
+    "by": "kevincox",
+    "timeISO": "2025-11-02T15:08:37.000Z",
+    "textPlain": "I would assume that these two use cases are basically completely separate.Auto-translate from C to Rust would serve as a great step to starting a porting project. Now you can incrementally re-write the \"basically C\" auto-ported code to \"proper Rust\" without dealing with FFI and other pains that come from function-by-function ports.Fil-C is great for running software that you don't want to port. (Or don't yet have the resources to port.)Interestingly there is probably a gap between the two. When your project is pure C you can use Fil-C. However I don't think Fil-C supports Rust. So assuming that the initial C to Rust translation doesn't produce 100% safe code (I'm not aware of any current tools that do this) you have this middle state where you can no longer compile with Fil-C but have lots of unsafe Rust code. So maybe there is a use case for Fil-Rust where you compile your Rust program so that even unsafe blocks are in fact safe. This could be used until you complete the port.",
+    "parent": 45787999,
+    "depth": 2
+  },
+  {
+    "id": 45790581,
+    "by": "jrpelkonen",
+    "timeISO": "2025-11-02T14:29:09.000Z",
+    "textPlain": "Fil-C is an innovative approach and a great technical achievement. However, I wouldn't suggest that it is an universal solution without caveats. For instance, the performance penalty of up to 4x is not acceptable in a lot of cases.Also, the c2rust output is rough but not hopeless: There are real world success stories of rust projects that were bootstrapped via c2rust, e.g. https://tweedegolf.nl/en/blog/151/translating-bzip2-with-c2r...",
+    "parent": 45787999,
     "depth": 2
   },
   {

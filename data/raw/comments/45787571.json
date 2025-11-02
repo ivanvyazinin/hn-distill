@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45790769,
+    "by": "reitzensteinm",
+    "timeISO": "2025-11-02T14:56:26.000Z",
+    "textPlain": "I'm a little nervous about the correctness of the memory orderings in this project, e.g.Two acquires back to back are unnecessary here. In general, fetch_sub and fetch_add should give enough guarantees for this file in Relaxed.\nhttps://github.com/frostyplanet/crossfire-rs/blob/master/src...Congest is never written to with release, so the Acquire is never used to form a release chain:\nhttps://github.com/frostyplanet/crossfire-rs/blob/dd4a646ca9...The queue appears to close the channel twice (once per rx/tx), which is discordant with the apparent care taken with the fencing.\nhttps://github.com/frostyplanet/crossfire-rs/blob/dd4a646ca9...The author also suggests an incorrect optimization to Tokio here which suggests a lack of understanding of what the specific guarantees given are:\nhttps://github.com/tokio-rs/tokio/pull/7622The tests do not appear to simulate the queue in Loom, which would be a very, very good idea.This stuff is hard. I almost certainly made a mistake in what I've written above (edit: I did!). In practice, the queue is probably fine to use, but I wouldn't be shocked if there's a heisenbug lurking in this codebase that manifests something like: it all works fine now, but in the next LLVM version an optimization pass is added which breaks it on ARM in release mode, and after that the queue yields duplicate values in a busy loop every few million reads which is only triggered on Graviton processors.Or something. Like I said, this stuff is hard. I wrote a very detailed simulator for the Rust/C++ memory model, have implemented dozens of lockless algorithms, and I still make a mistake every time I go to write code. You need to simulate it with something like Loom to have any hope of a robust implementation.For anyone interested in learning about Rust's memory model, I can't recommend enough Rust Atomics and Locks:https://marabos.nl/atomics/",
+    "parent": 45787571,
+    "depth": 1
+  },
+  {
     "id": 45789798,
     "by": "efskap",
     "timeISO": "2025-11-02T12:23:05.000Z",
