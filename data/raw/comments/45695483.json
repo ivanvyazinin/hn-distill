@@ -24,14 +24,6 @@
     "depth": 1
   },
   {
-    "id": 45789696,
-    "by": "jurschreuder",
-    "timeISO": "2025-11-02T12:03:00.000Z",
-    "textPlain": "In a way this is strange because there us a huuuge new area of vulnerabilities caused by LLMs writing code that DWARFS the read/write out of array bounds issues C has.",
-    "parent": 45695483,
-    "depth": 1
-  },
-  {
     "id": 45787999,
     "by": "pizlonator",
     "timeISO": "2025-11-02T05:22:12.000Z",
@@ -40,10 +32,26 @@
     "depth": 1
   },
   {
+    "id": 45789696,
+    "by": "jurschreuder",
+    "timeISO": "2025-11-02T12:03:00.000Z",
+    "textPlain": "In a way this is strange because there us a huuuge new area of vulnerabilities caused by LLMs writing code that DWARFS the read/write out of array bounds issues C has.",
+    "parent": 45695483,
+    "depth": 1
+  },
+  {
     "id": 45789834,
     "by": "pizza234",
     "timeISO": "2025-11-02T12:30:19.000Z",
     "textPlain": "> Automatically translating C to unsafe Rust is pointless, the resultant code is harder to read and there's no improvement in understanding how to get the code maintainable and safe, that requires tons of manual work by someone with a deep understanding of the codebase.I have experience on a (nontrivial) translation of a \"very unsafe\" C codebase to Rust, and it's not true that there is no value in this type of work.The first step, automatic translation from C to Rust via tools, immediately revealed bugs in the original codebase. This step alone is worth spending some time on the operation.Ports from C to Rust aren't a binary distribution of \"all safe\" or no port at all. Some projects, for example ClamAV, are adopting a mixed approach - (part/most of) new code in Rust, and some translation of existing functionalities to Rust.In general, I think that automatic porting of C to Rust is, in real world, an academic exercise. This is because C codebases designed without safety in mind, simply need to be redesigned, so the domain in not really \"how to port C to Rust\" - it's \"how to redesign and unsafe C codebase to a safe one\" first of all. Additionally, I believe that in such cases, maintaining the implementation details is impossible - unsafety is a design, after all.I personally advocate for very precisely scoped ports, where it can be beneficial (safety an stability); where that's not possible, I agree, better abandon early.",
+    "parent": 45789740,
+    "depth": 2
+  },
+  {
+    "id": 45791070,
+    "by": "Diggsey",
+    "timeISO": "2025-11-02T15:37:16.000Z",
+    "textPlain": "IMO, safety and \"idiomatic-ness\" of Rust code are two separate concerns, with the former being easier to automate.In most C code I've read, the lifetimes of pointers are not that complicated. They can't be that complicated, because complex lifetimes are too error prone without automated checking. That means those lifetimes can be easily expressed.In that sense, a fairly direct C to Rust translation that doesn't try to generate idomatic Rust, but does accurately encode the lifetimes into the type system (ie. replacing pointers with references and Box) is already a huge safety win, since you gain automatic checking of the rules you were already implicitly following.Here's an example of the kind of unidiomatic-but-safe Rust code I mean: https://play.rust-lang.org/?version=stable&mode=debug&editio...If that can be automated (which seems increasingly plausible) then the need to do such a translation incrementally also goes away.Making it idiomatic would be a case of recognising higher level patterns that couldn't be abstracted away in C, but can be turned into abstractions in Rust, and creating those abstractions. That is a more creative process that would require something like an LLM to drive, but that can be done incrementally, and provides a different kind of value from the basic safety checks.",
     "parent": 45789740,
     "depth": 2
   },
@@ -96,11 +104,11 @@
     "depth": 2
   },
   {
-    "id": 45790196,
-    "by": "cue_the_strings",
-    "timeISO": "2025-11-02T13:28:43.000Z",
-    "textPlain": "I agree.But on the other hand, let's not kid ourselves, array out of bounds, use after free, resource leaks and bad type system, all of this isn't even close to an exhaustive list of C downsides. Beyond its direct limitations, C inspires an approach that is vastly inferior even if you follow all the best practices. Even compared to (modern) C++ it's much worse. I say this and I kind of like C.If the approaches described in the article save us 30% of the effort of translating C codebases to Rust, it's still worth trying; we're unfortunately not very close to complete automation, but that's something worthy of pursuit.",
-    "parent": 45789696,
+    "id": 45790581,
+    "by": "jrpelkonen",
+    "timeISO": "2025-11-02T14:29:09.000Z",
+    "textPlain": "Fil-C is an innovative approach and a great technical achievement. However, I wouldn't suggest that it is an universal solution without caveats. For instance, the performance penalty of up to 4x is not acceptable in a lot of cases.Also, the c2rust output is rough but not hopeless: There are real world success stories of rust projects that were bootstrapped via c2rust, e.g. https://tweedegolf.nl/en/blog/151/translating-bzip2-with-c2r...",
+    "parent": 45787999,
     "depth": 2
   },
   {
@@ -108,14 +116,6 @@
     "by": "kevincox",
     "timeISO": "2025-11-02T15:08:37.000Z",
     "textPlain": "I would assume that these two use cases are basically completely separate.Auto-translate from C to Rust would serve as a great step to starting a porting project. Now you can incrementally re-write the \"basically C\" auto-ported code to \"proper Rust\" without dealing with FFI and other pains that come from function-by-function ports.Fil-C is great for running software that you don't want to port. (Or don't yet have the resources to port.)Interestingly there is probably a gap between the two. When your project is pure C you can use Fil-C. However I don't think Fil-C supports Rust. So assuming that the initial C to Rust translation doesn't produce 100% safe code (I'm not aware of any current tools that do this) you have this middle state where you can no longer compile with Fil-C but have lots of unsafe Rust code. So maybe there is a use case for Fil-Rust where you compile your Rust program so that even unsafe blocks are in fact safe. This could be used until you complete the port.",
-    "parent": 45787999,
-    "depth": 2
-  },
-  {
-    "id": 45790581,
-    "by": "jrpelkonen",
-    "timeISO": "2025-11-02T14:29:09.000Z",
-    "textPlain": "Fil-C is an innovative approach and a great technical achievement. However, I wouldn't suggest that it is an universal solution without caveats. For instance, the performance penalty of up to 4x is not acceptable in a lot of cases.Also, the c2rust output is rough but not hopeless: There are real world success stories of rust projects that were bootstrapped via c2rust, e.g. https://tweedegolf.nl/en/blog/151/translating-bzip2-with-c2r...",
     "parent": 45787999,
     "depth": 2
   },
@@ -141,6 +141,14 @@
     "timeISO": "2025-11-02T09:27:00.000Z",
     "textPlain": "Tried Claude Code with explicit instructions to create idiomatic code and avoid unsafe statements?",
     "parent": 45787999,
+    "depth": 2
+  },
+  {
+    "id": 45790196,
+    "by": "cue_the_strings",
+    "timeISO": "2025-11-02T13:28:43.000Z",
+    "textPlain": "I agree.But on the other hand, let's not kid ourselves, array out of bounds, use after free, resource leaks and bad type system, all of this isn't even close to an exhaustive list of C downsides. Beyond its direct limitations, C inspires an approach that is vastly inferior even if you follow all the best practices. Even compared to (modern) C++ it's much worse. I say this and I kind of like C.If the approaches described in the article save us 30% of the effort of translating C codebases to Rust, it's still worth trying; we're unfortunately not very close to complete automation, but that's something worthy of pursuit.",
+    "parent": 45789696,
     "depth": 2
   }
 ]
