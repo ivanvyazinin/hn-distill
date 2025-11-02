@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45786644,
-    "by": "rpcope1",
-    "timeISO": "2025-11-01T23:57:30.000Z",
-    "textPlain": "Do these guys really not understand that WAL is still single writer multi reader? You could do concurrent (but not parallel) write DML in both the normal and WAL journaling models. WAL alleviates read transactions being blocked by writers but you still have to lock it down to a single writer. It would be nice if SQLite3 had full blown MVCC, but it still works if you understand it.",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
     "id": 45782315,
     "by": "ricardobeat",
     "timeISO": "2025-11-01T15:17:11.000Z",
     "textPlain": "Articles like this leave me with an uneasy feeling that the “solutions” are just blind workarounds - more debugging/research should be able to expose exactly what the problem is, now that would be something worth sharing.",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45786644,
+    "by": "rpcope1",
+    "timeISO": "2025-11-01T23:57:30.000Z",
+    "textPlain": "Do these guys really not understand that WAL is still single writer multi reader? You could do concurrent (but not parallel) write DML in both the normal and WAL journaling models. WAL alleviates read transactions being blocked by writers but you still have to lock it down to a single writer. It would be nice if SQLite3 had full blown MVCC, but it still works if you understand it.",
     "parent": 45781298,
     "depth": 1
   },
@@ -152,14 +152,6 @@
     "depth": 2
   },
   {
-    "id": 45785309,
-    "by": "didip",
-    "timeISO": "2025-11-01T21:01:36.000Z",
-    "textPlain": "This is fascinating. What would be the solution for this? You can’t ask users to defrag.",
-    "parent": 45784808,
-    "depth": 2
-  },
-  {
     "id": 45784954,
     "by": "Multicomp",
     "timeISO": "2025-11-01T20:16:14.000Z",
@@ -168,11 +160,11 @@
     "depth": 2
   },
   {
-    "id": 45787431,
-    "by": "liuliu",
-    "timeISO": "2025-11-02T02:33:36.000Z",
-    "textPlain": "Note that busy_timeout is not applicable to SQLite in this case (the SQLITE_BUSY issued immediately, no wait in this case).Also this is because WAL mode (and I believe only for WAL mode, since there is really no concurrent reads in the other mode).The reason is because pages in WAL mode appended to a single log file. Hence, if you read something inside a BEGIN transaction, later wants to mutate something else, there could be another page already appended and potentially interfere with the strict serializable guarantee for WAL mode. Hence, SQLite has to fail at the point of lock upgrade.Immediate mode solves this problem because at BEGIN time (or more correctly, at the time of first read in that transaction), a write lock is acquired hence no page can be appended between read -> write, unlike in the deferred mode.",
-    "parent": 45781519,
+    "id": 45785309,
+    "by": "didip",
+    "timeISO": "2025-11-01T21:01:36.000Z",
+    "textPlain": "This is fascinating. What would be the solution for this? You can’t ask users to defrag.",
+    "parent": 45784808,
     "depth": 2
   },
   {
@@ -188,6 +180,14 @@
     "by": "summarity",
     "timeISO": "2025-11-01T13:50:19.000Z",
     "textPlain": "I've always tried to avoid situations that could lead to SQLITE_BUSY. SQLITE_BUSY is an architecture smell. For standard SQLite in WAL, I usually structure an app with a read \"connection\" pool, and a single-entry write connection pool. Making the application aware of who _actually_ holds the write lock gives you the ability to proactively design access patterns, not try to react in the moment, and to get observability into lock contention, etc.",
+    "parent": 45781519,
+    "depth": 2
+  },
+  {
+    "id": 45787431,
+    "by": "liuliu",
+    "timeISO": "2025-11-02T02:33:36.000Z",
+    "textPlain": "Note that busy_timeout is not applicable to SQLite in this case (the SQLITE_BUSY issued immediately, no wait in this case).Also this is because WAL mode (and I believe only for WAL mode, since there is really no concurrent reads in the other mode).The reason is because pages in WAL mode appended to a single log file. Hence, if you read something inside a BEGIN transaction, later wants to mutate something else, there could be another page already appended and potentially interfere with the strict serializable guarantee for WAL mode. Hence, SQLite has to fail at the point of lock upgrade.Immediate mode solves this problem because at BEGIN time (or more correctly, at the time of first read in that transaction), a write lock is acquired hence no page can be appended between read -> write, unlike in the deferred mode.",
     "parent": 45781519,
     "depth": 2
   },
@@ -296,18 +296,18 @@
     "depth": 2
   },
   {
-    "id": 45787275,
-    "by": "zeroq",
-    "timeISO": "2025-11-02T02:03:35.000Z",
-    "textPlain": "Sqlite has so many small benefits for tiny projects it can't be easily replaced.It's like saying \"oh, you want to visit Austrian country side next month and you're asking for advice for best tent? How about you build a cabin instead?\".",
-    "parent": 45782293,
-    "depth": 2
-  },
-  {
     "id": 45784757,
     "by": "petters",
     "timeISO": "2025-11-01T19:53:30.000Z",
     "textPlain": "Jellyfin is mostly for a single household, right? Sqlite should be much more than sufficient for Jellyfin (if used correctly). Unfortunately, reading this article you get the impression that they are not using it optimally",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45787275,
+    "by": "zeroq",
+    "timeISO": "2025-11-02T02:03:35.000Z",
+    "textPlain": "Sqlite has so many small benefits for tiny projects it can't be easily replaced.It's like saying \"oh, you want to visit Austrian country side next month and you're asking for advice for best tent? How about you build a cabin instead?\".",
     "parent": 45782293,
     "depth": 2
   },
@@ -320,18 +320,18 @@
     "depth": 2
   },
   {
-    "id": 45784918,
-    "by": "o11c",
-    "timeISO": "2025-11-01T20:11:04.000Z",
-    "textPlain": "Even with postgres, you don't have to use the system instance; there's nothing stopping you from running the server as a child process.You probably need to support this for your testsuite anyway.",
-    "parent": 45782293,
-    "depth": 2
-  },
-  {
     "id": 45783524,
     "by": "amaccuish",
     "timeISO": "2025-11-01T17:32:20.000Z",
     "textPlain": "Their whole recent rewrite of the DB code (to Entity Framework) is to allow the user choice of DB in future.",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
+    "id": 45784918,
+    "by": "o11c",
+    "timeISO": "2025-11-01T20:11:04.000Z",
+    "textPlain": "Even with postgres, you don't have to use the system instance; there's nothing stopping you from running the server as a child process.You probably need to support this for your testsuite anyway.",
     "parent": 45782293,
     "depth": 2
   },
