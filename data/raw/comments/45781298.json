@@ -168,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45787431,
+    "by": "liuliu",
+    "timeISO": "2025-11-02T02:33:36.000Z",
+    "textPlain": "Note that busy_timeout is not applicable to SQLite in this case (the SQLITE_BUSY issued immediately, no wait in this case).Also this is because WAL mode (and I believe only for WAL mode, since there is really no concurrent reads in the other mode).The reason is because pages in WAL mode appended to a single log file. Hence, if you read something inside a BEGIN transaction, later wants to mutate something else, there could be another page already appended and potentially interfere with the strict serializable guarantee for WAL mode. Hence, SQLite has to fail at the point of lock upgrade.Immediate mode solves this problem because at BEGIN time (or more correctly, at the time of first read in that transaction), a write lock is acquired hence no page can be appended between read -> write, unlike in the deferred mode.",
+    "parent": 45781519,
+    "depth": 2
+  },
+  {
     "id": 45782026,
     "by": "simonw",
     "timeISO": "2025-11-01T14:47:43.000Z",
@@ -288,6 +296,14 @@
     "depth": 2
   },
   {
+    "id": 45787275,
+    "by": "zeroq",
+    "timeISO": "2025-11-02T02:03:35.000Z",
+    "textPlain": "Sqlite has so many small benefits for tiny projects it can't be easily replaced.It's like saying \"oh, you want to visit Austrian country side next month and you're asking for advice for best tent? How about you build a cabin instead?\".",
+    "parent": 45782293,
+    "depth": 2
+  },
+  {
     "id": 45784757,
     "by": "petters",
     "timeISO": "2025-11-01T19:53:30.000Z",
@@ -356,22 +372,6 @@
     "by": "zie",
     "timeISO": "2025-11-01T15:13:43.000Z",
     "textPlain": "Technically SQLite can only have 1 writer at any given moment, but it can appear like it works across multiple writers and let it serialize the calls for you.By default SQLite will not do what you want out of the box. You have to turn on some feature flags(PRAGMA) to get it to behave for you. You need WAL mode, etc read:* https://kerkour.com/sqlite-for-servers\n * https://zeroclarkthirty.com/2024-10-19-sqlite-database-is-lo...My larger question is why multiprocessing? this looks like an IO heavy workload, not CPU bound, so python asyncio or python threads would probably do you better.multiprocessing is when your resource hog is CPU(probably 1 python process per CPU), not IO bound.",
-    "parent": 45781964,
-    "depth": 2
-  },
-  {
-    "id": 45782358,
-    "by": "sethev",
-    "timeISO": "2025-11-01T15:22:09.000Z",
-    "textPlain": "Have you tried it?What you're describing sounds like it would work fine to me. The blog post  is misleading imho - it implies that SQLite doesn't handle concurrency at all. In reality, you can perform a bunch of writes in parallel and SQLite will handle running them one after the other internally. This works across applications and processes, you just need to use SQLite to interact with the database. The blog post is also misleading when it implies that the application has to manage access to the database file in some way.Yes, it's correct that only one of those writes will execute at a time but it's not like you have to account for that in your code, especially in a batch-style process like you're describing. In your Python code, you'll just update a row and it will look like that happens concurrently with other updates.I'll bet that your call to ChatGPT will take far longer than updating the row, even accounting for time when the write is waiting for its turn in SQLite.Use WAL-mode for the best performance (and to reduce SQLITE_BUSY errors).",
-    "parent": 45781964,
-    "depth": 2
-  },
-  {
-    "id": 45781983,
-    "by": "mickeyp",
-    "timeISO": "2025-11-01T14:42:38.000Z",
-    "textPlain": "Edit: disregard. I read it as he'd done it and had contention problems.You can't. You have a single writer - it's one of the many reasons sqlite is terrible for serious work.You'll need a multiprocessing Queue and a writer that picks off sentences one by one and commits it.",
     "parent": 45781964,
     "depth": 2
   },
