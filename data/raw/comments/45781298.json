@@ -1,17 +1,17 @@
 [
   {
-    "id": 45784808,
-    "by": "EionRobb",
-    "timeISO": "2025-11-01T19:57:20.000Z",
-    "textPlain": "One of the biggest contributors I've had in the past for SQLite blocking was disk fragmentation.We had some old Android tablets using our app 8 hours a day for 3-4 years. They'd complain if locking errors and slowness but every time they'd copy their data to send to us, we couldn't replicate, even on the same hardware. It wasn't until we bought one user a new device and got them to send us the old one that we could check it out. We thought maybe the ssd had worn out over the few years of continual use but installing a dev copy of our app was super fast. In the end what did work was to \"defrag\" the db file by copying it to a new location, deleting the original, then moving it back to the same name. Boom, no more \"unable to open database\" errors, no more slow downs.I tried this on Jellyfin dbs a few months ago after running it for years and then suddenly running into performance issues, it made a big difference there too.",
-    "parent": 45781298,
-    "depth": 1
-  },
-  {
     "id": 45781519,
     "by": "asa400",
     "timeISO": "2025-11-01T13:32:31.000Z",
     "textPlain": "In SQLite, transactions by default start in “deferred” mode. This means they do not take a write lock until they attempt to perform a write.You get SQLITE_BUSY when transaction #1 starts in read mode, transaction #2 starts in write mode, and then transaction #1 attempts to upgrade from read to write mode while transaction #2 still holds the write lock.The fix is to set a busy_timeout and to begin any transaction that does a write (any write, even if it is not the first operation in the transaction) in “immediate” mode rather than “deferred” mode.https://zeroclarkthirty.com/2024-10-19-sqlite-database-is-lo...",
+    "parent": 45781298,
+    "depth": 1
+  },
+  {
+    "id": 45784808,
+    "by": "EionRobb",
+    "timeISO": "2025-11-01T19:57:20.000Z",
+    "textPlain": "One of the biggest contributors I've had in the past for SQLite blocking was disk fragmentation.We had some old Android tablets using our app 8 hours a day for 3-4 years. They'd complain if locking errors and slowness but every time they'd copy their data to send to us, we couldn't replicate, even on the same hardware. It wasn't until we bought one user a new device and got them to send us the old one that we could check it out. We thought maybe the ssd had worn out over the few years of continual use but installing a dev copy of our app was super fast. In the end what did work was to \"defrag\" the db file by copying it to a new location, deleting the original, then moving it back to the same name. Boom, no more \"unable to open database\" errors, no more slow downs.I tried this on Jellyfin dbs a few months ago after running it for years and then suddenly running into performance issues, it made a big difference there too.",
     "parent": 45781298,
     "depth": 1
   },
@@ -144,38 +144,6 @@
     "depth": 1
   },
   {
-    "id": 45787976,
-    "by": "simscitizen",
-    "timeISO": "2025-11-02T05:12:06.000Z",
-    "textPlain": "Copying the file likely forces the creation of a new one with no or lower filesystem fragmentation (e.g. a 1MB file probably gets assigned to 1MB of consecutive FS blocks). Then those FS blocks likely get assigned to flash dies in a way that makes sense (i.e. the FS blocks are evenly distributed across flash dies). This can improve I/O perf by some constant factor. See https://www.usenix.org/system/files/fast24-jun.pdf for instance for more explanation.I would say that the much more common degradation is caused by write amplification due to a nearly full flash drive (or a flash drive that appears nearly full to the FTL because the system doesn't implement some TRIM-like mechanism to tell the FTL about free blocks). This generally leads to systemwide slowdown though rather than slowdown accessing just one particular file.This was especially prevalent on some older Android devices which didn't bother to implement TRIM or an equivalent feature (which even affected the Google devices, like the Nexus 7).",
-    "parent": 45784808,
-    "depth": 2
-  },
-  {
-    "id": 45786705,
-    "by": "izacus",
-    "timeISO": "2025-11-02T00:06:27.000Z",
-    "textPlain": "That's much more likely flash degradation than actual fragmentation. Did you use cheap tablets with eMMC storage?",
-    "parent": 45784808,
-    "depth": 2
-  },
-  {
-    "id": 45784954,
-    "by": "Multicomp",
-    "timeISO": "2025-11-01T20:16:14.000Z",
-    "textPlain": "Would the SQLite vacuum function help with that?",
-    "parent": 45784808,
-    "depth": 2
-  },
-  {
-    "id": 45785309,
-    "by": "didip",
-    "timeISO": "2025-11-01T21:01:36.000Z",
-    "textPlain": "This is fascinating. What would be the solution for this? You can’t ask users to defrag.",
-    "parent": 45784808,
-    "depth": 2
-  },
-  {
     "id": 45782026,
     "by": "simonw",
     "timeISO": "2025-11-01T14:47:43.000Z",
@@ -192,18 +160,18 @@
     "depth": 2
   },
   {
-    "id": 45787431,
-    "by": "liuliu",
-    "timeISO": "2025-11-02T02:33:36.000Z",
-    "textPlain": "Note that busy_timeout is not applicable to SQLite in this case (the SQLITE_BUSY issued immediately, no wait in this case).Also this is because WAL mode (and I believe only for WAL mode, since there is really no concurrent reads in the other mode).The reason is because pages in WAL mode appended to a single log file. Hence, if you read something inside a BEGIN transaction, later wants to mutate something else, there could be another page already appended and potentially interfere with the strict serializable guarantee for WAL mode. Hence, SQLite has to fail at the point of lock upgrade.Immediate mode solves this problem because at BEGIN time (or more correctly, at the time of first read in that transaction), a write lock is acquired hence no page can be appended between read -> write, unlike in the deferred mode.",
-    "parent": 45781519,
-    "depth": 2
-  },
-  {
     "id": 45781634,
     "by": "mickeyp",
     "timeISO": "2025-11-01T13:49:53.000Z",
     "textPlain": "Indeed. Everyone who uses sqlite will get burnt by this one day and spend a lot of time chasing down errant write-upgraded transactions that cling on for a little bit longer than intended.",
+    "parent": 45781519,
+    "depth": 2
+  },
+  {
+    "id": 45787431,
+    "by": "liuliu",
+    "timeISO": "2025-11-02T02:33:36.000Z",
+    "textPlain": "Note that busy_timeout is not applicable to SQLite in this case (the SQLITE_BUSY issued immediately, no wait in this case).Also this is because WAL mode (and I believe only for WAL mode, since there is really no concurrent reads in the other mode).The reason is because pages in WAL mode appended to a single log file. Hence, if you read something inside a BEGIN transaction, later wants to mutate something else, there could be another page already appended and potentially interfere with the strict serializable guarantee for WAL mode. Hence, SQLite has to fail at the point of lock upgrade.Immediate mode solves this problem because at BEGIN time (or more correctly, at the time of first read in that transaction), a write lock is acquired hence no page can be appended between read -> write, unlike in the deferred mode.",
     "parent": 45781519,
     "depth": 2
   },
@@ -240,6 +208,46 @@
     "depth": 2
   },
   {
+    "id": 45788856,
+    "by": "ErroneousBosh",
+    "timeISO": "2025-11-02T08:56:05.000Z",
+    "textPlain": "> One of the biggest contributors I've had in the past for SQLite blocking was disk fragmentation.Is that even still a thing? I thought modern filesystems like ext4 were supposed to be largely immune to that.",
+    "parent": 45784808,
+    "depth": 2
+  },
+  {
+    "id": 45787976,
+    "by": "simscitizen",
+    "timeISO": "2025-11-02T05:12:06.000Z",
+    "textPlain": "Copying the file likely forces the creation of a new one with no or lower filesystem fragmentation (e.g. a 1MB file probably gets assigned to 1MB of consecutive FS blocks). Then those FS blocks likely get assigned to flash dies in a way that makes sense (i.e. the FS blocks are evenly distributed across flash dies). This can improve I/O perf by some constant factor. See https://www.usenix.org/system/files/fast24-jun.pdf for instance for more explanation.I would say that the much more common degradation is caused by write amplification due to a nearly full flash drive (or a flash drive that appears nearly full to the FTL because the system doesn't implement some TRIM-like mechanism to tell the FTL about free blocks). This generally leads to systemwide slowdown though rather than slowdown accessing just one particular file.This was especially prevalent on some older Android devices which didn't bother to implement TRIM or an equivalent feature (which even affected the Google devices, like the Nexus 7).",
+    "parent": 45784808,
+    "depth": 2
+  },
+  {
+    "id": 45786705,
+    "by": "izacus",
+    "timeISO": "2025-11-02T00:06:27.000Z",
+    "textPlain": "That's much more likely flash degradation than actual fragmentation. Did you use cheap tablets with eMMC storage?",
+    "parent": 45784808,
+    "depth": 2
+  },
+  {
+    "id": 45784954,
+    "by": "Multicomp",
+    "timeISO": "2025-11-01T20:16:14.000Z",
+    "textPlain": "Would the SQLite vacuum function help with that?",
+    "parent": 45784808,
+    "depth": 2
+  },
+  {
+    "id": 45785309,
+    "by": "didip",
+    "timeISO": "2025-11-01T21:01:36.000Z",
+    "textPlain": "This is fascinating. What would be the solution for this? You can’t ask users to defrag.",
+    "parent": 45784808,
+    "depth": 2
+  },
+  {
     "id": 45784071,
     "by": "Sammi",
     "timeISO": "2025-11-01T18:32:00.000Z",
@@ -264,11 +272,27 @@
     "depth": 2
   },
   {
+    "id": 45788878,
+    "by": "andersmurphy",
+    "timeISO": "2025-11-02T09:00:31.000Z",
+    "textPlain": "Thing is if you design your app to have a single writer you can probably get higher throughput than multiple writers in concurrency mode.",
+    "parent": 45781682,
+    "depth": 2
+  },
+  {
     "id": 45784731,
     "by": "kccqzy",
     "timeISO": "2025-11-01T19:50:27.000Z",
     "textPlain": "Articles like this give me the feeling that the author did a little bit of research and shared a suboptimal solution, and was hoping that experts on HN would present better solutions. Wasn't there a saying about how the best way to get correct answers is to post not just the question but the wrong answers to it?",
     "parent": 45782315,
+    "depth": 2
+  },
+  {
+    "id": 45788886,
+    "by": "andersmurphy",
+    "timeISO": "2025-11-02T09:03:17.000Z",
+    "textPlain": "Sqlite is fine you need to read the extensive documentation though to get the most out of it. It also has terrible defaults.I think the author od this article missed sqlite_busy.Once you do have it set up correctly, are handling a single writer at the application level and have litestream set up your off to the races assuming your app can scale on a single box (it most likely can).",
+    "parent": 45782293,
     "depth": 2
   },
   {
@@ -336,14 +360,6 @@
     "depth": 2
   },
   {
-    "id": 45782930,
-    "by": "throwaway894345",
-    "timeISO": "2025-11-01T16:24:42.000Z",
-    "textPlain": "As a user of Jellyfin, I’m very sad that it doesn’t just use Postgres. I basically have to run an NFS system just for Jellyfin so that its data can be available to it no matter which node it gets scheduled on and also that there are never multiple instances running at the same time, even during deployments (e.g., I need to take care that deployments completely stop the first Jellyfin instance before starting the subsequent instance). There are so many unnecessary single points of failure, and Postgres would make a pretty big one go away (never mind addressing the parallelism problems that plague the developers).Jellyfin is by far the least reliable application I run, but it also seems to be best in class.",
-    "parent": 45782293,
-    "depth": 2
-  },
-  {
     "id": 45782439,
     "by": "eduction",
     "timeISO": "2025-11-01T15:30:30.000Z",
@@ -381,14 +397,6 @@
     "timeISO": "2025-11-01T22:58:57.000Z",
     "textPlain": "Jellyfin have just gone through a massive refactor and pulled all their data access code into EFCore. This opens the path for supporting different RBDMSs which  think is next on their list.",
     "parent": 45784778,
-    "depth": 2
-  },
-  {
-    "id": 45782868,
-    "by": "yellow_lead",
-    "timeISO": "2025-11-01T16:17:15.000Z",
-    "textPlain": "C# devs*",
-    "parent": 45782030,
     "depth": 2
   }
 ]
