@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45791866,
-    "by": "t-vi",
-    "timeISO": "2025-11-02T17:23:11.000Z",
-    "textPlain": "It seems to me that in 2016 people did (have to) play a lot more tricks with the backpropagation than today. Back then it was common to meddle with gradients in between the gradient propagation.For example, Alex Graves's (great! with attention) 2013 paper \"Sequence Generation with Recurrent Neural Networks\" has this line:One difficulty when training LSTM with the full gradient is that the derivatives sometimes become excessively large, leading to numerical problems. To prevent this, all the experiments in this paper clipped the derivative of the loss with respect to the network inputs to the\nLSTM layers (before the sigmoid and tanh functions are applied) to lie within\na predefined range.with this footnote:In fact this technique was used in all my previous papers on LSTM, and in my publicly available LSTM code, but I forgot to mention it anywhere—mea culpa.That said, backpropagation seems important enough to me that I once did a specialized videocourse just about PyTorch (1.x) autograd.",
-    "parent": 45787993,
-    "depth": 1
-  },
-  {
     "id": 45788473,
     "by": "drivebyhooting",
     "timeISO": "2025-11-02T07:21:55.000Z",
     "textPlain": "I have a naive question about backprop and optimizers.I understand how SGD is just taking a step proportional to the gradient and how backprop computes the partial derivative of the loss function with respect to each model weight.But with more advanced optimizers the gradient is not really used directly. It gets per weight normalization, fudged with momentum, clipped, etc.So really, how important is computing the exact gradient using calculus, vs just knowing the general direction to step? Would that be cheaper to calculate than full derivatives?",
+    "parent": 45787993,
+    "depth": 1
+  },
+  {
+    "id": 45791866,
+    "by": "t-vi",
+    "timeISO": "2025-11-02T17:23:11.000Z",
+    "textPlain": "It seems to me that in 2016 people did (have to) play a lot more tricks with the backpropagation than today. Back then it was common to meddle with gradients in between the gradient propagation.For example, Alex Graves's (great! with attention) 2013 paper \"Sequence Generation with Recurrent Neural Networks\" has this line:One difficulty when training LSTM with the full gradient is that the derivatives sometimes become excessively large, leading to numerical problems. To prevent this, all the experiments in this paper clipped the derivative of the loss with respect to the network inputs to the\nLSTM layers (before the sigmoid and tanh functions are applied) to lie within\na predefined range.with this footnote:In fact this technique was used in all my previous papers on LSTM, and in my publicly available LSTM code, but I forgot to mention it anywhere—mea culpa.That said, backpropagation seems important enough to me that I once did a specialized videocourse just about PyTorch (1.x) autograd.",
     "parent": 45787993,
     "depth": 1
   },
@@ -56,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45793254,
-    "by": "raindear",
-    "timeISO": "2025-11-02T20:42:14.000Z",
-    "textPlain": "Are dead ReLUs still a pronlem today? Why not?",
-    "parent": 45787993,
-    "depth": 1
-  },
-  {
     "id": 45788699,
     "by": "jamesblonde",
     "timeISO": "2025-11-02T08:20:19.000Z",
     "textPlain": "I have to be contrarian here. The students were right. You didn't need to learn to implement backprop in NumPy. Any leakiness in BackProp is addressed by researchers who introduce new optimizers. As a developer, you just pick the best one and find good hparams for it.",
+    "parent": 45787993,
+    "depth": 1
+  },
+  {
+    "id": 45793254,
+    "by": "raindear",
+    "timeISO": "2025-11-02T20:42:14.000Z",
+    "textPlain": "Are dead ReLUs still a pronlem today? Why not?",
     "parent": 45787993,
     "depth": 1
   },
@@ -208,14 +208,6 @@
     "depth": 2
   },
   {
-    "id": 45792241,
-    "by": "HarHarVeryFunny",
-    "timeISO": "2025-11-02T18:17:26.000Z",
-    "textPlain": "> It seems to me that in 2016 people did (have to) play a lot more tricks with the backpropagation than todayPerhaps, but maybe because there was more experimentation with different neural net architectures and nodes/layers back then?Nowadays the training problems are better understood, clipping is supported by the frameworks, and it's easy to find training examples online with clipping enabled.The problem itself didn't actually go away. ReLU (or GELU) is still the default activation for most networks, and training an LLM is apparently something of a black art. Hugging Face just released their \"Smol Training Playbook: a distillation of hard earned knowledge to share exactly what it takes to train SOTA LLMs\", so evidentially even in 2025 training isn't exactly a turn-key affair.",
-    "parent": 45791866,
-    "depth": 2
-  },
-  {
     "id": 45788604,
     "by": "blackbear_",
     "timeISO": "2025-11-02T07:51:40.000Z",
@@ -232,18 +224,18 @@
     "depth": 2
   },
   {
-    "id": 45792998,
-    "by": "ainch",
-    "timeISO": "2025-11-02T20:11:29.000Z",
-    "textPlain": "That's an interesting idea, it sounds similar to the principles behind low precision models like BitNet (where each weight is +-1 or 0).That said, I know Deepseek use fp32 for their gradient updates even though they use fp8 for inference. And a recent paper shows that RL+LLM training is shakier at bf16 than fp16, which would both imply that numerical precision in gradients still matters.",
-    "parent": 45788473,
-    "depth": 2
-  },
-  {
     "id": 45789485,
     "by": "GistNoesis",
     "timeISO": "2025-11-02T11:15:40.000Z",
     "textPlain": ">computing the exact gradient using calculusFirst of all, gradient computation with back-prop (aka reverse-mode automatic differentiation) is exact to numerical precision (except for edge-cases that are not relevant here) so it's not about the way of computing the gradient.What Andrej is trying to tell is that when you create a model, you have freedom of design in the shape of the loss function. And that in this design what matters for learning is not so much the value of the loss function, but its slopes, and curvature (peaks and valleys).The problematic case being flat valleys, surrounded by straight cliffs, (picture the grand canyon).Advanced optimizers in deep learning like \"Adam\", are still first-order, with diagonal approximation of the curvature, which mean the optimizer in addition to the gradient it has an estimate of the scale sensitivity of each parameter independently. So the cheap thing it can reasonably do is modulate the gradient with this scale.The length of the gradient vector, being often problematic, what optimizers would usually do was something called \"line-search\", which is determine the optimal step-size along this direction. But the cost of doing that is usually between 10-100 evaluation of the cost function which is often not worth the effort in the noisy stochastic context, compared to just taking a smaller step multiple times.Higher-order optimizers necessitate that the loss function is twice differentiable, so non-linearities like relu, which are cheap to calculate can't be used.Lower-order global optimizers don't even necessitate the gradient, which is useful when the energy-function landscape has lots of local minima, (picture an egg-box).",
+    "parent": 45788473,
+    "depth": 2
+  },
+  {
+    "id": 45792998,
+    "by": "ainch",
+    "timeISO": "2025-11-02T20:11:29.000Z",
+    "textPlain": "That's an interesting idea, it sounds similar to the principles behind low precision models like BitNet (where each weight is +-1 or 0).That said, I know Deepseek use fp32 for their gradient updates even though they use fp8 for inference. And a recent paper shows that RL+LLM training is shakier at bf16 than fp16, which would both imply that numerical precision in gradients still matters.",
     "parent": 45788473,
     "depth": 2
   },
@@ -256,18 +248,18 @@
     "depth": 2
   },
   {
-    "id": 45792574,
-    "by": "HarHarVeryFunny",
-    "timeISO": "2025-11-02T19:04:35.000Z",
-    "textPlain": "You don't need exact gradients, since gradient descent is self-correcting (which can make it hard to find gradient calculation bugs!). One approach using inexact gradients is to use predicted \"synthetic gradients\" which avoids needing to wait for backward pass for weight updates.",
-    "parent": 45788473,
-    "depth": 2
-  },
-  {
     "id": 45788559,
     "by": "danielmarkbruce",
     "timeISO": "2025-11-02T07:40:32.000Z",
     "textPlain": "Calculus isn't that complicated, at least not what's done in backprop.How do you propose calculating the \"general direction\" ?And, an example \"advanced optimizer\" - AdamW - absolutely uses gradients. It just does more, but not less.",
+    "parent": 45788473,
+    "depth": 2
+  },
+  {
+    "id": 45792574,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-11-02T19:04:35.000Z",
+    "textPlain": "You don't need exact gradients, since gradient descent is self-correcting (which can make it hard to find gradient calculation bugs!). One approach using inexact gradients is to use predicted \"synthetic gradients\" which avoids needing to wait for backward pass for weight updates.",
     "parent": 45788473,
     "depth": 2
   },
@@ -285,6 +277,14 @@
     "timeISO": "2025-11-02T10:21:00.000Z",
     "textPlain": "All first order methods use the gradient or Jacobian of a function. Calculating the first order derivatives is really cheap.Non-stochastic gradient descent has to optimize over the full dataset. This doesn't matter for non-machine learning applications, because often  there is no such thing as a dataset in the first place and the objective has a small fixed size. The gradient here is exact.With stochastic gradient descent you're turning gradient descent into an online algorithm, where you process a finite subset of the dataset at a time. Obviously the gradient is no longer exact, you still have to calculate it though.Seems like \"exactness\" is not that useful of a property for optimization. Also, I can't stress it enough, but calculating first order derivatives is so cheap there is no need to bother. It's roughly 2x the cost of evaluating the function in the first place.It's second order derivatives that you want to approximate using first order derivatives. That's how BFGS and Gauss-Newton work.",
     "parent": 45788473,
+    "depth": 2
+  },
+  {
+    "id": 45792241,
+    "by": "HarHarVeryFunny",
+    "timeISO": "2025-11-02T18:17:26.000Z",
+    "textPlain": "> It seems to me that in 2016 people did (have to) play a lot more tricks with the backpropagation than todayPerhaps, but maybe because there was more experimentation with different neural net architectures and nodes/layers back then?Nowadays the training problems are better understood, clipping is supported by the frameworks, and it's easy to find training examples online with clipping enabled.The problem itself didn't actually go away. ReLU (or GELU) is still the default activation for most networks, and training an LLM is apparently something of a black art. Hugging Face just released their \"Smol Training Playbook: a distillation of hard earned knowledge to share exactly what it takes to train SOTA LLMs\", so evidentially even in 2025 training isn't exactly a turn-key affair.",
+    "parent": 45791866,
     "depth": 2
   },
   {
