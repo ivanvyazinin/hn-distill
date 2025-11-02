@@ -1,9 +1,41 @@
 [
   {
-    "id": 45789473,
-    "by": "SurceBeats",
-    "timeISO": "2025-11-02T11:12:46.000Z",
-    "textPlain": "Fascinating deep dive into OverlayFS CoW behavior. The 11GB btmp file getting copied 271 times is a perfect storm scenario. Did they consider mounting /var/log outside the image layers? Seems like that would prevent any log file from causing this amplification. Also interested in image-manip... Does it handle metadata differently than \ndocker export/import?",
+    "id": 45789695,
+    "by": "perlgeek",
+    "timeISO": "2025-11-02T12:02:51.000Z",
+    "textPlain": "The real lesson they should learn is to not rely on running images and then using \"docker commit\" to turn it into an image, but instead to use proper image building tools.If you absolutely have to do it that way, be very deliberate about what you actually need. Don't run an SSH daemon, don't run cron, don't an SMTP daemon, don't run the suite of daemons that run on a typical Linux server. Only run precisely what you need to create the files that you need for a \"docker commit\".Each service that you run can potentially generate log files, lock files, temp files, named pipes, unix sockets and other things you don't want in your image.Taking a snapshot from a working, regular VM and using that as a docker image is one of the worst ways to built one.",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789886,
+    "by": "cebert",
+    "timeISO": "2025-11-02T12:40:13.000Z",
+    "textPlain": "I’m shocked that a company would share how amazingly bad their layer management had become. This may be a great internal blog, but I wouldn’t share it publicly.",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789581,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-02T11:36:34.000Z",
+    "textPlain": "Interesting, although something about the language makes me think it was written by a LLM; I like the ending though:\"The key insight is to treat container images not as opaque black boxes, but as structured, manipulable archives. Deeply understanding the underlying technology, like the OCI image specification, allows for advanced optimization and troubleshooting that goes far beyond standard tooling. This knowledge is essential for preventing issues like Kubernetes disk space exhaustion before they start.\"",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789851,
+    "by": "zatkin",
+    "timeISO": "2025-11-02T12:34:23.000Z",
+    "textPlain": "272 layers in a single image seems really unusual, is that just due to my lack of experience with containers? I've never seen an image with more than maybe a few dozen in my career...",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789838,
+    "by": "bmitch3020",
+    "timeISO": "2025-11-02T12:31:06.000Z",
+    "textPlain": "This whole article could have been much better written as: learn to build images with a Dockerfile/ Containerfile or similar tooling, and store logs in a volume rather than the image filesystem. Everyone that builds a process around `docker commit` is simply in a race against time before they learn this lesson.",
     "parent": 45719237,
     "depth": 1
   },
@@ -16,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45789437,
-    "by": "reddozen",
-    "timeISO": "2025-11-02T11:05:24.000Z",
-    "textPlain": "Is it spooky that they said they looked inside a customer's image to fix this? A bunch of engineers just had access to their customer's intellectual property, security keys, git repos, ...",
+    "id": 45789473,
+    "by": "SurceBeats",
+    "timeISO": "2025-11-02T11:12:46.000Z",
+    "textPlain": "Fascinating deep dive into OverlayFS CoW behavior. The 11GB btmp file getting copied 271 times is a perfect storm scenario. Did they consider mounting /var/log outside the image layers? Seems like that would prevent any log file from causing this amplification. Also interested in image-manip... Does it handle metadata differently than \ndocker export/import?",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789689,
+    "by": "SJC_Hacker",
+    "timeISO": "2025-11-02T12:01:45.000Z",
+    "textPlain": "I did something on a smaller scale by ripping out large parts of Boost, which was nearly 50% of the image size",
     "parent": 45719237,
     "depth": 1
   },
@@ -28,6 +68,14 @@
     "by": "untrimmed",
     "timeISO": "2025-10-27T10:15:24.000Z",
     "textPlain": "Our platform is designed to solve a very specific workflow, and the DevBox is only the first step in that process.Our users need to connect their local VS Code, Cursor, or JetBrains IDEs to the cloud environment. The industry-standard extensions for this only speak the SSH protocol. So, to give our users the tools they love, the container must run an SSHD to act as the host.We aren't just a CDE like Coder or Codespaces. We're trying to provide a fully integrated, end-to-end application lifecycle in one place.The idea is that a developer on Sealos can:1.  Spin up their DevBox instantly.\n2.  Code and test their feature in that environment (using their local IDE).\n3.  Then, from that same platform, package their application into a production-ready, versioned image.\n4.  And finally, deploy that image directly to a production Kubernetes environment with one click.That \"release\" feature was how we let a developer \"snapshot\" their entire working environment into a deployable image without ever having to write a Dockerfile.",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789543,
+    "by": "KronisLV",
+    "timeISO": "2025-11-02T11:26:16.000Z",
+    "textPlain": "Images don't seem to be working:https://sealos.io/_next/image?url=.%2Fimages%2Fcontainerd-hi...https://sealos.io/_next/image?url=.%2Fimages%2Fbloated-conta...Either way, hope the user was communicated with or alerted to what's going on.At the same time, someone said that 800 GB container images are a problem in of themselves no matter the circumstances and they got downvoted for saying so - yet I mostly agree.Most of mine are about 50-250 MB at most and even if you need big ones with software that's GB in size, you will still be happier if you treat them as something largely immutable. I've never had odd issues with them thanks to this. If you really care about data persistence, then you can use volumes/bind mounts or if you don’t then just throw things into tmpfs.I'm not sure whether treating containers as something long lived with additional commmits/layers is a great idea, but if it works for other people, then good for them. Must be a pain to run something so foundational for your clients, though, cause you'll be exposed to most of the edge cases imaginable sooner or later.",
     "parent": 45719237,
     "depth": 1
   },
@@ -48,11 +96,43 @@
     "depth": 1
   },
   {
-    "id": 45789450,
-    "by": "trenchpilgrim",
-    "timeISO": "2025-11-02T11:07:37.000Z",
-    "textPlain": "If you are adding security keys and git repos to your final shipped image you are doing things very wrong - a container image is literally a tarball and some metadata about how to run the executables inside. Even if you need that data to build your application you should use a multi-stage build to include only the final artifacts in the image you ship.For stuff like security keys you should typically add them as build args, not as content in the image.",
-    "parent": 45789437,
+    "id": 45789437,
+    "by": "reddozen",
+    "timeISO": "2025-11-02T11:05:24.000Z",
+    "textPlain": "Is it spooky that they said they looked inside a customer's image to fix this? A bunch of engineers just had access to their customer's intellectual property, security keys, git repos, ...",
+    "parent": 45719237,
+    "depth": 1
+  },
+  {
+    "id": 45789833,
+    "by": "ndsipa_pomu",
+    "timeISO": "2025-11-02T12:30:10.000Z",
+    "textPlain": "Initially I didn't understand how they were getting the log files into the image. I had no idea that people abuse \"docker commit\" - do they know nothing about containers? If you want persistent logs, then have a separate volume for them so they can't pollute any image (plus they are readable when the image restarts etc).When I saw the HN title, I thought this was going to be something subtle like deleting package files (e.g. apt) in a separate layer, so you end up with a layer containing the files and then a subsequent layer that hides them.",
+    "parent": 45789695,
+    "depth": 2
+  },
+  {
+    "id": 45789708,
+    "by": "progbits",
+    "timeISO": "2025-11-02T12:05:01.000Z",
+    "textPlain": "In fairness the article is LLM vomit and could be two paragraphs, can't blame people for not reading it.",
+    "parent": 45789439,
+    "depth": 2
+  },
+  {
+    "id": 45789841,
+    "by": "guywhocodes",
+    "timeISO": "2025-11-02T12:32:12.000Z",
+    "textPlain": "The TLDR: \n> We tackled critical container image bloat on our Sealos platform, fixing a severe disk space exhaustion issue by shrinking an 800GB, 272-layer image to just 2.05GB.They say they made a 800GB container image, so your issue is about singular vs plural?Regardless, I don't really get why anyone would self report like this. Is next article going to be about how they don't encrypt passwords and when they accidentally dropped prod DB they could restore account from logs because it had the passwords in clear text?",
+    "parent": 45789439,
+    "depth": 2
+  },
+  {
+    "id": 45789701,
+    "by": "hug",
+    "timeISO": "2025-11-02T12:03:43.000Z",
+    "textPlain": "Is it fascinating?Do people not know that each layer comes with its own downsides?Do people just do 272 layers and think that it’s normal?This seems like people discovering that water is wet and fire is hot.",
+    "parent": 45789473,
     "depth": 2
   },
   {
@@ -61,6 +141,22 @@
     "timeISO": "2025-11-02T11:14:14.000Z",
     "textPlain": "Right? Blog posts like these makes me question competence instead of attributing it.",
     "parent": 45789391,
+    "depth": 2
+  },
+  {
+    "id": 45789514,
+    "by": "adastra22",
+    "timeISO": "2025-11-02T11:21:32.000Z",
+    "textPlain": "You didn't read the article.",
+    "parent": 45789426,
+    "depth": 2
+  },
+  {
+    "id": 45789450,
+    "by": "trenchpilgrim",
+    "timeISO": "2025-11-02T11:07:37.000Z",
+    "textPlain": "If you are adding security keys and git repos to your final shipped image you are doing things very wrong - a container image is literally a tarball and some metadata about how to run the executables inside. Even if you need that data to build your application you should use a multi-stage build to include only the final artifacts in the image you ship.For stuff like security keys you should typically add them as build --args-- secrets, not as content in the image.",
+    "parent": 45789437,
     "depth": 2
   }
 ]
