@@ -32,26 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45800454,
-    "by": "jjfoooo4",
-    "timeISO": "2025-11-03T15:58:55.000Z",
-    "textPlain": "When using vectors / embeddings models, I think there's a lot of low hanging fruit to be had with non-massive datasets - your support documentation, your product info, a lot of search use cases. For these, the interface I really want is more like a file system than a database - I want to be able to just write and update documents like a file system and have the indexes update automatically and invisibly.So basically, I'd love to have my storage provider give me a vector search API, which I guess is what Amazon S3 vectors is supposed to be (https://aws.amazon.com/s3/features/vectors/)?Curious to hear what experience people have had with this.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45804191,
-    "by": "jankovicsandras",
-    "timeISO": "2025-11-03T20:44:05.000Z",
-    "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799374,
     "by": "clickety_clack",
     "timeISO": "2025-11-03T14:32:39.000Z",
     "textPlain": "My default is basically YAGNI. You should use as few services as possible, and only add something new when there’s issues. If everything is possible in Postgres, great! If not, at least I’ll know exactly what I need from the New Thing.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800454,
+    "by": "jjfoooo4",
+    "timeISO": "2025-11-03T15:58:55.000Z",
+    "textPlain": "When using vectors / embeddings models, I think there's a lot of low hanging fruit to be had with non-massive datasets - your support documentation, your product info, a lot of search use cases. For these, the interface I really want is more like a file system than a database - I want to be able to just write and update documents like a file system and have the indexes update automatically and invisibly.So basically, I'd love to have my storage provider give me a vector search API, which I guess is what Amazon S3 vectors is supposed to be (https://aws.amazon.com/s3/features/vectors/)?Curious to hear what experience people have had with this.",
     "parent": 45798479,
     "depth": 1
   },
@@ -64,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45804188,
-    "by": "semiquaver",
-    "timeISO": "2025-11-03T20:43:56.000Z",
-    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
+    "id": 45799397,
+    "by": "jeffchuber",
+    "timeISO": "2025-11-03T14:33:58.000Z",
+    "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
     "parent": 45798479,
     "depth": 1
   },
@@ -80,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45801947,
-    "by": "antirez",
-    "timeISO": "2025-11-03T17:47:30.000Z",
-    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45801152,
     "by": "IntrepidPig",
     "timeISO": "2025-11-03T16:49:06.000Z",
@@ -96,10 +80,18 @@
     "depth": 1
   },
   {
-    "id": 45799397,
-    "by": "jeffchuber",
-    "timeISO": "2025-11-03T14:33:58.000Z",
-    "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
+    "id": 45801947,
+    "by": "antirez",
+    "timeISO": "2025-11-03T17:47:30.000Z",
+    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804191,
+    "by": "jankovicsandras",
+    "timeISO": "2025-11-03T20:44:05.000Z",
+    "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
     "parent": 45798479,
     "depth": 1
   },
@@ -116,6 +108,14 @@
     "by": "epolanski",
     "timeISO": "2025-11-03T15:19:28.000Z",
     "textPlain": "Curious if the author tried the new Redis module that brings HNSW vector search to redis.From what I've seen is fast, has excellent API, and is implemented by a brilliant engineer in the space (Antirez).But not using these things beyond local tests, I can never really hold opinions over those using these systems in production.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804188,
+    "by": "semiquaver",
+    "timeISO": "2025-11-03T20:43:56.000Z",
+    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
     "parent": 45798479,
     "depth": 1
   },
@@ -164,6 +164,14 @@
     "by": "BenGosub",
     "timeISO": "2025-11-03T14:30:42.000Z",
     "textPlain": "The limitations of PGVector are touched upon in this podcast episode.\nhttps://open.spotify.com/episode/2rvn0ZhNoNFtozxpnMIqmo?si=i...",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804648,
+    "by": "dmezzetti",
+    "timeISO": "2025-11-03T21:26:28.000Z",
+    "textPlain": "You can make it even simpler and not bother with any of this. With even something as large as 100M vectors, you can just use Torch or GGUF with compression. Even NumPy can take you a long way. Example below.https://github.com/neuml/txtai/blob/master/examples/78_Acces...",
     "parent": 45798479,
     "depth": 1
   },
@@ -222,6 +230,14 @@
     "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors \n    > can consume 10+ GB of RAM or more (depending on your vector dimensions and \n    > dataset size). On your production database. While it’s running. For potentially \n    > hours.\n\n10 GB? Oh jolly gosh! That will almost show up as a pixel or two on my metrics dashboard.Who are these people that run production Postgres clusters on tiny hardware and then complain? Has AWS marketing really confused people into believing that some EC2 \"instance size\" is an actual server?",
     "parent": 45798479,
     "depth": 1
+  },
+  {
+    "id": 45805087,
+    "by": "whakim",
+    "timeISO": "2025-11-03T22:14:52.000Z",
+    "textPlain": "Interested to hear more about your experience here. At Halcyon, we have trillions of embeddings and found Postgres to be unsuitable at several orders of magnitude less than we currently have.On the iterative scan side, how do you prevent this from becoming too computationally intensive with a restrictive pre-filter, or simply not working at all? We use Vespa, which means effectively doing a map-reduce across all of our nodes; the effective number of graph traversals to do is smaller, and the computational burden mostly involves scanning posting lists on a per-node basis. I imagine to do something similar in postgres, you'd need sharded tables, and complicated application logic to control what you're actually searching.How do you deal with re-indexing and/or denormalizing metadata for filtering? Do you simply accept that it'll take hours or days?I agree with you, however, that vector databases are not a panacea (although they do remove a huge amount of devops work, which is worth a lot!). Vespa supports filtering across parent-child relationships (like a relational database) which means we don't have to reindex a trillion things every time we want to add a new type of filter, which with a previous vector database vendor we used took us almost a week.",
+    "parent": 45799162,
+    "depth": 2
   },
   {
     "id": 45800076,
@@ -304,14 +320,6 @@
     "depth": 2
   },
   {
-    "id": 45804415,
-    "by": "auraham",
-    "timeISO": "2025-11-03T21:04:45.000Z",
-    "textPlain": "Have you tried cocoindex?[1] https://cocoindex.io/[2] https://dev.to/cocoindex/how-to-build-index-with-text-embedd...",
-    "parent": 45800454,
-    "depth": 2
-  },
-  {
     "id": 45799558,
     "by": "Fripplebubby",
     "timeISO": "2025-11-03T14:47:39.000Z",
@@ -325,6 +333,14 @@
     "timeISO": "2025-11-03T14:40:19.000Z",
     "textPlain": "Databases are hard to swap out when you realize you need a different one.",
     "parent": 45799374,
+    "depth": 2
+  },
+  {
+    "id": 45804415,
+    "by": "auraham",
+    "timeISO": "2025-11-03T21:04:45.000Z",
+    "textPlain": "Have you tried cocoindex?[1] https://cocoindex.io/[2] https://dev.to/cocoindex/how-to-build-index-with-text-embedd...",
+    "parent": 45800454,
     "depth": 2
   },
   {
@@ -381,22 +397,6 @@
     "timeISO": "2025-11-03T19:12:20.000Z",
     "textPlain": "AI + Docker has made it really easy to set up trivial demo systems and write an article about it.",
     "parent": 45801044,
-    "depth": 2
-  },
-  {
-    "id": 45804569,
-    "by": "bashtoni",
-    "timeISO": "2025-11-03T21:17:40.000Z",
-    "textPlain": "The service is still in preview, so AWS are explicitly telling people not to put it into production.From my non-production experiments with it, the main limitation is that you can only retrieve up to 30 top_k results, which means you can't use it with a re-ranker, or at least not as effectively. For many production use cases that will be a deal breaker.",
-    "parent": 45800681,
-    "depth": 2
-  },
-  {
-    "id": 45801885,
-    "by": "riku_iki",
-    "timeISO": "2025-11-03T17:43:11.000Z",
-    "textPlain": ">  do full text search. And if you put all that together, you have a complex Postgres deployment.search is also just extension? So, its a strong point: you have one self-contained server with simple installation/maintenance story.",
-    "parent": 45801267,
     "depth": 2
   }
 ]
