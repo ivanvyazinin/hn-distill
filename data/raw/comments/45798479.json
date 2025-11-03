@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45802333,
-    "by": "bob1029",
-    "timeISO": "2025-11-03T18:19:28.000Z",
-    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
+    "id": 45804191,
+    "by": "jankovicsandras",
+    "timeISO": "2025-11-03T20:44:05.000Z",
+    "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
     "parent": 45798479,
     "depth": 1
   },
@@ -60,6 +60,22 @@
     "by": "rudderdev",
     "timeISO": "2025-11-03T14:46:29.000Z",
     "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804188,
+    "by": "semiquaver",
+    "timeISO": "2025-11-03T20:43:56.000Z",
+    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45802333,
+    "by": "bob1029",
+    "timeISO": "2025-11-03T18:19:28.000Z",
+    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
     "parent": 45798479,
     "depth": 1
   },
@@ -216,6 +232,14 @@
     "depth": 2
   },
   {
+    "id": 45804121,
+    "by": "jascha_eng",
+    "timeISO": "2025-11-03T20:37:34.000Z",
+    "textPlain": "There are also approaches do doing the filtering while traversing a vector index (not just pre/post) e.g. this paper by microsoft explains an approach https://dl.acm.org/doi/10.1145/3543507.3583552 which pgvectorscale implements here: https://github.com/timescale/pgvectorscale?tab=readme-ov-fil...In theory these can be more efficient than plain pre/post filtering.",
+    "parent": 45799162,
+    "depth": 2
+  },
+  {
     "id": 45800661,
     "by": "tacoooooooo",
     "timeISO": "2025-11-03T16:15:07.000Z",
@@ -280,11 +304,11 @@
     "depth": 2
   },
   {
-    "id": 45803195,
-    "by": "mhuffman",
-    "timeISO": "2025-11-03T19:20:07.000Z",
-    "textPlain": "I like lucene and have used it for many years, but sometimes a conceptually close match is what you want. Lucene and friends are fantastic about word matching, fuzzy searches, stem searches, phonetic searches, faceting and more but have nothing for conceptually or semantically close searches (I understand that they recently added new document vector searches). Also vector searches usually always return something which is not ideal in a lot of cases. I like Reciprocal Rank Fusion myself as it gives the best of both worlds. As a fun trick I use duckdb to do RRF with 5million+ documents and get low double-digit ms response time even under load",
-    "parent": 45802333,
+    "id": 45804415,
+    "by": "auraham",
+    "timeISO": "2025-11-03T21:04:45.000Z",
+    "textPlain": "Have you tried cocoindex?[1] https://cocoindex.io/[2] https://dev.to/cocoindex/how-to-build-index-with-text-embedd...",
+    "parent": 45800454,
     "depth": 2
   },
   {
@@ -309,6 +333,22 @@
     "timeISO": "2025-11-03T15:51:49.000Z",
     "textPlain": "how are all of the mentioned issues resolved?",
     "parent": 45799547,
+    "depth": 2
+  },
+  {
+    "id": 45804215,
+    "by": "kgeist",
+    "timeISO": "2025-11-03T20:46:21.000Z",
+    "textPlain": "I'm currently building RAG for our product (using Lucene). What I've found is that embeddings alone don't help much. With hybrid search (BM25+HNSW) they gave me only like +10% boost compared to BM25 alone (on average). In my evaluation datasets, the only case where they helped tremendously was for cases like \"a user asks a question in French but the documents are all in English\", it went from 6% retrieval to 65% on some datasets.I got a significant boost (from 65% on average to over 80%) by adding a proper reranker and query rewriting (3 additional phrases to search for).I think embeddings are overrated in that blog posts often make you believe they are the end of the story. What I've found is that they should be rather treated as a lightweight filtering/screening tool to quickly find a pool of candidates as a first stage, before you do the actual stuff (apply a reranker). If BM25 already works as well as a pre-filtering tool, you don't even need embeddings (with all the indexing headaches).",
+    "parent": 45802333,
+    "depth": 2
+  },
+  {
+    "id": 45803195,
+    "by": "mhuffman",
+    "timeISO": "2025-11-03T19:20:07.000Z",
+    "textPlain": "I like lucene and have used it for many years, but sometimes a conceptually close match is what you want. Lucene and friends are fantastic about word matching, fuzzy searches, stem searches, phonetic searches, faceting and more but have nothing for conceptually or semantically close searches (I understand that they recently added new document vector searches). Also vector searches usually always return something which is not ideal in a lot of cases. I like Reciprocal Rank Fusion myself as it gives the best of both worlds. As a fun trick I use duckdb to do RRF with 5million+ documents and get low double-digit ms response time even under load",
+    "parent": 45802333,
     "depth": 2
   },
   {
@@ -344,59 +384,19 @@
     "depth": 2
   },
   {
+    "id": 45804569,
+    "by": "bashtoni",
+    "timeISO": "2025-11-03T21:17:40.000Z",
+    "textPlain": "The service is still in preview, so AWS are explicitly telling people not to put it into production.From my non-production experiments with it, the main limitation is that you can only retrieve up to 30 top_k results, which means you can't use it with a re-ranker, or at least not as effectively. For many production use cases that will be a deal breaker.",
+    "parent": 45800681,
+    "depth": 2
+  },
+  {
     "id": 45801885,
     "by": "riku_iki",
     "timeISO": "2025-11-03T17:43:11.000Z",
     "textPlain": ">  do full text search. And if you put all that together, you have a complex Postgres deployment.search is also just extension? So, its a strong point: you have one self-contained server with simple installation/maintenance story.",
     "parent": 45801267,
-    "depth": 2
-  },
-  {
-    "id": 45800808,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T16:25:09.000Z",
-    "textPlain": "i discuss that specifically!> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them. You’re essentially asking your production database to allocate multiple (possibly dozens) gigabytes of RAM for an operation that might take hours, while continuing to serve queries.> You end up with strategies like:    Write to a staging table, build the index offline, then swap it in (but now you have a window where searches miss new data)\n    Maintain two indexes and write to both (double the memory, double the update cost)\n    Build indexes on replicas and promote them\n    Accept eventual consistency (users upload documents that aren’t searchable for N minutes)\n    Provision significantly more RAM than your “working set” would suggest\n\n> None of these are “wrong” exactly. But they’re all workarounds for the fact that pgvector wasn’t really designed for high-velocity real-time ingestion.short answer--maybe not that _hard_, but it adds a lot of complexity to manage when you're trying to offer real-time search.  most vector DB solutions offer this ootb.  This post is meant to just point out the tradeoffs with pgvector (that most posts seem to skip over)",
-    "parent": 45800752,
-    "depth": 2
-  },
-  {
-    "id": 45800435,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T15:57:03.000Z",
-    "textPlain": "I mention this towards the end of the post.  it looks like a good solution, but it's not available on RDS",
-    "parent": 45800197,
-    "depth": 2
-  },
-  {
-    "id": 45799285,
-    "by": "qeternity",
-    "timeISO": "2025-11-03T14:26:11.000Z",
-    "textPlain": "> Also, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).People who say this really have not thought this through, or simply don't understand what the usecases for vector search are.But even if you had infinite context, with perfect attention, attention isn't free. Even if you had linear attention. It's much much cheaper to index your data than it is to reprocess everything. You don't go around scanning entire databases when you're just interested in row id=X",
-    "parent": 45799141,
-    "depth": 2
-  },
-  {
-    "id": 45800447,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T15:57:56.000Z",
-    "textPlain": "> Anyways, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).We're searching across millions of documents, so i doubt it",
-    "parent": 45799141,
-    "depth": 2
-  },
-  {
-    "id": 45801437,
-    "by": "rudedogg",
-    "timeISO": "2025-11-03T17:09:56.000Z",
-    "textPlain": "Sorry but LLMs aren’t good enough to hide that your comment is slop.It’s funny I can tell you’re using Claude by the phrasing as well@dang please see this and other comments by this user",
-    "parent": 45800989,
-    "depth": 2
-  },
-  {
-    "id": 45800715,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T16:19:13.000Z",
-    "textPlain": "guess it depends on your scale? for some, 10+ GB of RAM being consumed on an index build is > 25% of the DB's RAM. apply that same proportion to your setup and maybe it'll make more sense",
-    "parent": 45800317,
     "depth": 2
   }
 ]
