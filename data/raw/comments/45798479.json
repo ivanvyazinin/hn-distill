@@ -24,10 +24,26 @@
     "depth": 1
   },
   {
-    "id": 45801170,
-    "by": "chandureddyvari",
-    "timeISO": "2025-11-03T16:50:21.000Z",
-    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
+    "id": 45802333,
+    "by": "bob1029",
+    "timeISO": "2025-11-03T18:19:28.000Z",
+    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799640,
+    "by": "alanwli",
+    "timeISO": "2025-11-03T14:53:04.000Z",
+    "textPlain": "I've seen a decent amount of production use of pgvector HNSW from our customers on GCP, but as the author noted is not without some flaws and are typically in the smallish range (0-10M vectors) for the systems characteristics that he pointed out - i.e. build times, memory use. The tradeoffs to consider are whether you want to ETL data into yet another system and deal with operational overhead, eventual consistency, application-logic to join vector search with the rest of your operational data. Whether the tradeoffs are worth it really depends on your business requirements.And if one needs the transactional/consistency semantics, hybrid/filtered-search, low latencies, etc - consider a SOTA Postgres system like AlloyDB with AlloyDB ScaNN which has better scaling/performance (1B+ vectors), enhanced query optimization (adaptive pre-/post-/in-filtering), and improved index operations.Full disclosure: I founded ScaNN in GCP databases and currently lead AlloyDB Semantic Search. And all these opinions are my own.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801947,
+    "by": "antirez",
+    "timeISO": "2025-11-03T17:47:30.000Z",
+    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.",
     "parent": 45798479,
     "depth": 1
   },
@@ -48,14 +64,6 @@
     "depth": 1
   },
   {
-    "id": 45799640,
-    "by": "alanwli",
-    "timeISO": "2025-11-03T14:53:04.000Z",
-    "textPlain": "I've seen a decent amount of production use of pgvector HNSW from our customers on GCP, but as the author noted is not without some flaws and are typically in the smallish range (0-10M vectors) for the systems characteristics that he pointed out - i.e. build times, memory use. The tradeoffs to consider are whether you want to ETL data into yet another system and deal with operational overhead, eventual consistency, application-logic to join vector search with the rest of your operational data. Whether the tradeoffs are worth it really depends on your business requirements.And if one needs the transactional/consistency semantics, hybrid/filtered-search, low latencies, etc - consider a SOTA Postgres system like AlloyDB with AlloyDB ScaNN which has better scaling/performance (1B+ vectors), enhanced query optimization (adaptive pre-/post-/in-filtering), and improved index operations.Full disclosure: I founded ScaNN in GCP databases and currently lead AlloyDB Semantic Search. And all these opinions are my own.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799374,
     "by": "clickety_clack",
     "timeISO": "2025-11-03T14:32:39.000Z",
@@ -64,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45801267,
-    "by": "softwaredoug",
-    "timeISO": "2025-11-03T16:56:40.000Z",
-    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
+    "id": 45801170,
+    "by": "chandureddyvari",
+    "timeISO": "2025-11-03T16:50:21.000Z",
+    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
     "parent": 45798479,
     "depth": 1
   },
@@ -88,6 +96,22 @@
     "depth": 1
   },
   {
+    "id": 45800681,
+    "by": "pqdbr",
+    "timeISO": "2025-11-03T16:16:33.000Z",
+    "textPlain": "Id love to read a blog post like this about S3 Vector buckets. Does anyone have experience with it in production?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801267,
+    "by": "softwaredoug",
+    "timeISO": "2025-11-03T16:56:40.000Z",
+    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45801044,
     "by": "dangoodmanUT",
     "timeISO": "2025-11-03T16:41:33.000Z",
@@ -96,18 +120,10 @@
     "depth": 1
   },
   {
-    "id": 45800989,
-    "by": "jgoode19",
-    "timeISO": "2025-11-03T16:37:49.000Z",
-    "textPlain": "This is an outstanding write-up that addresses the elephant in the room - the gap between \"works in demos\" and \"scales in production\" is massive, and most pgvector content ignores it completely.The pre vs. post-filtering problem is particularly underappreciated. When you LIMIT 10 but only get 3 results back after filtering, users have no idea they're missing highly relevant matches. The oversampling workaround (LIMIT 100) means you're computing 10x more distances than needed - and you still don't know if 100 is enough.Your point about HNSW index builds consuming 10+ GB RAM on production databases is critical. This isn't theoretical - I've seen teams discover this the hard way during their first index rebuild at scale. The \"just use Postgres\" simplicity argument collapses when you're implementing index swapping strategies or provisioning 3x the RAM you actually need.The operational reality section nails it. You're not choosing between \"use pgvector\" vs \"add complexity with another database.\" You're choosing between:\n- Complexity managed by experts (dedicated vector DB)\n- Complexity you build and maintain yourself (pgvector workarounds)For most teams, especially small ones, the former is actually simpler AND cheaper.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45800681,
-    "by": "pqdbr",
-    "timeISO": "2025-11-03T16:16:33.000Z",
-    "textPlain": "Id love to read a blog post like this about S3 Vector buckets. Does anyone have experience with it in production?",
+    "id": 45799998,
+    "by": "epolanski",
+    "timeISO": "2025-11-03T15:19:28.000Z",
+    "textPlain": "Curious if the author tried the new Redis module that brings HNSW vector search to redis.From what I've seen is fast, has excellent API, and is implemented by a brilliant engineer in the space (Antirez).But not using these things beyond local tests, I can never really hold opinions over those using these systems in production.",
     "parent": 45798479,
     "depth": 1
   },
@@ -132,14 +148,6 @@
     "by": "machiaweliczny",
     "timeISO": "2025-11-03T16:24:42.000Z",
     "textPlain": "Is there a way to do hybrid search that combines vector similarity with scalars fast using pg_vector? Or do I need to migrate to other tool?",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45799998,
-    "by": "epolanski",
-    "timeISO": "2025-11-03T15:19:28.000Z",
-    "textPlain": "Curious if the author tried the new Redis module that brings HNSW vector search to redis.From what I've seen is fast, has excellent API, and is implemented by a brilliant engineer in the space (Antirez).But not using these things beyond local tests, I can never really hold opinions over those using these systems in production.",
     "parent": 45798479,
     "depth": 1
   },
@@ -180,6 +188,14 @@
     "by": "cpursley",
     "timeISO": "2025-11-03T14:15:16.000Z",
     "textPlain": "Yeah, but just like all other bolt-on databases, now your vital data/biz logic is disconnected from the hot new VC database of the month's logic and you have to write balls of mud to connect it all. That's a very big tradeoff (logic, operations, etc).Furthermore, when all the hipster vector database die or go into maintenance mode or get the license rug-pull when the investors come looking for revenue, postgres will still be chugging along and getting better and better.Anyways, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800989,
+    "by": "jgoode19",
+    "timeISO": "2025-11-03T16:37:49.000Z",
+    "textPlain": "[flagged]",
     "parent": 45798479,
     "depth": 1
   },
@@ -248,6 +264,14 @@
     "depth": 2
   },
   {
+    "id": 45801825,
+    "by": "riku_iki",
+    "timeISO": "2025-11-03T17:39:01.000Z",
+    "textPlain": "AlloyDb is not opensource, so it is kinda different niche.",
+    "parent": 45799640,
+    "depth": 2
+  },
+  {
     "id": 45800380,
     "by": "tacoooooooo",
     "timeISO": "2025-11-03T15:51:49.000Z",
@@ -272,19 +296,27 @@
     "depth": 2
   },
   {
-    "id": 45801437,
-    "by": "rudedogg",
-    "timeISO": "2025-11-03T17:09:56.000Z",
-    "textPlain": "Sorry but LLMs aren’t good enough to hide that your comment is slop.It’s funny I can tell you’re using Claude by the phrasing as well@dang please see this and other comments by this user",
-    "parent": 45800989,
+    "id": 45801761,
+    "by": "riku_iki",
+    "timeISO": "2025-11-03T17:34:30.000Z",
+    "textPlain": "> Is there a comprehensive leaderboard like ClickBenchclickbench has 100m rows of data only, which makes it not comprehensive benchmark at all.",
+    "parent": 45801170,
     "depth": 2
   },
   {
-    "id": 45800808,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T16:25:09.000Z",
-    "textPlain": "i discuss that specifically!> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them. You’re essentially asking your production database to allocate multiple (possibly dozens) gigabytes of RAM for an operation that might take hours, while continuing to serve queries.> You end up with strategies like:    Write to a staging table, build the index offline, then swap it in (but now you have a window where searches miss new data)\n    Maintain two indexes and write to both (double the memory, double the update cost)\n    Build indexes on replicas and promote them\n    Accept eventual consistency (users upload documents that aren’t searchable for N minutes)\n    Provision significantly more RAM than your “working set” would suggest\n\n> None of these are “wrong” exactly. But they’re all workarounds for the fact that pgvector wasn’t really designed for high-velocity real-time ingestion.short answer--maybe not that _hard_, but it adds a lot of complexity to manage when you're trying to offer real-time search.  most vector DB solutions offer this ootb.  This post is meant to just point out the tradeoffs with pgvector (that most posts seem to skip over)",
-    "parent": 45800752,
+    "id": 45801885,
+    "by": "riku_iki",
+    "timeISO": "2025-11-03T17:43:11.000Z",
+    "textPlain": ">  do full text search. And if you put all that together, you have a complex Postgres deployment.search is also just extension? So, its a strong point: you have one self-contained server with simple installation/maintenance story.",
+    "parent": 45801267,
+    "depth": 2
+  },
+  {
+    "id": 45801880,
+    "by": "antirez",
+    "timeISO": "2025-11-03T17:42:56.000Z",
+    "textPlain": "It's not a module, it is part of every new Redis version now. Well, actually: it is written in the form of a module and with the modules API in order to improve modularity of the Redis internals, but it is a \"merged module\", a new implementation/concept I implemented in Redis exactly to support the Vector Sets use case. Thank you for mentioning this.",
+    "parent": 45799998,
     "depth": 2
   },
   {
@@ -293,6 +325,14 @@
     "timeISO": "2025-11-03T15:43:07.000Z",
     "textPlain": "It's fast...because everything needs to be in memory. Expect astronomical cloud costs even for mid-sized data requirements.",
     "parent": 45799998,
+    "depth": 2
+  },
+  {
+    "id": 45800808,
+    "by": "tacoooooooo",
+    "timeISO": "2025-11-03T16:25:09.000Z",
+    "textPlain": "i discuss that specifically!> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them. You’re essentially asking your production database to allocate multiple (possibly dozens) gigabytes of RAM for an operation that might take hours, while continuing to serve queries.> You end up with strategies like:    Write to a staging table, build the index offline, then swap it in (but now you have a window where searches miss new data)\n    Maintain two indexes and write to both (double the memory, double the update cost)\n    Build indexes on replicas and promote them\n    Accept eventual consistency (users upload documents that aren’t searchable for N minutes)\n    Provision significantly more RAM than your “working set” would suggest\n\n> None of these are “wrong” exactly. But they’re all workarounds for the fact that pgvector wasn’t really designed for high-velocity real-time ingestion.short answer--maybe not that _hard_, but it adds a lot of complexity to manage when you're trying to offer real-time search.  most vector DB solutions offer this ootb.  This post is meant to just point out the tradeoffs with pgvector (that most posts seem to skip over)",
+    "parent": 45800752,
     "depth": 2
   },
   {
@@ -325,6 +365,14 @@
     "timeISO": "2025-11-03T15:57:56.000Z",
     "textPlain": "> Anyways, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).We're searching across millions of documents, so i doubt it",
     "parent": 45799141,
+    "depth": 2
+  },
+  {
+    "id": 45801437,
+    "by": "rudedogg",
+    "timeISO": "2025-11-03T17:09:56.000Z",
+    "textPlain": "Sorry but LLMs aren’t good enough to hide that your comment is slop.It’s funny I can tell you’re using Claude by the phrasing as well@dang please see this and other comments by this user",
+    "parent": 45800989,
     "depth": 2
   }
 ]
