@@ -24,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45802333,
-    "by": "bob1029",
-    "timeISO": "2025-11-03T18:19:28.000Z",
-    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
+    "id": 45801947,
+    "by": "antirez",
+    "timeISO": "2025-11-03T17:47:30.000Z",
+    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.",
     "parent": 45798479,
     "depth": 1
   },
@@ -36,14 +36,6 @@
     "by": "alanwli",
     "timeISO": "2025-11-03T14:53:04.000Z",
     "textPlain": "I've seen a decent amount of production use of pgvector HNSW from our customers on GCP, but as the author noted is not without some flaws and are typically in the smallish range (0-10M vectors) for the systems characteristics that he pointed out - i.e. build times, memory use. The tradeoffs to consider are whether you want to ETL data into yet another system and deal with operational overhead, eventual consistency, application-logic to join vector search with the rest of your operational data. Whether the tradeoffs are worth it really depends on your business requirements.And if one needs the transactional/consistency semantics, hybrid/filtered-search, low latencies, etc - consider a SOTA Postgres system like AlloyDB with AlloyDB ScaNN which has better scaling/performance (1B+ vectors), enhanced query optimization (adaptive pre-/post-/in-filtering), and improved index operations.Full disclosure: I founded ScaNN in GCP databases and currently lead AlloyDB Semantic Search. And all these opinions are my own.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45801947,
-    "by": "antirez",
-    "timeISO": "2025-11-03T17:47:30.000Z",
-    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.",
     "parent": 45798479,
     "depth": 1
   },
@@ -64,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45802333,
+    "by": "bob1029",
+    "timeISO": "2025-11-03T18:19:28.000Z",
+    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45799374,
     "by": "clickety_clack",
     "timeISO": "2025-11-03T14:32:39.000Z",
@@ -72,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45801170,
-    "by": "chandureddyvari",
-    "timeISO": "2025-11-03T16:50:21.000Z",
-    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799397,
     "by": "jeffchuber",
     "timeISO": "2025-11-03T14:33:58.000Z",
     "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801170,
+    "by": "chandureddyvari",
+    "timeISO": "2025-11-03T16:50:21.000Z",
+    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
     "parent": 45798479,
     "depth": 1
   },
@@ -112,18 +112,18 @@
     "depth": 1
   },
   {
-    "id": 45801044,
-    "by": "dangoodmanUT",
-    "timeISO": "2025-11-03T16:41:33.000Z",
-    "textPlain": "> What bothers me most: the majority of content about pgvector reads like it was written by someone who spun up a local Postgres instance, inserted 10,000 vectors, ran a few queries, and called it a day.I this taste with most posts about Postgres that don’t come from “how we scaled Postgres to X”. It seems a lot of writers are trying to ride the wave of popularity, creating a ton of noise that can end up as tech debt for readers",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799998,
     "by": "epolanski",
     "timeISO": "2025-11-03T15:19:28.000Z",
     "textPlain": "Curious if the author tried the new Redis module that brings HNSW vector search to redis.From what I've seen is fast, has excellent API, and is implemented by a brilliant engineer in the space (Antirez).But not using these things beyond local tests, I can never really hold opinions over those using these systems in production.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801044,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-11-03T16:41:33.000Z",
+    "textPlain": "> What bothers me most: the majority of content about pgvector reads like it was written by someone who spun up a local Postgres instance, inserted 10,000 vectors, ran a few queries, and called it a day.I this taste with most posts about Postgres that don’t come from “how we scaled Postgres to X”. It seems a lot of writers are trying to ride the wave of popularity, creating a ton of noise that can end up as tech debt for readers",
     "parent": 45798479,
     "depth": 1
   },
@@ -328,6 +328,14 @@
     "depth": 2
   },
   {
+    "id": 45803090,
+    "by": "SoftTalker",
+    "timeISO": "2025-11-03T19:12:20.000Z",
+    "textPlain": "AI + Docker has made it really easy to set up trivial demo systems and write an article about it.",
+    "parent": 45801044,
+    "depth": 2
+  },
+  {
     "id": 45800808,
     "by": "tacoooooooo",
     "timeISO": "2025-11-03T16:25:09.000Z",
@@ -341,6 +349,14 @@
     "timeISO": "2025-11-03T15:57:03.000Z",
     "textPlain": "I mention this towards the end of the post.  it looks like a good solution, but it's not available on RDS",
     "parent": 45800197,
+    "depth": 2
+  },
+  {
+    "id": 45802949,
+    "by": "cdelsolar",
+    "timeISO": "2025-11-03T19:04:14.000Z",
+    "textPlain": "10GB of ram is a pixel? how big is your company?",
+    "parent": 45800317,
     "depth": 2
   },
   {
