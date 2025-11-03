@@ -8,6 +8,70 @@
     "depth": 1
   },
   {
+    "id": 45799401,
+    "by": "VoVAllen",
+    "timeISO": "2025-11-03T14:34:30.000Z",
+    "textPlain": "We at https://github.com/tensorchord/VectorChord solved most of the pgvector issues mentioned in this blog:- We're IVF + quantization, can support 15x more updates per second comparing to pgvector's HNSW. Insert or delete an element in a posting list is a super light operation comparing to modify a graph (HNSW)- Our main branch can now index 100M 768-dim vector in 20min with 16vcpu and 32G memory. This enables user to index/reindex in a very efficient way. We'll have a detailed blog about this soon. The core idea is KMeans is just a description of the distribution, so we can do lots of approximation here to accelerate the process.- For reindex, actually postgres support `CREATE INDEX CONCURRENTLY` or `REINDEX CONCURRENTLY`. User won't experience any data loss or inconsistency during the whole process.- We support both pre-filtering and post-filtering. Check https://blog.vectorchord.ai/vectorchord-04-faster-postgresql...- We support hybrid search with BM25 through https://github.com/tensorchord/VectorChord-bm25The author simplifies the complexity of synchronizing between an existing database and a specialized vector database, as well as how to perform joint queries on them. This is also why we see most users choosing vector solution on PostgreSQL.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799998,
+    "by": "epolanski",
+    "timeISO": "2025-11-03T15:19:28.000Z",
+    "textPlain": "Curious if the author tried the new Redis module that brings HNSW vector search to redis.From what I've seen is fast, has excellent API, and is implemented by a brilliant engineer in the space (Antirez).But not using these things beyond local tests, I can never really hold opinions over those using these systems in production.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799559,
+    "by": "sgarland",
+    "timeISO": "2025-11-03T14:47:39.000Z",
+    "textPlain": "> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them.maintenance_work_mem begs to differ.> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?You use REINDEX CONCURRENTLY.> But updating an HNSW graph isn’t free—you’re traversing the graph to find the right place to insert the new node and updating connections.How do you think a B+tree gets updated?This entire post reads like the author didn’t read Postgres’ docs, and is now upset at the poor DX/UX.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799374,
+    "by": "clickety_clack",
+    "timeISO": "2025-11-03T14:32:39.000Z",
+    "textPlain": "My default is basically YAGNI. You should use as few services as possible, and only add something new when there’s issues. If everything is possible in Postgres, great! If not, at least I’ll know exactly what I need from the New Thing.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799640,
+    "by": "alanwli",
+    "timeISO": "2025-11-03T14:53:04.000Z",
+    "textPlain": "I've seen a decent amount of production use of pgvector HNSW from our customers on GCP, but as the author noted is not without some flaws and are typically in the smallish range (0-10M vectors) for the systems characteristics that he pointed out - i.e. build times, memory use. The tradeoffs to consider are whether you want to ETL data into yet another system and deal with operational overhead, eventual consistency, application-logic to join vector search with the rest of your operational data. Whether the tradeoffs are worth it really depends on your business requirements.And if one needs the transactional/consistency semantics, hybrid/filtered-search, low latencies, etc - consider a SOTA Postgres system like AlloyDB with AlloyDB ScaNN which has better scaling/performance (1B+ vectors), enhanced query optimization (adaptive pre-/post-/in-filtering), and improved index operations.Full disclosure: I founded ScaNN in GCP databases and currently lead AlloyDB Semantic Search. And all these opinions are my own.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799397,
+    "by": "jeffchuber",
+    "timeISO": "2025-11-03T14:33:58.000Z",
+    "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799547,
+    "by": "rudderdev",
+    "timeISO": "2025-11-03T14:46:29.000Z",
+    "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799349,
+    "by": "BenGosub",
+    "timeISO": "2025-11-03T14:30:42.000Z",
+    "textPlain": "The limitations of PGVector are touched upon in this podcast episode.\nhttps://open.spotify.com/episode/2rvn0ZhNoNFtozxpnMIqmo?si=i...",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45799226,
     "by": "gerardatkonvo",
     "timeISO": "2025-11-03T14:21:21.000Z",
@@ -19,8 +83,48 @@
     "id": 45799141,
     "by": "cpursley",
     "timeISO": "2025-11-03T14:15:16.000Z",
-    "textPlain": "Yeah, but just like all other bolt-on databases, now your vital data/biz logic is disconnected from the hot new VC database of the month's logic and you have to write balls of mud to connect it all. That's a very big tradeoff (logic, operations, etc).Furthermore, when all the hipster vector database die or go into maintenance mode or get the license rug-pull when the investors come looking for revenue, postgres will still be chugging along and getting better and better.Anyways, all this vector stuff is going to fade away as context windows get larger (already started).",
+    "textPlain": "Yeah, but just like all other bolt-on databases, now your vital data/biz logic is disconnected from the hot new VC database of the month's logic and you have to write balls of mud to connect it all. That's a very big tradeoff (logic, operations, etc).Furthermore, when all the hipster vector database die or go into maintenance mode or get the license rug-pull when the investors come looking for revenue, postgres will still be chugging along and getting better and better.Anyways, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).",
     "parent": 45798479,
     "depth": 1
+  },
+  {
+    "id": 45799886,
+    "by": "nostrebored",
+    "timeISO": "2025-11-03T15:10:17.000Z",
+    "textPlain": "So you’re quantizing and using IVF — what are your recall numbers with actual use cases?",
+    "parent": 45799401,
+    "depth": 2
+  },
+  {
+    "id": 45799510,
+    "by": "VoVAllen",
+    "timeISO": "2025-11-03T14:43:37.000Z",
+    "textPlain": "And we do have user hosting 3 Billion vectors with Postgres + VectorChord with sharding. And they're using vectors to save the earth! Check https://blog.vectorchord.ai/3-billion-vectors-in-postgresql-...",
+    "parent": 45799401,
+    "depth": 2
+  },
+  {
+    "id": 45799558,
+    "by": "Fripplebubby",
+    "timeISO": "2025-11-03T14:47:39.000Z",
+    "textPlain": "The post is a clear example of when YAGNI backfires, because you think YAGNI but then, you actually do need it. I had this experience, the author had this experience, you might as well - the things you think you AGN are actually pretty basic expectations and not luxuries: being able to write vectors real-time without having to run other processes out of band to keep the recall from degrading over time, being able to write a query that uses normal SQL filter predicates and similarity in one go for retrieval. These things matter and you won't notice that they actually don't work at scale until later on!",
+    "parent": 45799374,
+    "depth": 2
+  },
+  {
+    "id": 45799473,
+    "by": "esafak",
+    "timeISO": "2025-11-03T14:40:19.000Z",
+    "textPlain": "Databases are hard to swap out when you realize you need a different one.",
+    "parent": 45799374,
+    "depth": 2
+  },
+  {
+    "id": 45799285,
+    "by": "qeternity",
+    "timeISO": "2025-11-03T14:26:11.000Z",
+    "textPlain": "> Also, all this vector stuff is going to fade away as context windows get larger (already started over the past 8 months or so).People who say this really have not thought this through, or simply don't understand what the usecases for vector search are.But even if you had infinite context, with perfect attention, attention isn't free. Even if you had linear attention. It's much much cheaper to index your data than it is to reprocess everything. You don't go around scanning entire databases when you're just interested in row id=X",
+    "parent": 45799141,
+    "depth": 2
   }
 ]
