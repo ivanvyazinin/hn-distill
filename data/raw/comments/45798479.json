@@ -64,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45801947,
+    "by": "antirez",
+    "timeISO": "2025-11-03T17:47:30.000Z",
+    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45802333,
     "by": "bob1029",
     "timeISO": "2025-11-03T18:19:28.000Z",
@@ -76,22 +84,6 @@
     "by": "IntrepidPig",
     "timeISO": "2025-11-03T16:49:06.000Z",
     "textPlain": "> Post-filter works when your filter is permissive. Here’s where it breaks: imagine you ask for 10 results with LIMIT 10. pgvector finds the 10 nearest neighbors, then applies your filter. Only 3 of those 10 are published. You get 3 results back, even though there might be hundreds of relevant published documents slightly further away in the embedding space.Is this really how it works? That seems like it’s returning an incorrect result.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45801947,
-    "by": "antirez",
-    "timeISO": "2025-11-03T17:47:30.000Z",
-    "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45804191,
-    "by": "jankovicsandras",
-    "timeISO": "2025-11-03T20:44:05.000Z",
-    "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
     "parent": 45798479,
     "depth": 1
   },
@@ -112,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45804188,
-    "by": "semiquaver",
-    "timeISO": "2025-11-03T20:43:56.000Z",
-    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
+    "id": 45804191,
+    "by": "jankovicsandras",
+    "timeISO": "2025-11-03T20:44:05.000Z",
+    "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
     "parent": 45798479,
     "depth": 1
   },
@@ -128,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45804188,
+    "by": "semiquaver",
+    "timeISO": "2025-11-03T20:43:56.000Z",
+    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45800681,
     "by": "pqdbr",
     "timeISO": "2025-11-03T16:16:33.000Z",
@@ -136,18 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45801267,
-    "by": "softwaredoug",
-    "timeISO": "2025-11-03T16:56:40.000Z",
-    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800752,
     "by": "simonw",
     "timeISO": "2025-11-03T16:21:41.000Z",
     "textPlain": "\"HNSW index on a few million vectors can consume 10+ GB of RAM or more (depending on your vector dimensions and dataset size). On your production database. While it’s running. For potentially hours.\"How hard is it to move that process to another machine? Could you grab a dump of the relevant data, spin up a cloud instance with 16GB of RAM to build the index and then cheaply copy the results back to production when it finishes?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801267,
+    "by": "softwaredoug",
+    "timeISO": "2025-11-03T16:56:40.000Z",
+    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
     "parent": 45798479,
     "depth": 1
   },
@@ -168,14 +168,6 @@
     "depth": 1
   },
   {
-    "id": 45804648,
-    "by": "dmezzetti",
-    "timeISO": "2025-11-03T21:26:28.000Z",
-    "textPlain": "You can make it even simpler and not bother with any of this. With even something as large as 100M vectors, you can just use Torch or GGUF with compression. Even NumPy can take you a long way. Example below.https://github.com/neuml/txtai/blob/master/examples/78_Acces...",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800801,
     "by": "machiaweliczny",
     "timeISO": "2025-11-03T16:24:42.000Z",
@@ -188,6 +180,14 @@
     "by": "arunmu",
     "timeISO": "2025-11-03T15:36:33.000Z",
     "textPlain": "There is pgvectorscale from timescale which uses disk ann based data structure and has support for pre and post filtering.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804648,
+    "by": "dmezzetti",
+    "timeISO": "2025-11-03T21:26:28.000Z",
+    "textPlain": "You can make it even simpler and not bother with any of this. With even something as large as 100M vectors, you can just use Torch or GGUF with compression. Even NumPy can take you a long way. Example below.https://github.com/neuml/txtai/blob/master/examples/78_Acces...",
     "parent": 45798479,
     "depth": 1
   },
@@ -232,14 +232,6 @@
     "depth": 1
   },
   {
-    "id": 45805087,
-    "by": "whakim",
-    "timeISO": "2025-11-03T22:14:52.000Z",
-    "textPlain": "Interested to hear more about your experience here. At Halcyon, we have trillions of embeddings and found Postgres to be unsuitable at several orders of magnitude less than we currently have.On the iterative scan side, how do you prevent this from becoming too computationally intensive with a restrictive pre-filter, or simply not working at all? We use Vespa, which means effectively doing a map-reduce across all of our nodes; the effective number of graph traversals to do is smaller, and the computational burden mostly involves scanning posting lists on a per-node basis. I imagine to do something similar in postgres, you'd need sharded tables, and complicated application logic to control what you're actually searching.How do you deal with re-indexing and/or denormalizing metadata for filtering? Do you simply accept that it'll take hours or days?I agree with you, however, that vector databases are not a panacea (although they do remove a huge amount of devops work, which is worth a lot!). Vespa supports filtering across parent-child relationships (like a relational database) which means we don't have to reindex a trillion things every time we want to add a new type of filter, which with a previous vector database vendor we used took us almost a week.",
-    "parent": 45799162,
-    "depth": 2
-  },
-  {
     "id": 45800076,
     "by": "xfalcox",
     "timeISO": "2025-11-03T15:25:58.000Z",
@@ -248,10 +240,10 @@
     "depth": 2
   },
   {
-    "id": 45804121,
-    "by": "jascha_eng",
-    "timeISO": "2025-11-03T20:37:34.000Z",
-    "textPlain": "There are also approaches do doing the filtering while traversing a vector index (not just pre/post) e.g. this paper by microsoft explains an approach https://dl.acm.org/doi/10.1145/3543507.3583552 which pgvectorscale implements here: https://github.com/timescale/pgvectorscale?tab=readme-ov-fil...In theory these can be more efficient than plain pre/post filtering.",
+    "id": 45805087,
+    "by": "whakim",
+    "timeISO": "2025-11-03T22:14:52.000Z",
+    "textPlain": "Interested to hear more about your experience here. At Halcyon, we have trillions of embeddings and found Postgres to be unsuitable at several orders of magnitude less than we currently have.On the iterative scan side, how do you prevent this from becoming too computationally intensive with a restrictive pre-filter, or simply not working at all? We use Vespa, which means effectively doing a map-reduce across all of our nodes; the effective number of graph traversals to do is smaller, and the computational burden mostly involves scanning posting lists on a per-node basis. I imagine to do something similar in postgres, you'd need sharded tables, and complicated application logic to control what you're actually searching.How do you deal with re-indexing and/or denormalizing metadata for filtering? Do you simply accept that it'll take hours or days?I agree with you, however, that vector databases are not a panacea (although they do remove a huge amount of devops work, which is worth a lot!). Vespa supports filtering across parent-child relationships (like a relational database) which means we don't have to reindex a trillion things every time we want to add a new type of filter, which with a previous vector database vendor we used took us almost a week.",
     "parent": 45799162,
     "depth": 2
   },
@@ -260,6 +252,14 @@
     "by": "tacoooooooo",
     "timeISO": "2025-11-03T16:15:07.000Z",
     "textPlain": "for sure people are running pgvector in prd! i was more pointing at every tutorialiterative scans are more of a bandaid for filtering than a solution. you will still run into issues with highly restrictive filters. you still need to understand ef_search and max_search_tuples.  strict vs relaxed ordering, etc. it's an improvement for sure, but the planner still doesn't deeply understand the cost model of filtered vector searchthere isn't a general solution to the pre- vs post-filter problem—it comes down to having a smart planner that understands your data distribution. question is whether you have the resources to build and tune that yourself or want to offload it to a service that's able to focus on it directly",
+    "parent": 45799162,
+    "depth": 2
+  },
+  {
+    "id": 45804121,
+    "by": "jascha_eng",
+    "timeISO": "2025-11-03T20:37:34.000Z",
+    "textPlain": "There are also approaches do doing the filtering while traversing a vector index (not just pre/post) e.g. this paper by microsoft explains an approach https://dl.acm.org/doi/10.1145/3543507.3583552 which pgvectorscale implements here: https://github.com/timescale/pgvectorscale?tab=readme-ov-fil...In theory these can be more efficient than plain pre/post filtering.",
     "parent": 45799162,
     "depth": 2
   },
@@ -293,6 +293,14 @@
     "timeISO": "2025-11-03T15:42:02.000Z",
     "textPlain": "We actually looked into vectorchord--it looks really cool, but it's not supported by RDS so it is an additional service for us to add anyways.",
     "parent": 45799401,
+    "depth": 2
+  },
+  {
+    "id": 45805356,
+    "by": "whakim",
+    "timeISO": "2025-11-03T22:42:30.000Z",
+    "textPlain": "> maintenance_work_mem begs to differ.HNSW indices are big. Let's suppose I have an HNSW index which fits in a few hundred gigabytes of memory, or perhaps a few terabytes. How do I reasonably rebuild this using maintenance_work_mem? Double the size of my database for a week? What about the knock-on impacts on the performance for the rest of my database-stuff - presumably I'm relying on this memory for shared_buffers and caching? This seems like the type of workload that is being discussed here, not a toy 20GB index or something.> You use REINDEX CONCURRENTLY.Even with a bunch of worker processes, how do I do this within a reasonable timeframe?> How do you think a B+tree gets updated?Sure, the computational complexity of insertion into an HNSW index is sublinear, the constant factors are significant and do actually add up. That being said, I do find this the weakest of the author's arguments.",
+    "parent": 45799559,
     "depth": 2
   },
   {
@@ -389,14 +397,6 @@
     "timeISO": "2025-11-03T15:43:07.000Z",
     "textPlain": "It's fast...because everything needs to be in memory. Expect astronomical cloud costs even for mid-sized data requirements.",
     "parent": 45799998,
-    "depth": 2
-  },
-  {
-    "id": 45803090,
-    "by": "SoftTalker",
-    "timeISO": "2025-11-03T19:12:20.000Z",
-    "textPlain": "AI + Docker has made it really easy to set up trivial demo systems and write an article about it.",
-    "parent": 45801044,
     "depth": 2
   }
 ]
