@@ -24,34 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45800752,
-    "by": "simonw",
-    "timeISO": "2025-11-03T16:21:41.000Z",
-    "textPlain": "\"HNSW index on a few million vectors can consume 10+ GB of RAM or more (depending on your vector dimensions and dataset size). On your production database. While it’s running. For potentially hours.\"How hard is it to move that process to another machine? Could you grab a dump of the relevant data, spin up a cloud instance with 16GB of RAM to build the index and then cheaply copy the results back to production when it finishes?",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45800801,
-    "by": "machiaweliczny",
-    "timeISO": "2025-11-03T16:24:42.000Z",
-    "textPlain": "Is there a way to do hybrid search that combines vector similarity with scalars fast using pg_vector? Or do I need to migrate to other tool?",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45800681,
-    "by": "pqdbr",
-    "timeISO": "2025-11-03T16:16:33.000Z",
-    "textPlain": "Id love to read a blog post like this about S3 Vector buckets. Does anyone have experience with it in production?",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45800596,
-    "by": "eigencoder",
-    "timeISO": "2025-11-03T16:09:46.000Z",
-    "textPlain": "I think these are the salient concerns I've faced at work using pgvector. Especially getting bit by the query planning when filtering -- it's hard to predict when postgres will decide to use pre- vs post-filtering.As for inserts being difficult, we basically don't see that because we only update the vector store weekly. We're not trying to index rapidly-changing user data, so that's not a big deal for our use case.",
+    "id": 45801170,
+    "by": "chandureddyvari",
+    "timeISO": "2025-11-03T16:50:21.000Z",
+    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
     "parent": 45798479,
     "depth": 1
   },
@@ -64,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45799374,
-    "by": "clickety_clack",
-    "timeISO": "2025-11-03T14:32:39.000Z",
-    "textPlain": "My default is basically YAGNI. You should use as few services as possible, and only add something new when there’s issues. If everything is possible in Postgres, great! If not, at least I’ll know exactly what I need from the New Thing.",
+    "id": 45799547,
+    "by": "rudderdev",
+    "timeISO": "2025-11-03T14:46:29.000Z",
+    "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
     "parent": 45798479,
     "depth": 1
   },
@@ -80,6 +56,22 @@
     "depth": 1
   },
   {
+    "id": 45799374,
+    "by": "clickety_clack",
+    "timeISO": "2025-11-03T14:32:39.000Z",
+    "textPlain": "My default is basically YAGNI. You should use as few services as possible, and only add something new when there’s issues. If everything is possible in Postgres, great! If not, at least I’ll know exactly what I need from the New Thing.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801267,
+    "by": "softwaredoug",
+    "timeISO": "2025-11-03T16:56:40.000Z",
+    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45799397,
     "by": "jeffchuber",
     "timeISO": "2025-11-03T14:33:58.000Z",
@@ -88,10 +80,58 @@
     "depth": 1
   },
   {
-    "id": 45799547,
-    "by": "rudderdev",
-    "timeISO": "2025-11-03T14:46:29.000Z",
-    "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
+    "id": 45801152,
+    "by": "IntrepidPig",
+    "timeISO": "2025-11-03T16:49:06.000Z",
+    "textPlain": "> Post-filter works when your filter is permissive. Here’s where it breaks: imagine you ask for 10 results with LIMIT 10. pgvector finds the 10 nearest neighbors, then applies your filter. Only 3 of those 10 are published. You get 3 results back, even though there might be hundreds of relevant published documents slightly further away in the embedding space.Is this really how it works? That seems like it’s returning an incorrect result.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45801044,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-11-03T16:41:33.000Z",
+    "textPlain": "> What bothers me most: the majority of content about pgvector reads like it was written by someone who spun up a local Postgres instance, inserted 10,000 vectors, ran a few queries, and called it a day.I this taste with most posts about Postgres that don’t come from “how we scaled Postgres to X”. It seems a lot of writers are trying to ride the wave of popularity, creating a ton of noise that can end up as tech debt for readers",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800989,
+    "by": "jgoode19",
+    "timeISO": "2025-11-03T16:37:49.000Z",
+    "textPlain": "This is an outstanding write-up that addresses the elephant in the room - the gap between \"works in demos\" and \"scales in production\" is massive, and most pgvector content ignores it completely.The pre vs. post-filtering problem is particularly underappreciated. When you LIMIT 10 but only get 3 results back after filtering, users have no idea they're missing highly relevant matches. The oversampling workaround (LIMIT 100) means you're computing 10x more distances than needed - and you still don't know if 100 is enough.Your point about HNSW index builds consuming 10+ GB RAM on production databases is critical. This isn't theoretical - I've seen teams discover this the hard way during their first index rebuild at scale. The \"just use Postgres\" simplicity argument collapses when you're implementing index swapping strategies or provisioning 3x the RAM you actually need.The operational reality section nails it. You're not choosing between \"use pgvector\" vs \"add complexity with another database.\" You're choosing between:\n- Complexity managed by experts (dedicated vector DB)\n- Complexity you build and maintain yourself (pgvector workarounds)For most teams, especially small ones, the former is actually simpler AND cheaper.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800681,
+    "by": "pqdbr",
+    "timeISO": "2025-11-03T16:16:33.000Z",
+    "textPlain": "Id love to read a blog post like this about S3 Vector buckets. Does anyone have experience with it in production?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800752,
+    "by": "simonw",
+    "timeISO": "2025-11-03T16:21:41.000Z",
+    "textPlain": "\"HNSW index on a few million vectors can consume 10+ GB of RAM or more (depending on your vector dimensions and dataset size). On your production database. While it’s running. For potentially hours.\"How hard is it to move that process to another machine? Could you grab a dump of the relevant data, spin up a cloud instance with 16GB of RAM to build the index and then cheaply copy the results back to production when it finishes?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800596,
+    "by": "eigencoder",
+    "timeISO": "2025-11-03T16:09:46.000Z",
+    "textPlain": "I think these are the salient concerns I've faced at work using pgvector. Especially getting bit by the query planning when filtering -- it's hard to predict when postgres will decide to use pre- vs post-filtering.As for inserts being difficult, we basically don't see that because we only update the vector store weekly. We're not trying to index rapidly-changing user data, so that's not a big deal for our use case.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800801,
+    "by": "machiaweliczny",
+    "timeISO": "2025-11-03T16:24:42.000Z",
+    "textPlain": "Is there a way to do hybrid search that combines vector similarity with scalars fast using pg_vector? Or do I need to migrate to other tool?",
     "parent": 45798479,
     "depth": 1
   },
@@ -104,14 +144,6 @@
     "depth": 1
   },
   {
-    "id": 45800197,
-    "by": "arunmu",
-    "timeISO": "2025-11-03T15:36:33.000Z",
-    "textPlain": "There is pgvectorscale from timescale which uses disk ann based data structure and has support for pre and post filtering.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799349,
     "by": "BenGosub",
     "timeISO": "2025-11-03T14:30:42.000Z",
@@ -120,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45800317,
-    "by": "indigo945",
-    "timeISO": "2025-11-03T15:46:16.000Z",
-    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors \n    > can consume 10+ GB of RAM or more (depending on your vector dimensions and \n    > dataset size). On your production database. While it’s running. For potentially \n    > hours.\n\n10 GB? Oh jolly gosh! That will almost show up as a pixel or two on my metrics dashboard.Who are these people that run production Postgres clusters on tiny hardware and then complain? Has AWS marketing really confused people into believing that some EC2 \"instance size\" is an actual server?",
+    "id": 45800197,
+    "by": "arunmu",
+    "timeISO": "2025-11-03T15:36:33.000Z",
+    "textPlain": "There is pgvectorscale from timescale which uses disk ann based data structure and has support for pre and post filtering.",
     "parent": 45798479,
     "depth": 1
   },
@@ -132,6 +164,14 @@
     "by": "gerardatkonvo",
     "timeISO": "2025-11-03T14:21:21.000Z",
     "textPlain": "Another thing is that consolidation means that you can less granularly scale. If suddenly vector searching becomes the bottleneck of your app you can't scale just the vector side of things.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45800317,
+    "by": "indigo945",
+    "timeISO": "2025-11-03T15:46:16.000Z",
+    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors \n    > can consume 10+ GB of RAM or more (depending on your vector dimensions and \n    > dataset size). On your production database. While it’s running. For potentially \n    > hours.\n\n10 GB? Oh jolly gosh! That will almost show up as a pixel or two on my metrics dashboard.Who are these people that run production Postgres clusters on tiny hardware and then complain? Has AWS marketing really confused people into believing that some EC2 \"instance size\" is an actual server?",
     "parent": 45798479,
     "depth": 1
   },
@@ -152,18 +192,18 @@
     "depth": 2
   },
   {
-    "id": 45800706,
-    "by": "dpflan",
-    "timeISO": "2025-11-03T16:18:51.000Z",
-    "textPlain": "What are you using it for? Is it part of a hybrid search system (keyword + vector)?",
+    "id": 45800661,
+    "by": "tacoooooooo",
+    "timeISO": "2025-11-03T16:15:07.000Z",
+    "textPlain": "for sure people are running pgvector in prd! i was more pointing at every tutorialiterative scans are more of a bandaid for filtering than a solution. you will still run into issues with highly restrictive filters. you still need to understand ef_search and max_search_tuples.  strict vs relaxed ordering, etc. it's an improvement for sure, but the planner still doesn't deeply understand the cost model of filtered vector searchthere isn't a general solution to the pre- vs post-filter problem—it comes down to having a smart planner that understands your data distribution. question is whether you have the resources to build and tune that yourself or want to offload it to a service that's able to focus on it directly",
     "parent": 45799162,
     "depth": 2
   },
   {
-    "id": 45800661,
-    "by": "tacoooooooo",
-    "timeISO": "2025-11-03T16:15:07.000Z",
-    "textPlain": "for sure people are running pgvector in prd! i was more pointing at every tutorialiterative scans are more of a bandaid for filtering than a solution. you will still run into issues with highly restrictive filters. you still need to understand ef_search and max_search_tuples.  strict vs relaxed ordering, etc. it's an improvement for sure, but the planner still doesn't deeply understand the cost model of filtered vector searchthere isn't a mathematical solution to the pre- vs post-filter problem—it comes down to having a smart planner that understands your data distribution. question is whether you have the resources to build and tune that yourself or want to offload it to a service that's able to focus on it directly",
+    "id": 45800706,
+    "by": "dpflan",
+    "timeISO": "2025-11-03T16:18:51.000Z",
+    "textPlain": "What are you using it for? Is it part of a hybrid search system (keyword + vector)?",
     "parent": 45799162,
     "depth": 2
   },
@@ -208,11 +248,11 @@
     "depth": 2
   },
   {
-    "id": 45800808,
+    "id": 45800380,
     "by": "tacoooooooo",
-    "timeISO": "2025-11-03T16:25:09.000Z",
-    "textPlain": "i discuss that specifically!> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them. You’re essentially asking your production database to allocate multiple (possibly dozens) gigabytes of RAM for an operation that might take hours, while continuing to serve queries.> You end up with strategies like:    Write to a staging table, build the index offline, then swap it in (but now you have a window where searches miss new data)\n    Maintain two indexes and write to both (double the memory, double the update cost)\n    Build indexes on replicas and promote them\n    Accept eventual consistency (users upload documents that aren’t searchable for N minutes)\n    Provision significantly more RAM than your “working set” would suggest\n\n> None of these are “wrong” exactly. But they’re all workarounds for the fact that pgvector wasn’t really designed for high-velocity real-time ingestion.short answer--maybe not that _hard_, but it adds a lot of complexity to manage when we're trying to offer real-time search.  most vector DB solutions offer this ootb.  This post is meant to just point out the tradeoffs with pgvector (that most posts seem to skip over)",
-    "parent": 45800752,
+    "timeISO": "2025-11-03T15:51:49.000Z",
+    "textPlain": "how are all of the mentioned issues resolved?",
+    "parent": 45799547,
     "depth": 2
   },
   {
@@ -232,11 +272,19 @@
     "depth": 2
   },
   {
-    "id": 45800380,
+    "id": 45801437,
+    "by": "rudedogg",
+    "timeISO": "2025-11-03T17:09:56.000Z",
+    "textPlain": "Sorry but LLMs aren’t good enough to hide that your comment is slop.It’s funny I can tell you’re using Claude by the phrasing as well@dang please see this and other comments by this user",
+    "parent": 45800989,
+    "depth": 2
+  },
+  {
+    "id": 45800808,
     "by": "tacoooooooo",
-    "timeISO": "2025-11-03T15:51:49.000Z",
-    "textPlain": "how are all of the mentioned issues resolved?",
-    "parent": 45799547,
+    "timeISO": "2025-11-03T16:25:09.000Z",
+    "textPlain": "i discuss that specifically!> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them. You’re essentially asking your production database to allocate multiple (possibly dozens) gigabytes of RAM for an operation that might take hours, while continuing to serve queries.> You end up with strategies like:    Write to a staging table, build the index offline, then swap it in (but now you have a window where searches miss new data)\n    Maintain two indexes and write to both (double the memory, double the update cost)\n    Build indexes on replicas and promote them\n    Accept eventual consistency (users upload documents that aren’t searchable for N minutes)\n    Provision significantly more RAM than your “working set” would suggest\n\n> None of these are “wrong” exactly. But they’re all workarounds for the fact that pgvector wasn’t really designed for high-velocity real-time ingestion.short answer--maybe not that _hard_, but it adds a lot of complexity to manage when you're trying to offer real-time search.  most vector DB solutions offer this ootb.  This post is meant to just point out the tradeoffs with pgvector (that most posts seem to skip over)",
+    "parent": 45800752,
     "depth": 2
   },
   {
