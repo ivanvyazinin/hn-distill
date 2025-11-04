@@ -64,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45799397,
-    "by": "jeffchuber",
-    "timeISO": "2025-11-03T14:33:58.000Z",
-    "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45801947,
     "by": "antirez",
     "timeISO": "2025-11-03T17:47:30.000Z",
     "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799397,
+    "by": "jeffchuber",
+    "timeISO": "2025-11-03T14:33:58.000Z",
+    "textPlain": "Good article - the most use cases i see of pg_vector are typically “chat over their technical docs”\n- small corpus\n- doesn’t change often / can rebuild the index\n- no multi-tenancy avoids much of the issues with post-filteringChroma implements SPANN and SPFresh (to avoid the limitations of HNSW), pre-filtering, hybrid search, and has a 100% usage-based tier (many bills are around $1 per month).Chroma is also apache 2.0 - fully open source.",
     "parent": 45798479,
     "depth": 1
   },
@@ -104,6 +104,14 @@
     "depth": 1
   },
   {
+    "id": 45801170,
+    "by": "chandureddyvari",
+    "timeISO": "2025-11-03T16:50:21.000Z",
+    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45806693,
     "by": "codingjaguar",
     "timeISO": "2025-11-04T01:53:21.000Z",
@@ -116,14 +124,6 @@
     "by": "muzani",
     "timeISO": "2025-11-04T00:39:51.000Z",
     "textPlain": "\"Turbopuffer starts at $64 month with generous limits.\"Yup, I think this here explains the popularity of pgvector. If $64/month seems like a lot to you, just use pgvector. If it seems cheap, then your usage is complex enough to want a proper vector DB.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45801170,
-    "by": "chandureddyvari",
-    "timeISO": "2025-11-03T16:50:21.000Z",
-    "textPlain": "Is there a comprehensive leaderboard like ClickBench but for vector DBs? Something that measures both the qualitative (precision/recall) and quantitative aspects (query perf at 95th/99th percentile, QPS at load, compression ratios, etc.)?ANN-Benchmark exists but it’s algorithm-focused rather than full-stack database testing, so it doesn’t capture real-world ops like concurrent writes, filtering, or resource management under load.Would be great to see something more comprehensive and vendor-neutral emerge, especially testing things like: tail latencies under concurrent load, index build times vs quality tradeoffs, memory/disk usage, and behavior during failures/recovery",
     "parent": 45798479,
     "depth": 1
   },
@@ -152,14 +152,6 @@
     "depth": 1
   },
   {
-    "id": 45807313,
-    "by": "tjwebbnorfolk",
-    "timeISO": "2025-11-04T04:05:36.000Z",
-    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800752,
     "by": "simonw",
     "timeISO": "2025-11-03T16:21:41.000Z",
@@ -176,18 +168,26 @@
     "depth": 1
   },
   {
-    "id": 45804188,
-    "by": "semiquaver",
-    "timeISO": "2025-11-03T20:43:56.000Z",
-    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800596,
     "by": "eigencoder",
     "timeISO": "2025-11-03T16:09:46.000Z",
     "textPlain": "I think these are the salient concerns I've faced at work using pgvector. Especially getting bit by the query planning when filtering -- it's hard to predict when postgres will decide to use pre- vs post-filtering.As for inserts being difficult, we basically don't see that because we only update the vector store weekly. We're not trying to index rapidly-changing user data, so that's not a big deal for our use case.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45807313,
+    "by": "tjwebbnorfolk",
+    "timeISO": "2025-11-04T04:05:36.000Z",
+    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804188,
+    "by": "semiquaver",
+    "timeISO": "2025-11-03T20:43:56.000Z",
+    "textPlain": "> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?\n\nWhat is wrong with REINDEX CONCURRENTLY?",
     "parent": 45798479,
     "depth": 1
   },
