@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45810084,
-    "by": "inbx0",
-    "timeISO": "2025-11-04T12:22:31.000Z",
-    "textPlain": "I don't have much experience in dedicated vector databases, I've only used pgvector, so pardon me if there's an obvious answer to this, but how do people do similarity search combined with other filters and pagination with separate vector DB? It's a pretty common use case at least in my circles.For example, give me product listings that match the search term (by vector search), and are made by company X (copanies being a separate table). Sort by vector similarity of the search term and give me top 100?.We have even largely moved away from ElasticSearch to Postgres where we can, because it's just so much easier to implement with new complex filters without needing to add those other tables' data to the index of e.g. \"products\" every time.Edit: Ah I guess this is touched a bit in the article with \"Pre- vs. Post-Filtering\" - I guess you just do the same as with ElasticSearch, predict what you'll want to filter with, add all of that to metadata and keep it up to date.",
+    "id": 45811209,
+    "by": "redwood",
+    "timeISO": "2025-11-04T14:09:07.000Z",
+    "textPlain": "MongoDB's implementation separates the vector index runtime from the transactional processing enabling independent scaling and workload isolation but preserving unified query richness and scale-out via sharding. This is a best of both worlds in my view...",
     "parent": 45798479,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "sgarland",
     "timeISO": "2025-11-03T14:47:39.000Z",
     "textPlain": "> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them.maintenance_work_mem begs to differ.> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?You use REINDEX CONCURRENTLY.> But updating an HNSW graph isn’t free—you’re traversing the graph to find the right place to insert the new node and updating connections.How do you think a B+tree gets updated?This entire post reads like the author didn’t read Postgres’ docs, and is now upset at the poor DX/UX.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45810084,
+    "by": "inbx0",
+    "timeISO": "2025-11-04T12:22:31.000Z",
+    "textPlain": "I don't have much experience in dedicated vector databases, I've only used pgvector, so pardon me if there's an obvious answer to this, but how do people do similarity search combined with other filters and pagination with separate vector DB? It's a pretty common use case at least in my circles.For example, give me product listings that match the search term (by vector search), and are made by company X (copanies being a separate table). Sort by vector similarity of the search term and give me top 100?.We have even largely moved away from ElasticSearch to Postgres where we can, because it's just so much easier to implement with new complex filters without needing to add those other tables' data to the index of e.g. \"products\" every time.Edit: Ah I guess this is touched a bit in the article with \"Pre- vs. Post-Filtering\" - I guess you just do the same as with ElasticSearch, predict what you'll want to filter with, add all of that to metadata and keep it up to date.",
     "parent": 45798479,
     "depth": 1
   },
@@ -100,6 +108,14 @@
     "by": "IntrepidPig",
     "timeISO": "2025-11-03T16:49:06.000Z",
     "textPlain": "> Post-filter works when your filter is permissive. Here’s where it breaks: imagine you ask for 10 results with LIMIT 10. pgvector finds the 10 nearest neighbors, then applies your filter. Only 3 of those 10 are published. You get 3 results back, even though there might be hundreds of relevant published documents slightly further away in the embedding space.Is this really how it works? That seems like it’s returning an incorrect result.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45811149,
+    "by": "jgalt212",
+    "timeISO": "2025-11-04T14:03:36.000Z",
+    "textPlain": "Has anyone used PGVector and sqlite-vss or sqlite-vector?",
     "parent": 45798479,
     "depth": 1
   },
@@ -381,22 +397,6 @@
     "timeISO": "2025-11-03T15:42:02.000Z",
     "textPlain": "We actually looked into vectorchord--it looks really cool, but it's not supported by RDS so it is an additional service for us to add anyways.",
     "parent": 45799401,
-    "depth": 2
-  },
-  {
-    "id": 45800352,
-    "by": "ayende",
-    "timeISO": "2025-11-03T15:48:55.000Z",
-    "textPlain": "> maintenance_work_memThat kills the indexing process, you cannot let it run with limited amount of memory.> How do you think a B+tree gets updated?In a B+Tree, you need to touch log H of the pages.\nIn HNSW graph - you need to touch literally thousands of vectors once your graph gets big enough.",
-    "parent": 45799559,
-    "depth": 2
-  },
-  {
-    "id": 45805356,
-    "by": "whakim",
-    "timeISO": "2025-11-03T22:42:30.000Z",
-    "textPlain": "> maintenance_work_mem begs to differ.HNSW indices are big. Let's suppose I have an HNSW index which fits in a few hundred gigabytes of memory, or perhaps a few terabytes. How do I reasonably rebuild this using maintenance_work_mem? Double the size of my database for a week? What about the knock-on impacts on the performance for the rest of my database-stuff - presumably I'm relying on this memory for shared_buffers and caching? This seems like the type of workload that is being discussed here, not a toy 20GB index or something.> You use REINDEX CONCURRENTLY.Even with a bunch of worker processes, how do I do this within a reasonable timeframe?> How do you think a B+tree gets updated?Sure, the computational complexity of insertion into an HNSW index is sublinear, the constant factors are significant and do actually add up. That being said, I do find this the weakest of the author's arguments.",
-    "parent": 45799559,
     "depth": 2
   }
 ]
