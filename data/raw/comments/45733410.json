@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "id": 45811941,
+    "by": "reedlaw",
+    "timeISO": "2025-11-04T15:16:29.000Z",
+    "textPlain": "https://news.ycombinator.com/item?id=44220245 on the same topic was posted four months ago and has more substance than this short 2007 post.",
+    "parent": 45733410,
+    "depth": 1
+  },
+  {
+    "id": 45811646,
+    "by": "lightamulet",
+    "timeISO": "2025-11-04T14:50:47.000Z",
+    "textPlain": "Trying to represent sudoku as an integer program leads to a natural way to represent the board: a 9x9x9 boolean grid where x and y are the board dimensions and z is the number in each square.You end up with three symmetric constraints + the box constraint:- The sum along any x, y, or z row is 1 (one of each number per row, one of each number per column, and one number per square)- The sum of each 3x3x1 box slice is 1 (one of each number per box)I really like the symmetry between the row sum constraints here. And it does pretty neatly align with the way many people solve Sudoku by writing little numbers in the squares to represent possible values before pruning impossible ones.",
+    "parent": 45733410,
+    "depth": 1
+  },
+  {
+    "id": 45811526,
+    "by": "MontagFTB",
+    "timeISO": "2025-11-04T14:39:16.000Z",
+    "textPlain": "There are plenty of posts out there on using Knuth’s dancing links as a fast sudoku solver. Has it fallen out of fashion?",
+    "parent": 45733410,
+    "depth": 1
+  },
+  {
+    "id": 45811874,
+    "by": "mzl",
+    "timeISO": "2025-11-04T15:10:51.000Z",
+    "textPlain": "That representation of a Sudoku is elegant, but I think it is not the most natural representation. The base constraint programming style will use a variable per square with domain 1-9, and then 27 all_different constraints. This representation is a lot closer to how people talk about the rules of Sudoku, which in my mind makes it more natural.A full MiniZinc program would look like this    int: n = 3;\n    int: s = n*n;\n    set of int: S = 1..s;\n    \n    array[S, S] of opt S: puzzle;\n    \n    array[S, S] of var S: board;\n    \n    % Sudoku constraints\n    constraint forall(row in S) ( all_different(board[row, ..]) );\n    constraint forall(col in S) ( all_different(board[.., col]) );\n    constraint forall(r, c in {1, 4, 7}) (\n        all_different(board[r..<r+n, c..<c+n])\n    );\n    \n    % Set up puzzle\n    constraint forall (r, c in S where occurs(puzzle[r, c])) (\n        board[r, c] = puzzle[r, c]\n    );\n    \n    solve satisfy;\n\nAnd an instance file looks like this    puzzle = [|\n         9, <>,  8,   1, <>, <>,  <>, <>,  4 |\n         1,  2, <>,  <>,  8,  6,  <>,  5, <> |\n        <>, <>,  7,  <>, <>, <>,  <>,  1, <> |\n    \n        <>,  8,  3,  <>, <>, <>,  <>,  6,  9 |\n         7, <>,  6,   8, <>,  3,  <>, <>, <> |\n        <>, <>, <>,   4,  6, <>,  <>,  8, <> |\n    \n        <>, <>, <>,  <>, <>,  1,  <>, <>, <> |\n        <>, <>, <>,  <>, <>,  4,   5, <>,  1 |\n         5,  4,  1,   9,  3,  8,  <>, <>, <>\n    |];",
+    "parent": 45811646,
+    "depth": 2
+  },
+  {
+    "id": 45811899,
+    "by": "mzl",
+    "timeISO": "2025-11-04T15:13:23.000Z",
+    "textPlain": "Dancing links is a very cute data-structure for a backtracking search, but there are a lot more aspects of writing a good Sudoku solver than just having a good data-structure for backtracking. Propagation (making deductions), heuristics, learning, parallelism, restarts, no-goods, ...While 9x9 Sudoku problems are trivial to solve for more or less any program, 25x25 Sudoku instances are quite tricky and a simple and fast but naive search for a solution can easily take hours.",
+    "parent": 45811526,
+    "depth": 2
+  }
+]

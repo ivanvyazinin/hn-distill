@@ -16,10 +16,42 @@
     "depth": 1
   },
   {
+    "id": 45811961,
+    "by": "pauldix",
+    "timeISO": "2025-11-04T15:18:00.000Z",
+    "textPlain": "I believe you could do this effectively with COBS (COmpact Bit Sliced signature index): https://panthema.net/2019/1008-COBS-A-Compact-Bit-Sliced-Sig...It's a pretty neat algorithm from a paper in 2019 for the application \"to index k-mers of DNA samples or q-grams from text documents\". You can take a collection of bloom filters built for documents and then combine them together to have a single filter that will tell you which docs it maps to. Like an inverted index meets a bloom filter.I'm using it in a totally different domain for an upcoming release in InfluxDB (time series database).There's also code online here: https://github.com/bingmann/cobs",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45811467,
+    "by": "adamzwasserman",
+    "timeISO": "2025-11-04T14:33:23.000Z",
+    "textPlain": "The \"no sharing between filters\" insight clicked for me on a different problem.I needed to filter items by tags. Bloom filter per item seemed clever - quick membership checks. But with thousands of items sharing dozens of tags, each filter re-encodes the same vocabulary. Pure waste.Switched to an inverted index (tag → item list) with bloom filters per chunk of the index. Now the tag vocabulary is shared, and bloom filters just speed up chunk-skipping when the index grows large.TFA's mistake is using bloom filters -instead- of an inverted index rather than on top of one. The amortization patterns stack, they don't compete.",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
     "id": 45809710,
     "by": "majke",
     "timeISO": "2025-11-04T11:20:21.000Z",
     "textPlain": "Bing uses bloom filters for the most-recent index:https://dl.acm.org/doi/pdf/10.1145/3077136.3080789https://bitfunnel.org/strangeloop/",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45811587,
+    "by": "pi_22by7",
+    "timeISO": "2025-11-04T14:45:39.000Z",
+    "textPlain": "The key insight about bloom filters lacking synergy is excellent. The ~7K document crossover point makes sense because inverted indexes amortize dictionary storage across all documents while bloom filters must encode it linearly per document",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45811410,
+    "by": "hijinks",
+    "timeISO": "2025-11-04T14:27:37.000Z",
+    "textPlain": "is there a better way then bloom filters to handle needle in the haystack type searches where the haystack might be terabytes of data and you only want a few lines?",
     "parent": 45808998,
     "depth": 1
   },
@@ -45,6 +77,14 @@
     "timeISO": "2025-11-04T14:04:48.000Z",
     "textPlain": "I'm not an expert at all, I learn they exist after making something similar to search a few thousand blog posts.Rather than one hash per file I made a file for each 2 letter combinations like aa.raw, ab.raw, etc where each bit in the file represents a record. (bit 0 is file 0 etc) you could ofc do 3 or 4 letters too.A query is split into 2 letter combinations. 1st + 2nd, 2nd + 3rd, etc the files are loaded, do a bitwise AND on the files.a search for \"bloom\" would only load bl.raw, lo.raw, oo.raw, om.rawThe index is really hard to update but adding new records is easy. New records are first added as false positives until we have enough bits to push a byte to the end of each raw file.I then got lost pondering what creative letter combinations would yield the best results. Things like xx.raw and an.raw are pretty useless. Words could be treated as if unique characters.Characters (or other bytes) could be combined like s=z, k=c, x=y or i=eCalculating which combination is best for the static data set was to hard for me. One could look at the ratio to see if it is worth having a letter combination.But it works and loading a hand full of files or doing an AND is amazingly fast.",
     "parent": 45809842,
+    "depth": 2
+  },
+  {
+    "id": 45811408,
+    "by": "adamzwasserman",
+    "timeISO": "2025-11-04T14:27:12.000Z",
+    "textPlain": "Exactly. A 1.2% false positive rate means unnecessary reads 1.2% of the time vs\n100% without the filter. Even at 10% FP rate, you skip 90% of I/O.This asymmetry works great for I/O-bound workloads (skip-indexes) but fails for TFA's approach where every document needs its own filter.In practice, you combine both: inverted index for the dictionary (amortizes across documents), then bloom filters per chunk of the index (amortizes across chunks). This two-level approach handles scale much better than TFA's one-filter-per-document design. It's bloom filters as an optimization layer, not a replacement.",
+    "parent": 45809382,
     "depth": 2
   }
 ]
