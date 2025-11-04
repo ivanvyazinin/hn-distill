@@ -1,25 +1,9 @@
 [
   {
-    "id": 45810369,
-    "by": "Xx_crazy420_xX",
-    "timeISO": "2025-11-04T12:49:04.000Z",
-    "textPlain": "The author (human or llm) flips between performance (\"millions of vectors\") and semantic accuracy (\"only 3 match your filter\") to push its point, depending on what needs to look worse. AI framing switch that was that was probably introduced by RLHF on humans that don't think critically but want somewhat convincing answers.For pre-filtering \"You’re still searching millions of vectors\" isn't valid argument, because the author does not relate to any alternative, and post-filtering is even worse.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799162,
     "by": "xfalcox",
     "timeISO": "2025-11-03T14:16:36.000Z",
     "textPlain": "> Nobody’s actually run this in productionWe do at Discourse, in thousands of databases, and it's leveraged in most of the billions of page views we serve.> Pre- vs. Post-Filtering (or: why you need to become a query planner expert)This was fixed in version 0.8.0 via Iterative Scans (https://github.com/pgvector/pgvector?tab=readme-ov-file#iter...)> Just use a real vector databaseIf you are running a single service that may be an easier sell, but it's not a silver bullet.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
-    "id": 45810084,
-    "by": "inbx0",
-    "timeISO": "2025-11-04T12:22:31.000Z",
-    "textPlain": "I don't have much experience in dedicated vector databases, I've only used pgvector, so pardon me if there's an obvious answer to this, but how do people do similarity search combined with other filters and pagination with separate vector DB? It's a pretty common use case at least in my circles.For example, give me product listings that match the search term (by vector search), and are made by company X (copanies being a separate table). Sort by vector similarity of the search term and give me top 100?.We have even largely moved away from ElasticSearch to Postgres where we can, because it's just so much easier to implement with new complex filters without needing to add those other tables' data to the index of e.g. \"products\" every time.Edit: Ah I guess this is touched a bit in the article with \"Pre- vs. Post-Filtering\" - I guess you just do the same as with ElasticSearch, predict what you'll want to filter with, add all of that to metadata and keep it up to date.",
     "parent": 45798479,
     "depth": 1
   },
@@ -32,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 45810084,
+    "by": "inbx0",
+    "timeISO": "2025-11-04T12:22:31.000Z",
+    "textPlain": "I don't have much experience in dedicated vector databases, I've only used pgvector, so pardon me if there's an obvious answer to this, but how do people do similarity search combined with other filters and pagination with separate vector DB? It's a pretty common use case at least in my circles.For example, give me product listings that match the search term (by vector search), and are made by company X (copanies being a separate table). Sort by vector similarity of the search term and give me top 100?.We have even largely moved away from ElasticSearch to Postgres where we can, because it's just so much easier to implement with new complex filters without needing to add those other tables' data to the index of e.g. \"products\" every time.Edit: Ah I guess this is touched a bit in the article with \"Pre- vs. Post-Filtering\" - I guess you just do the same as with ElasticSearch, predict what you'll want to filter with, add all of that to metadata and keep it up to date.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45799559,
     "by": "sgarland",
     "timeISO": "2025-11-03T14:47:39.000Z",
     "textPlain": "> The problem is that index builds are memory-intensive operations, and Postgres doesn’t have a great way to throttle them.maintenance_work_mem begs to differ.> You rebuild the index periodically to fix this, but during the rebuild (which can take hours for large datasets), what do you do with new inserts? Queue them? Write to a separate unindexed table and merge later?You use REINDEX CONCURRENTLY.> But updating an HNSW graph isn’t free—you’re traversing the graph to find the right place to insert the new node and updating connections.How do you think a B+tree gets updated?This entire post reads like the author didn’t read Postgres’ docs, and is now upset at the poor DX/UX.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45810369,
+    "by": "Xx_crazy420_xX",
+    "timeISO": "2025-11-04T12:49:04.000Z",
+    "textPlain": "The author (human or llm) flips between performance (\"millions of vectors\") and semantic accuracy (\"only 3 match your filter\") to push its point, depending on what needs to look worse. AI framing switch that was that was probably introduced by RLHF on humans that don't think critically but want somewhat convincing answers.For pre-filtering \"You’re still searching millions of vectors\" isn't valid argument, because the author does not relate to any alternative, and post-filtering is even worse.",
     "parent": 45798479,
     "depth": 1
   },
@@ -72,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45799547,
-    "by": "rudderdev",
-    "timeISO": "2025-11-03T14:46:29.000Z",
-    "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45801947,
     "by": "antirez",
     "timeISO": "2025-11-03T17:47:30.000Z",
     "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45799547,
+    "by": "rudderdev",
+    "timeISO": "2025-11-03T14:46:29.000Z",
+    "textPlain": "As others have commented, all the mentioned issues are resolved, I will favour in using the PGVector.\nIf Postgres can be a good choice over Kafka to deliver 100k events/sec [1], then why not PGVector over Chroma or other specialized vector search (unless there is a specific requirement that can't be solved wit minor code/config changes)![1] Ref: https://news.ycombinator.com/item?id=44659678",
     "parent": 45798479,
     "depth": 1
   },
@@ -104,14 +104,6 @@
     "depth": 1
   },
   {
-    "id": 45809634,
-    "by": "neya",
-    "timeISO": "2025-11-04T11:07:37.000Z",
-    "textPlain": "Man, that table comparison definitely looks like it was AI generated. I'm starting to question the whole article itself, now :/",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45806693,
     "by": "codingjaguar",
     "timeISO": "2025-11-04T01:53:21.000Z",
@@ -124,6 +116,14 @@
     "by": "dangoodmanUT",
     "timeISO": "2025-11-03T16:41:33.000Z",
     "textPlain": "> What bothers me most: the majority of content about pgvector reads like it was written by someone who spun up a local Postgres instance, inserted 10,000 vectors, ran a few queries, and called it a day.I this taste with most posts about Postgres that don’t come from “how we scaled Postgres to X”. It seems a lot of writers are trying to ride the wave of popularity, creating a ton of noise that can end up as tech debt for readers",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45809634,
+    "by": "neya",
+    "timeISO": "2025-11-04T11:07:37.000Z",
+    "textPlain": "Man, that table comparison definitely looks like it was AI generated. I'm starting to question the whole article itself, now :/",
     "parent": 45798479,
     "depth": 1
   },
@@ -160,18 +160,18 @@
     "depth": 1
   },
   {
-    "id": 45807406,
-    "by": "jmspring",
-    "timeISO": "2025-11-04T04:25:23.000Z",
-    "textPlain": "'Nobody’s actually run this in production' - the majority of people who work with postgres don't talk about it or gloat about it because it's a tool that works - including it's addons.Yes, young engineers get all hot and bothered over the most recent tools but - they have no idea how things work and run.I worked on a project that wanted to use a hot and frothy vector database.  The issue - ok, where are we getting the 1/4-1/2 time person to manage it?  Product engineers - derp? what?  People who live in node and python cutting edge don't really think about the actual production implications of their choices.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45804191,
     "by": "jankovicsandras",
     "timeISO": "2025-11-03T20:44:05.000Z",
     "textPlain": "Shameless plug:  https://github.com/jankovicsandras/plpgsql_bm25   BM25 search implemented in PL/pgSQL ( Unlicense / Public domain )The repo includes plpgsql_bm25rrf.sql : PL/pgSQL function for Hybrid search ( plpgsql_bm25 + pgvector ) with Reciprocal Rank Fusion; and Jupyter notebook examples.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45807406,
+    "by": "jmspring",
+    "timeISO": "2025-11-04T04:25:23.000Z",
+    "textPlain": "'Nobody’s actually run this in production' - the majority of people who work with postgres don't talk about it or gloat about it because it's a tool that works - including it's addons.Yes, young engineers get all hot and bothered over the most recent tools but - they have no idea how things work and run.I worked on a project that wanted to use a hot and frothy vector database.  The issue - ok, where are we getting the 1/4-1/2 time person to manage it?  Product engineers - derp? what?  People who live in node and python cutting edge don't really think about the actual production implications of their choices.",
     "parent": 45798479,
     "depth": 1
   },
@@ -224,18 +224,18 @@
     "depth": 1
   },
   {
-    "id": 45807313,
-    "by": "tjwebbnorfolk",
-    "timeISO": "2025-11-04T04:05:36.000Z",
-    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45799349,
     "by": "BenGosub",
     "timeISO": "2025-11-03T14:30:42.000Z",
     "textPlain": "The limitations of PGVector are touched upon in this podcast episode.\nhttps://open.spotify.com/episode/2rvn0ZhNoNFtozxpnMIqmo?si=i...",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45807313,
+    "by": "tjwebbnorfolk",
+    "timeISO": "2025-11-04T04:05:36.000Z",
+    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
     "parent": 45798479,
     "depth": 1
   },
