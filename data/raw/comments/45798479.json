@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45806693,
+    "by": "codingjaguar",
+    "timeISO": "2025-11-04T01:53:21.000Z",
+    "textPlain": "This quite aligns with our observation at Milvus. Recently, we helped several users migrate from pgvector as the workload grew substantially.It’s worth recognising the strengths of pgvector:• For small-to-medium scale workloads (e.g., up to millions of vectors, relatively static data), embedding storage and similarity queries inside Postgres can be a simple, familiar architecture.• If you already use Postgres and your vector workloads are light (low QPS, few dimensions, little metadata filtering / low concurrency), then piggy-backing vector search on Postgres is attractive: minimal added infrastructure.• For teams that don’t want to introduce a separate vector service, or want to keep things within an existing RDBMS, pgvector is a compelling choice.From our experience helping users scale vector search in production, several pain-points emerge when scaling vector workloads inside a general-purpose RDBMS like Postgres:1. Index build / update overhead\n • Postgres isn’t built from the ground-up for high-velocity vector insertions plus large-scale approximate nearest neighbour (ANN) index maintenance, for example, lacking RaBitQ binary quantization supported in purpose built vector db like Milvus.• For large datasets (tens/hundreds of millions or beyond), building or rebuilding HNSW/IVF indices inside Postgres can be memory- and time-intensive.• In production systems where vectors are continuously ingested, updated, deleted, this becomes operationally tricky.2. Filtered search• Many use-cases require combining vector similarity with scalar/metadata filters (e.g., “give me top 10 similar embeddings where user_status = ‘active’ AND time > X”).• Need to understand low level planner to juggle pre-filtering, post-filtering, and planner’s cost model wasn’t built for vector similarity search. For a system not designed primarily as a vector DB, this gets complex. Users shouldn't have to worry about such low level details.3. Lack of support for full-text search / hybrid search• P",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45800454,
     "by": "jjfoooo4",
     "timeISO": "2025-11-03T15:58:55.000Z",
@@ -80,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 45801152,
+    "by": "IntrepidPig",
+    "timeISO": "2025-11-03T16:49:06.000Z",
+    "textPlain": "> Post-filter works when your filter is permissive. Here’s where it breaks: imagine you ask for 10 results with LIMIT 10. pgvector finds the 10 nearest neighbors, then applies your filter. Only 3 of those 10 are published. You get 3 results back, even though there might be hundreds of relevant published documents slightly further away in the embedding space.Is this really how it works? That seems like it’s returning an incorrect result.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45802333,
     "by": "bob1029",
     "timeISO": "2025-11-03T18:19:28.000Z",
@@ -88,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45801152,
-    "by": "IntrepidPig",
-    "timeISO": "2025-11-03T16:49:06.000Z",
-    "textPlain": "> Post-filter works when your filter is permissive. Here’s where it breaks: imagine you ask for 10 results with LIMIT 10. pgvector finds the 10 nearest neighbors, then applies your filter. Only 3 of those 10 are published. You get 3 results back, even though there might be hundreds of relevant published documents slightly further away in the embedding space.Is this really how it works? That seems like it’s returning an incorrect result.",
+    "id": 45806845,
+    "by": "jrochkind1",
+    "timeISO": "2025-11-04T02:23:18.000Z",
+    "textPlain": "> What bothers me most: the majority of content about pgvector reads like it was written by someone who spun up a local Postgres instance, inserted 10,000 vectors, ran a few queries, and called it a day.this is a big problem in programmer blog posts. It used to be I could find blog posts by peopel who had actually done the thing (\"in anger\").Now it's someone who decided writing up the thing would draw clicks, and googled just enough to write the thing, may or may not have actually even fired it up at all -- may not have even written it, perhaps had AI write it.It makes any of these blog posts pretty terrible guides.I used to try at least downvoting these on say reddit when it was obviously not written by someone who had their own actual earned knowledge about the thing, but just gave up, because it's nearly everything.",
     "parent": 45798479,
     "depth": 1
   },
@@ -152,14 +168,6 @@
     "depth": 1
   },
   {
-    "id": 45801267,
-    "by": "softwaredoug",
-    "timeISO": "2025-11-03T16:56:40.000Z",
-    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800596,
     "by": "eigencoder",
     "timeISO": "2025-11-03T16:09:46.000Z",
@@ -168,10 +176,10 @@
     "depth": 1
   },
   {
-    "id": 45805806,
-    "by": "ezekiel68",
-    "timeISO": "2025-11-03T23:37:25.000Z",
-    "textPlain": "> Your database is now handling your normal transactional workload, analytical queries, AND maintaining graph structures in memory for vector search.No.  No one in production is trying to use the same instance for all of these use-cases at scale.  The fundamental misunderstanding here is assuming or even \"demanding\" that one instance should be able to provide OLTP, OLAP and vector ops with no compromises.  The workloads are fundamentally different and doing serious work requires architecting the solution much more intelligently.",
+    "id": 45801267,
+    "by": "softwaredoug",
+    "timeISO": "2025-11-03T16:56:40.000Z",
+    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
     "parent": 45798479,
     "depth": 1
   },
@@ -180,6 +188,14 @@
     "by": "BenGosub",
     "timeISO": "2025-11-03T14:30:42.000Z",
     "textPlain": "The limitations of PGVector are touched upon in this podcast episode.\nhttps://open.spotify.com/episode/2rvn0ZhNoNFtozxpnMIqmo?si=i...",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45805806,
+    "by": "ezekiel68",
+    "timeISO": "2025-11-03T23:37:25.000Z",
+    "textPlain": "> Your database is now handling your normal transactional workload, analytical queries, AND maintaining graph structures in memory for vector search.No.  No one in production is trying to use the same instance for all of these use-cases at scale.  The fundamental misunderstanding here is assuming or even \"demanding\" that one instance should be able to provide OLTP, OLAP and vector ops with no compromises.  The workloads are fundamentally different and doing serious work requires architecting the solution much more intelligently.",
     "parent": 45798479,
     "depth": 1
   },
@@ -200,18 +216,18 @@
     "depth": 1
   },
   {
-    "id": 45804648,
-    "by": "dmezzetti",
-    "timeISO": "2025-11-03T21:26:28.000Z",
-    "textPlain": "You can make it even simpler and not bother with any of this. With even something as large as 100M vectors, you can just use Torch or GGUF with compression. Even NumPy can take you a long way. Example below.https://github.com/neuml/txtai/blob/master/examples/78_Acces...",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800317,
     "by": "indigo945",
     "timeISO": "2025-11-03T15:46:16.000Z",
     "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors \n    > can consume 10+ GB of RAM or more (depending on your vector dimensions and \n    > dataset size). On your production database. While it’s running. For potentially \n    > hours.\n\n10 GB? Oh jolly gosh! That will almost show up as a pixel or two on my metrics dashboard.Who are these people that run production Postgres clusters on tiny hardware and then complain? Has AWS marketing really confused people into believing that some EC2 \"instance size\" is an actual server?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45804648,
+    "by": "dmezzetti",
+    "timeISO": "2025-11-03T21:26:28.000Z",
+    "textPlain": "You can make it even simpler and not bother with any of this. With even something as large as 100M vectors, you can just use Torch or GGUF with compression. Even NumPy can take you a long way. Example below.https://github.com/neuml/txtai/blob/master/examples/78_Acces...",
     "parent": 45798479,
     "depth": 1
   },
@@ -381,22 +397,6 @@
     "timeISO": "2025-11-03T20:46:21.000Z",
     "textPlain": "I'm currently building RAG for our product (using Lucene). What I've found is that embeddings alone don't help much. With hybrid search (BM25+HNSW) they gave me only like +10% boost compared to BM25 alone (on average). In my evaluation datasets, the only case where they helped tremendously was for cases like \"a user asks a question in French but the documents are all in English\", it went from 6% retrieval to 65% on some datasets.I got a significant boost (from 65% on average to over 80%) by adding a proper reranker and query rewriting (3 additional phrases to search for).I think embeddings are overrated in that blog posts often make you believe they are the end of the story. What I've found is that they should be rather treated as a lightweight filtering/screening tool to quickly find a pool of candidates as a first stage, before you do the actual stuff (apply a reranker). If BM25 already works as well as a pre-filtering tool, you don't even need embeddings (with all the indexing headaches).",
     "parent": 45802333,
-    "depth": 2
-  },
-  {
-    "id": 45803195,
-    "by": "mhuffman",
-    "timeISO": "2025-11-03T19:20:07.000Z",
-    "textPlain": "I like lucene and have used it for many years, but sometimes a conceptually close match is what you want. Lucene and friends are fantastic about word matching, fuzzy searches, stem searches, phonetic searches, faceting and more but have nothing for conceptually or semantically close searches (I understand that they recently added new document vector searches). Also vector searches usually always return something which is not ideal in a lot of cases. I like Reciprocal Rank Fusion myself as it gives the best of both worlds. As a fun trick I use duckdb to do RRF with 5million+ documents and get low double-digit ms response time even under load",
-    "parent": 45802333,
-    "depth": 2
-  },
-  {
-    "id": 45801761,
-    "by": "riku_iki",
-    "timeISO": "2025-11-03T17:34:30.000Z",
-    "textPlain": "> Is there a comprehensive leaderboard like ClickBenchclickbench has 100m rows of data only, which makes it not comprehensive benchmark at all.",
-    "parent": 45801170,
     "depth": 2
   }
 ]
