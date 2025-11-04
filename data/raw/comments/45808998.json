@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45811961,
-    "by": "pauldix",
-    "timeISO": "2025-11-04T15:18:00.000Z",
-    "textPlain": "I believe you could do this effectively with COBS (COmpact Bit Sliced signature index): https://panthema.net/2019/1008-COBS-A-Compact-Bit-Sliced-Sig...It's a pretty neat algorithm from a paper in 2019 for the application \"to index k-mers of DNA samples or q-grams from text documents\". You can take a collection of bloom filters built for documents and then combine them together to have a single filter that will tell you which docs it maps to. Like an inverted index meets a bloom filter.I'm using it in a totally different domain for an upcoming release in InfluxDB (time series database).There's also code online here: https://github.com/bingmann/cobs",
-    "parent": 45808998,
-    "depth": 1
-  },
-  {
     "id": 45811467,
     "by": "adamzwasserman",
     "timeISO": "2025-11-04T14:33:23.000Z",
     "textPlain": "The \"no sharing between filters\" insight clicked for me on a different problem.I needed to filter items by tags. Bloom filter per item seemed clever - quick membership checks. But with thousands of items sharing dozens of tags, each filter re-encodes the same vocabulary. Pure waste.Switched to an inverted index (tag → item list) with bloom filters per chunk of the index. Now the tag vocabulary is shared, and bloom filters just speed up chunk-skipping when the index grows large.TFA's mistake is using bloom filters -instead- of an inverted index rather than on top of one. The amortization patterns stack, they don't compete.",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45811961,
+    "by": "pauldix",
+    "timeISO": "2025-11-04T15:18:00.000Z",
+    "textPlain": "I believe you could do this effectively with COBS (COmpact Bit Sliced signature index): https://panthema.net/2019/1008-COBS-A-Compact-Bit-Sliced-Sig...It's a pretty neat algorithm from a paper in 2019 for the application \"to index k-mers of DNA samples or q-grams from text documents\". You can take a collection of bloom filters built for documents and then combine them together to have a single filter that will tell you which docs it maps to. Like an inverted index meets a bloom filter.I'm using it in a totally different domain for an upcoming release in InfluxDB (time series database).There's also code online here: https://github.com/bingmann/cobs",
     "parent": 45808998,
     "depth": 1
   },
@@ -77,6 +77,14 @@
     "timeISO": "2025-11-04T14:04:48.000Z",
     "textPlain": "I'm not an expert at all, I learn they exist after making something similar to search a few thousand blog posts.Rather than one hash per file I made a file for each 2 letter combinations like aa.raw, ab.raw, etc where each bit in the file represents a record. (bit 0 is file 0 etc) you could ofc do 3 or 4 letters too.A query is split into 2 letter combinations. 1st + 2nd, 2nd + 3rd, etc the files are loaded, do a bitwise AND on the files.a search for \"bloom\" would only load bl.raw, lo.raw, oo.raw, om.rawThe index is really hard to update but adding new records is easy. New records are first added as false positives until we have enough bits to push a byte to the end of each raw file.I then got lost pondering what creative letter combinations would yield the best results. Things like xx.raw and an.raw are pretty useless. Words could be treated as if unique characters.Characters (or other bytes) could be combined like s=z, k=c, x=y or i=eCalculating which combination is best for the static data set was to hard for me. One could look at the ratio to see if it is worth having a letter combination.But it works and loading a hand full of files or doing an AND is amazingly fast.",
     "parent": 45809842,
+    "depth": 2
+  },
+  {
+    "id": 45812483,
+    "by": "munchbunny",
+    "timeISO": "2025-11-04T16:03:02.000Z",
+    "textPlain": "> that asymmetry is weirdly powerful for specific problems.100% agree when it works in your favor. We use it for exactly that situation where a non-zero false positive rate is fine and you can choose how much memory to devote to getting it closer to zero.There have a been a couple times though where we've needed a \"keep everything not on this list\" operation, and unfortunately bloom filters don't work well for that situation. There are alternatives, but none as elegantly compact as bloom filters.",
+    "parent": 45809382,
     "depth": 2
   },
   {
