@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45814287,
+    "by": "hinkley",
+    "timeISO": "2025-11-04T18:29:54.000Z",
+    "textPlain": "> Fun fact: There is a nice implementation of this exact algorithm that is still used in the wild.I thought that was going to be a link to Google.com",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
     "id": 45811467,
     "by": "adamzwasserman",
     "timeISO": "2025-11-04T14:33:23.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45809710,
-    "by": "majke",
-    "timeISO": "2025-11-04T11:20:21.000Z",
-    "textPlain": "Bing uses bloom filters for the most-recent index:https://dl.acm.org/doi/pdf/10.1145/3077136.3080789https://bitfunnel.org/strangeloop/",
+    "id": 45813804,
+    "by": "taeric",
+    "timeISO": "2025-11-04T17:50:14.000Z",
+    "textPlain": "I will forever think of Bloom filters as \"bouncer filters.\"  Could go with concierge filter.  Basically, it is the equivalent of every movie where the detective is asking the front desk various attributes of who they are looking for.It is not hard to see how you could start asking the front desk to track every obscure attribute and to expect to fall over for various reasons.",
     "parent": 45808998,
     "depth": 1
   },
@@ -40,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45811587,
-    "by": "pi_22by7",
-    "timeISO": "2025-11-04T14:45:39.000Z",
-    "textPlain": "The key insight about bloom filters lacking synergy is excellent. The ~7K document crossover point makes sense because inverted indexes amortize dictionary storage across all documents while bloom filters must encode it linearly per document",
+    "id": 45809710,
+    "by": "majke",
+    "timeISO": "2025-11-04T11:20:21.000Z",
+    "textPlain": "Bing uses bloom filters for the most-recent index:https://dl.acm.org/doi/pdf/10.1145/3077136.3080789https://bitfunnel.org/strangeloop/",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45813639,
+    "by": "KevBurnsJr",
+    "timeISO": "2025-11-04T17:35:40.000Z",
+    "textPlain": "Reminds me of @danthegoodman's project: bloomsearch [1][1] https://github.com/danthegoodman1/bloomsearch",
     "parent": 45808998,
     "depth": 1
   },
@@ -52,6 +68,14 @@
     "by": "hijinks",
     "timeISO": "2025-11-04T14:27:37.000Z",
     "textPlain": "is there a better way then bloom filters to handle needle in the haystack type searches where the haystack might be terabytes of data and you only want a few lines?",
+    "parent": 45808998,
+    "depth": 1
+  },
+  {
+    "id": 45811587,
+    "by": "pi_22by7",
+    "timeISO": "2025-11-04T14:45:39.000Z",
+    "textPlain": "The key insight about bloom filters lacking synergy is excellent. The ~7K document crossover point makes sense because inverted indexes amortize dictionary storage across all documents while bloom filters must encode it linearly per document",
     "parent": 45808998,
     "depth": 1
   },
@@ -88,11 +112,19 @@
     "depth": 2
   },
   {
-    "id": 45812483,
-    "by": "munchbunny",
-    "timeISO": "2025-11-04T16:03:02.000Z",
-    "textPlain": "> that asymmetry is weirdly powerful for specific problems.100% agree when it works in your favor. We use it for exactly that situation where a non-zero false positive rate is fine and you can choose how much memory to devote to getting it closer to zero.There have a been a couple times though where we've needed a \"keep everything not on this list\" operation, and unfortunately bloom filters don't work well for that situation. There are alternatives, but none as elegantly compact as bloom filters.",
-    "parent": 45809382,
+    "id": 45813604,
+    "by": "philipkglass",
+    "timeISO": "2025-11-04T17:32:05.000Z",
+    "textPlain": "There are a lot of \"better than Bloom\" filters that work similarly in at least some aspects. I have used Cuckoo [1] and Ribbon [2] filters for Bloom-type applications. If you have an application where you do a lot of one kind of searching, it may also be worth implementing a specialized variant of a data structure. I needed a Cuckoo-type filter on the JVM but only for 64 bit integers and I was able to make a smaller, faster code base that was specialized to this data type instead of handling generic objects.You also need to know up front whether you need to be able to dynamically add entries to the filter or if your application can tolerate rebuilding the filter entirely whenever the underlying data changes. In the latter case you have more freedom to choose data structures; many of the modern \"better than Bloom\" filters are more compact but don't support dynamic updates.[1] https://en.wikipedia.org/wiki/Cuckoo_filter[2] https://engineering.fb.com/2021/07/09/core-infra/ribbon-filt...",
+    "parent": 45811410,
+    "depth": 2
+  },
+  {
+    "id": 45814129,
+    "by": "hinkley",
+    "timeISO": "2025-11-04T18:16:35.000Z",
+    "textPlain": "But doesn’t that depend on the cardinality of the indexes versus the document count?  I’ve seen systems with a stupid number of tag values.",
+    "parent": 45811587,
     "depth": 2
   },
   {
@@ -100,6 +132,14 @@
     "by": "adamzwasserman",
     "timeISO": "2025-11-04T14:27:12.000Z",
     "textPlain": "Exactly. A 1.2% false positive rate means unnecessary reads 1.2% of the time vs\n100% without the filter. Even at 10% FP rate, you skip 90% of I/O.This asymmetry works great for I/O-bound workloads (skip-indexes) but fails for TFA's approach where every document needs its own filter.In practice, you combine both: inverted index for the dictionary (amortizes across documents), then bloom filters per chunk of the index (amortizes across chunks). This two-level approach handles scale much better than TFA's one-filter-per-document design. It's bloom filters as an optimization layer, not a replacement.",
+    "parent": 45809382,
+    "depth": 2
+  },
+  {
+    "id": 45812483,
+    "by": "munchbunny",
+    "timeISO": "2025-11-04T16:03:02.000Z",
+    "textPlain": "> that asymmetry is weirdly powerful for specific problems.100% agree when it works in your favor. We use it for exactly that situation where a non-zero false positive rate is fine and you can choose how much memory to devote to getting it closer to zero.There have a been a couple times though where we've needed a \"keep everything not on this list\" operation, and unfortunately bloom filters don't work well for that situation. There are alternatives, but none as elegantly compact as bloom filters.",
     "parent": 45809382,
     "depth": 2
   }
