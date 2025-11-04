@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45809129,
+    "by": "sanskarix",
+    "timeISO": "2025-11-04T09:48:43.000Z",
+    "textPlain": "the real question isn't \"can postgres handle vectors\" - it's \"is your team better at postgres or at managing another service?\"for most startups, debugging weird postgres behavior is way cheaper than adding pinecone to your stack and dealing with sync issues. once you hit real scale problems, you'll know exactly what you need from a dedicated solution.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
     "id": 45800454,
     "by": "jjfoooo4",
     "timeISO": "2025-11-03T15:58:55.000Z",
@@ -56,18 +64,18 @@
     "depth": 1
   },
   {
-    "id": 45802333,
-    "by": "bob1029",
-    "timeISO": "2025-11-03T18:19:28.000Z",
-    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45801947,
     "by": "antirez",
     "timeISO": "2025-11-03T17:47:30.000Z",
     "textPlain": "Redis Vector Sets, my work for the last year, I believe address many of such points:1. Updates: I wrote my own implementation of the HNSW with many changes compared to the paper. The result is that the data structure can be updated while it receives queries, like the other Redis data types. You add vectors with VADD, query for similarity with VSIM, delete with VREM. Also deleting vectors will not perform just a thumbstone deletion. The memory is actually reclaimed immediately.2. Speed: The implementation is fast, fully threaded reads, partially threaded writes: even for insertion it is easy to stay in the few hundreds of ops/sec, and querying with VSIM is like 50k ops/sec in normal hardware.3. Trivial: You can reimplement your use case in 10 minutes including learing how it works.Of course it costs some memory, but less than you may guess: it supports quantization by default, transparently, and for a few millions of elements (most use cases) the memory usage is very low, totally affordable.Bonus point: if you use vector sets you can ask my help for free. At this stage I support people using vector sets directly.I'll link here the documentation I wrote myself as it is a bit hard to find, you know... a README inside the repository , in 2025, so odd: https://github.com/redis/redis/blob/unstable/modules/vector-...P.S. in the README there is stale mention about replication code being not really tested. I filled the gap later and added tests, fixed bugs and so forth.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45802333,
+    "by": "bob1029",
+    "timeISO": "2025-11-03T18:19:28.000Z",
+    "textPlain": "I'm still stuck on whether or not vector search (regardless of vendor) is actually the right way to solve the kinds of problems that everyone seems to believe it's great at.BM25 with query rewriting & expansion can do a lot of heavy lifting if you invest any time at all in configuring things to match your problem space. The article touches on FTS engines and hybrid approaches, but I would start there. Figure out where lexical techniques actually break down and then reach for the \"semantic\" technology. I'd argue that an LLM in front of a traditional lexical search engine (i.e., tool use) would generally be more powerful than a sloppy semantic vector space or a fine tuning job. It would also be significantly easier to trace and shape retrieval behavior.Lucene is often all you need. They've recently added vector search capabilities if you think you really need some kind of hybrid abomination.",
     "parent": 45798479,
     "depth": 1
   },
@@ -112,14 +120,6 @@
     "depth": 1
   },
   {
-    "id": 45806693,
-    "by": "codingjaguar",
-    "timeISO": "2025-11-04T01:53:21.000Z",
-    "textPlain": "This quite aligns with our observation at Milvus. Recently, we helped several users migrate from pgvector as the workload grew substantially.It’s worth recognising the strengths of pgvector:• For small-to-medium scale workloads (e.g., up to millions of vectors, relatively static data), embedding storage and similarity queries inside Postgres can be a simple, familiar architecture.• If you already use Postgres and your vector workloads are light (low QPS, few dimensions, little metadata filtering / low concurrency), then piggy-backing vector search on Postgres is attractive: minimal added infrastructure.• For teams that don’t want to introduce a separate vector service, or want to keep things within an existing RDBMS, pgvector is a compelling choice.From our experience helping users scale vector search in production, several pain-points emerge when scaling vector workloads inside a general-purpose RDBMS like Postgres:1. Index build / update overhead\n • Postgres isn’t built from the ground-up for high-velocity vector insertions plus large-scale approximate nearest neighbour (ANN) index maintenance, for example, lacking RaBitQ binary quantization supported in purpose built vector db like Milvus.• For large datasets (tens/hundreds of millions or beyond), building or rebuilding HNSW/IVF indices inside Postgres can be memory- and time-intensive.• In production systems where vectors are continuously ingested, updated, deleted, this becomes operationally tricky.2. Filtered search• Many use-cases require combining vector similarity with scalar/metadata filters (e.g., “give me top 10 similar embeddings where user_status = ‘active’ AND time > X”).• Need to understand low level planner to juggle pre-filtering, post-filtering, and planner’s cost model wasn’t built for vector similarity search. For a system not designed primarily as a vector DB, this gets complex. Users shouldn't have to worry about such low level details.3. Lack of support for full-text search / hybrid search• P",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45806277,
     "by": "muzani",
     "timeISO": "2025-11-04T00:39:51.000Z",
@@ -128,10 +128,10 @@
     "depth": 1
   },
   {
-    "id": 45807406,
-    "by": "jmspring",
-    "timeISO": "2025-11-04T04:25:23.000Z",
-    "textPlain": "'Nobody’s actually run this in production' - the majority of people who work with postgres don't talk about it or gloat about it because it's a tool that works - including it's addons.Yes, young engineers get all hot and bothered over the most recent tools but - they have no idea how things work and run.I worked on a project that wanted to use a hot and frothy vector database.  The issue - ok, where are we getting the 1/4-1/2 time person to manage it?  Product engineers - derp? what?  People who live in node and python cutting edge don't really think about the actual production implications of their choices.",
+    "id": 45806693,
+    "by": "codingjaguar",
+    "timeISO": "2025-11-04T01:53:21.000Z",
+    "textPlain": "This quite aligns with our observation at Milvus. Recently, we helped several users migrate from pgvector as the workload grew substantially.It’s worth recognising the strengths of pgvector:• For small-to-medium scale workloads (e.g., up to millions of vectors, relatively static data), embedding storage and similarity queries inside Postgres can be a simple, familiar architecture.• If you already use Postgres and your vector workloads are light (low QPS, few dimensions, little metadata filtering / low concurrency), then piggy-backing vector search on Postgres is attractive: minimal added infrastructure.• For teams that don’t want to introduce a separate vector service, or want to keep things within an existing RDBMS, pgvector is a compelling choice.From our experience helping users scale vector search in production, several pain-points emerge when scaling vector workloads inside a general-purpose RDBMS like Postgres:1. Index build / update overhead\n • Postgres isn’t built from the ground-up for high-velocity vector insertions plus large-scale approximate nearest neighbour (ANN) index maintenance, for example, lacking RaBitQ binary quantization supported in purpose built vector db like Milvus.• For large datasets (tens/hundreds of millions or beyond), building or rebuilding HNSW/IVF indices inside Postgres can be memory- and time-intensive.• In production systems where vectors are continuously ingested, updated, deleted, this becomes operationally tricky.2. Filtered search• Many use-cases require combining vector similarity with scalar/metadata filters (e.g., “give me top 10 similar embeddings where user_status = ‘active’ AND time > X”).• Need to understand low level planner to juggle pre-filtering, post-filtering, and planner’s cost model wasn’t built for vector similarity search. For a system not designed primarily as a vector DB, this gets complex. Users shouldn't have to worry about such low level details.3. Lack of support for full-text search / hybrid search• P",
     "parent": 45798479,
     "depth": 1
   },
@@ -140,6 +140,14 @@
     "by": "pqdbr",
     "timeISO": "2025-11-03T16:16:33.000Z",
     "textPlain": "Id love to read a blog post like this about S3 Vector buckets. Does anyone have experience with it in production?",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45807406,
+    "by": "jmspring",
+    "timeISO": "2025-11-04T04:25:23.000Z",
+    "textPlain": "'Nobody’s actually run this in production' - the majority of people who work with postgres don't talk about it or gloat about it because it's a tool that works - including it's addons.Yes, young engineers get all hot and bothered over the most recent tools but - they have no idea how things work and run.I worked on a project that wanted to use a hot and frothy vector database.  The issue - ok, where are we getting the 1/4-1/2 time person to manage it?  Product engineers - derp? what?  People who live in node and python cutting edge don't really think about the actual production implications of their choices.",
     "parent": 45798479,
     "depth": 1
   },
@@ -176,10 +184,10 @@
     "depth": 1
   },
   {
-    "id": 45807313,
-    "by": "tjwebbnorfolk",
-    "timeISO": "2025-11-04T04:05:36.000Z",
-    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
+    "id": 45801267,
+    "by": "softwaredoug",
+    "timeISO": "2025-11-03T16:56:40.000Z",
+    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
     "parent": 45798479,
     "depth": 1
   },
@@ -192,10 +200,10 @@
     "depth": 1
   },
   {
-    "id": 45801267,
-    "by": "softwaredoug",
-    "timeISO": "2025-11-03T16:56:40.000Z",
-    "textPlain": "My real icky feeling is the layering on of postgres plugins to get a search solution to work.Ok yeah there's PGVector. Then you need something to do full text search. And if you put all that together, you have a complex Postgres deployment.It seems to make sense for simple operations, but I'd rather just get a search engine / vector database, than try to twist Postgres's arm into a weird setup.",
+    "id": 45807313,
+    "by": "tjwebbnorfolk",
+    "timeISO": "2025-11-04T04:05:36.000Z",
+    "textPlain": "> None of the blogs mention that building an HNSW index on a few million vectors can consume 10+ GB of RAM or moreSpeaking of \"production\" -- in what world is \"10+ GB\" a lot of RAM for a database server?I have to agree: the author should definitely not use Postgres or pgvector in production...",
     "parent": 45798479,
     "depth": 1
   },
@@ -224,18 +232,18 @@
     "depth": 1
   },
   {
-    "id": 45807189,
-    "by": "ComputerGuru",
-    "timeISO": "2025-11-04T03:34:36.000Z",
-    "textPlain": "I had only heard positive things about pgvector but when you Google comparisons with leading vector dbs you keep getting seo slop from Tiger Data pushing pgvector with very suspicious benchmarks that turned me off it altogether instead\n https://www.tigerdata.com/blog/pgvector-vs-qdrant",
-    "parent": 45798479,
-    "depth": 1
-  },
-  {
     "id": 45800197,
     "by": "arunmu",
     "timeISO": "2025-11-03T15:36:33.000Z",
     "textPlain": "There is pgvectorscale from timescale which uses disk ann based data structure and has support for pre and post filtering.",
+    "parent": 45798479,
+    "depth": 1
+  },
+  {
+    "id": 45807189,
+    "by": "ComputerGuru",
+    "timeISO": "2025-11-04T03:34:36.000Z",
+    "textPlain": "I had only heard positive things about pgvector but when you Google comparisons with leading vector dbs you keep getting seo slop from Tiger Data pushing pgvector with very suspicious benchmarks that turned me off it altogether instead\n https://www.tigerdata.com/blog/pgvector-vs-qdrant",
     "parent": 45798479,
     "depth": 1
   },
@@ -388,14 +396,6 @@
     "by": "Fripplebubby",
     "timeISO": "2025-11-03T14:47:39.000Z",
     "textPlain": "The post is a clear example of when YAGNI backfires, because you think YAGNI but then, you actually do need it. I had this experience, the author had this experience, you might as well - the things you think you AGN are actually pretty basic expectations and not luxuries: being able to write vectors real-time without having to run other processes out of band to keep the recall from degrading over time, being able to write a query that uses normal SQL filter predicates and similarity in one go for retrieval. These things matter and you won't notice that they actually don't work at scale until later on!",
-    "parent": 45799374,
-    "depth": 2
-  },
-  {
-    "id": 45799473,
-    "by": "esafak",
-    "timeISO": "2025-11-03T14:40:19.000Z",
-    "textPlain": "Databases are hard to swap out when you realize you need a different one.",
     "parent": 45799374,
     "depth": 2
   }
