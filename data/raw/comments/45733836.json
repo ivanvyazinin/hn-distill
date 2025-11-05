@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45821380,
-    "by": "masklinn",
-    "timeISO": "2025-11-05T10:22:12.000Z",
-    "textPlain": "An option you did not mention, although not generally available to languages with advanced runtime, is that even if you have immutable strings you can realloc them if you know you're the only owner of that string (e.g. because they're refcounted, or can't be shared).CPython does that, so a trivial concatenation loop is (amortised) linear (causing issues for alternate implementations when they have to run that). Swift might also be able to via COW optimisation.Rust's string concatenation is a variant of this (though it has mutable strings anyway): `String::add` takes an owned value on the LHS, and the implementation just appends to the LHS before returning it:    fn add(mut self, other: &str) -> String {\n        self.push_str(other);\n        self\n    }\n\nso repeated concatenation will realloc and amortize as if you were just `push_str`-ing in a loop (which maps directly to appending to the underlying buffer).",
+    "id": 45821915,
+    "by": "bruce343434",
+    "timeISO": "2025-11-05T11:59:53.000Z",
+    "textPlain": "Maybe I'm missing something, but I thought that when you \"grow\" an array or a string, eventually something under the hood needs to call realloc()? which allocates a bigger chunk of memory and copies the content O(n)? Why would it matter if you manually do alloc() and then memcpy() (replacing an immutable string with its concatenation) vs letting the runtime do it for you with realloc()?",
     "parent": 45819424,
     "depth": 2
   },
@@ -44,6 +44,14 @@
     "by": "masklinn",
     "timeISO": "2025-11-05T08:15:33.000Z",
     "textPlain": "> As noted a paragraph later, the Java compiler is able to detect and “fix” this, by rewriting the code to use a mutable string.Does it actually do that nowadays? Back in my days it was incapable of lifting the builder out of loops, so for each iteration it would instantiate a builder with the accumulator string, append the concatenation, then stringify and reset the accumulator.The linked docs don’t say anything about loops.",
+    "parent": 45819424,
+    "depth": 2
+  },
+  {
+    "id": 45821380,
+    "by": "masklinn",
+    "timeISO": "2025-11-05T10:22:12.000Z",
+    "textPlain": "An option you did not mention, although not generally available to languages with advanced runtime, is that even if you have immutable strings you can realloc them if you know you're the only owner of that string (e.g. because they're refcounted, or can't be shared).CPython does that, so a trivial concatenation loop is (amortised) linear (causing issues for alternate implementations when they have to run that). Swift might also be able to via COW optimisation.Rust's string concatenation is a variant of this (though it has mutable strings anyway): `String::add` takes an owned value on the LHS, and the implementation just appends to the LHS before returning it:    fn add(mut self, other: &str) -> String {\n        self.push_str(other);\n        self\n    }\n\nso repeated concatenation will realloc and amortize as if you were just `push_str`-ing in a loop (which maps directly to appending to the underlying buffer).",
     "parent": 45819424,
     "depth": 2
   },
@@ -88,18 +96,18 @@
     "depth": 2
   },
   {
-    "id": 45820410,
-    "by": "lmm",
-    "timeISO": "2025-11-05T07:41:26.000Z",
-    "textPlain": "> just document that the behavior becomes unspecified if keys are mutated while they are in the table.> Make sure the behavior is safe: it won't crash or be exploitable by a remote attacker.There is no such thing as unspecified but safe behaviour. Developers who can't predict what will happen will make invalid assumptions which will lead to security vulnerabilities when they are violated.",
-    "parent": 45818607,
-    "depth": 2
-  },
-  {
     "id": 45818741,
     "by": "ameliaquining",
     "timeISO": "2025-11-05T03:41:15.000Z",
     "textPlain": "In general, Ruby does allow mutable values in hash tables, with basically those semantics: https://docs.ruby-lang.org/en/3.4/Hash.html#class-Hash-label...The copy-and-freeze behavior is a special case that applies only to strings, presumably because the alternative was too much of a footgun since programmers usually think of strings in terms of value semantics.I don't think anyone likes the explicit .freeze calls everywhere; I think the case for frozen strings in Ruby is primarily based on performance rather than correctness (which is why it wasn't obvious earlier in the language's history that it was the right call), and the reason it's hard to make the default is because of compatibility.",
+    "parent": 45818607,
+    "depth": 2
+  },
+  {
+    "id": 45820410,
+    "by": "lmm",
+    "timeISO": "2025-11-05T07:41:26.000Z",
+    "textPlain": "> just document that the behavior becomes unspecified if keys are mutated while they are in the table.> Make sure the behavior is safe: it won't crash or be exploitable by a remote attacker.There is no such thing as unspecified but safe behaviour. Developers who can't predict what will happen will make invalid assumptions which will lead to security vulnerabilities when they are violated.",
     "parent": 45818607,
     "depth": 2
   }
