@@ -16,10 +16,26 @@
     "depth": 1
   },
   {
-    "id": 45826986,
-    "by": "the__alchemist",
-    "timeISO": "2025-11-05T19:43:50.000Z",
-    "textPlain": "Of interest, I've written my own core::simd mimic so I don't have to make all my libs and programs use nightly. It started as me just making my Quaternion and Vec lib (lin-alg) have their own SoA SIMD variants (Vec3x16 etc), but I ended up implementing and publicly exposing f32x16 etc. Will remove those once core::simd is stable. Downside: These are x86 only; no ARM support.I also added packing and unpacking helpers that assist with handling final lane 0 values etc. But there is still some subtly, as the article pointed out, compared to using Rayon or non-SIMD CPU code related to packing and unpacking. E.g. you should try to keep things in their SIMD form throughout the whole pipeline, how you pair them with non-SIMD values (Like you might pair [T; 8] with f32x8 etc) etc.",
+    "id": 45827570,
+    "by": "jtrueb",
+    "timeISO": "2025-11-05T20:33:10.000Z",
+    "textPlain": "simd was one I thought we needed. Then, i started benchmarking using iter with chunks and a nested if statement to check the chunk size. If it was necessary to do more, it was typically time to drop down to asm rather than worry about another layer in between the code and the machine.",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45827901,
+    "by": "taeric",
+    "timeISO": "2025-11-05T20:57:26.000Z",
+    "textPlain": "I'm curious on the uptake of SIMD and other assembly level usage through high level code?  I'd assume most is done either by people writing very low level code that directly manages the data, or by using very high level libraries that are prescriptive on what data they work with?How many people are writing somewhat bog standard RUST/C and expect optimal assembly to be created?",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45827891,
+    "by": "waffletower",
+    "timeISO": "2025-11-05T20:56:08.000Z",
+    "textPlain": "I am torn -- while I love the bitter critique of std::simd's nightly builds (why bother with any public release if it is never stable?), I cringed at the critique of \"(c)urrently things are well fleshed out for i32, i64, f32, and f64 types\".  f64 and i64 go a long way for most numerical applications -- the OP seemed snowflaky to me with that entitled concern.",
     "parent": 45826348,
     "depth": 1
   },
@@ -28,6 +44,14 @@
     "by": "mdriley",
     "timeISO": "2025-11-05T19:16:28.000Z",
     "textPlain": "> TL;DR: use std::simd if you don’t mind nightly, wide if you don’t need multiversioning, and otherwise pulp or macerator.This matches the conclusion we reached for Chromium. We were okay with nightly, so we're using `std::simd` but trying to avoid the least stable APIs. More details: https://docs.google.com/document/d/1lh9x43gtqXFh5bP1LeYevWj0...",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45826986,
+    "by": "the__alchemist",
+    "timeISO": "2025-11-05T19:43:50.000Z",
+    "textPlain": "Of interest, I've written my own core::simd mimic so I don't have to make all my libs and programs use nightly. It started as me just making my Quaternion and Vec lib (lin-alg) have their own SoA SIMD variants (Vec3x16 etc), but I ended up implementing and publicly exposing f32x16 etc. Will remove those once core::simd is stable. Downside: These are x86 only; no ARM support.I also added packing and unpacking helpers that assist with handling final lane 0 values etc. But there is still some subtly, as the article pointed out, compared to using Rayon or non-SIMD CPU code related to packing and unpacking. E.g. you should try to keep things in their SIMD form throughout the whole pipeline, how you pair them with non-SIMD values (Like you might pair [T; 8] with f32x8 etc) etc.",
     "parent": 45826348,
     "depth": 1
   },
@@ -48,10 +72,10 @@
     "depth": 2
   },
   {
-    "id": 45827065,
-    "by": "singron",
-    "timeISO": "2025-11-05T19:51:11.000Z",
-    "textPlain": "There is a GitHub issue that details what's blocking stabilization for a each feature. I've read a few recently and noticed some patterns:1. A high bar for quality in std2. Dependencies on other unstable features3. Known bugs4. Conflicts with other unstable featuresIt seems anything that affects trait solving is very complicated and is more likely to have bugs or combine non-trivially with other trait-solving features.I think there is also some sampling bias. Tons of features get stabilized, but you are much more likely to notice a nightly feature that is unstable for a long time and complex enough to be excited about.",
+    "id": 45827748,
+    "by": "JoshTriplett",
+    "timeISO": "2025-11-05T20:46:50.000Z",
+    "textPlain": "> Why isn’t std::simd in stable yet?Leaving aside any specific blockers:- It's a massive hard problem, to build a portable abstraction layer over the SIMD capabilities of various CPUs.- It's a massive balance between performance and usability, and people care deeply about both.- It's subject to Rust's stability guarantee for the standard library: once we ship it, we can't fix any API issues.- There are already portable SIMD libraries in the ecosystem, which aren't subject to that stability guarantee as they can ship new semver-major versions. (One of these days, I hope we have ways to do that for the standard library.)- Many people already use non-portable SIMD for the 1-3 targets they care about, instead.",
     "parent": 45826874,
     "depth": 2
   },
@@ -64,10 +88,10 @@
     "depth": 2
   },
   {
-    "id": 45827447,
-    "by": "IshKebab",
-    "timeISO": "2025-11-05T20:22:03.000Z",
-    "textPlain": "I would love generators too but I think the more features they add the more interactions with existing features they have to deal with, so it's not surprising that its slowing down.",
+    "id": 45827065,
+    "by": "singron",
+    "timeISO": "2025-11-05T19:51:11.000Z",
+    "textPlain": "There is a GitHub issue that details what's blocking stabilization for a each feature. I've read a few recently and noticed some patterns:1. A high bar for quality in std2. Dependencies on other unstable features3. Known bugs4. Conflicts with other unstable featuresIt seems anything that affects trait solving is very complicated and is more likely to have bugs or combine non-trivially with other trait-solving features.I think there is also some sampling bias. Tons of features get stabilized, but you are much more likely to notice a nightly feature that is unstable for a long time and complex enough to be excited about.",
     "parent": 45826874,
     "depth": 2
   },
@@ -80,11 +104,11 @@
     "depth": 2
   },
   {
-    "id": 45827450,
-    "by": "jiehong",
-    "timeISO": "2025-11-05T20:22:33.000Z",
-    "textPlain": "C# is blessed on that front. Java’s SIMD state is still sad, and golang is not as great either.",
-    "parent": 45827014,
+    "id": 45827447,
+    "by": "IshKebab",
+    "timeISO": "2025-11-05T20:22:03.000Z",
+    "textPlain": "I would love generators too but I think the more features they add the more interactions with existing features they have to deal with, so it's not surprising that its slowing down.",
+    "parent": 45826874,
     "depth": 2
   },
   {
@@ -96,11 +120,43 @@
     "depth": 2
   },
   {
+    "id": 45827549,
+    "by": "exyi",
+    "timeISO": "2025-11-05T20:31:25.000Z",
+    "textPlain": "C# portable SIMD is very nice indeed, but it's also not usable without unsafety. On the other hand, Rust compiler (LLVM) has a fairly competent autovectorizer, so you may be able to simply write loops the right way instead of the fancy API.",
+    "parent": 45827014,
+    "depth": 2
+  },
+  {
+    "id": 45827450,
+    "by": "jiehong",
+    "timeISO": "2025-11-05T20:22:33.000Z",
+    "textPlain": "C# is blessed on that front. Java’s SIMD state is still sad, and golang is not as great either.",
+    "parent": 45827014,
+    "depth": 2
+  },
+  {
+    "id": 45827999,
+    "by": "vlovich123",
+    "timeISO": "2025-11-05T21:04:12.000Z",
+    "textPlain": "Do you compile the whole project with nightly or just specific components?",
+    "parent": 45826689,
+    "depth": 2
+  },
+  {
     "id": 45827225,
     "by": "____tom____",
     "timeISO": "2025-11-05T20:03:23.000Z",
     "textPlain": "I'm not a rust programmer.Can't you just make a local copy of the existing package and use that? Did you need to re-implement?",
     "parent": 45826986,
+    "depth": 2
+  },
+  {
+    "id": 45827568,
+    "by": "dzaima",
+    "timeISO": "2025-11-05T20:33:01.000Z",
+    "textPlain": "Linux of course does have an interface for RISC-V extension probing via hwprobe. And there's a C interface[1] for probing that's OS-agnostic (though it's rather new).[1]: https://github.com/riscv-non-isa/riscv-c-api-doc/blob/main/s...",
+    "parent": 45827328,
     "depth": 2
   },
   {
