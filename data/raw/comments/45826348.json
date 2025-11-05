@@ -1,9 +1,9 @@
 [
   {
-    "id": 45826874,
-    "by": "josephg",
-    "timeISO": "2025-11-05T19:33:24.000Z",
-    "textPlain": "Why isn’t std::simd in stabile yet? Why do so many great features seem stuck in the same nightly-forever limbo land - like generators?I’m sure more people than ever are working on the compiler. What’s going on?",
+    "id": 45828672,
+    "by": "andyferris",
+    "timeISO": "2025-11-05T22:01:24.000Z",
+    "textPlain": "Regarding autovectorization:> The other drawback of this method is that the optimizer won’t even touch anything involving floats (f32 and f64 types). It’s not permitted to change any observable outputs of the program, and reordering float operations may alter the result due to precision loss. (There is a way to tell the compiler not to worry about precision loss, but it’s currently nightly-only).Ah - this makes a lot of sense. I've had zero trouble getting excellent performance out of Julia using autovectorization (from LLVM) so I was wondering why this was such a \"thing\" in Rust. I wonder if that nightly feature is a per-crate setting or what?",
     "parent": 45826348,
     "depth": 1
   },
@@ -16,10 +16,42 @@
     "depth": 1
   },
   {
+    "id": 45826874,
+    "by": "josephg",
+    "timeISO": "2025-11-05T19:33:24.000Z",
+    "textPlain": "Why isn’t std::simd in stabile yet? Why do so many great features seem stuck in the same nightly-forever limbo land - like generators?I’m sure more people than ever are working on the compiler. What’s going on?",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
     "id": 45827570,
     "by": "jtrueb",
     "timeISO": "2025-11-05T20:33:10.000Z",
     "textPlain": "simd was one I thought we needed. Then, i started benchmarking using iter with chunks and a nested if statement to check the chunk size. If it was necessary to do more, it was typically time to drop down to asm rather than worry about another layer in between the code and the machine.",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45828817,
+    "by": "CashWasabi",
+    "timeISO": "2025-11-05T22:13:55.000Z",
+    "textPlain": "I really dislike those articles that are language focused. Why not try to share them in a way that is language agnostic?",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45826689,
+    "by": "mdriley",
+    "timeISO": "2025-11-05T19:16:28.000Z",
+    "textPlain": "> TL;DR: use std::simd if you don’t mind nightly, wide if you don’t need multiversioning, and otherwise pulp or macerator.This matches the conclusion we reached for Chromium. We were okay with nightly, so we're using `std::simd` but trying to avoid the least stable APIs. More details: https://docs.google.com/document/d/1lh9x43gtqXFh5bP1LeYevWj0...",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45828335,
+    "by": "justahuman74",
+    "timeISO": "2025-11-05T21:33:06.000Z",
+    "textPlain": "Somewhat related, does rust handle the riscv vector extension in a similar way to simd?",
     "parent": 45826348,
     "depth": 1
   },
@@ -40,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 45826689,
-    "by": "mdriley",
-    "timeISO": "2025-11-05T19:16:28.000Z",
-    "textPlain": "> TL;DR: use std::simd if you don’t mind nightly, wide if you don’t need multiversioning, and otherwise pulp or macerator.This matches the conclusion we reached for Chromium. We were okay with nightly, so we're using `std::simd` but trying to avoid the least stable APIs. More details: https://docs.google.com/document/d/1lh9x43gtqXFh5bP1LeYevWj0...",
-    "parent": 45826348,
-    "depth": 1
-  },
-  {
     "id": 45826986,
     "by": "the__alchemist",
     "timeISO": "2025-11-05T19:43:50.000Z",
@@ -64,51 +88,11 @@
     "depth": 1
   },
   {
-    "id": 45827091,
-    "by": "ChadNauseam",
-    "timeISO": "2025-11-05T19:53:46.000Z",
-    "textPlain": "There really aren't that many people working on the compiler. It's mostly volunteers.The structure is unlike a traditional company. In a traditional company, the managers decide the priorities and direct the employees what to work on while facilitating that work. While there are people with a more managerial type position working on rust compiler, their job is not to tell the volunteers what to work on (they cannot), but instead to help the volunteers accomplish whatever it is they want to do.I don't know about std::simd specifically, but for many features, it's simply a case of \"none of the very small number of people working on the rust compiler have prioritized it\".I do wish there was a bounty system, where people could say \"I really want std::simd so I'll pay $5,000 to the rust foundation if it gets stabilized\". If enough people did that I'm sure they could find a way to make it happen. But I think realistically, very few people would be willing to put up even a cent for the features they want. I hear a lot of people wishing for better const generics, but only 27 people have set up a donation to boxy (lead of the const generics group https://github.com/sponsors/BoxyUwU ).",
-    "parent": 45826874,
-    "depth": 2
-  },
-  {
-    "id": 45827748,
-    "by": "JoshTriplett",
-    "timeISO": "2025-11-05T20:46:50.000Z",
-    "textPlain": "> Why isn’t std::simd in stable yet?Leaving aside any specific blockers:- It's a massive hard problem, to build a portable abstraction layer over the SIMD capabilities of various CPUs.- It's a massive balance between performance and usability, and people care deeply about both.- It's subject to Rust's stability guarantee for the standard library: once we ship it, we can't fix any API issues.- There are already portable SIMD libraries in the ecosystem, which aren't subject to that stability guarantee as they can ship new semver-major versions. (One of these days, I hope we have ways to do that for the standard library.)- Many people already use non-portable SIMD for the 1-3 targets they care about, instead.",
-    "parent": 45826874,
-    "depth": 2
-  },
-  {
-    "id": 45827363,
-    "by": "Avi-D-coder",
-    "timeISO": "2025-11-05T20:14:55.000Z",
-    "textPlain": "Usually when I go and read the github and zulip threads the reason for paused work comes down to the fact that no one has come up with a design that maintains every existing promise the compiler has made. The most common ones I see are the feature conflicts with safety, semver/encapsulation, interacts weirdly with object safety, causes post post-monomorphization errors, breaks perfect type class coherence (see haskells unsound specialization).Too many promises have been made.Rust needs more unsafe opt outs. Ironically simd has this so it does not bother me.",
-    "parent": 45826874,
-    "depth": 2
-  },
-  {
-    "id": 45827065,
-    "by": "singron",
-    "timeISO": "2025-11-05T19:51:11.000Z",
-    "textPlain": "There is a GitHub issue that details what's blocking stabilization for a each feature. I've read a few recently and noticed some patterns:1. A high bar for quality in std2. Dependencies on other unstable features3. Known bugs4. Conflicts with other unstable featuresIt seems anything that affects trait solving is very complicated and is more likely to have bugs or combine non-trivially with other trait-solving features.I think there is also some sampling bias. Tons of features get stabilized, but you are much more likely to notice a nightly feature that is unstable for a long time and complex enough to be excited about.",
-    "parent": 45826874,
-    "depth": 2
-  },
-  {
-    "id": 45826959,
-    "by": "the__alchemist",
-    "timeISO": "2025-11-05T19:42:10.000Z",
-    "textPlain": "Would love this. I've heard it's not planned to be in the near future. Maybe \"perfect is the enemy of good enough\"?",
-    "parent": 45826874,
-    "depth": 2
-  },
-  {
-    "id": 45827447,
-    "by": "IshKebab",
-    "timeISO": "2025-11-05T20:22:03.000Z",
-    "textPlain": "I would love generators too but I think the more features they add the more interactions with existing features they have to deal with, so it's not surprising that its slowing down.",
-    "parent": 45826874,
+    "id": 45828828,
+    "by": "Arch-TK",
+    "timeISO": "2025-11-05T22:14:38.000Z",
+    "textPlain": "It's not something you seem to be able to just enable globally. From what I gather this is what is being referenced:https://doc.rust-lang.org/std/intrinsics/index.htmlSpecifically the *_fast intrinsics.",
+    "parent": 45828672,
     "depth": 2
   },
   {
@@ -136,11 +120,83 @@
     "depth": 2
   },
   {
+    "id": 45827091,
+    "by": "ChadNauseam",
+    "timeISO": "2025-11-05T19:53:46.000Z",
+    "textPlain": "There really aren't that many people working on the compiler. It's mostly volunteers.The structure is unlike a traditional company. In a traditional company, the managers decide the priorities and direct the employees what to work on while facilitating that work. While there are people with a more managerial type position working on rust compiler, their job is not to tell the volunteers what to work on (they cannot), but instead to help the volunteers accomplish whatever it is they want to do.I don't know about std::simd specifically, but for many features, it's simply a case of \"none of the very small number of people working on the rust compiler have prioritized it\".I do wish there was a bounty system, where people could say \"I really want std::simd so I'll pay $5,000 to the rust foundation if it gets stabilized\". If enough people did that I'm sure they could find a way to make it happen. But I think realistically, very few people would be willing to put up even a cent for the features they want. I hear a lot of people wishing for better const generics, but only 27 people have set up a donation to boxy (lead of the const generics group https://github.com/sponsors/BoxyUwU ).",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45827748,
+    "by": "JoshTriplett",
+    "timeISO": "2025-11-05T20:46:50.000Z",
+    "textPlain": "> Why isn’t std::simd in stable yet?Leaving aside any specific blockers:- It's a massive hard problem, to build a portable abstraction layer over the SIMD capabilities of various CPUs.- It's a massive balance between performance and usability, and people care deeply about both.- It's subject to Rust's stability guarantee for the standard library: once we ship it, we can't fix any API issues.- There are already portable SIMD libraries in the ecosystem, which aren't subject to that stability guarantee as they can ship new semver-major versions. (One of these days, I hope we have ways to do that for the standard library.)- Many people already use non-portable SIMD for the 1-3 targets they care about, instead.",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45827065,
+    "by": "singron",
+    "timeISO": "2025-11-05T19:51:11.000Z",
+    "textPlain": "There is a GitHub issue that details what's blocking stabilization for a each feature. I've read a few recently and noticed some patterns:1. A high bar for quality in std2. Dependencies on other unstable features3. Known bugs4. Conflicts with other unstable featuresIt seems anything that affects trait solving is very complicated and is more likely to have bugs or combine non-trivially with other trait-solving features.I think there is also some sampling bias. Tons of features get stabilized, but you are much more likely to notice a nightly feature that is unstable for a long time and complex enough to be excited about.",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45827363,
+    "by": "Avi-D-coder",
+    "timeISO": "2025-11-05T20:14:55.000Z",
+    "textPlain": "Usually when I go and read the github and zulip threads the reason for paused work comes down to the fact that no one has come up with a design that maintains every existing promise the compiler has made. The most common ones I see are the feature conflicts with safety, semver/encapsulation, interacts weirdly with object safety, causes post post-monomorphization errors, breaks perfect type class coherence (see haskells unsound specialization).Too many promises have been made.Rust needs more unsafe opt outs. Ironically simd has this so it does not bother me.",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45826959,
+    "by": "the__alchemist",
+    "timeISO": "2025-11-05T19:42:10.000Z",
+    "textPlain": "Would love this. I've heard it's not planned to be in the near future. Maybe \"perfect is the enemy of good enough\"?",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45827447,
+    "by": "IshKebab",
+    "timeISO": "2025-11-05T20:22:03.000Z",
+    "textPlain": "I would love generators too but I think the more features they add the more interactions with existing features they have to deal with, so it's not surprising that its slowing down.",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45828514,
+    "by": "b33j0r",
+    "timeISO": "2025-11-05T21:48:26.000Z",
+    "textPlain": "This is the most surprising comment to me. It’s that bad? I haven’t benchmarked it myself.Zig has @Vector. This is a builtin, so it gets resolved at comptime. Is the problem with Rust here too much abstraction?",
+    "parent": 45827570,
+    "depth": 2
+  },
+  {
     "id": 45827999,
     "by": "vlovich123",
     "timeISO": "2025-11-05T21:04:12.000Z",
     "textPlain": "Do you compile the whole project with nightly or just specific components?",
     "parent": 45826689,
+    "depth": 2
+  },
+  {
+    "id": 45828579,
+    "by": "zamadatix",
+    "timeISO": "2025-11-05T21:53:58.000Z",
+    "textPlain": "It's really only comparable to assembly level usage in the SIMD intrinsics style cases. Portable SIMD, like std::simd, is no more assembly level usage than calling math functions from the standard library.Usually one only bothers with the intrinsic level stuff for the use cases you're saying. E.g. video encoders/decoders needing hyper-optimized, per architecture loops for the heavy lifting where relying on the high level SIMD abstractions can leave cycles on the table over directly targeting specific architectures. If you're just processing a lot of data in bulk with no real time requirements, high level portable SIMD is usually more than good enough.",
+    "parent": 45827901,
+    "depth": 2
+  },
+  {
+    "id": 45828327,
+    "by": "zamadatix",
+    "timeISO": "2025-11-05T21:32:40.000Z",
+    "textPlain": "Not supporting other types (particularly smaller ones) can be quite limiting on portable SIMD, especially when it doesn't support AVX512 either, but those are certainly a good core group - just not the whole story. Regardless, I'm not sure how painting the OP as an entitled snowflake helps anything over just asking the question.",
+    "parent": 45827891,
     "depth": 2
   },
   {
