@@ -1,9 +1,9 @@
 [
   {
-    "id": 45819858,
-    "by": "teiferer",
-    "timeISO": "2025-11-05T06:18:19.000Z",
-    "textPlain": "This approach has two fundamental problems.1. It requires you to essentially re-implement the business logic of the SUT (subject-under-test) so that you can assert it. Is your function doing a+b? Then instead of asserting that f(1, 2) == 3 you need to do f(a, b) == a+b since the framework provides a and b. You can do a simpler version that's less efficient, but in the end of the day, you somehow need to derive the expected outputs from input arguments, just like your SUT does. Any logical error that might be slipped into your SUT implementation has a high risk of also slipping into your test and will therefore be hidden by the complexity, even though it would be obvious from just looking at a few well thought through examples.2. Despite some anecdata in the comments here, the chances are slim that this approach will find edge cases that you couldn't think of. You basically just give up and leave edge case finding to chance. Testing for 0 or -1 or 1-more-than-list-length are obvious cases which both you the human test writer and some test framework can easily generate, and they are often actual edge cases. But what really constitutes an edge case depends on your implementation. You as the developer know the implementation and have a chance of coming up with the edge cases. You know the dark corners of your code. Random tests are just playing the lottery, replacing thinking hard.",
+    "id": 45820286,
+    "by": "thdhhghgbhy",
+    "timeISO": "2025-11-05T07:20:33.000Z",
+    "textPlain": "Is there something this nice for JS, with the decorators like that?",
     "parent": 45818562,
     "depth": 1
   },
@@ -24,10 +24,34 @@
     "depth": 1
   },
   {
+    "id": 45819858,
+    "by": "teiferer",
+    "timeISO": "2025-11-05T06:18:19.000Z",
+    "textPlain": "This approach has two fundamental problems.1. It requires you to essentially re-implement the business logic of the SUT (subject-under-test) so that you can assert it. Is your function doing a+b? Then instead of asserting that f(1, 2) == 3 you need to do f(a, b) == a+b since the framework provides a and b. You can do a simpler version that's less efficient, but in the end of the day, you somehow need to derive the expected outputs from input arguments, just like your SUT does. Any logical error that might be slipped into your SUT implementation has a high risk of also slipping into your test and will therefore be hidden by the complexity, even though it would be obvious from just looking at a few well thought through examples.2. Despite some anecdata in the comments here, the chances are slim that this approach will find edge cases that you couldn't think of. You basically just give up and leave edge case finding to chance. Testing for 0 or -1 or 1-more-than-list-length are obvious cases which both you the human test writer and some test framework can easily generate, and they are often actual edge cases. But what really constitutes an edge case depends on your implementation. You as the developer know the implementation and have a chance of coming up with the edge cases. You know the dark corners of your code. Random tests are just playing the lottery, replacing thinking hard.",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
+    "id": 45819986,
+    "by": "cat-whisperer",
+    "timeISO": "2025-11-05T06:38:04.000Z",
+    "textPlain": "A little off topic but theirs’ this https://youtu.be/64t-gPC33cc this is a great video by jon about property testing in Rust",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
     "id": 45819300,
     "by": "dbcurtis",
     "timeISO": "2025-11-05T04:54:54.000Z",
     "textPlain": "It’s been quite some time since I’ve been in the business of writing lots of unit tests, but back in the day, I found hypothesis to be a big force multiplier and it uncovered many subtle/embarrassing bugs for me. Recommend.  Also easy and intuitive to use.",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
+    "id": 45820011,
+    "by": "__mharrison__",
+    "timeISO": "2025-11-05T06:42:40.000Z",
+    "textPlain": "I've taught this in my testing courses. I find that (pytest) fixtures are often good enough for coming up with multiple tests but are simple enough to implement.",
     "parent": 45818562,
     "depth": 1
   },
@@ -96,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 45819475,
+    "by": "tombert",
+    "timeISO": "2025-11-05T05:22:05.000Z",
+    "textPlain": "I had a similar thing, with F# as well actually.We had some code that used a square root, and in some very rare circumstances, we could get a negative number, which would throw an exception.  I don't think i would have even considered that possibility if FsCheck hadn't generated it.",
+    "parent": 45819408,
+    "depth": 2
+  },
+  {
     "id": 45819891,
     "by": "teiferer",
     "timeISO": "2025-11-05T06:23:27.000Z",
@@ -104,11 +136,51 @@
     "depth": 2
   },
   {
-    "id": 45819475,
-    "by": "tombert",
-    "timeISO": "2025-11-05T05:22:05.000Z",
-    "textPlain": "I had a similar thing, with F# as well actually.We had some code that used a square root, and in some very rare circumstances, we could get a negative number, which would throw an exception.  I don't think i would have even considered that possibility if FsCheck hadn't generated it.",
-    "parent": 45819408,
+    "id": 45820046,
+    "by": "ChadNauseam",
+    "timeISO": "2025-11-05T06:48:20.000Z",
+    "textPlain": "> Then instead of asserting that f(1, 2) == 3 you need to do f(a, b) == a+b since the framework provides a and b. You can do a simpler version that's less efficient, but in the end of the day, you somehow need to derive the expected outputs from input arguments, just like your SUT does.Not true. For example, if `f` is `+`, you can assert that f(x,y) == f(y,x). Or that f(x, 0) == x. Or that f(x, f(y, z)) == f(f(x, y), z).Even a test as simple as \"don't crash for any input\" is actually extremely useful. This is fuzz testing, and it's standard practice for any safety-critical code, e.g. you can bet the JPEG parser on the device you're reading this on has been fuzz tested.> You basically just give up and leave edge case finding to chance.I don't know anything about Hypothesis in Python, but I don't think this is true in general. The reason is because the generator can actually inspect your runtime binary and see what branches are being triggered and try to find inputs that will cause all branches to be executed. Doing this for a JPEG parser actually causes it to produce valid images, which you would never expect to happen by chance. See: https://lcamtuf.blogspot.com/2014/11/pulling-jpegs-out-of-th...> Such a fuzzing run would be normally completely pointless: there is essentially no chance that a \"hello\" could be ever turned into a valid JPEG by a traditional, format-agnostic fuzzer, since the probability that dozens of random tweaks would align just right is astronomically low.> Luckily, afl-fuzz can leverage lightweight assembly-level instrumentation to its advantage - and within a millisecond or so, it notices that although setting the first byte to 0xff does not change the externally observable output, it triggers a slightly different internal code path in the tested app. Equipped with this information, it decides to use that test case as a seed for future fuzzing rounds:",
+    "parent": 45819858,
+    "depth": 2
+  },
+  {
+    "id": 45820008,
+    "by": "vlovich123",
+    "timeISO": "2025-11-05T06:42:23.000Z",
+    "textPlain": "I have not met anyone that says you should only fuzz/property test, but claiming it can’t possibly find bugs or is unlikely to is silly. I’ve caught numerous non-obvious problems, including a non-fatal but undesirable off-by-1 error in math heavy code due to property testing. It works well when it’s an “np”-hard style problem where the code is harder than the verification. It does not work well for a+b but most problems it’s generally easier to write assertions that have to hold when executing your function. But if it’s not don’t use it - like all testing, it’s an art to determine when it’s useful and how to write it well.Hypothesis in particular does something neat where it tries to generate random inputs that are more likely to execute novel paths within the code under test. That’s not replicated in Rust but is super helpful about reaching more paths of your code and that’s simply not able to be done manually if you have a lot of non obvious boundary conditions.",
+    "parent": 45819858,
+    "depth": 2
+  },
+  {
+    "id": 45820009,
+    "by": "eru",
+    "timeISO": "2025-11-05T06:42:27.000Z",
+    "textPlain": "> 1. It requires you to essentially re-implement the business logic of the SUT (subject-under-test) so that you can assertNo.  That's one valid approach, especially if you have a simpler alternative implementation.  But testing against an oracle is far from the only property you can check.For your example: suppose you have implemented an add function for your fancy new data type (perhaps it's a crazy vector/tensor thing, whatever).Here are some properties that you might want to check:a + b == b + aa + (b + c) = (a + b) + ca + (-a) == 0For all a and b and c, and assuming that these properties are actually supposed to hold in your domain, and that you have an additive inverse (-).  Eg many of them don't hold for floating point numbers in general, so it's good to note that down explicitly.Depending on your domain (eg https://en.wikipedia.org/wiki/Tropical_semiring), you might also have idempotence in your operation, so a + b + b = a + b is also a good one to check, where it applies.You can also have an alternative implementation that only works for some classes of cases.  Or sometimes it's easier to prepare a challenge than to find it, eg you can randomly move around in a graph quite easily, and you can check that your A* algorithm you are working on finds a route that's at most as long as the number of random steps you took.> 2. Despite some anecdata in the comments here, the chances are slim that this approach will find edge cases that you couldn't think of. You basically just give up and leave edge case finding to chance. Testing for 0 or -1 or 1-more-than-list-length are obvious cases which both you the human test writer and some test framework can easily generate, and they are often actual edge cases. But what really constitutes an edge case depends on your implementation. [...]You'd be surprised how often the generic heuristics for edge cases actually work and how often manual test writers forget that zero is also a number, and how often the lottery does a lot of",
+    "parent": 45819858,
+    "depth": 2
+  },
+  {
+    "id": 45820002,
+    "by": "robertfw",
+    "timeISO": "2025-11-05T06:41:07.000Z",
+    "textPlain": "I feel like this talk by John Hughes showed that there is real value in this approach with production systems of varying levels of complexity, with two different examples of using the approach to find very low level bugs that you'd never think to test for in traditional approaches.https://www.youtube.com/watch?v=zi0rHwfiX1Q",
+    "parent": 45819858,
+    "depth": 2
+  },
+  {
+    "id": 45820182,
+    "by": "locknitpicker",
+    "timeISO": "2025-11-05T07:08:05.000Z",
+    "textPlain": "> (...) but in the end of the day, you somehow need to derive the expected outputs from input arguments, just like your SUT does.I think you're manifesting some misconceptions and ignorance about property-based testing.Property-based testing is still automated testing. You still have a sut and you still exercise it to verify and validate invariants. This does not change.The core trait of property-based testing is that instead of having to define and maintain hard coded test data to drive your tests, which are specific realizations of the input state, property-based testing instead focuses on generating sequences of randomly-generated input data, and in the event of a test failing it follows up with employing reduction strategies to distil input values that pinpoint minimum reproducible examples.As a consequence, tests don't focus on which specific value a sut returns when given a specific input value. Instead, they focus on verifying more general properties of a sut.Perhaps the main advantage of property-based testing is that developers don't need to maintain test data anymore, and this tests are no longer be green just because you forgot to update the test data to cover a scenario or to reflect an edge case. Developers instead define test data generators, and the property-based testing framework implements the hard parts such as the input distillation step.Property-based testing is no silver bullet though.> Despite some anecdata in the comments here, the chances are slim that this approach will find edge cases that you couldn't think of.Your comment completely misses the point of property-based testing. You still need to exercise your sut to cover scenarios. Where property-based testing excels is that you no longer have to maintain curated sets of test data, or update them whenever you update a component. Your inputs are already randomly generated following the strategy you specified.",
+    "parent": 45819858,
+    "depth": 2
+  },
+  {
+    "id": 45820130,
+    "by": "aethor",
+    "timeISO": "2025-11-05T06:59:41.000Z",
+    "textPlain": "I concur. Hypothesis saved me many times. It also helped me prove the existence of bugs in third party code, since I was able to generate examples showing that a specific function was not respecting certain properties. Without that I would have spent a lot of time trying to manually find an example, let alone the simplest possible example.",
+    "parent": 45819300,
     "depth": 2
   },
   {
