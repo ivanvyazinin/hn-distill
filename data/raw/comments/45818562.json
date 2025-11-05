@@ -1,9 +1,9 @@
 [
   {
-    "id": 45819408,
-    "by": "rmunn",
-    "timeISO": "2025-11-05T05:12:23.000Z",
-    "textPlain": "I love property-based testing, especially the way it can uncover edge cases you wouldn't have thought about. Haven't used Hypothesis yet, but I once had FsCheck (property-based testing for F#) find a case where the data structure I was writing failed when there were exactly 24 items in the list and you tried to append a 25th. That was a test case I wouldn't have thought to write on my own, but the particular number (it was always the 25th item that failed) quickly led me to find the bug. Once my property tests were running overnight and not finding any failures after thousands and thousands of random cases, I started to feel a lot more confident that I'd nailed down the bugs.",
+    "id": 45819858,
+    "by": "teiferer",
+    "timeISO": "2025-11-05T06:18:19.000Z",
+    "textPlain": "This approach has two fundamental problems.1. It requires you to essentially re-implement the business logic of the SUT (subject-under-test) so that you can assert it. Is your function doing a+b? Then instead of asserting that f(1, 2) == 3 you need to do f(a, b) == a+b since the framework provides a and b. You can do a simpler version that's less efficient, but in the end of the day, you somehow need to derive the expected outputs from input arguments, just like your SUT does. Any logical error that might be slipped into your SUT implementation has a high risk of also slipping into your test and will therefore be hidden by the complexity, even though it would be obvious from just looking at a few well thought through examples.2. Despite some anecdata in the comments here, the chances are slim that this approach will find edge cases that you couldn't think of. You basically just give up and leave edge case finding to chance. Testing for 0 or -1 or 1-more-than-list-length are obvious cases which both you the human test writer and some test framework can easily generate, and they are often actual edge cases. But what really constitutes an edge case depends on your implementation. You as the developer know the implementation and have a chance of coming up with the edge cases. You know the dark corners of your code. Random tests are just playing the lottery, replacing thinking hard.",
     "parent": 45818562,
     "depth": 1
   },
@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45819408,
+    "by": "rmunn",
+    "timeISO": "2025-11-05T05:12:23.000Z",
+    "textPlain": "I love property-based testing, especially the way it can uncover edge cases you wouldn't have thought about. Haven't used Hypothesis yet, but I once had FsCheck (property-based testing for F#) find a case where the data structure I was writing failed when there were exactly 24 items in the list and you tried to append a 25th. That was a test case I wouldn't have thought to write on my own, but the particular number (it was always the 25th item that failed) quickly led me to find the bug. Once my property tests were running overnight and not finding any failures after thousands and thousands of random cases, I started to feel a lot more confident that I'd nailed down the bugs.",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
     "id": 45819300,
     "by": "dbcurtis",
     "timeISO": "2025-11-05T04:54:54.000Z",
@@ -24,11 +32,35 @@
     "depth": 1
   },
   {
-    "id": 45819475,
-    "by": "tombert",
-    "timeISO": "2025-11-05T05:22:05.000Z",
-    "textPlain": "I had a similar thing, with F# as well actually.We had some code that used a square root, and in some very rare circumstances, we could get a negative number, which would throw an exception.  I don't think i would have even considered that possibility if FsCheck hadn't generated it.",
-    "parent": 45819408,
+    "id": 45819499,
+    "by": "pyuser583",
+    "timeISO": "2025-11-05T05:25:34.000Z",
+    "textPlain": "Make sure to read the docs and understand this well. It has its own vocabulary that can be very counterintuitive.",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
+    "id": 45819524,
+    "by": "klntsky",
+    "timeISO": "2025-11-05T05:28:37.000Z",
+    "textPlain": "It seems to only implement a half of QuickCheck idea, because there is no counterexample shrinking. Good effort though! I wonder how hard would it be to derive generators for any custom types in python - probably not too hard, because types are just values",
+    "parent": 45818562,
+    "depth": 1
+  },
+  {
+    "id": 45819900,
+    "by": "eru",
+    "timeISO": "2025-11-05T06:25:35.000Z",
+    "textPlain": "In addition to what other people have said:> [...] time to learn a DSL for describing all possible inputs and outputs when I already had an existing function [...]You don't have to describe all possible inputs and outputs.  Even just being able to describe some classes of inputs can be useful.As a really simple example: many example-based tests have some values that are arbitrary and the test shouldn't care about them, like eg employees names when you are populating a database or whatever.  Instead of just hard-coding 'foo' and 'bar', you can have hypothesis create arbitrary values there.Just like learning how to write (unit) testable code is a skill that needs to be learned, learning how to write property-testable code is also a skill that needs practice.What's less obvious: retro-fitting property-based tests on an exiting codebase with existing example-based tests is almost a separate skill.  It's harder than writing your code with property based tests in mind.---Some common properties to test:* Your code doesn't crash on random inputs (or only throws a short whitelist of allowed exceptions).* Applying a specific functionality should be idempotent, ie doing that operation multiple times should give the same results as applying it only once.* Order of input doesn't matter (for some functionality)* Testing your prod implementation against a simpler implementation, that's perhaps too slow for prod or only works on a restricted subset of the real problem.  The reference implementation doesn't even have to be simpler: just having a different approach is often enough.",
+    "parent": 45819206,
+    "depth": 2
+  },
+  {
+    "id": 45819855,
+    "by": "akshayshah",
+    "timeISO": "2025-11-05T06:17:49.000Z",
+    "textPlain": "Sibling comments have already mentioned some common strategies - but if you have half an hour to spare, the property-based testing series on the F# for Fun and Profit blog is well worth your time. The material isn’t really specific to F#.https://fsharpforfunandprofit.com/series/property-based-test...",
+    "parent": 45819206,
     "depth": 2
   },
   {
@@ -36,14 +68,6 @@
     "by": "sunshowers",
     "timeISO": "2025-11-05T05:08:07.000Z",
     "textPlain": "The simplest practical property-based tests are where you serialize some randomly generated data of a particular shape to JSON, then deserialize it, and ensure that the output is the same.A more complex kind of PBT is if you have two implementations of an algorithm or data structure, one that's fast but tricky and the other one slow but easy to verify. (Say, quick sort vs bubble sort.) Generate data or operations randomly and ensure the results are the same.",
-    "parent": 45819206,
-    "depth": 2
-  },
-  {
-    "id": 45819434,
-    "by": "meejah",
-    "timeISO": "2025-11-05T05:15:59.000Z",
-    "textPlain": "Here are some fairly simple examples: testing port parsing https://github.com/meejah/fowl/blob/e8253467d7072cd05f21de7c......and https://github.com/magic-wormhole/magic-wormhole/blob/1b4732...The simplest ones to get started with are \"strings\", IMO, and also gives you lots of mileage (because it'll definitely test some weird unicode). So, somewhere in your API where you take some user-entered strings -- even something \"open ended\" like \"a name\" -- you can make use of Hypothesis to try a few things. This has definitely uncovered unicode bugs for me.Some more complex things can be made with some custom strategies. The most-Hypothesis-heavy tests I've personally worked with are from Magic Folder strategies: https://github.com/tahoe-lafs/magic-folder/blob/main/src/mag...The only real downside is that a Hypothesis-heavy test-suite like the above can take a while to run (but you can instruct it to only produce one example per test). Obviously, one example per test won't catch everything, but is way faster when developing and Hypothesis remembers \"bad\" examples so if you occasionally do a longer run it'll remember things that caused errors before.",
     "parent": 45819206,
     "depth": 2
   },
@@ -56,11 +80,67 @@
     "depth": 2
   },
   {
+    "id": 45819434,
+    "by": "meejah",
+    "timeISO": "2025-11-05T05:15:59.000Z",
+    "textPlain": "Here are some fairly simple examples: testing port parsing https://github.com/meejah/fowl/blob/e8253467d7072cd05f21de7c......and https://github.com/magic-wormhole/magic-wormhole/blob/1b4732...The simplest ones to get started with are \"strings\", IMO, and also gives you lots of mileage (because it'll definitely test some weird unicode). So, somewhere in your API where you take some user-entered strings -- even something \"open ended\" like \"a name\" -- you can make use of Hypothesis to try a few things. This has definitely uncovered unicode bugs for me.Some more complex things can be made with some custom strategies. The most-Hypothesis-heavy tests I've personally worked with are from Magic Folder strategies: https://github.com/tahoe-lafs/magic-folder/blob/main/src/mag...The only real downside is that a Hypothesis-heavy test-suite like the above can take a while to run (but you can instruct it to only produce one example per test). Obviously, one example per test won't catch everything, but is way faster when developing and Hypothesis remembers \"bad\" examples so if you occasionally do a longer run it'll remember things that caused errors before.",
+    "parent": 45819206,
+    "depth": 2
+  },
+  {
     "id": 45819287,
     "by": "fwip",
     "timeISO": "2025-11-05T04:53:52.000Z",
     "textPlain": "I think the easiest way is to start with general properties and general input, and tighten them up as needed. The property might just be \"doesn't throw an exception\", in some cases.If you find yourself writing several edge cases manually with a common test logic, I think the @example decorator in Hypothesis is a quick way to do that: https://hypothesis.readthedocs.io/en/latest/reference/api.ht...",
     "parent": 45819206,
+    "depth": 2
+  },
+  {
+    "id": 45819891,
+    "by": "teiferer",
+    "timeISO": "2025-11-05T06:23:27.000Z",
+    "textPlain": "That example caught my attention. What was it in your code that made length 24 special?",
+    "parent": 45819408,
+    "depth": 2
+  },
+  {
+    "id": 45819475,
+    "by": "tombert",
+    "timeISO": "2025-11-05T05:22:05.000Z",
+    "textPlain": "I had a similar thing, with F# as well actually.We had some code that used a square root, and in some very rare circumstances, we could get a negative number, which would throw an exception.  I don't think i would have even considered that possibility if FsCheck hadn't generated it.",
+    "parent": 45819408,
+    "depth": 2
+  },
+  {
+    "id": 45819933,
+    "by": "eru",
+    "timeISO": "2025-11-05T06:31:26.000Z",
+    "textPlain": "Hypothesis is also a lot better at giving you 'nasty' floats etc than Haskell's QuickCheck or the relevant Rust and OCaml libraries are.  (Or at least used to be, I haven't checked on all of them recently.)",
+    "parent": 45819300,
+    "depth": 2
+  },
+  {
+    "id": 45819606,
+    "by": "sunshowers",
+    "timeISO": "2025-11-05T05:39:58.000Z",
+    "textPlain": "Shrinking is by far the most important and impressive part of Hypothesis. Compared to how good it is in Hypothesis, it might as well not exist in QuickCheck.Proptest in Rust is mostly there but has many more issues with monadic bind than Hypothesis does (I wrote about this in https://sunshowers.io/posts/monads-through-pbt/).",
+    "parent": 45819524,
+    "depth": 2
+  },
+  {
+    "id": 45819559,
+    "by": "Jtsummers",
+    "timeISO": "2025-11-05T05:33:27.000Z",
+    "textPlain": "> because there is no counterexample shrinkingHypothesis does shrink the examples, though.",
+    "parent": 45819524,
+    "depth": 2
+  },
+  {
+    "id": 45819596,
+    "by": "pfdietz",
+    "timeISO": "2025-11-05T05:38:51.000Z",
+    "textPlain": "The way it does counterexample shrinking is the most clever part of Hypothesis.",
+    "parent": 45819524,
     "depth": 2
   }
 ]
