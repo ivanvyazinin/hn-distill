@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45835206,
+    "by": "Joker_vD",
+    "timeISO": "2025-11-06T13:50:03.000Z",
+    "textPlain": "#define _H4X0R_CONVERT_ONE(arg)                  \\\n        ((union { unsigned long long u; void *v; }){ \\\n            .u = (unsigned long long)arg,           \\\n    }).v\n\nCouldn't this be just    #define _H4X0R_CONVERT_ONE(arg) (void*)(uintptr_t)(arg)\n\n?Also, thanks, now I can finally use    void my_printf(const char *fmt, void* args[], size_t argc);\n    \nergonomically:    #define my_printf(fmt, ...) (my_printf)((fmt), \\\n        (void*[]){ H4X0R_VA_VOID_STAR_CONVERT(__VA_ARGS__) }, \\\n        H4X0R_VA_COUNT(__VA_ARGS__))\n\n    int main(int argc, char **argv) {\n        my_printf(\"int: %d, ptr: %p, str: %s, missing: %d\\n\", 42, argv, \"Hello world!\");\n    }\n\n    $ gcc test.c && ./a.out\n    int: 42, ptr: 0x7FFF46AA3E78, str: Hello world!, missing: %!d(MISSING)\n\nFunnily enough, the difference between passing ... and locally-allocated void*[] is basically who has to spill the data to the stack, the caller or the called function.",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
     "id": 45833987,
     "by": "kragen",
     "timeISO": "2025-11-06T11:22:02.000Z",
@@ -16,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45834534,
-    "by": "0x69420",
-    "timeISO": "2025-11-06T12:36:25.000Z",
-    "textPlain": "genuinely remarkable, the altogether perhaps even productive mischief you can get up to, especially with `__VA_OPT__` becoming a proper standard in both C and C++ so you don't have to feel dirty about using it.i recently made use of plenty of ugly tricks in this vein to take a single authoritative table of macro invocations that defined a bunch of pixel formats, and make them graduate from defining bitfield structs to classes with accessors that performed good old fashioned shifts and masks, all without ever specifying the individual bit offsets of channels, just their individual widths, and macro magic did the rest. no templates, no actual c++, could just as feasibly produce pure c bindings down the line by just changing a few names.getting really into this stuff makes you stop thinking of c function-like macros as functions of their arguments as such, but rather unary functions of argument lists, where arity roughly becomes the one notion vaguely akin to typing in the whole enterprise, or at least the one place where the compiler exhibits behaviour resembling that of a type checker. this was especially true considering the entries in the table i wound up with were variadic, terminating in variably many (name, width) parenthesised tuples. and i just... had the means to \"uncons\" them so to speak. fun stuff.this is worth it, imo, in precisely one context, which is: you want a single source of truth that defines fiddly but formulaic implementations spread across multiple files that must remain coordinated, and this is something you do infrequently enough that you don't consider it worthwhile introducing \"real\" \"big boy\" code gen into your build process. mind, you usually do end up having to commit to a little utility header that defines convenient macros (_Ex and such in the article), but hey. c'est la vie. basically x macros (https://en.wikipedia.org/wiki/X_macro) on heart attack quantities of steroids.",
-    "parent": 45830223,
-    "depth": 1
-  },
-  {
     "id": 45832476,
     "by": "procaryote",
     "timeISO": "2025-11-06T07:29:44.000Z",
     "textPlain": "In many ways being limited ends up being a feature. Even limited as it is, you get some crimes against humanity like the bourne shell source, but at least most people agree it is a bad ideaIf it allowed more unlimited metaprogramming, building big complex things as macros might well have become popular",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45834534,
+    "by": "0x69420",
+    "timeISO": "2025-11-06T12:36:25.000Z",
+    "textPlain": "genuinely remarkable, the altogether perhaps even productive mischief you can get up to, especially with `__VA_OPT__` becoming a proper standard in both C and C++ so you don't have to feel dirty about using it.i recently made use of plenty of ugly tricks in this vein to take a single authoritative table of macro invocations that defined a bunch of pixel formats, and make them graduate from defining bitfield structs to classes with accessors that performed good old fashioned shifts and masks, all without ever specifying the individual bit offsets of channels, just their individual widths, and macro magic did the rest. no templates, no actual c++, could just as feasibly produce pure c bindings down the line by just changing a few names.getting really into this stuff makes you stop thinking of c function-like macros as functions of their arguments as such, but rather unary functions of argument lists, where arity roughly becomes the one notion vaguely akin to typing in the whole enterprise, or at least the one place where the compiler exhibits behaviour resembling that of a type checker. this was especially true considering the entries in the table i wound up with were variadic, terminating in variably many (name, width) parenthesised tuples. and i just... had the means to \"uncons\" them so to speak. fun stuff.this is worth it, imo, in precisely one context, which is: you want a single source of truth that defines fiddly but formulaic implementations spread across multiple files that must remain coordinated, and this is something you do infrequently enough that you don't consider it worthwhile introducing \"real\" \"big boy\" code gen into your build process. mind, you usually do end up having to commit to a little utility header that defines convenient macros (_Ex and such in the article), but hey. c'est la vie. basically x macros (https://en.wikipedia.org/wiki/X_macro) on heart attack quantities of steroids.",
     "parent": 45830223,
     "depth": 1
   },
@@ -149,6 +157,14 @@
     "timeISO": "2025-11-06T11:22:27.000Z",
     "textPlain": "Thank you very much for providing these links!",
     "parent": 45831036,
+    "depth": 2
+  },
+  {
+    "id": 45835388,
+    "by": "viega",
+    "timeISO": "2025-11-06T14:05:26.000Z",
+    "textPlain": "Well, I've done it that way if I'm willing to limit myself to pointers or ints up to a pointer size, but that doesn't work with floats or doubles, for instance.Ergonomically, I have tended to start using _Generic for static type checking where possible, and that pushes me more toward to avoiding arrays in types for this kind of thing.",
+    "parent": 45835206,
     "depth": 2
   },
   {
