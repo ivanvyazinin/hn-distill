@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45836016,
-    "by": "SAI_Peregrinus",
-    "timeISO": "2025-11-06T15:01:30.000Z",
-    "textPlain": "One can also (ab)use the build system to run arbitrary preprocessing steps with any language over the \"C\" input. You can have recursive macros by using M4 or Perl or Python or some other language to expand them, converting your \"foo.c.in\" into a \"foo.c\" to hand off to the C preprocessor & compiler. It still feels dirty, but it's often much easier to understand & debug.",
-    "parent": 45830223,
-    "depth": 1
-  },
-  {
     "id": 45833987,
     "by": "kragen",
     "timeISO": "2025-11-06T11:22:02.000Z",
@@ -24,10 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45835206,
-    "by": "Joker_vD",
-    "timeISO": "2025-11-06T13:50:03.000Z",
-    "textPlain": "#define _H4X0R_CONVERT_ONE(arg)                  \\\n        ((union { unsigned long long u; void *v; }){ \\\n            .u = (unsigned long long)arg,           \\\n    }).v\n\nCouldn't this be just    #define _H4X0R_CONVERT_ONE(arg) (void*)(uintptr_t)(arg)\n\n?Also, thanks, now I can finally use    void my_printf(const char *fmt, void* args[], size_t argc);\n    \nergonomically:    #define my_printf(fmt, ...) (my_printf)((fmt), \\\n        (void*[]){ H4X0R_VA_VOID_STAR_CONVERT(__VA_ARGS__) }, \\\n        H4X0R_VA_COUNT(__VA_ARGS__))\n\n    int main(int argc, char **argv) {\n        my_printf(\"int: %d, ptr: %p, str: %s, missing: %d\\n\", 42, argv, \"Hello world!\");\n    }\n\n    $ gcc test.c && ./a.out\n    int: 42, ptr: 0x7FFF46AA3E78, str: Hello world!, missing: %!d(MISSING)\n\nFunnily enough, the difference between passing ... and locally-allocated void*[] is basically who has to spill the data to the stack, the caller or the called function.",
+    "id": 45836016,
+    "by": "SAI_Peregrinus",
+    "timeISO": "2025-11-06T15:01:30.000Z",
+    "textPlain": "One can also (ab)use the build system to run arbitrary preprocessing steps with any language over the \"C\" input. You can have recursive macros by using M4 or Perl or Python or some other language to expand them, converting your \"foo.c.in\" into a \"foo.c\" to hand off to the C preprocessor & compiler. It still feels dirty, but it's often much easier to understand & debug.",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45836686,
+    "by": "tester756",
+    "timeISO": "2025-11-06T16:05:11.000Z",
+    "textPlain": "Macro is one of the ugliest features available in langs like C/CPP",
     "parent": 45830223,
     "depth": 1
   },
@@ -40,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45832476,
-    "by": "procaryote",
-    "timeISO": "2025-11-06T07:29:44.000Z",
-    "textPlain": "In many ways being limited ends up being a feature. Even limited as it is, you get some crimes against humanity like the bourne shell source, but at least most people agree it is a bad ideaIf it allowed more unlimited metaprogramming, building big complex things as macros might well have become popular",
+    "id": 45835206,
+    "by": "Joker_vD",
+    "timeISO": "2025-11-06T13:50:03.000Z",
+    "textPlain": "#define _H4X0R_CONVERT_ONE(arg)                  \\\n        ((union { unsigned long long u; void *v; }){ \\\n            .u = (unsigned long long)arg,           \\\n    }).v\n\nCouldn't this be just    #define _H4X0R_CONVERT_ONE(arg) (void*)(uintptr_t)(arg)\n\n?Also, thanks, now I can finally use    void my_printf(const char *fmt, void* args[], size_t argc);\n    \nergonomically:    #define my_printf(fmt, ...) (my_printf)((fmt), \\\n        (void*[]){ H4X0R_VA_VOID_STAR_CONVERT(__VA_ARGS__) }, \\\n        H4X0R_VA_COUNT(__VA_ARGS__))\n\n    int main(int argc, char **argv) {\n        my_printf(\"int: %d, ptr: %p, str: %s, missing: %d\\n\", 42, argv, \"Hello world!\");\n    }\n\n    $ gcc test.c && ./a.out\n    int: 42, ptr: 0x7FFF46AA3E78, str: Hello world!, missing: %!d(MISSING)\n\nFunnily enough, the difference between passing ... and locally-allocated void*[] is basically who has to spill the data to the stack, the caller or the called function.",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45830928,
+    "by": "dandersch",
+    "timeISO": "2025-11-06T03:08:48.000Z",
+    "textPlain": "Related: The Preprocessor Iceberg https://jadlevesque.github.io/PPMP-Iceberg/There you can find a recursive macro expansion implementation (as a gcc hack) that fits on a slide:  #2\"\"3\n  \n  #define PRAGMA(...) _Pragma(#__VA_ARGS__)\n  #define REVIVE(m) PRAGMA(push_macro(#m))PRAGMA(pop_macro(#m))\n  #define DEC(n,...) (__VA_ARGS__)\n  #define FX(f,x) REVIVE(FX) f x\n  #define HOW_MANY_ARGS(...) REVIVE(HOW_MANY_ARGS) \\\n      __VA_OPT__(+1 FX(HOW_MANY_ARGS, DEC(__VA_ARGS__)))\n  \n  int main () {\n      printf(\"%i\", HOW_MANY_ARGS(1,2,3,4,5)); // 5\n  }\n\nIt sounds like the one in the article works for more compilers, but there doesn't seem to be a copy-pasteable example anywhere to check for myself. Also, the \"Our GitHub Org\" link on the site just links to github.com.",
     "parent": 45830223,
     "depth": 1
   },
@@ -56,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45830928,
-    "by": "dandersch",
-    "timeISO": "2025-11-06T03:08:48.000Z",
-    "textPlain": "Related: The Preprocessor Iceberg https://jadlevesque.github.io/PPMP-Iceberg/There you can find a recursive macro expansion implementation (as a gcc hack) that fits on a slide:  #2\"\"3\n  \n  #define PRAGMA(...) _Pragma(#__VA_ARGS__)\n  #define REVIVE(m) PRAGMA(push_macro(#m))PRAGMA(pop_macro(#m))\n  #define DEC(n,...) (__VA_ARGS__)\n  #define FX(f,x) REVIVE(FX) f x\n  #define HOW_MANY_ARGS(...) REVIVE(HOW_MANY_ARGS) \\\n      __VA_OPT__(+1 FX(HOW_MANY_ARGS, DEC(__VA_ARGS__)))\n  \n  int main () {\n      printf(\"%i\", HOW_MANY_ARGS(1,2,3,4,5)); // 5\n  }\n\nIt sounds like the one in the article works for more compilers, but there doesn't seem to be a copy-pasteable example anywhere to check for myself. Also, the \"Our GitHub Org\" link on the site just links to github.com.",
+    "id": 45832476,
+    "by": "procaryote",
+    "timeISO": "2025-11-06T07:29:44.000Z",
+    "textPlain": "In many ways being limited ends up being a feature. Even limited as it is, you get some crimes against humanity like the bourne shell source, but at least most people agree it is a bad ideaIf it allowed more unlimited metaprogramming, building big complex things as macros might well have become popular",
     "parent": 45830223,
     "depth": 1
   },
@@ -144,18 +152,18 @@
     "depth": 2
   },
   {
-    "id": 45832339,
-    "by": "camel-cdr",
-    "timeISO": "2025-11-06T07:08:55.000Z",
-    "textPlain": "This is the best explanation I've seen so far:https://marc.info/?l=boost&m=118835769257658&w=2",
-    "parent": 45831036,
-    "depth": 2
-  },
-  {
     "id": 45834495,
     "by": "Joker_vD",
     "timeISO": "2025-11-06T12:31:52.000Z",
     "textPlain": "Honestly, it feels like something like this should have been put in the standard instead of all the English prose that ended in the section about the preprocessor expansion. Yeah, it's not pretty, but at least it requires way less skill in hermeneutics to understand correctly.",
+    "parent": 45831036,
+    "depth": 2
+  },
+  {
+    "id": 45832339,
+    "by": "camel-cdr",
+    "timeISO": "2025-11-06T07:08:55.000Z",
+    "textPlain": "This is the best explanation I've seen so far:https://marc.info/?l=boost&m=118835769257658&w=2",
     "parent": 45831036,
     "depth": 2
   },
@@ -168,19 +176,19 @@
     "depth": 2
   },
   {
+    "id": 45836600,
+    "by": "viega",
+    "timeISO": "2025-11-06T15:57:59.000Z",
+    "textPlain": "Yes, 100%. And since CPP doesn't actually understand C, it's not too hard to do some lightweight preprocessing that requires some real additional parsing.But while CPP is pretty finicky and not very modern, getting such things working seamlessly with C build systems can be vastly worse (though better than the days where the GNU tools were ubiquitous).I tend to find meson easy to use compared to all the others, and do this kind of thing, but it's still difficult and brittle.",
+    "parent": 45836016,
+    "depth": 2
+  },
+  {
     "id": 45835388,
     "by": "viega",
     "timeISO": "2025-11-06T14:05:26.000Z",
     "textPlain": "Well, I've done it that way if I'm willing to limit myself to pointers or ints up to a pointer size, but that doesn't work with floats or doubles, for instance.Ergonomically, I have tended to start using _Generic for static type checking where possible, and that pushes me more toward to avoiding arrays in types for this kind of thing.",
     "parent": 45835206,
-    "depth": 2
-  },
-  {
-    "id": 45833008,
-    "by": "lpribis",
-    "timeISO": "2025-11-06T08:56:45.000Z",
-    "textPlain": "The CPP does allow quite advanced metaprogramming, it's just so obtuse to use and requires insane hacks so almost nobody does. See one of my favorite projects https://github.com/hirrolot/metalang99",
-    "parent": 45832476,
     "depth": 2
   },
   {
@@ -197,6 +205,14 @@
     "timeISO": "2025-11-06T03:15:10.000Z",
     "textPlain": "Ask and you'll get: https://c.godbolt.org/z/rKsWT5E9TIt seems that MSVC doesn't like those macros, though.",
     "parent": 45830928,
+    "depth": 2
+  },
+  {
+    "id": 45833008,
+    "by": "lpribis",
+    "timeISO": "2025-11-06T08:56:45.000Z",
+    "textPlain": "The CPP does allow quite advanced metaprogramming, it's just so obtuse to use and requires insane hacks so almost nobody does. See one of my favorite projects https://github.com/hirrolot/metalang99",
+    "parent": 45832476,
     "depth": 2
   },
   {
@@ -232,18 +248,18 @@
     "depth": 2
   },
   {
-    "id": 45832266,
-    "by": "camel-cdr",
-    "timeISO": "2025-11-06T06:54:52.000Z",
-    "textPlain": "microsoft fixed their broken c preprocessor implementation just a few years ago",
-    "parent": 45831553,
-    "depth": 2
-  },
-  {
     "id": 45831669,
     "by": "viega",
     "timeISO": "2025-11-06T05:00:15.000Z",
     "textPlain": "Wow, you are a braver person than I. Well done.",
+    "parent": 45831553,
+    "depth": 2
+  },
+  {
+    "id": 45832266,
+    "by": "camel-cdr",
+    "timeISO": "2025-11-06T06:54:52.000Z",
+    "textPlain": "microsoft fixed their broken c preprocessor implementation just a few years ago",
     "parent": 45831553,
     "depth": 2
   },
