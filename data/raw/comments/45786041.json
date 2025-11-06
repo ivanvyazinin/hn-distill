@@ -1,0 +1,26 @@
+[
+  {
+    "id": 45836213,
+    "by": "sushibowl",
+    "timeISO": "2025-11-06T15:19:25.000Z",
+    "textPlain": "With respect to tagged pointers, there seems to be some recent movements on that front in CPython: https://github.com/python/cpython/issues/132509",
+    "parent": 45786041,
+    "depth": 1
+  },
+  {
+    "id": 45786558,
+    "by": "zahlman",
+    "timeISO": "2025-11-01T23:45:16.000Z",
+    "textPlain": "A caveat applies to the entire analysis that CPython may be the reference implementation, but it's still just one implementation. This sort of thing may work totally differently in PyPy, and especially in implementations that make use of another garbage-collecting runtime, such as Jython.> Let’s take out the print statement and see if it’s just the addition:Just FWIW: the assignment is not required to prevent optimizing out the useless addition. It isn't doing any static analysis, so it doesn't know that `range` is the builtin, and thus doesn't know that `i` is an integer, and thus doesn't know that `+` will be side-effect-free.> Nope, it seems there is a pre-allocated list of objects for integers in the range of -5 -> 1025. This would account for 1025 iterations of our loop but not for the rest.1024 iterations, because the check is for numbers strictly less than `_PY_NSMALLPOSINTS` and the value computed is `i + 1` (so, `1` on the first iteration).Interesting. I knew of them only ranging up to 256 (https://stackoverflow.com/questions/306313).It turns out (https://github.com/python/cpython/commit/7ce25edb8f41e527ed4...) that the change is barely a month old in the repository; so it's not in 3.14 (https://github.com/python/cpython/blob/3.14/Include/internal...) and won't show up until 3.15.> Our script appears to actually be reusing most of the PyLongObject objects!The interesting part is that it can somehow do this even though the values are increasing throughout the loop (i.e., to values not seen on previous iterations), and it also doesn't need to allocate for the value of `i` retrieved from the `range`.> But realistically the majority of integers in a program are going to be less than 2^30 so why not introduce a fast path which skips this complicated code entirely?This is the sort of thing where PRs to CPython are always welcome, to my understanding. It probably isn't a priority, or something that other devs have thought of, because that allocation presumably isn",
+    "parent": 45786041,
+    "depth": 1
+  },
+  {
+    "id": 45836191,
+    "by": "petters",
+    "timeISO": "2025-11-06T15:17:02.000Z",
+    "textPlain": "> that make use of another garbage-collecting runtime, such as JythonI think that is mostly of historical interest. For example, it still does not support Python 3 and has not been updated in a very long time",
+    "parent": 45786558,
+    "depth": 2
+  }
+]
