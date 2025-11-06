@@ -1,9 +1,49 @@
 [
   {
+    "id": 45831294,
+    "by": "fuhsnn",
+    "timeISO": "2025-11-06T04:02:35.000Z",
+    "textPlain": "I wonder if the author is aware of the __VA_TAIL__ proposal[1], it covered similar grounds and IMO very well thought out, but unfortunately not accepted into C2Y (judging from committee meeting minutes).[1] https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3307.htm",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45831036,
+    "by": "chirsz",
+    "timeISO": "2025-11-06T03:27:08.000Z",
+    "textPlain": "The behavior of C macros is actually described by a piece of pseudocode from Dave Prosser and it is not in the standard:* https://www.spinellis.gr/blog/20060626/* https://www.spinellis.gr/pubs/jrnl/2006-DDJ-Finessing/html/S...* https://gcc.gnu.org/legacy-ml/gcc-prs/2001-q1/msg00495.html",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
     "id": 45830928,
     "by": "dandersch",
     "timeISO": "2025-11-06T03:08:48.000Z",
     "textPlain": "Related: The Preprocessor Iceberg https://jadlevesque.github.io/PPMP-Iceberg/There you can find a recursive macro expansion implementation (as a gcc hack) that fits on a slide:  #2\"\"3\n  \n  #define PRAGMA(...) _Pragma(#__VA_ARGS__)\n  #define REVIVE(m) PRAGMA(push_macro(#m))PRAGMA(pop_macro(#m))\n  #define DEC(n,...) (__VA_ARGS__)\n  #define FX(f,x) REVIVE(FX) f x\n  #define HOW_MANY_ARGS(...) REVIVE(HOW_MANY_ARGS) \\\n      __VA_OPT__(+1 FX(HOW_MANY_ARGS, DEC(__VA_ARGS__)))\n  \n  int main () {\n      printf(\"%i\", HOW_MANY_ARGS(1,2,3,4,5)); // 5\n  }\n\nIt sounds like the one in the article works for more compilers, but there doesn't seem to be a copy-pasteable example anywhere to check for myself. Also, the \"Our GitHub Org\" link on the site just links to github.com.",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45831166,
+    "by": "pjsg",
+    "timeISO": "2025-11-06T03:46:37.000Z",
+    "textPlain": "I wept when the author mentioned implementing SHA256 in macros.",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45831135,
+    "by": "russfink",
+    "timeISO": "2025-11-06T03:42:26.000Z",
+    "textPlain": "Is this a DoS risk - code that sends your build chain into an infinite loop?",
+    "parent": 45830223,
+    "depth": 1
+  },
+  {
+    "id": 45831002,
+    "by": "stevefan1999",
+    "timeISO": "2025-11-06T03:20:39.000Z",
+    "textPlain": "I used to write a preprocessor until I noticed those kind of thing...I stopped writing it after that",
     "parent": 45830223,
     "depth": 1
   },
@@ -16,11 +56,59 @@
     "depth": 1
   },
   {
+    "id": 45831332,
+    "by": "viega",
+    "timeISO": "2025-11-06T04:09:43.000Z",
+    "textPlain": "Yes, I know that it was not accepted, but do not have any color on why not. It's well thought out; but I do not think the semantics are self-evident to the average C programmer who already finds the preprocessor inscrutable.",
+    "parent": 45831294,
+    "depth": 2
+  },
+  {
+    "id": 45831018,
+    "by": "viega",
+    "timeISO": "2025-11-06T03:23:30.000Z",
+    "textPlain": "Author of the article here.Absolutely, the code box under the ascii art is a complete implementation, just paste that in a C file, and then use `H4X0R_VA_COUNT(...)`.Or, you could follow the link the my typed variadic arguments article (from which this post forked off). The repo there is: https://codeberg.org/h4x0r/vargs",
+    "parent": 45830928,
+    "depth": 2
+  },
+  {
     "id": 45830972,
     "by": "lifthrasiir",
     "timeISO": "2025-11-06T03:15:10.000Z",
     "textPlain": "Ask and you'll get: https://c.godbolt.org/z/rKsWT5E9TIt seems that MSVC doesn't like those macros, though.",
     "parent": 45830928,
+    "depth": 2
+  },
+  {
+    "id": 45831233,
+    "by": "viega",
+    "timeISO": "2025-11-06T03:54:23.000Z",
+    "textPlain": "LOL, I suffered so you didn't have to.",
+    "parent": 45831166,
+    "depth": 2
+  },
+  {
+    "id": 45831246,
+    "by": "saghm",
+    "timeISO": "2025-11-06T03:56:08.000Z",
+    "textPlain": "Without any specific implementation of a constraint it certainly can happen, although I'm not totally sure that it's something to be concerned about in terms of a DOS as much as a nuisance when writing code with a bug in it; if you're including malicious code, there's probably much worse things it could do if it actually builds properly instead of just spinning indefinitely.Rust's macros are recursive intentionally, and the compiler implements a recursion limit that IIRC defaults to 64, at which point it will error out and mention that you need to increase it with an attribute in the code if you need it to be higher. This isn't just for macros though, as I've seen it get triggered before with the compiler attempting to resolve deeply nested generics, so it seems plausible to me that C compilers might already have some sort of internal check for this. At the very least, C++ templates certainly can get pretty deeply nested, and given that the major C compilers are pretty closely related to their C++ counterparts, maybe this is something that exists in the shared part of the compiler logic.",
+    "parent": 45831135,
+    "depth": 2
+  },
+  {
+    "id": 45831188,
+    "by": "viega",
+    "timeISO": "2025-11-06T03:48:18.000Z",
+    "textPlain": "No. Other modern languages have strong compile-time execution capabilities, including Zig, Rust and C++. And my understanding is that C is looking to move in that direction, though as with C++, macros will not go away.",
+    "parent": 45831135,
+    "depth": 2
+  },
+  {
+    "id": 45831076,
+    "by": "viega",
+    "timeISO": "2025-11-06T03:33:42.000Z",
+    "textPlain": "That's just:```\n#define MACRO(...) F(__VA_ARGS__); G(__VA_ARGS__)\n```The technique in the article is more often used to type check the individual parameters, or wrap a function call around them individually, etc.",
+    "parent": 45830919,
     "depth": 2
   }
 ]
