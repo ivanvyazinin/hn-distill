@@ -32,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45826986,
+    "by": "the__alchemist",
+    "timeISO": "2025-11-05T19:43:50.000Z",
+    "textPlain": "Of interest, I've written my own core::simd mimic so I don't have to make all my libs and programs use nightly. It started as me just making my Quaternion and Vec lib (lin-alg) have their own SoA SIMD variants (Vec3x16 etc), but I ended up implementing and publicly exposing f32x16 etc. Will remove those once core::simd is stable. Downside: These are x86 only; no ARM support.I also added packing and unpacking helpers that assist with handling final lane 0 values etc. But there is still some subtly, as the article pointed out, compared to using Rayon or non-SIMD CPU code related to packing and unpacking. E.g. you should try to keep things in their SIMD form throughout the whole pipeline, how you pair them with non-SIMD values (Like you might pair [T; 8] with f32x8 etc) etc.",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
     "id": 45826689,
     "by": "mdriley",
     "timeISO": "2025-11-05T19:16:28.000Z",
@@ -52,14 +60,6 @@
     "by": "waffletower",
     "timeISO": "2025-11-05T20:56:08.000Z",
     "textPlain": "I am torn -- while I love the bitter critique of std::simd's nightly builds (why bother with any public release if it is never stable?), I cringed at the critique of \"(c)urrently things are well fleshed out for i32, i64, f32, and f64 types\".  f64 and i64 go a long way for most numerical applications -- the OP seemed snowflaky to me with that entitled concern.",
-    "parent": 45826348,
-    "depth": 1
-  },
-  {
-    "id": 45826986,
-    "by": "the__alchemist",
-    "timeISO": "2025-11-05T19:43:50.000Z",
-    "textPlain": "Of interest, I've written my own core::simd mimic so I don't have to make all my libs and programs use nightly. It started as me just making my Quaternion and Vec lib (lin-alg) have their own SoA SIMD variants (Vec3x16 etc), but I ended up implementing and publicly exposing f32x16 etc. Will remove those once core::simd is stable. Downside: These are x86 only; no ARM support.I also added packing and unpacking helpers that assist with handling final lane 0 values etc. But there is still some subtly, as the article pointed out, compared to using Rayon or non-SIMD CPU code related to packing and unpacking. E.g. you should try to keep things in their SIMD form throughout the whole pipeline, how you pair them with non-SIMD values (Like you might pair [T; 8] with f32x8 etc) etc.",
     "parent": 45826348,
     "depth": 1
   },
@@ -100,6 +100,14 @@
     "by": "vlovich123",
     "timeISO": "2025-11-05T22:58:38.000Z",
     "textPlain": "Does Julia ignore the problem of floating point not being associative, commutative nor distributive?The reason it’s a thing is from LLVM and I’m not sure you can “language design” your way out of this problem as it seems intrinsic to IEEE 754.",
+    "parent": 45828672,
+    "depth": 2
+  },
+  {
+    "id": 45829723,
+    "by": "dzaima",
+    "timeISO": "2025-11-05T23:57:49.000Z",
+    "textPlain": "For vectorizing, that quote is only true for loops with dependencies between iterations, e.g. summing a list of numbers (..that's basically the only case where this really matters).For loops without such dependencies Rust should autovectorize just fine as with any other element type.",
     "parent": 45828672,
     "depth": 2
   },
@@ -168,10 +176,10 @@
     "depth": 2
   },
   {
-    "id": 45829035,
-    "by": "duped",
-    "timeISO": "2025-11-05T22:37:44.000Z",
-    "textPlain": "std::arch::* intrinsics for SIMD are stable and you can use them today. The situation is only slightly worse than C/C++ because the rust compilers cares a lot about undefined behavior, so there's some safe-but-technically-unsafe/annoying cfg stuff to make sure the intrinsics are actually emitted as you intend.There is nothing blocking high quality SIMD libraries on stable in Rust today. The bar for inclusion in std is just much higher than the rest of the ecosystem.",
+    "id": 45829680,
+    "by": "capyba",
+    "timeISO": "2025-11-05T23:53:21.000Z",
+    "textPlain": "Given the “blazingly fast” branding, I too would have thought this would be in stable Rust by now.However, like other commenters I assume it’s because it’s hard, not all that many users of Rust really need it, and the compiler team is small and only consists of volunteers.",
     "parent": 45826874,
     "depth": 2
   },
@@ -180,6 +188,14 @@
     "by": "the__alchemist",
     "timeISO": "2025-11-05T19:42:10.000Z",
     "textPlain": "Would love this. I've heard it's not planned to be in the near future. Maybe \"perfect is the enemy of good enough\"?",
+    "parent": 45826874,
+    "depth": 2
+  },
+  {
+    "id": 45829035,
+    "by": "duped",
+    "timeISO": "2025-11-05T22:37:44.000Z",
+    "textPlain": "std::arch::* intrinsics for SIMD are stable and you can use them today. The situation is only slightly worse than C/C++ because the rust compilers cares a lot about undefined behavior, so there's some safe-but-technically-unsafe/annoying cfg stuff to make sure the intrinsics are actually emitted as you intend.There is nothing blocking high quality SIMD libraries on stable in Rust today. The bar for inclusion in std is just much higher than the rest of the ecosystem.",
     "parent": 45826874,
     "depth": 2
   },
@@ -197,6 +213,14 @@
     "timeISO": "2025-11-05T21:48:26.000Z",
     "textPlain": "This is the most surprising comment to me. It’s that bad? I haven’t benchmarked it myself.Zig has @Vector. This is a builtin, so it gets resolved at comptime. Is the problem with Rust here too much abstraction?",
     "parent": 45827570,
+    "depth": 2
+  },
+  {
+    "id": 45827225,
+    "by": "____tom____",
+    "timeISO": "2025-11-05T20:03:23.000Z",
+    "textPlain": "I'm not a rust programmer.Can't you just make a local copy of the existing package and use that? Did you need to re-implement?",
+    "parent": 45826986,
     "depth": 2
   },
   {
@@ -224,14 +248,6 @@
     "depth": 2
   },
   {
-    "id": 45827225,
-    "by": "____tom____",
-    "timeISO": "2025-11-05T20:03:23.000Z",
-    "textPlain": "I'm not a rust programmer.Can't you just make a local copy of the existing package and use that? Did you need to re-implement?",
-    "parent": 45826986,
-    "depth": 2
-  },
-  {
     "id": 45829148,
     "by": "dzaima",
     "timeISO": "2025-11-05T22:50:47.000Z",
@@ -253,6 +269,14 @@
     "timeISO": "2025-11-05T20:19:14.000Z",
     "textPlain": "It's not strictly x86 either, the other case you care about is fp16 support on ARM. But it is included in the M1 target, so really only on other ARM.",
     "parent": 45827328,
+    "depth": 2
+  },
+  {
+    "id": 45829665,
+    "by": "capyba",
+    "timeISO": "2025-11-05T23:51:45.000Z",
+    "textPlain": "This article is specifically about the implementation of SIMD in Rust, not other languages.",
+    "parent": 45828817,
     "depth": 2
   }
 ]
