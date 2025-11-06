@@ -24,18 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45827570,
-    "by": "jtrueb",
-    "timeISO": "2025-11-05T20:33:10.000Z",
-    "textPlain": "simd was one I thought we needed. Then, i started benchmarking using iter with chunks and a nested if statement to check the chunk size. If it was necessary to do more, it was typically time to drop down to asm rather than worry about another layer in between the code and the machine.",
-    "parent": 45826348,
-    "depth": 1
-  },
-  {
     "id": 45826986,
     "by": "the__alchemist",
     "timeISO": "2025-11-05T19:43:50.000Z",
     "textPlain": "Of interest, I've written my own core::simd mimic so I don't have to make all my libs and programs use nightly. It started as me just making my Quaternion and Vec lib (lin-alg) have their own SoA SIMD variants (Vec3x16 etc), but I ended up implementing and publicly exposing f32x16 etc. Will remove those once core::simd is stable. Downside: These are x86 only; no ARM support.I also added packing and unpacking helpers that assist with handling final lane 0 values etc. But there is still some subtly, as the article pointed out, compared to using Rayon or non-SIMD CPU code related to packing and unpacking. E.g. you should try to keep things in their SIMD form throughout the whole pipeline, how you pair them with non-SIMD values (Like you might pair [T; 8] with f32x8 etc) etc.",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45827570,
+    "by": "jtrueb",
+    "timeISO": "2025-11-05T20:33:10.000Z",
+    "textPlain": "simd was one I thought we needed. Then, i started benchmarking using iter with chunks and a nested if statement to check the chunk size. If it was necessary to do more, it was typically time to drop down to asm rather than worry about another layer in between the code and the machine.",
     "parent": 45826348,
     "depth": 1
   },
@@ -104,18 +104,18 @@
     "depth": 2
   },
   {
-    "id": 45829723,
-    "by": "dzaima",
-    "timeISO": "2025-11-05T23:57:49.000Z",
-    "textPlain": "For vectorizing, that quote is only true for loops with dependencies between iterations, e.g. summing a list of numbers (..that's basically the only case where this really matters).For loops without such dependencies Rust should autovectorize just fine as with any other element type.",
-    "parent": 45828672,
-    "depth": 2
-  },
-  {
     "id": 45829109,
     "by": "bobmcnamara",
     "timeISO": "2025-11-05T22:45:43.000Z",
     "textPlain": "We used to tweak our scalar product simulator code to match the SIMD arithmetic order so we could hash the outputs for tests.I wonder if it could autovec the simd-ordered code.",
+    "parent": 45828672,
+    "depth": 2
+  },
+  {
+    "id": 45829723,
+    "by": "dzaima",
+    "timeISO": "2025-11-05T23:57:49.000Z",
+    "textPlain": "For vectorizing, that quote is only true for loops with dependencies between iterations, e.g. summing a list of numbers (..that's basically the only case where this really matters).For loops without such dependencies Rust should autovectorize just fine as with any other element type.",
     "parent": 45828672,
     "depth": 2
   },
@@ -208,11 +208,11 @@
     "depth": 2
   },
   {
-    "id": 45828514,
-    "by": "b33j0r",
-    "timeISO": "2025-11-05T21:48:26.000Z",
-    "textPlain": "This is the most surprising comment to me. It’s that bad? I haven’t benchmarked it myself.Zig has @Vector. This is a builtin, so it gets resolved at comptime. Is the problem with Rust here too much abstraction?",
-    "parent": 45827570,
+    "id": 45830694,
+    "by": "stevefan1999",
+    "timeISO": "2025-11-06T02:25:04.000Z",
+    "textPlain": "As someone who used std::simd in an attempt for submitting to an academic conference CFP*, I have look deep into how std::simd and I would conclude that there are a couple of reasons it isn't stable yet (this is rather long and maybe need 10 minutes to read):1. It is highly depending on LLVM intrinsics which itself can change quite a lot. Sometimes the intrinsic would even fail to instantiate and crashed the entire compilation. I for example met chronic ICE crashes for the same code in different nightly Rust version. Then I realize it is because the SIMD operation was too complicated and I need to simplify it, and sometimes need to stop recursing and expanding too much to prevent stack spilling and exhausting register allocation.This happens from time to time especially when using std::simd with embedded target where registers are scarcity.2. Some hardware design decisions making SIMD itself not ergonomic and hard to generalize, this is also reflected on the design of std::simd as well.Recall that SIMD techniques stems from vector processors in supercomputers from the likes of Cray and IBM, that is from the 70s and back then computation and hardware design was primitive and simple, so they have fixed vector size.The ancient design is very stable, and is still kept till this day, even with the likes of AVX2, AVX512, VFP and NEON, so this influenced the design of things like lane count (https://doc.rust-lang.org/std/simd/struct.LaneCount.html).But the plot twist: as time goes on, it turns out that modern SIMD is now capable of doing variable sizes; RISC-V's SIMD extension is one such implementation for example.So now we come to a dilemma on to keep the existing fixed lane count design, or allow it to extend further. If we allow it to extend further to cater for things like variable-SIMD vector length, then we need to wait for generic_const_exprs to be stable, and right now it is not only not stable but incomplete too (https://github.com/rust-lang/portable-simd/issues/",
+    "parent": 45826874,
     "depth": 2
   },
   {
@@ -224,11 +224,27 @@
     "depth": 2
   },
   {
+    "id": 45828514,
+    "by": "b33j0r",
+    "timeISO": "2025-11-05T21:48:26.000Z",
+    "textPlain": "This is the most surprising comment to me. It’s that bad? I haven’t benchmarked it myself.Zig has @Vector. This is a builtin, so it gets resolved at comptime. Is the problem with Rust here too much abstraction?",
+    "parent": 45827570,
+    "depth": 2
+  },
+  {
     "id": 45827999,
     "by": "vlovich123",
     "timeISO": "2025-11-05T21:04:12.000Z",
     "textPlain": "Do you compile the whole project with nightly or just specific components?",
     "parent": 45826689,
+    "depth": 2
+  },
+  {
+    "id": 45830681,
+    "by": "jacquesm",
+    "timeISO": "2025-11-06T02:23:12.000Z",
+    "textPlain": "I was heavily into assembly before I discovered C. For the first decade and half or so I could usually beat the compiler. Since then, especially when supporting multiple architectures I have not been able to do that unless I knew some assumption that the compiler was likely to make wasn't true. The 'const' keyword alone killed most of my hand optimized stuff.In the end the only bits where I resorted to assembly were the ones where it wouldn't make any sense to write stuff in C. Bootloaders, for instance, when all you have to work with is 512 bytes the space/speed constraints are much more on the space side and that's where I find I still have a (slight) edge. Which I guess means that 'optimal' is context dependent and that the typical 'optimal' defaults to 'speed'.",
+    "parent": 45827901,
     "depth": 2
   },
   {
