@@ -1,9 +1,9 @@
 [
   {
-    "id": 45836213,
-    "by": "sushibowl",
-    "timeISO": "2025-11-06T15:19:25.000Z",
-    "textPlain": "With respect to tagged pointers, there seems to be some recent movements on that front in CPython: https://github.com/python/cpython/issues/132509",
+    "id": 45837324,
+    "by": "jonhohle",
+    "timeISO": "2025-11-06T16:56:34.000Z",
+    "textPlain": "I’ve tried optimizing some python that’s in the hot path of a build system and a few dozen operations out of over 2K nodes in the ninja graph account for 25-30% of the total build time.I’ve found python optimization to be nearly intractable. I’ve spent a significant amount of time over the past two decades optimizing C, Java, Swift, Ruby, SQL and I’m sure more. The techniques are largely the same. In Python, however, everything seems expensive. Field lookup on an object, dynamic dispatch, string/array concatenation. After optimization, the code is no longer “pythonic” (which has come to mean slow, in my vernacular).Are there any good resources on optimizing python performance while keeping idiomatic?",
     "parent": 45786041,
     "depth": 1
   },
@@ -16,10 +16,34 @@
     "depth": 1
   },
   {
+    "id": 45836213,
+    "by": "sushibowl",
+    "timeISO": "2025-11-06T15:19:25.000Z",
+    "textPlain": "With respect to tagged pointers, there seems to be some recent movements on that front in CPython: https://github.com/python/cpython/issues/132509",
+    "parent": 45786041,
+    "depth": 1
+  },
+  {
     "id": 45836677,
     "by": "boothby",
     "timeISO": "2025-11-06T16:04:32.000Z",
-    "textPlain": "Once upon a time, I wanted to back a stack with a linked list in Python.  I had been reading a lot of compiled bytecode, and had recently learned that CPython is a stack-based language capable of unrolling and popping tuples in its hot path.  I also learned about the freelist.I ended up with the notation  Initialization:\n    head = ()\n  Push:\n    head = data, head\n  Safe Pop:\n    if head:\n       data, head = head\n  Safe Top:\n    head[0] if head else None\n\nAnd for many stack-based algorithms, I've found this to be quite optimal in part because the length-2 tuples get recycled.  But I'm rather embarrassed to put it into a codebase due to others' expectations that Python should be beautiful and this seems weird.",
+    "textPlain": "Once upon a time, I wanted to back a stack with a linked list in Python.  I had been reading a lot of compiled bytecode, and had recently learned that CPython is a stack-based language capable of unrolling and popping tuples as singular bytecode instructions.  I also learned about the freelist.I ended up with the notation  Initialization:\n    head = ()\n  Push:\n    head = data, head\n  Safe Pop:\n    if head:\n       data, head = head\n  Safe Top:\n    head[0] if head else None\n\nAnd for many stack-based algorithms, I've found this to be quite optimal in part because the length-2 tuples get recycled (also due to a lack of function calls, member accesses, etc).  But I'm rather embarrassed to put it into a codebase due to others' expectations that Python should be beautiful and this seems weird.",
+    "parent": 45786041,
+    "depth": 1
+  },
+  {
+    "id": 45837085,
+    "by": "whilenot-dev",
+    "timeISO": "2025-11-06T16:37:28.000Z",
+    "textPlain": "A bit beside the point, but this caught my eye:> Integers are likely the most used data type of any program, that means a lot of heap allocations.I would guess strings come first, then floats, then booleans, and then integers. Are there any data available on that?",
+    "parent": 45786041,
+    "depth": 1
+  },
+  {
+    "id": 45837237,
+    "by": "Joker_vD",
+    "timeISO": "2025-11-06T16:50:43.000Z",
+    "textPlain": "Shouldn't having a freelist and pushing and popping blocks of memory to and from it for re-use count as a form of memory allocation?",
     "parent": 45786041,
     "depth": 1
   },
@@ -48,11 +72,59 @@
     "depth": 1
   },
   {
+    "id": 45837626,
+    "by": "kingstnap",
+    "timeISO": "2025-11-06T17:19:50.000Z",
+    "textPlain": "You can't really. The slow parts of computers are memory and branches.Branches cannot be reasoned about since they are all in the Cpython state machine.Memory performance is about being efficient with allocations, cache locality, and pointer chasing.Python has huge amounts of allocations and pointer chasing. Its by design slow.",
+    "parent": 45837324,
+    "depth": 2
+  },
+  {
+    "id": 45837532,
+    "by": "CraigJPerry",
+    "timeISO": "2025-11-06T17:12:24.000Z",
+    "textPlain": ">> optimizing python performance while keeping idiomatic?That's impossible[1].I think it is impossible because when i identify a slow function using cProfile then use dis.dis() on it to view the instructions executed, most of the overhead - by that i mean time spent doing something other than the calculation the code describes - is spent determining what each \"thing\" is. It's all trails of calls trying to determine \"this thing can't be __add__() to that thing but maybe that thing can be __radd()__ to this thing instead. Long way to say most of the time wasting instructions i see can be attacked by providing ctypes or some other approach like that (mypyc, maybe  cython, etc etc) - but at this point you're well beyond \"idiomatic\".[1] I'm really curious to know the answer to your question so i'll post a confident (but hopefully wrong) answer so that someone feels compelled to correct me :-)",
+    "parent": 45837324,
+    "depth": 2
+  },
+  {
+    "id": 45837496,
+    "by": "ragnese",
+    "timeISO": "2025-11-06T17:09:17.000Z",
+    "textPlain": "> Are there any good resources on optimizing python performance while keeping idiomatic?At the risk of sounding snarky and/or unhelpful, in my experience, the answer is that you don't try to optimize Python code beyond fixing your algorithm to have better big-O properties, followed by calling out to external code that isn't written in Python (e.g., NumPy, etc).But, I'm a hater. I spent several years working with Python and hated almost every minute of it for various reasons. Very few languages repulse me the way Python does: I hate the syntax, the semantics, the difficulty of distribution, and the performance (memory and CPU, and is GIL disabled by default yet?!)...",
+    "parent": 45837324,
+    "depth": 2
+  },
+  {
+    "id": 45837322,
+    "by": "zbentley",
+    "timeISO": "2025-11-06T16:56:24.000Z",
+    "textPlain": "Yeah, spelunking around this is a great way to learn a language!That said, “is an object” is a bit of an overloaded term in this context. Most things in Python can be semantically addressed as objects (they have fields and methods, “dir” interrogates them, and so on), but not everything is necessarily backed by the same kind of heap-allocated memory object. Some builtins and bytecode-level optimizations, similar to (but not quite the same as) the ones discussed in TFA, result in things being less object-like (that is, PyObject*-ish structs with refcounting and/or pointer chasing on field access) in some cases.And that’s an important difference, not a nitpick! It means that performance-interested folks can’t always use the same intuition for allocation/access behavior that they do when determining what fields are available on a syntactic object.(And before the inevitable “if you want performance don’t write Python/use native libraries” folks pipe up: people still regularly have to care about making plain Python code fast. You might wish it weren’t so, but it is.)",
+    "parent": 45836303,
+    "depth": 2
+  },
+  {
     "id": 45836595,
     "by": "notatallshaw",
     "timeISO": "2025-11-06T15:57:40.000Z",
     "textPlain": "Unfortunately that was posted 1 month before the Faster CPython project was disbanded by Microsoft, so I imagine things have slowed.",
     "parent": 45836213,
+    "depth": 2
+  },
+  {
+    "id": 45837283,
+    "by": "nemothekid",
+    "timeISO": "2025-11-06T16:54:01.000Z",
+    "textPlain": "Given that most string implementations have both a `len` and `cap` field (or eve just `len`), means that for every string data type, there is one more integer variables being used.So integer definitely gets used more than strings, and I'd argue way more than floats in most programs.",
+    "parent": 45837085,
+    "depth": 2
+  },
+  {
+    "id": 45837351,
+    "by": "ragnese",
+    "timeISO": "2025-11-06T16:58:41.000Z",
+    "textPlain": "Ints probably get a big boost in languages where the only built-in for-loop syntax involves incrementing an index variable, like C. And, speaking of C, specifically, even the non-int types are actually ints or isomorphic to ints: enums, bools, char, pointers, arrays (which are just pointers if you squint), etc...But, otherwise, I'd agree that strings probably win, globally.",
+    "parent": 45837085,
     "depth": 2
   },
   {
