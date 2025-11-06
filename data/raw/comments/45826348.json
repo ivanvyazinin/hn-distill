@@ -1,17 +1,17 @@
 [
   {
-    "id": 45834466,
-    "by": "silentvoice",
-    "timeISO": "2025-11-06T12:27:24.000Z",
-    "textPlain": "oh boy I've got opinions here.Basically I just don't want to hear about \"the state of SIMD in Rust\" unless it is about dramatic improvement in autovectorization in the rust compiler.80%-90% or so of real life vectorization can be achieved in C or C++ just by writing code in a way that it can be autovectorized. Intrinsics get you the rest of the way on harder code. Autovectorization is essentially a solved problem for the vast majority of floating point code.Not so with rust, because of a dogmatic approach to floating point arithmetic that assumes bitwise reproducibility is the \"right\" answer for everyone (actually, it's the right answer to almost nobody) to the point of not even allowing a user to even flag on these optimizations. and once you get to the point of writing intrinsics you have to handwrite code for every new architecture when autovectorizers could have gotten you 80%-90% of the way there with a single source and often this is just enough.the contention with the above is that if a user needs SIMD they can just use some SIMD API and make their intention more clear. this is essentially an argument that we should handwrite intrinsics. well guess what. I'm a programmer and I use compilers because they _do this for me_ and indeed are able to do so very easily in C or C++ when I instruct it that I'm ok with with reordering operations and other \"accuracy impacting\" optimizations.The huge joke on us is that these optimizations generally have the effect of _improving_ accuracy because it will reduce the number of rounding steps either by simply reducing the number of operations or by using fused multiply adds which round only once.",
-    "parent": 45826348,
-    "depth": 1
-  },
-  {
     "id": 45833842,
     "by": "kouteiheika",
     "timeISO": "2025-11-06T11:03:49.000Z",
     "textPlain": "Unfortunately SIMD in Rust tends to be pretty painful if you want to gracefully do runtime autodetection of a given SIMD extension (instead of it being a hard requirement for your program to even run).The major problem is that Rust essentially requires you to annotate every (!) function in your whole call stack with e.g. `#[target_feature(enable = \"avx2\")]` to make sure that the SIMD intrinsics will actually get inlined (if they're not inlined then the performance is horrible, which makes using SIMD completely pointless). This makes it very hard to build any reasonable abstractions because you need to hardcode this all over your code. You can't have e.g. a `DataStructure<S>` where S is the SIMD ISA, so that you could do `DataStructure<AVX2>` or `DataStructure<SSE>` to get a nicely specialized version of it for a given instruction set. You need to copy-paste the whole thing with changed `target_feature` attributes (or use a procedural macro which does the copy-pasting) and have two entirely separate `DataStructureAVX2` and `DataStructureSSE` types.",
+    "parent": 45826348,
+    "depth": 1
+  },
+  {
+    "id": 45834466,
+    "by": "silentvoice",
+    "timeISO": "2025-11-06T12:27:24.000Z",
+    "textPlain": "oh boy I've got opinions here.Basically I just don't want to hear about \"the state of SIMD in Rust\" unless it is about dramatic improvement in autovectorization in the rust compiler.80%-90% or so of real life vectorization can be achieved in C or C++ just by writing code in a way that it can be autovectorized. Intrinsics get you the rest of the way on harder code. Autovectorization is essentially a solved problem for the vast majority of floating point code.Not so with rust, because of a dogmatic approach to floating point arithmetic that assumes bitwise reproducibility is the \"right\" answer for everyone (actually, it's the right answer to almost nobody) to the point of not even allowing a user to even flag on these optimizations. and once you get to the point of writing intrinsics you have to handwrite code for every new architecture when autovectorizers could have gotten you 80%-90% of the way there with a single source and often this is just enough.the contention with the above is that if a user needs SIMD they can just use some SIMD API and make their intention more clear. this is essentially an argument that we should handwrite intrinsics. well guess what. I'm a programmer and I use compilers because they _do this for me_ and indeed are able to do so very easily in C or C++ when I instruct it that I'm ok with with reordering operations and other \"accuracy impacting\" optimizations.The huge joke on us is that these optimizations generally have the effect of _improving_ accuracy because it will reduce the number of rounding steps either by simply reducing the number of operations or by using fused multiply adds which round only once.",
     "parent": 45826348,
     "depth": 1
   },
@@ -117,6 +117,14 @@
     "timeISO": "2025-11-06T12:30:05.000Z",
     "textPlain": "Keep an eye out for the algebraic operations on floats currently in nightly then: https://doc.rust-lang.org/nightly/std/primitive.f32.html#alg...",
     "parent": 45834466,
+    "depth": 2
+  },
+  {
+    "id": 45834947,
+    "by": "swiftcoder",
+    "timeISO": "2025-11-06T13:23:06.000Z",
+    "textPlain": "> I wonder if that nightly feature is a per-crate setting or whatUnfortunately it's a set of functions you have to use to perform arithmetic ops if you want the autovectorizer to touch them",
+    "parent": 45828672,
     "depth": 2
   },
   {
