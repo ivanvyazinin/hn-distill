@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45847800,
-    "by": "darknoon",
-    "timeISO": "2025-11-07T16:05:11.000Z",
-    "textPlain": "The developers also gave a talk about Helion on GPU Mode:\nhttps://www.youtube.com/watch?v=1zKvCLuvUYc",
+    "id": 45849527,
+    "by": "ballpug",
+    "timeISO": "2025-11-07T18:45:34.000Z",
+    "textPlain": "Compiling a kernel after assemblage in low-level object oriented languages either uses \nstable kernel or the cargo fuzzed raw_spinlock code.Helion abstracts syntax and design for calculating λ-functions, which converts language in a kernel config.",
     "parent": 45788194,
     "depth": 1
   },
   {
-    "id": 45848926,
-    "by": "mshockwave",
-    "timeISO": "2025-11-07T17:48:17.000Z",
-    "textPlain": "Is it normal to spend 10minutes on tuning nowadays? Do we need to spend another 10 minutes upon changing the code?",
+    "id": 45847800,
+    "by": "darknoon",
+    "timeISO": "2025-11-07T16:05:11.000Z",
+    "textPlain": "The developers also gave a talk about Helion on GPU Mode:\nhttps://www.youtube.com/watch?v=1zKvCLuvUYc",
     "parent": 45788194,
     "depth": 1
   },
@@ -32,18 +32,26 @@
     "depth": 1
   },
   {
-    "id": 45847964,
-    "by": "bwfan123",
-    "timeISO": "2025-11-07T16:17:44.000Z",
-    "textPlain": "I dont get the point of helion as compared to its alternatives like gluon.For best performance I would presume one needs low-level access to hardware knobs. And, these kernel primitives are written one-time and reused. So, what is the point of a DSL that dumbs things down as a wrapper around triton.",
-    "parent": 45788194,
-    "depth": 1
-  },
-  {
     "id": 45846109,
     "by": "brap",
     "timeISO": "2025-11-07T13:27:43.000Z",
     "textPlain": "Asking as someone who is really out of the loop: how much of ML development these days touches these “lower level” parts of the stack? I’d expect that by now most of the work would be high level, and the infra would be mostly commoditized.",
+    "parent": 45788194,
+    "depth": 1
+  },
+  {
+    "id": 45848926,
+    "by": "mshockwave",
+    "timeISO": "2025-11-07T17:48:17.000Z",
+    "textPlain": "Is it normal to spend 10minutes on tuning nowadays? Do we need to spend another 10 minutes upon changing the code?",
+    "parent": 45788194,
+    "depth": 1
+  },
+  {
+    "id": 45847964,
+    "by": "bwfan123",
+    "timeISO": "2025-11-07T16:17:44.000Z",
+    "textPlain": "I dont get the point of helion as compared to its alternatives like gluon.For best performance I would presume one needs low-level access to hardware knobs. And, these kernel primitives are written one-time and reused. So, what is the point of a DSL that dumbs things down as a wrapper around triton.",
     "parent": 45788194,
     "depth": 1
   },
@@ -88,11 +96,11 @@
     "depth": 1
   },
   {
-    "id": 45848432,
-    "by": "krapht",
-    "timeISO": "2025-11-07T17:00:25.000Z",
-    "textPlain": "Funny, I feel the same way about Triton. Performant Triton looks like CUDA (but with tiles!) except it's ten times harder to debug since it doesn't have the tooling NVIDIA provides.If I had to run on AMD I'd rather deal with their hipify tooling.",
-    "parent": 45847964,
+    "id": 45849397,
+    "by": "saagarjha",
+    "timeISO": "2025-11-07T18:33:11.000Z",
+    "textPlain": "Generally you are unlikely to get Python-level debugging for code that is going to run on GPUs.",
+    "parent": 45847006,
     "depth": 2
   },
   {
@@ -112,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 45848432,
+    "by": "krapht",
+    "timeISO": "2025-11-07T17:00:25.000Z",
+    "textPlain": "Funny, I feel the same way about Triton. Performant Triton looks like CUDA (but with tiles!) except it's ten times harder to debug since it doesn't have the tooling NVIDIA provides.If I had to run on AMD I'd rather deal with their hipify tooling.",
+    "parent": 45847964,
+    "depth": 2
+  },
+  {
     "id": 45848734,
     "by": "koolba",
     "timeISO": "2025-11-07T17:29:46.000Z",
@@ -120,11 +136,35 @@
     "depth": 2
   },
   {
+    "id": 45849413,
+    "by": "saagarjha",
+    "timeISO": "2025-11-07T18:34:23.000Z",
+    "textPlain": "You’ll need an execution backend.",
+    "parent": 45848321,
+    "depth": 2
+  },
+  {
     "id": 45849381,
     "by": "saagarjha",
     "timeISO": "2025-11-07T18:31:33.000Z",
     "textPlain": "It saves a kernel launch and memory bandwidth for a fill kernel. If you’re going to overwrite the data anyway, why bother?",
     "parent": 45847509,
+    "depth": 2
+  },
+  {
+    "id": 45849398,
+    "by": "porridgeraisin",
+    "timeISO": "2025-11-07T18:33:12.000Z",
+    "textPlain": "They have made it empty only.>> out = torch.empty([m, n], dtype=x.dtype, device=x.device)The accumulator has been initialized to zero, since well, they have to add stuff into it.>> acc = hl.zeros([tile_m, tile_n], dtype=torch.float32)> idiomaticNo as far as I have seen they generally try to not initialize if its not necessary.> overheadThere is the memory bandwidth point as you might expect. But additionally when using high level interfaces like pytorch, when you write torch.zeros(512, 512) in pytorch, it launches a whole kernel (tens of micros) just for that line. So that's cpu -> gpu -> back to cpu, and then it does the next line, where it goes to gpu again and uses that memory. So in these cases you make sure to avoid it if its in a hot path. Ideally you want the 2nd kernel to do the initialization itself. When you write cuda c++ yourself this is how you typically do it. Helion being a compiler might be doing this optimization, but runtime based torch can't clearly.",
+    "parent": 45847509,
+    "depth": 2
+  },
+  {
+    "id": 45849417,
+    "by": "saagarjha",
+    "timeISO": "2025-11-07T18:34:51.000Z",
+    "textPlain": "It’s not that bad, but I’m not sure why this is relevant?",
+    "parent": 45847235,
     "depth": 2
   },
   {
