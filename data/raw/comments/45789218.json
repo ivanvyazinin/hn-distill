@@ -1,5 +1,29 @@
 [
   {
+    "id": 45848363,
+    "by": "spenczar5",
+    "timeISO": "2025-11-07T16:54:08.000Z",
+    "textPlain": "\"But accepting the full S3Client here ties UploadReport to an interface that’s too broad. A fake must implement all the methods just to satisfy it.\"This isn't really true. Your mock inplementation can embed the interface, but only implement the one required method. Calling the unimplemented methods will panic, but that's not unreasonable for mocks.That is:    type mockS3 struct {\n        S3Client\n    }\n\n    func (m mockS3) PutObject(...) {\n        ...\n    }\n\nYou don't have to implement all the other methods.Defining a zillion interfaces, all the permutations of methods in use, makes it hard to cone up with good names, and thus hard to read.",
+    "parent": 45789218,
+    "depth": 1
+  },
+  {
+    "id": 45848581,
+    "by": "hyperpape",
+    "timeISO": "2025-11-07T17:15:27.000Z",
+    "textPlain": "> Object-oriented (OO) patterns get a lot of flak in the Go community, and often for good reason.This isn't really an OO pattern, as the rest of the post demonstrates. It's just a pattern that applies across most any language where you can make a distinction between an interface/typeclass or whatever, and a concrete type.",
+    "parent": 45789218,
+    "depth": 1
+  },
+  {
+    "id": 45848570,
+    "by": "piazz",
+    "timeISO": "2025-11-07T17:14:45.000Z",
+    "textPlain": "You’re decreasing coupling at the cost of introducing more entities, and a different sort of complexity, into your system.Sometimes it’s absolutely worth it. Sometimes not.",
+    "parent": 45789218,
+    "depth": 1
+  },
+  {
     "id": 45847940,
     "by": "Joker_vD",
     "timeISO": "2025-11-07T16:15:54.000Z",
@@ -8,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45847852,
-    "by": "sirsinsalot",
-    "timeISO": "2025-11-07T16:09:49.000Z",
-    "textPlain": "Follow the trail of the blog post and you end up with Python and duck typing, and all the foot guns there too.",
+    "id": 45848170,
+    "by": "jimbobimbo",
+    "timeISO": "2025-11-07T16:36:44.000Z",
+    "textPlain": "\"But accepting the full S3Client here ties UploadReport to an interface that’s too broad. A fake must implement all the methods just to satisfy it.\"In NET, one would simply mock one or two methods required by the implementation under the test. If I'm using Moq, then one would set it up in strict mode, to avoid surprises if unit under test starts calling something it didn't before.",
     "parent": 45789218,
     "depth": 1
   },
@@ -24,12 +48,52 @@
     "depth": 1
   },
   {
+    "id": 45847852,
+    "by": "sirsinsalot",
+    "timeISO": "2025-11-07T16:09:49.000Z",
+    "textPlain": "Follow the trail of the blog post and you end up with Python and duck typing, and all the foot guns there too.",
+    "parent": 45789218,
+    "depth": 1
+  },
+  {
     "id": 45847910,
     "by": "mayoff",
     "timeISO": "2025-11-07T16:14:06.000Z",
     "textPlain": "See also https://news.ycombinator.com/item?id=36908369 (“The bigger the interface, the weaker the abstraction\")",
     "parent": 45789218,
     "depth": 1
+  },
+  {
+    "id": 45848264,
+    "by": "brodouevencode",
+    "timeISO": "2025-11-07T16:45:41.000Z",
+    "textPlain": ">First, why would you ever add methods to a public interface?In the go world, it's a little more acceptable to do that versus something like Java because you're really not going to break anything",
+    "parent": 45847940,
+    "depth": 2
+  },
+  {
+    "id": 45848365,
+    "by": "Xeoncross",
+    "timeISO": "2025-11-07T16:54:32.000Z",
+    "textPlain": "What is the alternative though? In strongly typed languages like Go, Rust, etc.. you must define the contract. So you either focus on what you need, or you just make a kitchen-sink interface.I don't even want to think about the global or runtime rewriting that is possible (common) in Java and JavaScript as a reasonable solution to this DI problem.",
+    "parent": 45847438,
+    "depth": 2
+  },
+  {
+    "id": 45847535,
+    "by": "leetrout",
+    "timeISO": "2025-11-07T15:40:44.000Z",
+    "textPlain": "> a single interface and mock on the producer sideI still believe in Go it is better to _start_ with interfaces on the consumer and focus on \"what you need\" with interfaces instead of \"what you provide\" since there's no \"implements\" concept.I get the mock argument all the time for having producer interfaces and I don't deny at a certain scale it makes sense but I don't understand why so many people reach for it out of the gate.I'm genuinely curious if you have felt the pain from interfaces on the producer that would go away if there were just (multiple?) concrete types in use or if you happen to have a notion of OO in Go that is hard to let go of?",
+    "parent": 45847438,
+    "depth": 2
+  },
+  {
+    "id": 45848123,
+    "by": "the_gipsy",
+    "timeISO": "2025-11-07T16:32:37.000Z",
+    "textPlain": "Yes, this is exactly the problem with go's recipe.Either you copypaste the same interface over and over and over, with the maintenance nightmare that is, or you always have these struct-and-interface pairs, where it's unclear why there is an interface to begin with. If the answer is testing, maybe that's the wrong question ti begin with.So, I would rather have duck typing (the structural kind, not just interfaces) for easy testing. I wonder if it would technically be possible to only compile with duck typing in test, in a hypothetical language.",
+    "parent": 45847438,
+    "depth": 2
   },
   {
     "id": 45847915,
@@ -40,11 +104,11 @@
     "depth": 2
   },
   {
-    "id": 45847535,
-    "by": "leetrout",
-    "timeISO": "2025-11-07T15:40:44.000Z",
-    "textPlain": "> a single interface and mock on the producer sideI still believe in Go it is better to _start_ with interfaces on the consumer and focus on \"what you need\" with interfaces instead of \"what you provide\" since there's no \"implements\" concept.I get the mock argument all the time for having producer interfaces and I don't deny at a certain scale it makes sense but I don't understand why so many people reach for it out of the gate.I'm genuinely curious if you have felt the pain from interfaces on the producer that would go away if there were just (multiple?) concrete types in use or if you happen to have a notion of OO in Go that is hard to let go of?",
-    "parent": 45847438,
+    "id": 45848572,
+    "by": "zbentley",
+    "timeISO": "2025-11-07T17:14:52.000Z",
+    "textPlain": "How so? Genuine question. Duck typing is “try it and see if it supports an action”, where interface declaration is the opposite: declare what methods must be supported by what you interact with.In Python, that would be a Protocol (https://typing.python.org/en/latest/spec/protocol.html), which is a newer and leas commonly used feature than full, un-annotated duck typing.Sure, type checking in Python (Protocols or not) is done very differently and less strongly than in Go, but the semantic pattern of interface segregation seems to be equivalently possible in both languages—and very different from duck typing.",
+    "parent": 45847852,
     "depth": 2
   }
 ]
