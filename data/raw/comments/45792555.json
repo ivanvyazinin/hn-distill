@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45856974,
-    "by": "drzel",
-    "timeISO": "2025-11-08T14:48:05.000Z",
-    "textPlain": "plans = { \n      1.month => {standard: 10, pro: 50, enterprise: 100},\n      1.year => {standard: 100, pro: 500, enterprise: 1000}\n    }\n    \n    plans.each do |interval, details|\n      details.each do |name, amount|\n        Billing::Plan::Factory.find_or_create_by!(name: , interval:, amount:)\n      end\n    end",
+    "id": 45859067,
+    "by": "culi",
+    "timeISO": "2025-11-08T19:05:37.000Z",
+    "textPlain": "So the underlying assumption is that there is always at least one attribute that serves as a \"discriminator\" between the billing plans, right? Is it possible to represent something like this then?```rb  [:red, 1.month, 10]\n  [:red, 1.year, 120]\n  [:blue, 1.month, 120]\n  [:blue, 1.year,  300]\n\n```Every possible attribute (name, interval, amount) has at least two objects that share a value",
     "parent": 45792555,
     "depth": 1
   },
   {
-    "id": 45855851,
-    "by": "kburman",
-    "timeISO": "2025-11-08T11:10:50.000Z",
-    "textPlain": "This is a perfect example of something that looks good in a demo but fails in a real product. Business logic and 'packages' are never this clean or simple.Putting this kind of type-based 'magic' in the code is a bad decision that will bite you very soon. It optimizes for being 'cute' rather than being clear and maintainable, and that's a trade-off that almost never pays off.",
+    "id": 45856974,
+    "by": "drzel",
+    "timeISO": "2025-11-08T14:48:05.000Z",
+    "textPlain": "plans = { \n      1.month => {standard: 10, pro: 50, enterprise: 100},\n      1.year => {standard: 100, pro: 500, enterprise: 1000}\n    }\n    \n    plans.each do |interval, details|\n      details.each do |name, amount|\n        Billing::Plan::Factory.find_or_create_by!(name: , interval:, amount:)\n      end\n    end",
     "parent": 45792555,
     "depth": 1
   },
@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45856507,
-    "by": "some1else",
-    "timeISO": "2025-11-08T13:24:52.000Z",
-    "textPlain": "Feels odd that two feature-equivalent plans are segregated with neighboring duplicates into monthly and yearly branches. I would consider monthly Enterprise & yearly Enterprise the same plan, with modified cost & billing frequency.",
+    "id": 45855851,
+    "by": "kburman",
+    "timeISO": "2025-11-08T11:10:50.000Z",
+    "textPlain": "This is a perfect example of something that looks good in a demo but fails in a real product. Business logic and 'packages' are never this clean or simple.Putting this kind of type-based 'magic' in the code is a bad decision that will bite you very soon. It optimizes for being 'cute' rather than being clear and maintainable, and that's a trade-off that almost never pays off.",
     "parent": 45792555,
     "depth": 1
   },
   {
-    "id": 45858692,
-    "by": "nvader",
-    "timeISO": "2025-11-08T18:14:33.000Z",
-    "textPlain": "I'll add another cautionary word in with everyone else who is panning this implementation.This is just using operator overloading to determine keywords, but it locks you out of ever using the same type twice in your signature. Notice that :usd turns into a name. What?This is cute, but has no place in a professional software interface.",
+    "id": 45856507,
+    "by": "some1else",
+    "timeISO": "2025-11-08T13:24:52.000Z",
+    "textPlain": "Feels odd that two feature-equivalent plans are segregated with neighboring duplicates into monthly and yearly branches. I would consider monthly Enterprise & yearly Enterprise the same plan, with modified cost & billing frequency.",
     "parent": 45792555,
     "depth": 1
   },
@@ -72,6 +72,22 @@
     "depth": 1
   },
   {
+    "id": 45858692,
+    "by": "nvader",
+    "timeISO": "2025-11-08T18:14:33.000Z",
+    "textPlain": "I'll add another cautionary word in with everyone else who is panning this implementation.This is just using operator overloading to determine keywords, but it locks you out of ever using the same type twice in your signature. Notice that :usd turns into a name. What?This is cute, but has no place in a professional software interface.",
+    "parent": 45792555,
+    "depth": 1
+  },
+  {
+    "id": 45856768,
+    "by": "sfgvvxsfccdd",
+    "timeISO": "2025-11-08T14:11:20.000Z",
+    "textPlain": "Haters gonna hate. My take: DSLs are a useful way to make code easier to read, and more importantly easier to write correctly. Exploring this space and sharing your learnings is useful and valuable.",
+    "parent": 45792555,
+    "depth": 1
+  },
+  {
     "id": 45855936,
     "by": "stevoski",
     "timeISO": "2025-11-08T11:30:26.000Z",
@@ -84,14 +100,6 @@
     "by": "dudeinjapan",
     "timeISO": "2025-11-08T09:47:15.000Z",
     "textPlain": "Yikes. This means that you’ll have 1000 micro-DSLs sprinkled all over your codebase, which will become unreadable and lead to confusion/accidents. Better to stick with good ol’ key-value labelling.",
-    "parent": 45792555,
-    "depth": 1
-  },
-  {
-    "id": 45856768,
-    "by": "sfgvvxsfccdd",
-    "timeISO": "2025-11-08T14:11:20.000Z",
-    "textPlain": "[dead]",
     "parent": 45792555,
     "depth": 1
   },
@@ -112,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 45856142,
+    "by": "brunosutic",
+    "timeISO": "2025-11-08T12:16:54.000Z",
+    "textPlain": "The usual response to this complaint in the Ruby/Rails community is that optimizing for nanoseconds, or even milliseconds doesn't matter when the same operation also involves multiple database queries or API calls.Let's take this example from the article:  Billing::Plan.find_or_create_all_by_attrs!(\n    1.month => {standard: 10, pro: 50, enterprise: 100},\n    1.year => {standard: 100, pro: 500, enterprise: 1000}\n  )\n\nThis ensures six billing plans are created. That means 6 DB queries and 6 Stripe API queries, at a minimum.",
+    "parent": 45855988,
+    "depth": 2
+  },
+  {
     "id": 45856202,
     "by": "brunosutic",
     "timeISO": "2025-11-08T12:31:20.000Z",
@@ -125,14 +141,6 @@
     "timeISO": "2025-11-08T11:12:28.000Z",
     "textPlain": "They do say they use this in their real production code.",
     "parent": 45855851,
-    "depth": 2
-  },
-  {
-    "id": 45856142,
-    "by": "brunosutic",
-    "timeISO": "2025-11-08T12:16:54.000Z",
-    "textPlain": "The usual response to this complaint in the Ruby/Rails community is that optimizing for nanoseconds, or even milliseconds doesn't matter when the same operation also involves multiple database queries or API calls.Let's take this example from the article:  Billing::Plan.find_or_create_all_by_attrs!(\n    1.month => {standard: 10, pro: 50, enterprise: 100},\n    1.year => {standard: 100, pro: 500, enterprise: 1000}\n  )\n\nThis ensures six billing plans are created. That means 6 DB queries and 6 Stripe API queries, at a minimum.",
-    "parent": 45855988,
     "depth": 2
   },
   {
@@ -160,6 +168,14 @@
     "depth": 2
   },
   {
+    "id": 45858966,
+    "by": "culi",
+    "timeISO": "2025-11-08T18:52:39.000Z",
+    "textPlain": "This is a typical API design in Ruby, but the post is about a somewhat novel API design than what you're pointing out. To address some of your points:The exclamation mark is a convention. It is used whenever a method could possibly result in an exception being raised. Sometimes it's instead used for non-idempotent methods.\"3.days\", etc are Rails things. A lot of non-Rubyists don't like it but once you use it for long enough you tend to really grow to it.As for HashWithIndifferentAccess, yes this is generally acknowledged as a mistake in Ruby's design and is rarely used in my experience. Originally, all Ruby hashes were HWIA. When they finally realized this was a design mistake they had to create HWIA for some level of backwards compatibility",
+    "parent": 45855754,
+    "depth": 2
+  },
+  {
     "id": 45856487,
     "by": "dagi3d",
     "timeISO": "2025-11-08T13:19:25.000Z",
@@ -168,11 +184,19 @@
     "depth": 2
   },
   {
-    "id": 45857644,
-    "by": "PufPufPuf",
-    "timeISO": "2025-11-08T16:05:34.000Z",
-    "textPlain": "As an end user, there's no way I'd pay $50/month for any SaaS.",
-    "parent": 45855936,
+    "id": 45858984,
+    "by": "culi",
+    "timeISO": "2025-11-08T18:55:26.000Z",
+    "textPlain": "> but it locks you out of ever using the same type twice in your signature.I don't see how you drew that conclusion. It seems to me the author provided several examples of this not being the case. Care to elucidate?",
+    "parent": 45858692,
+    "depth": 2
+  },
+  {
+    "id": 45858990,
+    "by": "culi",
+    "timeISO": "2025-11-08T18:56:57.000Z",
+    "textPlain": "I wouldn't call this a DSL",
+    "parent": 45856768,
     "depth": 2
   },
   {
@@ -180,6 +204,14 @@
     "by": "anamexis",
     "timeISO": "2025-11-08T14:09:10.000Z",
     "textPlain": "This is such a broad generalization as to be useless. I use several pieces of software that are around $10/month which there’s no way in hell I would pay $50 for.",
+    "parent": 45855936,
+    "depth": 2
+  },
+  {
+    "id": 45857644,
+    "by": "PufPufPuf",
+    "timeISO": "2025-11-08T16:05:34.000Z",
+    "textPlain": "As an end user, there's no way I'd pay $50/month for any SaaS.",
     "parent": 45855936,
     "depth": 2
   },
