@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45859067,
-    "by": "culi",
-    "timeISO": "2025-11-08T19:05:37.000Z",
-    "textPlain": "So the underlying assumption is that there is always at least one attribute that serves as a \"discriminator\" between the billing plans, right? Is it possible to represent something like this then?```rb  [:red, 1.month, 10]\n  [:red, 1.year, 120]\n  [:blue, 1.month, 120]\n  [:blue, 1.year,  300]\n\n```Every possible attribute (name, interval, amount) has at least two objects that share a value",
-    "parent": 45792555,
-    "depth": 1
-  },
-  {
     "id": 45856974,
     "by": "drzel",
     "timeISO": "2025-11-08T14:48:05.000Z",
@@ -36,6 +28,14 @@
     "by": "kburman",
     "timeISO": "2025-11-08T11:10:50.000Z",
     "textPlain": "This is a perfect example of something that looks good in a demo but fails in a real product. Business logic and 'packages' are never this clean or simple.Putting this kind of type-based 'magic' in the code is a bad decision that will bite you very soon. It optimizes for being 'cute' rather than being clear and maintainable, and that's a trade-off that almost never pays off.",
+    "parent": 45792555,
+    "depth": 1
+  },
+  {
+    "id": 45859067,
+    "by": "culi",
+    "timeISO": "2025-11-08T19:05:37.000Z",
+    "textPlain": "So the underlying assumption is that there is always at least one attribute that serves as a \"discriminator\" between the billing plans, right? Is it possible to represent something like this then?```rb  [:red, 1.month, 10]\n  [:red, 1.year, 120]\n  [:blue, 1.month, 120]\n  [:blue, 1.year,  300]\n\n```Every possible attribute (name, interval, amount) has at least two objects that share a value",
     "parent": 45792555,
     "depth": 1
   },
@@ -112,10 +112,18 @@
     "depth": 2
   },
   {
+    "id": 45859455,
+    "by": "isr",
+    "timeISO": "2025-11-08T19:55:52.000Z",
+    "textPlain": "That's one thing which ruby unfortunately did not adopt from Smalltalk. In Smalltalk (at least, in the dialects I'm familiar with), the \"method categories\" metadata is used to signal that we're adding new methods (or overwriting existing ones) to classes that are outside the scope of this package (ie: classes you didn't create as part of your app).That way, it's easy to trace, forwards (from package to all the methods it introduces) & backwards (from method to package), who introduced a method, where, and why.Other than that, I think a lot of this aversion to \"ruby magic\" is a bit overblown. The ability to cleanly remold any part of the system with minimal friction, to suit the app you're building right now - that's a KEY part of what makes it special.Its like all these polemics warning wannabe lispers away from using macros. Lisp, Smalltalk, and ruby, all give you very powerful shotguns to express your creative ideas. If you can't stop blowing your own foot off, then pick a different language with a different paradigm.",
+    "parent": 45857721,
+    "depth": 2
+  },
+  {
     "id": 45858761,
     "by": "bradly",
     "timeISO": "2025-11-08T18:25:10.000Z",
-    "textPlain": "I think this is the pattern I would reach for as well, separating the data from the execution. Being declarative about the plans (either with a config file, db backend, or simply a PORO) allows the plans themselves to be agnostic to how they are used and leaves you room to write a clean API for their creation without mixing in their definition.",
+    "textPlain": "I think this is the pattern I would reach for as well, separating the data from the execution. Being declarative about the plans (either with a config file, db backend, or simply a PORO) allows the plans themselves to be agnostic to how they are used and leaves you room to write a clean API for their creation without mixing in their definition.Also ActiveSupport has Object#with_options which has a similar intent, but I rarely ever see it used in codebases.",
     "parent": 45856974,
     "depth": 2
   },
@@ -144,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45859215,
+    "by": "brunosutic",
+    "timeISO": "2025-11-08T19:26:13.000Z",
+    "textPlain": "Your input would work exactly as you wrote it if passed to `Billing::Plan.find_or_create_all_by_attrs!`, just add commas at the end of lines.If you want to make it even shorter, you have a few options - it really just comes down to preference:  # Option 1. my personal favorite, follows structure of\n  # intervals and plans on a pricing page.\n  1.month => {red: 10, blue: 120},\n  1.year => {red: 120, blue: 300}\n\n  # Option 2. this is fine too\n  red: {1.month => 10, 1.year => 120},\n  blue: {1.month => 120, 1.year => 300}\n\n  # Option 3. possible and works, but hurts my brain, NOT recommended\n  10 => {red: 1.month},\n  120 => {red: 1.year, blue: 1.month},\n  300 => {blue: 1.year}\n\n> there is always at least one attribute that serves as a \"discriminator\" between the billing plans, rightJust a note: if you try to create two plans with the same attributes, that would error because of ActiveRecord uniqueness validations (and DB constraints). No point in having multiple identical plans.",
+    "parent": 45859067,
+    "depth": 2
+  },
+  {
     "id": 45856745,
     "by": "brunosutic",
     "timeISO": "2025-11-08T14:08:07.000Z",
@@ -168,18 +184,18 @@
     "depth": 2
   },
   {
-    "id": 45858966,
-    "by": "culi",
-    "timeISO": "2025-11-08T18:52:39.000Z",
-    "textPlain": "This is a typical API design in Ruby, but the post is about a somewhat novel API design than what you're pointing out. To address some of your points:The exclamation mark is a convention. It is used whenever a method could possibly result in an exception being raised. Sometimes it's instead used for non-idempotent methods.\"3.days\", etc are Rails things. A lot of non-Rubyists don't like it but once you use it for long enough you tend to really grow to it.As for HashWithIndifferentAccess, yes this is generally acknowledged as a mistake in Ruby's design and is rarely used in my experience. Originally, all Ruby hashes were HWIA. When they finally realized this was a design mistake they had to create HWIA for some level of backwards compatibility",
-    "parent": 45855754,
-    "depth": 2
-  },
-  {
     "id": 45856487,
     "by": "dagi3d",
     "timeISO": "2025-11-08T13:19:25.000Z",
     "textPlain": "when *everything* is an object this kind of syntax makes absolutely sense and is quite convenient",
+    "parent": 45855754,
+    "depth": 2
+  },
+  {
+    "id": 45858966,
+    "by": "culi",
+    "timeISO": "2025-11-08T18:52:39.000Z",
+    "textPlain": "This is a typical API design in Ruby, but the post is about a somewhat novel API design than what you're pointing out. To address some of your points:The exclamation mark is a convention. It is used whenever a method could possibly result in an exception being raised. Sometimes it's instead used for non-idempotent methods.\"3.days\", etc are Rails things. A lot of non-Rubyists don't like it but once you use it for long enough you tend to really grow to it.As for HashWithIndifferentAccess, yes this is generally acknowledged as a mistake in Ruby's design and is rarely used in my experience. Originally, all Ruby hashes were HWIA. When they finally realized this was a design mistake they had to create HWIA for some level of backwards compatibility",
     "parent": 45855754,
     "depth": 2
   },
@@ -189,6 +205,14 @@
     "timeISO": "2025-11-08T18:55:26.000Z",
     "textPlain": "> but it locks you out of ever using the same type twice in your signature.I don't see how you drew that conclusion. It seems to me the author provided several examples of this not being the case. Care to elucidate?",
     "parent": 45858692,
+    "depth": 2
+  },
+  {
+    "id": 45859380,
+    "by": "brunosutic",
+    "timeISO": "2025-11-08T19:45:04.000Z",
+    "textPlain": "Article author here - thank you for putting it this way. This is exactly the attitude I wanted to convey: it's something I tried and really liked for this specific use case. I shared because I hope it might inspire others.\"Friendly Attributes\" is not the \"new way\", not to be used \"everywhere now\", does not \"apply to all scenarios\".If you like it, maybe you'll use it once in the next five years when the opportunity arises.",
+    "parent": 45856768,
     "depth": 2
   },
   {
