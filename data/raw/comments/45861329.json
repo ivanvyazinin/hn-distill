@@ -40,6 +40,22 @@
     "depth": 1
   },
   {
+    "id": 45862904,
+    "by": "jeswin",
+    "timeISO": "2025-11-09T04:28:36.000Z",
+    "textPlain": "What's your definition of interesting?I'm half way through writing a typescript to native code translator (via .Net) compiling a large enough subset of current code with a lot of help from GPT5 and Codex CLI. It has completely blown me away.I'd like to give you a concrete example which stood out (from by now, dozens). I wanted d.ts files from the .Net Standard Libs. One immediately obvious problem is that .Net would allow classes/interfaces to be redefined if the generic type arity is different. For example, there can be SomeClass<int> and SomeClass<int, int> which are completely separate. TypeScript of course, wouldn't allow this - you can have one with all types defined, but it'd obviously be a mess.I was stuck with (quite ugly):\n  const users = new List_1<User>(...);\ninstead of \n  const users = new List<User>(...);So GPT comes up with this:  declare const __unspecified: unique symbol;\n  type __ = typeof __unspecified;\n\n  // Your arity-anchored delegates exist elsewhere:\n  //   import(\"internal/System\").Action_0\n  //   import(\"internal/System\").Action_1<T1>\n  //   import(\"internal/System\").Action_2<T1, T2>\n  //   import(\"internal/System\").Action_3<T1, T2, T3>\n  //   ... up to 17\n\n  export type Action<\n    T1 = __, T2 = __, T3 = __, // ... continue through T17 = __\n  > =\n    [T1] extends [__] ? import(\"internal/System\").Action_0 :\n    [T2] extends [__] ? import(\"internal/System\").Action_1<T1> :\n    [T3] extends [__] ? import(\"internal/System\").Action_2<T1, T2> :\n    /* next lines follow the same pattern … */\n    import(\"internal/System\").Action_3<T1, T2, T3>;\n\nThis lets me write:  const a: Action<number> = (n) => {};        // OK (void)\n  const f: Func<number, string> = (s) => 20;  // OK (string -> number)\n\nA human could come up with this, of course. But doing this at scale (there are many such problems which crop up), would take a lot of effort. Btw I'm using Claude for the grunt work (because its faster), but GPT5 is doing all the architecture/thinking/planning/r",
+    "parent": 45862389,
+    "depth": 2
+  },
+  {
+    "id": 45863110,
+    "by": "EnPissant",
+    "timeISO": "2025-11-09T05:16:46.000Z",
+    "textPlain": "The GPT5 family is the most intelligent model IMO. It's the only model that I have found that can refactor complex code and have the result be better than what came before it.",
+    "parent": 45862389,
+    "depth": 2
+  },
+  {
     "id": 45862625,
     "by": "asadm",
     "timeISO": "2025-11-09T03:22:52.000Z",
@@ -64,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45862166,
-    "by": "nicce",
-    "timeISO": "2025-11-09T01:50:13.000Z",
-    "textPlain": "Not saying that you are completely wrong, but you could try to rephrase this to make a better conversation.I agree that many new model versions are worse than the previous. But it is also related to base rules of the model - they try to please you and manipulate you to like them, way too much.",
-    "parent": 45862082,
-    "depth": 2
-  },
-  {
     "id": 45862727,
     "by": "esafak",
     "timeISO": "2025-11-09T03:47:16.000Z",
     "textPlain": "The Chinese open source models don't have this problem -- and they're state of the art!",
+    "parent": 45862082,
+    "depth": 2
+  },
+  {
+    "id": 45862166,
+    "by": "nicce",
+    "timeISO": "2025-11-09T01:50:13.000Z",
+    "textPlain": "Not saying that you are completely wrong, but you could try to rephrase this to make a better conversation.I agree that many new model versions are worse than the previous. But it is also related to base rules of the model - they try to please you and manipulate you to like them, way too much.",
     "parent": 45862082,
     "depth": 2
   },
