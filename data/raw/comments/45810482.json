@@ -1,9 +1,65 @@
 [
   {
-    "id": 45877566,
-    "by": "CharlieDigital",
-    "timeISO": "2025-11-10T16:27:00.000Z",
-    "textPlain": "I find it relatively easy to build \"modular monoliths\" by starting from \"vertical slices\"[0] at the outset.  Vertical slices being primarily a feature organization strategy scales well, IME.  So when first starting out, you can keep it simple and just one unit of deployment, but keep everything separated into their own feature folders with common things in a shared folder.  When you get further along, it is possible to consider splitting things out by feature teams (if that's what works best) and still keep one runtime (just enabling/disabling different features at startup).The common bits can eventually be moved into a package dependency and referenced.  Separate features if they become large enough can also be moved into separate packages, but part of the same monolithic codebase.In some cases, it can be easier still and just ship the entire runtime as-is (without any additional work to enable modularity) and simply route different endpoints (e.g. https://feature1.domain.com -> node set 1, https://feature2.domain.com -> node set2) so you still have the option to monitor and scale the features differently based on their load profile and needs.[0] https://www.jimmybogard.com/vertical-slice-architecture/",
+    "id": 45877874,
+    "by": "ecshafer",
+    "timeISO": "2025-11-10T16:53:45.000Z",
+    "textPlain": "I feel like this misses too much real world context and caveats.What is the problem with Monoliths? Nothing. Until there is.\nThe problem with monoliths is when you have a million LoC Java application that is on Java 6, and will take months of work to get up to date, take 20 minutes to load on a dev machine, starts to fail because its getting too big for a dev machine to handle, can't bring in any new dependencies because of how old the Java version is, and has an old bespoke Ant + Maven + Jenkins + Bash + Perl build and deploy system that has been built up over the last 30 years.So what do you do? Breaking off pieces of the code into microservices that can run on a new Spring boot and can run on a newer nice IaC set up is an easy win. Sure you basically have a microlith, but it increases your dev velocity.I think Monolith issues are typically a symptom of a few other things:\n1. accumulated deferred maintenance and tech debt\n2. Inadequate developer tooling\n3. Inadequate CICD tooling\n4. Rarely scale until you really start to hit the size of like Google, Uber, Facebook, etc.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877675,
+    "by": "drob518",
+    "timeISO": "2025-11-10T16:36:06.000Z",
+    "textPlain": "IMO, 99.999% of apps should just use monoliths with basic 1+1 redundancy. Unless you’re working at a FANG and require just insane scale, you really don’t need microservices or even lots of modularity. Just keep it simple. If you need more resources, buy a bigger system and scale up, not out. Only consider scaling out when you have exhausted scaling up.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45878021,
+    "by": "ReflectedImage",
+    "timeISO": "2025-11-10T17:05:07.000Z",
+    "textPlain": "So originally software development used micro-services rather than modules. A lot of software developers get this wrong and think modules were first. They were not. The software developers just grew up during the module fad caused by the personal computer before everything circled back around to micro-services.The purpose of OOP was to replicate the benefits of micro-services in single user environments. A class corresponds to a service type and an object an physical instance of the service.So why did Monoliths/modules fail? Some pretty simple issues, incomplete isolate between the modules, memory corruption and performance issues easily propagate between the \"isolated\" modules.But the main killer is compile times. Monoliths/module based programs require massive compile times that grow quickly with the size of the program.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45878139,
+    "by": "asimpletune",
+    "timeISO": "2025-11-10T17:14:42.000Z",
+    "textPlain": "The real thing that forces one to choose micro services over modules is when data isolation is a requirement, e.g. security.Capabilities based programming could come along way though to help with closing that gap.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877751,
+    "by": "toonewbie",
+    "timeISO": "2025-11-10T16:43:13.000Z",
+    "textPlain": "I recommend checking out concept design [0] from Daniel Jackson [1]. It provides a framework to enforce modularity while building meaningfully designed software.I have done a bit of work implementing a prototype framework for coding concepts using TypeScript [2], and it has worked beautifully for the Software Design class at MIT Daniel teaches. I think the newest iteration of class this semester uses a different approach to code concepts, but it's still a research space.[0] https://essenceofsoftware.com/tutorials/[1] https://people.csail.mit.edu/dnj/[2] https://61040-fa24.github.io/pages/concept-implementations.h...",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45878023,
+    "by": "bunderbunder",
+    "timeISO": "2025-11-10T17:05:13.000Z",
+    "textPlain": "My annoying critique of this article is that I don't think the author made their case strongly enough.I've discovered that their taxonomy at the opening of the article (\"single unit of deployment - monolith, multiple units of deployment - microservices/services\") is a bit optimistic. Because, when it comes to making things unnecessarily complicated, human ingenuity knows no limits.I've now worked on a project that somehow managed to be monolithic despite having multiple units of deployment. We weren't good about contract/API change management, so in practice it was rare that you could separately deploy \"independent\" services.And I've also worked on a project that had a single unit of deployment but was somehow still more microservice-like. Everything was packaged into a single giant Docker image that contained the binaries for all the services. (You'd pick which one a container was running with run-time configuration.) But they were well-modularized and services from different versions of the image could talk to each other just fine, so in practice working on it often felt more like successful microservice implementations in development and production. It's just that getting things from development to production was an unholy nightmare because the CI pipeline for that \"mono-image\" was such a monstrosity.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877520,
+    "by": "mlhpdx",
+    "timeISO": "2025-11-10T16:23:36.000Z",
+    "textPlain": "In modular systems, monolithic or distributed, the nuance of \"depends on\" is often the crux of complexity. A C++ binary interface dependency is more likely to create work than a string correlated via convention.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877656,
+    "by": "dennisy",
+    "timeISO": "2025-11-10T16:34:21.000Z",
+    "textPlain": "The suggested “_contracts” folder lives at the top level of the modules or inside each feature/module?My guess is it’s a top level folder which shows the cross module deps.",
     "parent": 45810482,
     "depth": 1
   },
@@ -16,11 +72,227 @@
     "depth": 1
   },
   {
-    "id": 45877520,
-    "by": "mlhpdx",
-    "timeISO": "2025-11-10T16:23:36.000Z",
-    "textPlain": "In modular systems, monolithic or distributed, the nuance of \"depends on\" is often the crux of complexity. A C++ binary interface dependency is more likely to create work than a string correlated via convention.",
+    "id": 45877566,
+    "by": "CharlieDigital",
+    "timeISO": "2025-11-10T16:27:00.000Z",
+    "textPlain": "I find it relatively easy to build \"modular monoliths\" by starting from \"vertical slices\"[0] at the outset.  Vertical slices being primarily a feature organization strategy scales well pragmatically over time, IME.  So when first starting out, you can keep it simple and just one monolith and one unit of deployment, but keep everything separated into their own feature folders with common things in a `shared` folder.  When you get further along, it is possible to consider splitting things out by feature teams (if that's what works best) and still keep one runtime (just enabling/disabling different features at startup).The common bits can eventually be moved into a package dependency and referenced.  Separate features if they become large enough can also be moved into separate packages, but part of the same monolithic codebase.In some cases, it can be easier still and just ship the entire runtime as-is (without any additional work to enable modularity) and simply route different endpoints (e.g. https://feature1.domain.com -> node set 1, https://feature2.domain.com -> node set 2) so you still have the option to monitor and scale the features differently based on their load profile and needs.  This works great as long as cold starts are not a big concern (thereby adding a requirement for minimizing package size).I find this particularly easy on AWS, especially when deploying with Copilot CLI[1] because it makes it relatively easy to just route different sub-domains to different target groups.  Now you have one singular container image that just gets scaled differently by route (e.g. a high volume feature gets bigger nodes and a dedicated route in Route 53).I find some teams have trouble thinking this way because devs many times are not involved enough in the deploy time considerations.  For more involved app-level partitioning of modules, I have a practical example in C#[2] that would work equally well with something like Nest.js (or Elysia or Hono) by simply using envir",
     "parent": 45810482,
     "depth": 1
+  },
+  {
+    "id": 45878101,
+    "by": "mdhb",
+    "timeISO": "2025-11-10T17:11:23.000Z",
+    "textPlain": "I always thought Google had some interesting insights and ideas when they were playing around with the now abandoned service weaver project: https://opensource.googleblog.com/2023/03/introducing-servic...?More academic and language neutral introduction here if that’s your thing:  https://arxiv.org/pdf/2404.09357",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877833,
+    "by": "Pxtl",
+    "timeISO": "2025-11-10T16:50:14.000Z",
+    "textPlain": "Imho the web and SQL brought us to the ridiculous point that the most obvious way to \"modularize\" was to use fully separate isolated apps and servers.This is because web and SQL are both dominant platforms for enterprise and are both allergic to modularization.  Everything is global, everything is shared.  Isolation and private interfaces are either impossible or late-added afterthoughts on a global-first platform.So faced with this, it made sense that the only way to provide modularization was to use isolated computers that only talk over sluggish HTTP.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877975,
+    "by": "dboreham",
+    "timeISO": "2025-11-10T17:02:00.000Z",
+    "textPlain": "Yes, but no once you factor in Conway. Teams deploy and are responsible for their own running services. The line of demarcation is via TCP connections, not the call stack inside some process owned by 9 teams.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45877659,
+    "by": "netbioserror",
+    "timeISO": "2025-11-10T16:34:34.000Z",
+    "textPlain": "Modularity is how we put out some long-running fires at my company. Our old infrastructure, from people who had long-since left, was a cross-cutting mish-mash of monoliths that each tried to do everything. Data analysis to web serving to PDF generation. Written in everything from C to Perl to PHP to VBA. All were supported because different clients depended on different monoliths depending on when they were brought aboard. Basically, each language was intended to serve on whatever walled-garden platform any given employee or client was expecting to use it. They didn't even talk to each other, reimplemented the same algorithms, it was a mess.We spun out the specialized tasks (data analysis and PDF generation key among them) to native-compiled binaries or containerized packages like Gotenberg, started moving data around between modules via JSON, isolated the legacy monoliths to containers, unified on our now-modularized PHP backend, and have been working on updating or replacing any other pieces with new modules that can serve the task better. Our clients and non-engineering employees get antsy, but as a smaller company and a smaller programming team, we simply cannot maintain multiple 20-year-old codebases with near-total overlap. It makes no sense now, it didn't make sense when they were each created.",
+    "parent": 45810482,
+    "depth": 1
+  },
+  {
+    "id": 45878113,
+    "by": "netdevphoenix",
+    "timeISO": "2025-11-10T17:12:27.000Z",
+    "textPlain": "> The problem with monoliths is when you have a million LoC Java application that is on Java 6, and will take months of work to get up to date, take 20 minutes to load on a dev machine, starts to fail because its getting too big for a dev machine to handle, can't bring in any new dependencies because of how old the Java version is, and has an old bespoke Ant + Maven + Jenkins + Bash + Perl build and deploy system that has been built up over the last 30 years.- a million LoC Java application that is on Java 6 -> Congrats, now you have two half a million LoC Java application on two different Java versions. And if the set up is like most apps, you will likely need both running to debug most issues because most issues happen at the system to system interface- take 20 minutes to load on a dev machine -> that is fair enough, I have only ever seen an app that takes that long on a modern machine once, most shops doing micro services don't have apps that big- has an old bespoke Ant + Maven + Jenkins + Bash + Perl build and deploy system that has been built up over the last 30 years -> you can have the same problem on a micro service architecture, you can actually have that problem multiplied by 10 and now you can spend a whole sprint updating dependencies. Fun!Breaking off pieces of the code into microservices that can run on a new Spring boot and can run on a newer nice IaC set up is an easy win -> You conveniently forget to mention the additional team to fix issues related to system to system communication",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878185,
+    "by": "vjvjvjvjghv",
+    "timeISO": "2025-11-10T17:18:55.000Z",
+    "textPlain": "[delayed]",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45877981,
+    "by": "zelphirkalt",
+    "timeISO": "2025-11-10T17:02:39.000Z",
+    "textPlain": "I think updating dependencies is maybe the most important point. Different microservices can have different versions of libraries and frameworks, as long as their APIs return and do what they should, other microservices don't need to care about what version of some library is used. Being able to update dependencies for a smaller amount of code at a time can make all the difference between \"no, that will be too much work right now\" and \"it's doable\".But, if you have a modular monolith, it will be easy to split it up into separate services, whether microservices or just services. It will be a good test to see how modular your system/monolith really is.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878090,
+    "by": "Scubabear68",
+    "timeISO": "2025-11-10T17:10:03.000Z",
+    "textPlain": "I think the big problem no one speaks about is the name \"microservices\" was incredibly poorly named.Your design goal should not be \"create the smallest service you can to satisfy the 'micro' label\". Your design goal should be to create right-sized services aligned to your domain and organization.The deployment side is of course a red herring. People can and do deploy monoliths with multiple deployments and different endpoints. And I've seen numerous places do \"microservices\" which have extensive shared libraries where the bulk of the code actually lives. Technically not a monolith - except it really is, just packaged differently.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45877974,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-10T17:01:58.000Z",
+    "textPlain": "If you go up to this scale then yes - it probably makes sense to have a few - reasonably amount - services. But I would ask - why does it take for this kind of app to be up and running so long? It's rather not because of its code size - something else has gone wrong :)",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45877998,
+    "by": "vacuity",
+    "timeISO": "2025-11-10T17:03:45.000Z",
+    "textPlain": "I think the framing of \"monoliths vs. microservices\", with the implication that you must either have a mountain of a codebase or a beach of grains of code-sand, is not helpful. Good modularity means that different levels of tradeoffs can be made without huge effort.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878073,
+    "by": "andoando",
+    "timeISO": "2025-11-10T17:08:31.000Z",
+    "textPlain": "The other big advantage is you can monitor and scale your services independently and decouple outages.If one endpoint needs to scale to handle 10x more traffic, its wholefully inefficient to 10x your whole cluster.Ideally you write the code as services/modules in a monolith imo. Then you can easily run those services as separate deployments later down the line if need be",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878099,
+    "by": "j45",
+    "timeISO": "2025-11-10T17:11:21.000Z",
+    "textPlain": "There's no reason monoliths can't have modularity that can be packaged as microservices.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45877931,
+    "by": "stavros",
+    "timeISO": "2025-11-10T16:58:41.000Z",
+    "textPlain": "If the monolith takes 20 minutes to load, just wait until you see how long it takes for all the microservices to start up.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878027,
+    "by": "foldr",
+    "timeISO": "2025-11-10T17:05:37.000Z",
+    "textPlain": "Even in this hypothetical scenario, you’re radically rearchitecting your entire product to save “months of work” and the cost of some beefier dev machines. How can that be rational?",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45878173,
+    "by": "ninetyninenine",
+    "timeISO": "2025-11-10T17:18:05.000Z",
+    "textPlain": "No you completely missed his point.He's saying instead of using \"microservices\" to modularize your shit, you can use folders to modularize your shit. Folders? Files? When someone told me that I could use folders to modularize stuff instead of entire microservices the concept was so foreign to me that it opened up a hole new world.",
+    "parent": 45877874,
+    "depth": 2
+  },
+  {
+    "id": 45877899,
+    "by": "sokoloff",
+    "timeISO": "2025-11-10T16:55:52.000Z",
+    "textPlain": "I probably agree more than this comment might suggest, but I think that you run into organizational dynamics limits before you run out of vertical scaling limits.Shipping a monolith worked on by 250+ devs in 30 teams is slow due to the coordination needed as compared to 30 teams shipping 50-75 services.Vertical scaling can take you really, really far operationally.",
+    "parent": 45877675,
+    "depth": 2
+  },
+  {
+    "id": 45877864,
+    "by": "cedws",
+    "timeISO": "2025-11-10T16:53:07.000Z",
+    "textPlain": "I want to frame this and put it on my wall.Coming up with a greenfield microservice design with arbitrary responsibilities and intercommunication feels so stupid to me. Why not build the thing as a monolith and split parts out when you actually have scaling problems, instead of solving theoretical problems? Development velocity is going to be way higher and it gives developers a chance to discover problems without having to deal with the mental overhead of shipping N services all at once.The value of fast iteration cannot be overstated. Build the minimum viable version of the project first, then stress test it and break parts out when needed. This is much easier if you write modular code.",
+    "parent": 45877675,
+    "depth": 2
+  },
+  {
+    "id": 45877896,
+    "by": "nyrikki",
+    "timeISO": "2025-11-10T16:55:39.000Z",
+    "textPlain": "The problem being, most people are in the cloud, and ‘basic 1+1 redundancy’ simply doesn’t work well in that distributed model and scaled up instances are expensive.The tooling is good enough to scale out, but micro services are mostly beneficial for organizational scaling.The value for other concerns is mostly situational.",
+    "parent": 45877675,
+    "depth": 2
+  },
+  {
+    "id": 45878002,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-10T17:04:03.000Z",
+    "textPlain": "100%; and if you have a solid structure in your modular monolith - it's trivial to take one or two problematic/performance sensitive modules and turn them into independent services. But most of the systems will never get up to this scale",
+    "parent": 45877675,
+    "depth": 2
+  },
+  {
+    "id": 45878009,
+    "by": "zerop",
+    "timeISO": "2025-11-10T17:04:38.000Z",
+    "textPlain": "Microservices created the need for more teams, devs, coordination, meetings, scrum teams, scrum master, Jira, CI CD tools, cloud market and so on.. It is very well planned :)",
+    "parent": 45877675,
+    "depth": 2
+  },
+  {
+    "id": 45878193,
+    "by": "strken",
+    "timeISO": "2025-11-10T17:19:46.000Z",
+    "textPlain": "Sorry, what? Are you claiming that ENIAC was using microservices? That's a claim that needs some kind of supporting evidence, or at least a better explanation.",
+    "parent": 45878021,
+    "depth": 2
+  },
+  {
+    "id": 45878124,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-10T17:13:23.000Z",
+    "textPlain": "If you have each module as independently versioned package, the compile times are not slow, since you only need to compile modules that have changed and modules are provided as compiled dependencies.Each individual module is fast to compile.",
+    "parent": 45878021,
+    "depth": 2
+  },
+  {
+    "id": 45878150,
+    "by": "bloppe",
+    "timeISO": "2025-11-10T17:15:35.000Z",
+    "textPlain": "Is there somewhere I could read more about this take?",
+    "parent": 45878021,
+    "depth": 2
+  },
+  {
+    "id": 45878162,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-10T17:17:16.000Z",
+    "textPlain": "Thanks for the feedback :) I'm working on follow-ups, splitting it into multiple articles where I will try to elaborate more on various dimensions of modular monolith vs (micro)services debate/issue/decision and their various tradeoffs. Will try to make it clearer there!",
+    "parent": 45878023,
+    "depth": 2
+  },
+  {
+    "id": 45877722,
+    "by": "stingraycharles",
+    "timeISO": "2025-11-10T16:40:35.000Z",
+    "textPlain": "As with all of these things, it needs to come from the very, very top, otherwise it doesn’t work.In the end, AWS only happened because of Jeff Bezos’ infamous “all intra-team communication now goes over HTTP, no exceptions, or you’re fired”-email.The decision to prefer modules whenever they do the job, and defer only to microservices whenever they don’t, seems like the kind of mantra that needs to come from the CTO and made part of the company culture’s DNA.",
+    "parent": 45877606,
+    "depth": 2
+  },
+  {
+    "id": 45877912,
+    "by": "dragonwriter",
+    "timeISO": "2025-11-10T16:56:58.000Z",
+    "textPlain": "> This is because web and SQL are both dominant platforms for enterprise and are both allergic to modularization. Everything is global, everything is shared. Isolation and private interfaces are either impossible or late-added afterthoughts on a global-first platform.That's not actually true of SQL-based RDBMSs (except embedded ones like SQLite), and hasn't been for longer than the median developer has been alive, but it is probably fairly accurate of the average app developers understanding of SQL.",
+    "parent": 45877833,
+    "depth": 2
+  },
+  {
+    "id": 45878053,
+    "by": "BinaryIgor",
+    "timeISO": "2025-11-10T17:07:28.000Z",
+    "textPlain": "Unless you have a lot of teams - like 10 and more - it's quite manageable to work on a solidly modularized monolith. But in general you're right; after your reach certain threshold of teams, it makes sense to have a few, not one, units of deployment",
+    "parent": 45877975,
+    "depth": 2
   }
 ]
