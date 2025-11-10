@@ -1,5 +1,13 @@
 [
   {
+    "id": 45876647,
+    "by": "gamegoblin",
+    "timeISO": "2025-11-10T15:04:11.000Z",
+    "textPlain": "I work on an Excel-compatible spreadsheet startup (rowzero.com) and had to implement these.One tricky part is RATE involves zero-finding with an initial guess. The syntax is:RATE(nper, pmt, pv, [fv], [type], [guess])Sometimes there are multiple zeros. When doing parity testing with Excel and Google Sheets, I found many cases where Sheets and Excel find different zeros, so their internal solver algorithm must be different in some cases.My initial solution tended to match Sheets when they differed, so I assume I and the Google engineers both came up with similar simple implementations. Who knows what the Excel algorithm is doing.Of course, almost all these edge cases are for extremely weird unrealistic inputs.",
+    "parent": 45812454,
+    "depth": 1
+  },
+  {
     "id": 45873871,
     "by": "simonjgreen",
     "timeISO": "2025-11-10T08:44:16.000Z",
@@ -22,6 +30,14 @@
     "textPlain": "XIRR is laughably trivial with automatic differentiation in Haskell. Take as many iterations from the resulting [Double] as desired:    type Cashflow = (Text, Day, Double)\n\n    irr :: V.Vector Cashflow -> [Double]\n    irr = fmap (flip findZero 0.01) npv\n    \n    npv :: V.Vector Cashflow -> (forall s. AD s ForwardDouble -> AD s ForwardDouble)\n    npv cashflows = sum . flip discountedCashflows cashflows\n      where\n            discountedCashflows :: forall s. AD s ForwardDouble -> V.Vector Cashflow -> V.Vector (AD s ForwardDouble)\n            discountedCashflows = fmap . presentValue\n\n            presentValue :: forall s. AD s ForwardDouble -> Cashflow -> AD s ForwardDouble\n            presentValue r (_,t,cf) = auto cf / ( (1 + r) ** numCompoundingPeriods t)\n\n            numCompoundingPeriods t = (fromRational . toRational $ diffDays t t0) / 365.0\n\n            t0 = maybe (toEnum 0) viewInvestmentDate $ cashflows V.!? 0\n\n            viewInvestmentDate = view _2",
     "parent": 45812454,
     "depth": 1
+  },
+  {
+    "id": 45876480,
+    "by": "nocoiner",
+    "timeISO": "2025-11-10T14:42:02.000Z",
+    "textPlain": "This is good advice. Also running a quick function can be quicker than opening up excel, fiddling with a cell, etc. (my excel skills are obviously at-best rudimentary). And it’s a cool moment when RPN finally “clicks” and figure out how to perform sequential operations in it without having to rely on increasingly nested parentheses.",
+    "parent": 45873871,
+    "depth": 2
   },
   {
     "id": 45875085,
