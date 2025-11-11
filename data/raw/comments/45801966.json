@@ -1,5 +1,13 @@
 [
   {
+    "id": 45883948,
+    "by": "andyferris",
+    "timeISO": "2025-11-11T03:53:16.000Z",
+    "textPlain": "I see we need to add special syntax to the signature for dependent type variables.If you take Zig, it's `comptime` parameters are kind of similar. They can be used to create functions that return types or whose output type depends on the inputs, etc. It seems to fulfil the three axioms at the start, no? The erasure stuff seems just as relavant.Can I say that `comptime` is dependent types in imperative clothing? Or is there a missing capability making it strictly weaker?",
+    "parent": 45801966,
+    "depth": 1
+  },
+  {
     "id": 45882035,
     "by": "nixpulvis",
     "timeISO": "2025-11-10T22:51:21.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45883029,
-    "by": "walterburns",
-    "timeISO": "2025-11-11T01:22:23.000Z",
-    "textPlain": "\"But we'd like to give a type to this function. In most languages (Haskell, Typescript, C++, Rust, C#, etc.) there is no way to do that.[2] \"Can't you do this with a GADT? With a GADT, the type of the output can be specified by which branch of the GADT the input matches. Seems quite a similar idea.",
+    "id": 45883473,
+    "by": "munchler",
+    "timeISO": "2025-11-11T02:26:35.000Z",
+    "textPlain": "> Instead of writing the type directly, we're calling pickType and using the type returned. The typechecker evaluates pickType True at compile time, sees it equals Nat, and then it knows you're saying myNat has type Nat.But how does the compiler evaluate `pickType True` at compile time? Does the typechecker contain an interpreter for (some subset of) the language? It seems potentially circular for a compiler to invoke functions defined in the code that it's compiling.",
     "parent": 45801966,
     "depth": 1
   },
@@ -24,12 +32,36 @@
     "depth": 1
   },
   {
+    "id": 45883322,
+    "by": "dcre",
+    "timeISO": "2025-11-11T02:05:41.000Z",
+    "textPlain": "This made me realize TypeScript’s conditional types are closer to dependent types than I thought.",
+    "parent": 45801966,
+    "depth": 1
+  },
+  {
+    "id": 45883029,
+    "by": "walterburns",
+    "timeISO": "2025-11-11T01:22:23.000Z",
+    "textPlain": "\"But we'd like to give a type to this function. In most languages (Haskell, Typescript, C++, Rust, C#, etc.) there is no way to do that.[2] \"Can't you do this with a GADT? With a GADT, the type of the output can be specified by which branch of the GADT the input matches. Seems quite a similar idea.",
+    "parent": 45801966,
+    "depth": 1
+  },
+  {
     "id": 45882638,
     "by": "jesse__",
     "timeISO": "2025-11-11T00:15:42.000Z",
     "textPlain": "Off the topic of dependent types, but this is way too hilarious to pass up..> Imagine if pickType did a network request to a server and then returned whatever type the server said. Sounds like a bad idea!Fucking .. isn't this what LSPs are?!  Finally something functional programming people and I can agree on.  That does sound like a bad idea.",
     "parent": 45801966,
     "depth": 1
+  },
+  {
+    "id": 45884106,
+    "by": "ChadNauseam",
+    "timeISO": "2025-11-11T04:25:34.000Z",
+    "textPlain": "I'm not familiar with Zig, but I'm pretty sure comptime is not quite as powerful.In the post, I didn't give any examples of situations where the input to a dependent function was not known at compile time. However, that was just due to the lack of time when writing the post. (I didn't even mean for the post to be submitted to Hacker News as it was not quite done at the time of its submission.)I gave this example:    useValue : Bool -> String\n    useValue True = \"The number is: \" ++ natToString (getValue True)\n    useValue False = \"The message is: \" ++ getValue False\n\nBy the way, nothing in dependent types requires that the depended-on value `b` is known at compile time. You could pass any Bool to `getValue`, including one that was read as input from the user. It would just be the case that, before using the value returned by `getValue b`, you'd have to check (at runtime) the value of `b`. Only then would you know `pickType b`, which would tell you the type of `getValue b`. My apologies that the post was unclear about this. (I've just updated it.)",
+    "parent": 45883948,
+    "depth": 2
   },
   {
     "id": 45882560,
@@ -40,11 +72,27 @@
     "depth": 2
   },
   {
-    "id": 45883093,
-    "by": "wk_end",
-    "timeISO": "2025-11-11T01:32:26.000Z",
-    "textPlain": "I mean, you can trivially do it with a (non-G) ADT, if you're content with wrapping the return value.OTOH you can do this in TypeScript easily without wrapping; it could return a union type `number | string`.",
-    "parent": 45883029,
+    "id": 45883534,
+    "by": "Maxatar",
+    "timeISO": "2025-11-11T02:33:51.000Z",
+    "textPlain": "Yes, the compiler contains an interpreter for the entire language, not just a subset. It is circular as you rightly point out, but there's no contradiction here.Typically the interpreter limits itself to only evaluating pure functions or functions that do not perform any kind of IO, but in principle this restriction is not necessary. For example Jai's compiler allows completely arbitrary execution at compile time including even downloading arbitrary data from the Internet and using that data to make decisions about how to compile code.",
+    "parent": 45883473,
+    "depth": 2
+  },
+  {
+    "id": 45883776,
+    "by": "nathanrf",
+    "timeISO": "2025-11-11T03:15:50.000Z",
+    "textPlain": "In the style of the linked post, you'd probably define a generic type (well, one of two generic types):type ExactlyStatic : (0 t: Type) -> (0 v: t) -> Typetype ExactlyRuntime : (0 t: Type) -> (v: t) -> TypeThen you could have the type (ExactlyStatic Int 9) or the type (ExactlyRuntime Int 9).The difference is that ExactlyStatic Int 9 doesn't expose the value 9 to the runtime, so it would be fully erased, while (ExactlyRuntime Int 9) does.This means that the runtime representation of the first would be (), and the second would be Int.> Also how to handle runtime values? That will require type assertions, just like union types?The compiler doesn't insert any kind of runtime checks that you aren't writing in your code. The difference is that now when you write e.g. `if condition(x) then ABC else DEF` inside of the two expressions, you can obtain a proof that condition(x) is true/false, and propagate this.Value representations will typically be algebraic-data-type flavored (so, often a tagged union) but you can use erasure to get more efficient representations if needed.",
+    "parent": 45882390,
+    "depth": 2
+  },
+  {
+    "id": 45883503,
+    "by": "SabrinaJewson",
+    "timeISO": "2025-11-11T02:29:48.000Z",
+    "textPlain": "In type theory, all singleton types are isomorphic and have no useful distinguishing characteristics (indeed, this is true of all types of the same cardinality – and even then, comparing cardinalities is always undecidable and thus irrelevant at runtime). So your Nine type doesn’t really make sense, because you may as well just write Unit. In general, there is no amount of introspection into the “internal structure” of a type offered; even though parametricity does not hold in general (unless you postulate anticlassical axioms), all your functions that can run at runtime are required to be parametric.",
+    "parent": 45882390,
     "depth": 2
   },
   {
@@ -61,6 +109,22 @@
     "timeISO": "2025-11-11T00:31:02.000Z",
     "textPlain": "Functions that return types are indeed at a higher level than those that don't.Values can be seen as Singleton types. The key difference is the universe they live in. In the universe of types, the level one level below is perceived as a value. Similarly, in the universe of kinds, types appear to be values.> Basically, 'value' would be a special constraint on a type parameter in normal parametric polymorphism implementationsYes this is a level constraint.> But I guess, the same issue of \"which refinement types can be defined, while keeping everything decidable\" remains as an issue.If you're dealing with fully computable types. Nothing is decidable.> Also how to handle runtime values? That will require type assertions, just like union types? Or is it only a compile time concept and there is no runtime instantiations. Only some kind of const generics?A compiler with dependent types is essentially producing programs that are itself embedded with its input. There cannot be a distinction between runtime and compel time. Because in general type checking requires you to be able to run a program. The compilation essentially becomes deciding which parts you want to evaluate and which parts you want to defer until later.> A typeof function could be an example of dependent type though? Even at runtime?Typeof is just const.Typeof: (T : type) -> (x:T) -> TypeFinal note: I've written some compilers for toy dependently typed languages. By far dependent typing makes both the language and the compiler easier not harder. This is because Haskell and c++ and other languages with type systems and metaprogramming or generics actually have several languages: the value language that we are familiar with, but also the type language.In Haskell, this is the class/instance language which is another logic programming language atop the lambda calculus language. This means to write a Haskell compiler you have to write a compiler for Haskell and the logic programming language (which is turing compl",
     "parent": 45882390,
+    "depth": 2
+  },
+  {
+    "id": 45883872,
+    "by": "nathanrf",
+    "timeISO": "2025-11-11T03:34:11.000Z",
+    "textPlain": "GADTs let you do similar things in the simplest cases, they just don't work as well for complex constraints.Like, append: Vector n t -> Vector m t -> Vector (n+m) t. With GADTs you need to manually lift (+) to work on the types, and then provide proofs that it's compatible with the value-level.Then you often need singletons for the cases that are more complex- if I have a set of integers, and an int x, and I want to constrain that the item is in the set and is also even, the GADT approach looks like:doThing ::\n  Singleton Int x\n  -> Singleton (Set Int) s\n  -> IsInSet x s\n  -> IsEven x\n  -> SomeOutputWhich looks reasonable, until you remember that the Singleton type has to have a representation which is convenient to prove things about, not a representation that is convenient/efficient to operate on, which means your proofs will be annoying or your function itself will hardly resemble a \"naive\" untyped implementation.Dependent types fix this because your values are \"just\" values, so it would be something likedoThing ::\n  (x : int)\n  -> (s : set int)\n  -> so (is_in s x)\n  -> so (even x)\n  -> SomeOutputHere, x and s are just plain values, not a weird wrapper, and is_in and event are ordinary (and arbitrary) library functions.",
+    "parent": 45883029,
+    "depth": 2
+  },
+  {
+    "id": 45883093,
+    "by": "wk_end",
+    "timeISO": "2025-11-11T01:32:26.000Z",
+    "textPlain": "I mean, you can trivially do it with a (non-G) ADT, if you're content with wrapping the return value.OTOH you can do this in TypeScript easily without wrapping; it could return a union type `number | string`.",
+    "parent": 45883029,
     "depth": 2
   },
   {

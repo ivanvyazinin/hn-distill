@@ -8,6 +8,22 @@
     "depth": 1
   },
   {
+    "id": 45883597,
+    "by": "carterschonwald",
+    "timeISO": "2025-11-11T02:43:23.000Z",
+    "textPlain": "My monad-ste library on Hackage does a pretty clean no dirty state core dump in code space.  I wrote it originally for ability to have mutable state optimizations in an industrial interpreter where I didn’t want overhead of every monadic bind doing a tag check.  It winds codifying a fun pattern for avoiding dirty state though it could probably be extended to regions or something. But unclear if the Ux would stay nice",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
+    "id": 45883359,
+    "by": "eqvinox",
+    "timeISO": "2025-11-11T02:11:17.000Z",
+    "textPlain": "> Instead, when returning an error, rather than jumping to the return address, we look it up in the side table to find a corresponding error recovery address, and jump to that. Stack unwinding!Since this is a custom ABI, how about just adding something large enough (cacheline sized, e.g. 64) to the return address? Saves the table shenanigans. Just tell the codegen to force emit the error path at that address... (I wonder if LLVM can actually do that...)",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
     "id": 45882538,
     "by": "malkia",
     "timeISO": "2025-11-11T00:01:38.000Z",
@@ -28,6 +44,14 @@
     "by": "deathanatos",
     "timeISO": "2025-11-10T23:31:15.000Z",
     "textPlain": "> Naively composing errors out of ADTs does pessimize the happy path. Error objects recursively composed out of enums tend to be big, which inflates size_of<Result<T, E>>, which pushes functions throughout the call stack to “return large structs through memory” ABI. Error virality is key here — just a single large error on however rare code path leads to worse code everywhere.This isn't true; proof by counter-example: anyhow::Error.For example, a lot of Rust code uses \"anyhow\", a crate which provides sort of a catch-all \"anyhow::Error\" type. Any other error can be put into an anyhow::Error, and an anyhow::Error is not good for much except displaying, and adding additional context to it. (For that reason, anyhow::Error is usually used at a high-level, where you don't care what specifically went wrong, b/c the only thing you'll use it for is propagation & display.)No matter what error we put into an anyhow::Error, the stack size is 8 B. (Because it's a pointer to the error E, effectively, though in practice \"it's a bit more complicated\", but not in any way that harms the argument here.) So clearly, here, we can stuff as much context/data/etc. into the error type E without virally infecting the whole stack with a larger Result<T, E>.(Rust does allow you to make E larger, and that can mean a Result<T, E> gets larger, yes. But you're one pointer away from moving that to the heap & fixing that. Rust, being a low level language, … permits you that / leaves that up to you. The stack space isn't free — as TFA points out, spilling registers has a cost — but nor are heap allocations free. Rust leaves it up to you, effectively.)My understanding of Zig the other day is that it doesn't permit associated data at all, and errors are just integer error code, effectively, under the hood. This is a pretty sad state of affairs — I hate the classic unix problem where you get something like,  $ mkdir $P\n  mkdir: no such file or directory\n\nWhich I now special path in the neurons in my hea",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
+    "id": 45883722,
+    "by": "quotemstr",
+    "timeISO": "2025-11-11T03:04:47.000Z",
+    "textPlain": "> That is the reason why mature error handling libraries hide the error behind a thin pointer, approached pioneered in Rust by failure and deployed across the ecosystem in anyhow. But this requires global allocator, which is also not entirely zero cost.No, it doesn't require a global allocator. You make the thinly-pointed-to error object have a vtable and, in this vtable, you provide a \"deallocate\" or \"drop\" function. No need for a single global allocator.> (this requires the errors to be register-sized).Uh, what? No, you can make it a pointer, and honestly, in every real-world ABI, there are tons of callee-clobbered registers we COULD use for errors or other side information and just... don't.",
     "parent": 45871688,
     "depth": 1
   },
@@ -64,18 +88,18 @@
     "depth": 2
   },
   {
-    "id": 45882597,
-    "by": "kbolino",
-    "timeISO": "2025-11-11T00:10:32.000Z",
-    "textPlain": "There is a middle ground that I think the post glosses over, which would be to split apart the Result<T,E> value whenever its two cases differ significantly in size. You'd also have to track the discriminant of course.Basically, supposing T alone fits in a register or two, but E is so big that the union of T and E would spill onto the stack, treat them as two different values instead of one.",
-    "parent": 45882322,
-    "depth": 2
-  },
-  {
     "id": 45882534,
     "by": "Philpax",
     "timeISO": "2025-11-11T00:01:24.000Z",
     "textPlain": "The article mentions anyhow:> That is the reason why mature error handling libraries hide the error behind a thin pointer, approached pioneered in Rust by failure and deployed across the ecosystem in anyhow. But this requires global allocator, which is also not entirely zero cost.",
+    "parent": 45882322,
+    "depth": 2
+  },
+  {
+    "id": 45882597,
+    "by": "kbolino",
+    "timeISO": "2025-11-11T00:10:32.000Z",
+    "textPlain": "There is a middle ground that I think the post glosses over, which would be to split apart the Result<T,E> value whenever its two cases differ significantly in size. You'd also have to track the discriminant of course.Basically, supposing T alone fits in a register or two, but E is so big that the union of T and E would spill onto the stack, treat them as two different values instead of one.",
     "parent": 45882322,
     "depth": 2
   },
