@@ -1,17 +1,17 @@
 [
   {
-    "id": 45886934,
-    "by": "jcelerier",
-    "timeISO": "2025-11-11T13:16:32.000Z",
-    "textPlain": "> When you want to embed a type, you need its definition, but you don’t actually need the full definition. You just need the size/alignment.Aren't there ABI cases where e.g.    struct foo { float X, Y; }\n\nwould be passed in e.g. fp registers whereas    struct { char[8]; }\n\nwould not?",
-    "parent": 45885135,
-    "depth": 1
-  },
-  {
     "id": 45886915,
     "by": "enricozb",
     "timeISO": "2025-11-11T13:14:18.000Z",
     "textPlain": "This idea about communicating size/alignment is actually something we're doing on the port of RediSearch to Rust [0]. We have an \"opaque sized type\" which is declared on the Rust-side, and has its size & alignment communicated to the C-side via cbindgen. The C-side has no visibility into the fields, but it can still allocate it on the stack.It's a bit ugly due to cbindgen not supporting const-generic expressions and macro-expansion being nightly-only. It seems like this will be a generally useful mechanism to be able to use values which are not traditionally FFI-safe across FFI boundaries.[0]: https://github.com/RediSearch/RediSearch/blob/cfd364fa2a47eb...",
+    "parent": 45885135,
+    "depth": 1
+  },
+  {
+    "id": 45886934,
+    "by": "jcelerier",
+    "timeISO": "2025-11-11T13:16:32.000Z",
+    "textPlain": "> When you want to embed a type, you need its definition, but you don’t actually need the full definition. You just need the size/alignment.Aren't there ABI cases where e.g.    struct foo { float X, Y; }\n\nwould be passed in e.g. fp registers whereas    struct { char[8]; }\n\nwould not?",
     "parent": 45885135,
     "depth": 1
   },
@@ -22,5 +22,21 @@
     "textPlain": "This has reawakened the nightmares about Objective-C++",
     "parent": 45885135,
     "depth": 1
+  },
+  {
+    "id": 45887512,
+    "by": "marler8997",
+    "timeISO": "2025-11-11T14:16:37.000Z",
+    "textPlain": "Yeah this is correct. You don't want to pass these values around \"by value\" but, you should be able to \"embed them\" and pass \"pointers to them\".  It's a middle-ground between a completely opaque type which you would also pass around by address, but, with the added benefit that you allocate your own storage for it.I sort of mentioned this in the blog but this is good clarification.>  if you want to pass a shared_ptr to Zig, you need to pass a pointer to the shared pointerFor lore, I believe this GitHub thread is where I first learned about the how types of the same size/alignment can still have different ABIs :) https://github.com/microsoft/win32metadata/issues/623#issuec...",
+    "parent": 45886934,
+    "depth": 2
+  },
+  {
+    "id": 45887173,
+    "by": "threeducks",
+    "timeISO": "2025-11-11T13:41:42.000Z",
+    "textPlain": "Yes. For example consider this function to add two 2D points, which accepts and returns all variables entirely in xmm registers: https://gcc.godbolt.org/z/hPGKrh6W4 (surprisingly, gcc generates some fairly odd assembly code here)",
+    "parent": 45886934,
+    "depth": 2
   }
 ]
