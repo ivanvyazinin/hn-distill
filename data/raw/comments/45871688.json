@@ -8,12 +8,44 @@
     "depth": 1
   },
   {
+    "id": 45882538,
+    "by": "malkia",
+    "timeISO": "2025-11-11T00:01:38.000Z",
+    "textPlain": "I loved Java checked exceptions when learning the language (coming from C++), then understood the biggest pitfall - if you need to extend with new exception, or remove existing you have to change all the code using it (maybe there are better approaches to this, but that's what I remmember). I'm back to C++ but it felt good having exceptions done like this.",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
+    "id": 45882925,
+    "by": "aw1621107",
+    "timeISO": "2025-11-11T01:04:32.000Z",
+    "textPlain": "iex [0] might be potentially relevant here. From what I understand it basically implements this bit:> Finally, another option is to say that -> Result<T, E> behaves exactly as -> T ABI-wise, no error affordances whatsoever. Instead, when returning an error, rather than jumping to the return address, we look it up in the side table to find a corresponding error recovery address, and jump to that. Stack unwinding!And at least based on the listed benchmarks it can indeed result in better performance than \"regular\" Result<T, E>.(Might be nice to mention this on the corresponding lobste.rs thread as well to see if anyone has anything interesting to add, if anyone has access)[0]: https://github.com/iex-rs/iex",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
+    "id": 45882322,
+    "by": "deathanatos",
+    "timeISO": "2025-11-10T23:31:15.000Z",
+    "textPlain": "> Naively composing errors out of ADTs does pessimize the happy path. Error objects recursively composed out of enums tend to be big, which inflates size_of<Result<T, E>>, which pushes functions throughout the call stack to “return large structs through memory” ABI. Error virality is key here — just a single large error on however rare code path leads to worse code everywhere.This isn't true; proof by counter-example: anyhow::Error.For example, a lot of Rust code uses \"anyhow\", a crate which provides sort of a catch-all \"anyhow::Error\" type. Any other error can be put into an anyhow::Error, and an anyhow::Error is not good for much except displaying, and adding additional context to it. (For that reason, anyhow::Error is usually used at a high-level, where you don't care what specifically went wrong, b/c the only thing you'll use it for is propagation & display.)No matter what error we put into an anyhow::Error, the stack size is 8 B. (Because it's a pointer to the error E, effectively, though in practice \"it's a bit more complicated\", but not in any way that harms the argument here.) So clearly, here, we can stuff as much context/data/etc. into the error type E without virally infecting the whole stack with a larger Result<T, E>.(Rust does allow you to make E larger, and that can mean a Result<T, E> gets larger, yes. But you're one pointer away from moving that to the heap & fixing that. Rust, being a low level language, … permits you that / leaves that up to you. The stack space isn't free — as TFA points out, spilling registers has a cost — but nor are heap allocations free. Rust leaves it up to you, effectively.)My understanding of Zig the other day is that it doesn't permit associated data at all, and errors are just integer error code, effectively, under the hood. This is a pretty sad state of affairs — I hate the classic unix problem where you get something like,  $ mkdir $P\n  mkdir: no such file or directory\n\nWhich I now special path in the neurons in my hea",
+    "parent": 45871688,
+    "depth": 1
+  },
+  {
     "id": 45881430,
     "by": "stmw",
     "timeISO": "2025-11-10T21:53:20.000Z",
     "textPlain": "I'm simultaneously amused and concerned by the recurring proposals for Rust to add1. exceptions \n2. garbage collectionSometimes in slightly modified forms or names, and often with very well-articulated, technically competent justifications (as is the case here).Just say no!",
     "parent": 45871688,
     "depth": 1
+  },
+  {
+    "id": 45882319,
+    "by": "ozgrakkurt",
+    "timeISO": "2025-11-10T23:30:39.000Z",
+    "textPlain": "Can’t offload everything into the compiler. It is already too slow.Soon people will demand it just figures out what you are implementing and rewrites your whole codebase",
+    "parent": 45881572,
+    "depth": 2
   },
   {
     "id": 45881647,
@@ -24,18 +56,34 @@
     "depth": 2
   },
   {
-    "id": 45882060,
-    "by": "kbolino",
-    "timeISO": "2025-11-10T22:53:55.000Z",
-    "textPlain": "But the argument is not about adding exceptions to the language.It's about borrowing a technique from languages that do have exceptions (and Rust's own panic unwinding) to implement Rust's existing error handling without making any changes to the language.The post is light on how this would actually work, though. I think that re-using the name \"stack unwinding\" is a little misleading. The stack would only unwind if the error was bubbled up, which would only happen if the programmer coded it to. Indeed, the error could just get dropped anywhere up the stack, stopping it from unwinding further.I think this would be tricky to implement, since the compiler would have to figure out which code actually is on the error path, and any given function could have multiple error paths (as many as one per each incoming error return, if they're all handled differently). It'd also make Result<T,E> even more special than it already is.",
-    "parent": 45881430,
+    "id": 45883000,
+    "by": "bigstrat2003",
+    "timeISO": "2025-11-11T01:16:29.000Z",
+    "textPlain": "That is not a pitfall, that is the whole point of checked exceptions. By making the errors part of the type system, you get the ability for the compiler to warn you \"hey man, that method started to raise a new error so you have to make sure to handle it\". That is a great benefit, not a pitfall!Put another way - it would be a lot easier for the programmer to write code if there were no types checked by the compiler at all, but we recognize that the safety net they give us is worth the additional effort at times when refactoring. So why would the benefits of static type checking be worth it, but not the benefits of static error type checking? It seems to me that either both are good ideas, or neither is.",
+    "parent": 45882538,
     "depth": 2
   },
   {
-    "id": 45882141,
-    "by": "stmw",
-    "timeISO": "2025-11-10T23:03:36.000Z",
-    "textPlain": "For clarification, this is not just a Rust, or a Zig thing. Even the Linux kernel is starting to succumb to the pressure :)https://www.phoronix.com/news/Linux-6.19-Patch-Would-MS-Ext",
+    "id": 45882597,
+    "by": "kbolino",
+    "timeISO": "2025-11-11T00:10:32.000Z",
+    "textPlain": "There is a middle ground that I think the post glosses over, which would be to split apart the Result<T,E> value whenever its two cases differ significantly in size. You'd also have to track the discriminant of course.Basically, supposing T alone fits in a register or two, but E is so big that the union of T and E would spill onto the stack, treat them as two different values instead of one.",
+    "parent": 45882322,
+    "depth": 2
+  },
+  {
+    "id": 45882534,
+    "by": "Philpax",
+    "timeISO": "2025-11-11T00:01:24.000Z",
+    "textPlain": "The article mentions anyhow:> That is the reason why mature error handling libraries hide the error behind a thin pointer, approached pioneered in Rust by failure and deployed across the ecosystem in anyhow. But this requires global allocator, which is also not entirely zero cost.",
+    "parent": 45882322,
+    "depth": 2
+  },
+  {
+    "id": 45882060,
+    "by": "kbolino",
+    "timeISO": "2025-11-10T22:53:55.000Z",
+    "textPlain": "But the argument is not about adding exceptions to the language.It's about borrowing a technique from languages that do have exceptions (and Rust's own panic unwinding) to implement Rust's existing error handling without making any changes to the language.The post is light on how this would actually work, though. I think that re-using the name \"stack unwinding\" is a little misleading. The stack would only unwind if the error was bubbled up, which would only happen if the programmer coded it to. Indeed, the error could just get dropped anywhere up the stack, stopping it from unwinding further.I think this would be tricky to implement, since the compiler would have to figure out which code actually is on the error path, and any given function could have multiple error paths (as many as one per each incoming error return, if they're all handled differently). It'd also make Result<T,E> even more special than it already is.All that having been said, if you squint a bit, the end result does vaguely resemble Java's checked exceptions.",
     "parent": 45881430,
     "depth": 2
   },
@@ -44,6 +92,14 @@
     "by": "necubi",
     "timeISO": "2025-11-10T22:02:34.000Z",
     "textPlain": "This doesn't have anything to do with exceptions, and the context appears to be Zig, not Rust.The article is about how we represent errors not their control flow (i.e., exceptions).",
+    "parent": 45881430,
+    "depth": 2
+  },
+  {
+    "id": 45882141,
+    "by": "stmw",
+    "timeISO": "2025-11-10T23:03:36.000Z",
+    "textPlain": "For clarification, this is not just a Rust, or a Zig thing. \n[removed incorrect info re: Linux]",
     "parent": 45881430,
     "depth": 2
   },

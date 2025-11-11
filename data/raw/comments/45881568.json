@@ -1,9 +1,9 @@
 [
   {
-    "id": 45882209,
-    "by": "pixelpoet",
-    "timeISO": "2025-11-10T23:15:05.000Z",
-    "textPlain": "This looks interesting; recently I wrote some code for rendering high precision N-body paths with millions of vertices[0], I wonder if a GPU implementation this RLE representation would work well and maintain simplicity.[0] https://www.youtube.com/watch?v=rmyA9AE3hzM",
+    "id": 45882787,
+    "by": "voidmain",
+    "timeISO": "2025-11-11T00:42:13.000Z",
+    "textPlain": "The paper defines this structure    struct Strip {\n        x: u16,\n        y: u16,\n        alpha_idx_fill_gap: u32,\n    }\n\nwhich looks like it is 64 bits (8 bytes) in size,and then says> Since a single strip has a memory footprint of 64 bytes and a single alpha value is stored as u8, the necessary storage amounts to around 259 ∗ 64 + 7296 ≈ 24KBam I missing something, or is it actually 259*8 + 7296 ≈ 9KB?",
     "parent": 45881568,
     "depth": 1
   },
@@ -14,5 +14,85 @@
     "textPlain": "Also checkout blaze: https://gasiulis.name/parallel-rasterization-on-cpu/",
     "parent": 45881568,
     "depth": 1
+  },
+  {
+    "id": 45882698,
+    "by": "fngjdflmdflg",
+    "timeISO": "2025-11-11T00:26:10.000Z",
+    "textPlain": "Fascinating project. Based on section 3.9, it seems the output is in the form of a bitmap. So I assume you have to do a full memory copy to the GPU to display the image in the end. With skia moving to WebGPU[0] and with WebGPU supporting compute shaders, I feel that 2D graphics is slowly becoming a solved problem in terms of portability and performance. Of course there are cases where you would a want a CPU renderer. Interestingly the web is sort of one of them because you have to compile shaders at runtime on page load. I wonder if it could make sense in theory to have multiple stages to this, sort of like how JS JITs work, were you would start with a CPU renderer while the GPU compiles its shaders. Another benefit, as the author mentions, is binary size. WebGPU (via dawn at least) is rather large.[0] https://blog.chromium.org/2025/07/introducing-skia-graphite-...",
+    "parent": 45881568,
+    "depth": 1
+  },
+  {
+    "id": 45882209,
+    "by": "pixelpoet",
+    "timeISO": "2025-11-10T23:15:05.000Z",
+    "textPlain": "This looks interesting; recently I wrote some code for rendering high precision N-body paths with millions of vertices[0], I wonder if a GPU implementation this RLE representation would work well and maintain simplicity.[0] https://www.youtube.com/watch?v=rmyA9AE3hzM",
+    "parent": 45881568,
+    "depth": 1
+  },
+  {
+    "id": 45882316,
+    "by": "amelius",
+    "timeISO": "2025-11-10T23:29:42.000Z",
+    "textPlain": "Side question. Is there some kind of benchmark to test the correctness of renderers?",
+    "parent": 45881568,
+    "depth": 1
+  },
+  {
+    "id": 45882752,
+    "by": "raphlinus",
+    "timeISO": "2025-11-11T00:34:16.000Z",
+    "textPlain": "Thanks for the pointer, we were not actually aware of this, and the claimed benchmark numbers look really impressive.",
+    "parent": 45882207,
+    "depth": 2
+  },
+  {
+    "id": 45882297,
+    "by": "hollowturtle",
+    "timeISO": "2025-11-10T23:27:35.000Z",
+    "textPlain": "the demo is astonishing",
+    "parent": 45882207,
+    "depth": 2
+  },
+  {
+    "id": 45882749,
+    "by": "raphlinus",
+    "timeISO": "2025-11-11T00:33:49.000Z",
+    "textPlain": "The output of this renderer is a bitmap, so you have to do an upload to GPU if that's what your environment is. As part of the larger work, we also have Vello Hybrid which does the geometry on CPU but the pixel painting on GPU.We have definitely thought about having the CPU renderer while the shaders are being compiled (shader compilation is a problem) but haven't implemented it.",
+    "parent": 45882698,
+    "depth": 2
+  },
+  {
+    "id": 45883160,
+    "by": "Reason077",
+    "timeISO": "2025-11-11T01:40:55.000Z",
+    "textPlain": "> \"I assume you have to do a full memory copy to the GPU to display the image in the end.\"On a unified memory architecture (eg: Apple Silicon), that's not an expensive operation. No copy required.",
+    "parent": 45882698,
+    "depth": 2
+  },
+  {
+    "id": 45882798,
+    "by": "nicoburns",
+    "timeISO": "2025-11-11T00:44:13.000Z",
+    "textPlain": "One place where a CPU renderer is particularly useful is in test runners (where the output of the test is a image/screenshot). Or I guess any other use cases where the output is an image. In that case, the output never needs to get to the GPU, and indeed if you render on the GPU then you have to copy the image back!",
+    "parent": 45882698,
+    "depth": 2
+  },
+  {
+    "id": 45882471,
+    "by": "percentcer",
+    "timeISO": "2025-11-10T23:51:50.000Z",
+    "textPlain": "This was the original goal of the Cornell box (https://en.wikipedia.org/wiki/Cornell_box, i.e. carefully measure the radiosity of a simple, real-world scene and then see how closely you can come to simulating it).For realtime rendering a common thing to do is to benchmark against a known-good offline renderer (e.g. Arnold, Octane)",
+    "parent": 45882316,
+    "depth": 2
+  },
+  {
+    "id": 45882343,
+    "by": "embedding-shape",
+    "timeISO": "2025-11-10T23:33:20.000Z",
+    "textPlain": "Correctness of what exactly? It's a \"render\" of reality-like environment, so all of them make some tradeoff somewhere, and won't be 100% \"correct\" at least compared to reality :)",
+    "parent": 45882316,
+    "depth": 2
   }
 ]
