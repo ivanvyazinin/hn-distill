@@ -1,17 +1,17 @@
 [
   {
-    "id": 45883948,
-    "by": "andyferris",
-    "timeISO": "2025-11-11T03:53:16.000Z",
-    "textPlain": "I see we need to add special syntax to the signature for dependent type variables.If you take Zig, it's `comptime` parameters are kind of similar. They can be used to create functions that return types or whose output type depends on the inputs, etc. It seems to fulfil the three axioms at the start, no? The erasure stuff seems just as relavant.Can I say that `comptime` is dependent types in imperative clothing? Or is there a missing capability making it strictly weaker?",
-    "parent": 45801966,
-    "depth": 1
-  },
-  {
     "id": 45882035,
     "by": "nixpulvis",
     "timeISO": "2025-11-10T22:51:21.000Z",
     "textPlain": "I read the first post and thought someone should at the very least post the lambda cube. This isn't my area of expertise, since I've done very little with dependent types (staying firmly on the left side of the cube), but it outlines some useful categories of type systems here.https://en.wikipedia.org/wiki/Lambda_cube",
+    "parent": 45801966,
+    "depth": 1
+  },
+  {
+    "id": 45883948,
+    "by": "andyferris",
+    "timeISO": "2025-11-11T03:53:16.000Z",
+    "textPlain": "I see we need to add special syntax to the signature for dependent type variables.If you take Zig, it's `comptime` parameters are kind of similar. They can be used to create functions that return types or whose output type depends on the inputs, etc. It seems to fulfil the three axioms at the start, no? The erasure stuff seems just as relavant.Can I say that `comptime` is dependent types in imperative clothing? Or is there a missing capability making it strictly weaker?",
     "parent": 45801966,
     "depth": 1
   },
@@ -56,19 +56,19 @@
     "depth": 1
   },
   {
-    "id": 45884106,
-    "by": "ChadNauseam",
-    "timeISO": "2025-11-11T04:25:34.000Z",
-    "textPlain": "I'm not familiar with Zig, but I'm pretty sure comptime is not quite as powerful.In the post, I didn't give any examples of situations where the input to a dependent function was not known at compile time. However, that was just due to the lack of time when writing the post. (I didn't even mean for the post to be submitted to Hacker News as it was not quite done at the time of its submission.)I gave this example:    useValue : Bool -> String\n    useValue True = \"The number is: \" ++ natToString (getValue True)\n    useValue False = \"The message is: \" ++ getValue False\n\nBy the way, nothing in dependent types requires that the depended-on value `b` is known at compile time. You could pass any Bool to `getValue`, including one that was read as input from the user. It would just be the case that, before using the value returned by `getValue b`, you'd have to check (at runtime) the value of `b`. Only then would you know `pickType b`, which would tell you the type of `getValue b`. My apologies that the post was unclear about this. (I've just updated it.)",
-    "parent": 45883948,
-    "depth": 2
-  },
-  {
     "id": 45882560,
     "by": "azdavis",
     "timeISO": "2025-11-11T00:04:05.000Z",
     "textPlain": "I wrote a small post on that: https://azdavis.net/posts/lambda-cube/Hope it’s helpful!",
     "parent": 45882035,
+    "depth": 2
+  },
+  {
+    "id": 45884106,
+    "by": "ChadNauseam",
+    "timeISO": "2025-11-11T04:25:34.000Z",
+    "textPlain": "I'm not familiar with Zig, but I'm pretty sure comptime is not quite as powerful.In the post, I didn't give any examples of situations where the input to a dependent function was not known at compile time. However, that was just due to the lack of time when writing the post.I gave this example:    useValue : Bool -> String\n    useValue True = \"The number is: \" ++ natToString (getValue True)\n    useValue False = \"The message is: \" ++ getValue False\n\nThe difference is that nothing in dependent types requires that the depended-on value `b` is known at compile time. You could pass any Bool to `getValue`, including one that was read as input from the user. It would just be the case that, before using the value returned by `getValue b`, you'd have to check (at runtime) the value of `b`. Only then would you know `pickType b`, which would tell you the type of `getValue b`. My apologies that the post was unclear about this. (I've just updated it.)",
+    "parent": 45883948,
     "depth": 2
   },
   {
@@ -80,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45883776,
-    "by": "nathanrf",
-    "timeISO": "2025-11-11T03:15:50.000Z",
-    "textPlain": "In the style of the linked post, you'd probably define a generic type (well, one of two generic types):type ExactlyStatic : (0 t: Type) -> (0 v: t) -> Typetype ExactlyRuntime : (0 t: Type) -> (v: t) -> TypeThen you could have the type (ExactlyStatic Int 9) or the type (ExactlyRuntime Int 9).The difference is that ExactlyStatic Int 9 doesn't expose the value 9 to the runtime, so it would be fully erased, while (ExactlyRuntime Int 9) does.This means that the runtime representation of the first would be (), and the second would be Int.> Also how to handle runtime values? That will require type assertions, just like union types?The compiler doesn't insert any kind of runtime checks that you aren't writing in your code. The difference is that now when you write e.g. `if condition(x) then ABC else DEF` inside of the two expressions, you can obtain a proof that condition(x) is true/false, and propagate this.Value representations will typically be algebraic-data-type flavored (so, often a tagged union) but you can use erasure to get more efficient representations if needed.",
-    "parent": 45882390,
-    "depth": 2
-  },
-  {
     "id": 45883503,
     "by": "SabrinaJewson",
     "timeISO": "2025-11-11T02:29:48.000Z",
     "textPlain": "In type theory, all singleton types are isomorphic and have no useful distinguishing characteristics (indeed, this is true of all types of the same cardinality – and even then, comparing cardinalities is always undecidable and thus irrelevant at runtime). So your Nine type doesn’t really make sense, because you may as well just write Unit. In general, there is no amount of introspection into the “internal structure” of a type offered; even though parametricity does not hold in general (unless you postulate anticlassical axioms), all your functions that can run at runtime are required to be parametric.",
+    "parent": 45882390,
+    "depth": 2
+  },
+  {
+    "id": 45883776,
+    "by": "nathanrf",
+    "timeISO": "2025-11-11T03:15:50.000Z",
+    "textPlain": "In the style of the linked post, you'd probably define a generic type (well, one of two generic types):type ExactlyStatic : (0 t: Type) -> (0 v: t) -> Typetype ExactlyRuntime : (0 t: Type) -> (v: t) -> TypeThen you could have the type (ExactlyStatic Int 9) or the type (ExactlyRuntime Int 9).The difference is that ExactlyStatic Int 9 doesn't expose the value 9 to the runtime, so it would be fully erased, while (ExactlyRuntime Int 9) does.This means that the runtime representation of the first would be (), and the second would be Int.> Also how to handle runtime values? That will require type assertions, just like union types?The compiler doesn't insert any kind of runtime checks that you aren't writing in your code. The difference is that now when you write e.g. `if condition(x) then ABC else DEF` inside of the two expressions, you can obtain a proof that condition(x) is true/false, and propagate this.Value representations will typically be algebraic-data-type flavored (so, often a tagged union) but you can use erasure to get more efficient representations if needed.",
     "parent": 45882390,
     "depth": 2
   },
@@ -109,6 +109,14 @@
     "timeISO": "2025-11-11T00:31:02.000Z",
     "textPlain": "Functions that return types are indeed at a higher level than those that don't.Values can be seen as Singleton types. The key difference is the universe they live in. In the universe of types, the level one level below is perceived as a value. Similarly, in the universe of kinds, types appear to be values.> Basically, 'value' would be a special constraint on a type parameter in normal parametric polymorphism implementationsYes this is a level constraint.> But I guess, the same issue of \"which refinement types can be defined, while keeping everything decidable\" remains as an issue.If you're dealing with fully computable types. Nothing is decidable.> Also how to handle runtime values? That will require type assertions, just like union types? Or is it only a compile time concept and there is no runtime instantiations. Only some kind of const generics?A compiler with dependent types is essentially producing programs that are itself embedded with its input. There cannot be a distinction between runtime and compel time. Because in general type checking requires you to be able to run a program. The compilation essentially becomes deciding which parts you want to evaluate and which parts you want to defer until later.> A typeof function could be an example of dependent type though? Even at runtime?Typeof is just const.Typeof: (T : type) -> (x:T) -> TypeFinal note: I've written some compilers for toy dependently typed languages. By far dependent typing makes both the language and the compiler easier not harder. This is because Haskell and c++ and other languages with type systems and metaprogramming or generics actually have several languages: the value language that we are familiar with, but also the type language.In Haskell, this is the class/instance language which is another logic programming language atop the lambda calculus language. This means to write a Haskell compiler you have to write a compiler for Haskell and the logic programming language (which is turing compl",
     "parent": 45882390,
+    "depth": 2
+  },
+  {
+    "id": 45884117,
+    "by": "danvk",
+    "timeISO": "2025-11-11T04:28:12.000Z",
+    "textPlain": "Yes. You can give pickType a type in TS. Something like pickType<B extends boolean>(b: B): B extends true ? string : number.I’d love to read a post explaining how TS conditional types are or are not a form of dependent types. Or, I’d like to understand dependent types well enough to write that post.",
+    "parent": 45883322,
     "depth": 2
   },
   {
