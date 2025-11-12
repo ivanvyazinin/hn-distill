@@ -1,5 +1,21 @@
 [
   {
+    "id": 45897247,
+    "by": "wvenable",
+    "timeISO": "2025-11-12T07:19:21.000Z",
+    "textPlain": "I agree with the other comments that this understanding of exceptions is wrong.  He's not wrong about these two points:- Correctness: you don’t know if the exception type you’ve caught matches what the code throws- Exhaustiveness: you don’t know if you’ve caught all exceptions the code can throwBut that's actually not a problem.  Most of the time you shouldn't catch a specific exception (so always correct) and if you are catching then you should catch them all (exhaustive).  A better solution is merely:    void f(string s)\n    {\n        try {\n            File_handle fh { s, \"r\"};\n            // use fh\n        } catch (const std::exception& e) {\n            printf(stderr, e.what());\n        }\n    }\n\nThat's all you need.  But actually this code is also bad because this function f() shouldn't have a try/catch in it that prints an error message.  That's a job for a function (possibly main()) further up the call stack.",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
+    "id": 45897119,
+    "by": "SuperV1234",
+    "timeISO": "2025-11-12T06:57:52.000Z",
+    "textPlain": "This post completely misunderstands how to use exceptions and provides \"solutions\" that are error-prone to a problem that doesn't exist.And this is coming from someone that dislikes exceptions.",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
     "id": 45896973,
     "by": "mgaunard",
     "timeISO": "2025-11-12T06:30:35.000Z",
@@ -16,10 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45896970,
-    "by": "jari_mustonen",
-    "timeISO": "2025-11-12T06:29:44.000Z",
-    "textPlain": "The classic \"Frequently Questioned Answers\" is the ultimate takedown of this abomination of a language.https://yosefk.com/c++fqa/",
+    "id": 45897180,
+    "by": "gorgolo",
+    "timeISO": "2025-11-12T07:08:24.000Z",
+    "textPlain": "I didn’t really understand the writer’s comments with exceptions and I don’t code in C++.Their main complaint about exceptions seems to be that you can’t handle all of them and that you don’t know which you’ll get? If we compare this to python, what’s the difference here? It looks like it works the same here as in python; you catch and handle some exceptions, and others that you miss will crash your program (unless you catch the base class). Is there something special about C++ that makes it work differently, or would the author have similar problems with python?",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
+    "id": 45897170,
+    "by": "miohtama",
+    "timeISO": "2025-11-12T07:07:24.000Z",
+    "textPlain": "It's a bad post, but I find it funny someone thinks C++ can be fixed (:",
     "parent": 45896733,
     "depth": 1
   },
@@ -32,6 +56,22 @@
     "depth": 1
   },
   {
+    "id": 45897081,
+    "by": "oakpond",
+    "timeISO": "2025-11-12T06:48:50.000Z",
+    "textPlain": "The first two problems can be solved in a straightforward way with more custom exception types. For the \"bigger problem\", catch(...) can be used to prevent your code from crashing. If you really want to handle each case explicitly you could also use enums in combination with compiler flags that enable exhaustive checking.",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
+    "id": 45896970,
+    "by": "jari_mustonen",
+    "timeISO": "2025-11-12T06:29:44.000Z",
+    "textPlain": "The classic \"Frequently Questioned Answers\" is the ultimate takedown of this abomination of a language.https://yosefk.com/c++fqa/",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
     "id": 45896947,
     "by": "muragekibicho",
     "timeISO": "2025-11-12T06:25:57.000Z",
@@ -40,11 +80,35 @@
     "depth": 1
   },
   {
+    "id": 45897058,
+    "by": "charcircuit",
+    "timeISO": "2025-11-12T06:45:16.000Z",
+    "textPlain": ">The first is that our error message may not be correct. It’s possible that the exception we’ve caught was not introduced by opening this file, and, the errno may not reflect the errno at the time fopen was called.All that is needed is a better File_error type that includes the error that happened.  void f(string s)\n  {\n      try {\n          File_handle fh { s, \"r\"};\n          // use fh\n      } catch (const File_error& e) {\n          fprintf(stderr, \"File error: %s\\n\", e.msg.c_str();\n          return;\n      }\n  }",
+    "parent": 45896733,
+    "depth": 1
+  },
+  {
     "id": 45897002,
     "by": "gblargg",
     "timeISO": "2025-11-12T06:34:56.000Z",
-    "textPlain": "Agreed. Author is trying to mix paradigms. Simplest approach if they want local handling and non-propagation of errors is to just have the file holder not check for open success, and check that manually after construction. Then you get guaranteed closure of file no matter how the function is exited.",
+    "textPlain": "Agreed. Author is trying to mix paradigms. Simplest approach if they want local handling and non-propagation of errors is to just have the file holder not check for open success, and check that manually after construction. Then you get guaranteed closure of file no matter how the function is exited.  class File_handle {\n      FILE *p;\n  public:\n      File_handle(const char *pp, const char *r)  { p = fopen(pp, r); }\n      ~File_handle() { if ( p ) fclose(p); }\n      FILE* file() const { return p; }\n  };\n  \n  \n  void f(string s)\n  {\n      File_handle fh { s, \"r\"};\n      if ( fh.file() == NULL ) {\n          fprintf(stderr, \"failed to open file '%s', error=%d\\n\", p, errno);\n          return;\n      }\n      // use fh\n  }",
     "parent": 45896973,
+    "depth": 2
+  },
+  {
+    "id": 45897201,
+    "by": "lynx97",
+    "timeISO": "2025-11-12T07:11:52.000Z",
+    "textPlain": "Most criticism of C++ comes from people not really into the language.  Sure, learning curve might be an issue.  But if you are really into C++, there are a lot of things to like about it.  At least I do love it.  However, only since C++11.  Before that, the language felt very strange to me, possibly due to the same effect, I didn't know enough about it.",
+    "parent": 45896973,
+    "depth": 2
+  },
+  {
+    "id": 45897012,
+    "by": "mgaunard",
+    "timeISO": "2025-11-12T06:36:17.000Z",
+    "textPlain": "Don't use try/catch in the first place; that's where his error lies.",
+    "parent": 45896987,
     "depth": 2
   },
   {
@@ -53,6 +117,46 @@
     "timeISO": "2025-11-12T06:25:01.000Z",
     "textPlain": "Swift user here: I have to say one of the best features of Swift is the exception handling. Which is to say, exceptions in Swift are not C++/Java/Obj-C style exceptions, but instead are a way to return an error result from a function. And Swift enforces that the error is handled.That is, a `throw` statement in Swift simply returns an `Error` value to the caller via a special return path instead of the normal result.More explicitly, a Swift function declared as:    func f() throws -> T {\n    }\n\nCould be read as    func f() -> (T|any Error) {\n    }\n\nMore here: https://github.com/swiftlang/swift/blob/main/docs/ErrorHandl...",
     "parent": 45896914,
+    "depth": 2
+  },
+  {
+    "id": 45897140,
+    "by": "morshu9001",
+    "timeISO": "2025-11-12T07:01:42.000Z",
+    "textPlain": "In high-level code, pretty much everything can fail in many different ways, and usually you're either just passing the error up or handling it in some catchall manner. Rust's behavior makes sense for its use cases, but it'd get exhausting doing this in like a web backend.",
+    "parent": 45896914,
+    "depth": 2
+  },
+  {
+    "id": 45897020,
+    "by": "munchler",
+    "timeISO": "2025-11-12T06:38:53.000Z",
+    "textPlain": "`Result<T, E>` comes from Haskell's `Either a b` type. F# also has a `Result<'T, 'E>` type.It's funny how often functional programming languages lead the way, but imperative languages end up with the credit.",
+    "parent": 45896914,
+    "depth": 2
+  },
+  {
+    "id": 45897088,
+    "by": "JoshTriplett",
+    "timeISO": "2025-11-12T06:49:59.000Z",
+    "textPlain": "In fairness, Rust also has unchecked exceptions (panics, if you use panic-unwind).",
+    "parent": 45896914,
+    "depth": 2
+  },
+  {
+    "id": 45897028,
+    "by": "nanolith",
+    "timeISO": "2025-11-12T06:40:01.000Z",
+    "textPlain": "In C, you're correct. The problem is that, in C++, one must account for the fact that anything could throw an exception. If something throws an exception between the time that f is opened and f is closed, the file handle is leaked.  This is the \"unsafe\" that Bjarne is talking about here. Specifically, exception unsafety that can leak resources.As an aside, it is one of the reasons why I finally decided to let go of C++ after 20 years of use. It was just too difficult to teach developers all of the corner cases. Instead, I retooled my system programming around C with model checking to enforce resource management and function contracts. The code can be read just like this example and I can have guaranteed resource management that is enforced at build time by checking function contracts.",
+    "parent": 45896947,
+    "depth": 2
+  },
+  {
+    "id": 45897205,
+    "by": "mayoff",
+    "timeISO": "2025-11-12T07:12:19.000Z",
+    "textPlain": "The problem is that it's easy to do it wrong and the C compiler doesn't help you. RAII prevents you from leaking the resource, but the complaint in the post is that it can be cumbersome to use RAII in C++ if acquisition can fail and you want to handle that failure.",
+    "parent": 45896947,
     "depth": 2
   },
   {
