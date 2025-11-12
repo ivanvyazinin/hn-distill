@@ -1,5 +1,13 @@
 [
   {
+    "id": 45907087,
+    "by": "munch117",
+    "timeISO": "2025-11-12T21:36:08.000Z",
+    "textPlain": "A __del__ that does any kind of real work is asking for trouble. Use it to print a diagnostic reminding you to call .close() or .join() or use a with statement, and nothing else.  For example:    def close(self):\n        self._closed = True\n        self.do_interesting_finalisation_stuff()\n    def __del__(self):\n        if not self._closed:\n            print(\"Programming error! Forgot to .close()\", self)\n\nIf you do anything the slightest bit more interesting than that in your __del__, then you are likely to regret it.Every time I've written a __del__ that did more, it has been trouble and I've ended up whittling it down to a simple diagnostic.  With one notable exception: A __del__ that put a termination notification into a queue.Queue which a different thread was listening to.  That one worked great: If the other thread was still alive and listening, then it would get the message. If not, then the message would just get garbage-collected with the Queue, but message would be redundant anyway, so that would be fine.",
+    "parent": 45903586,
+    "depth": 1
+  },
+  {
     "id": 45904726,
     "by": "hinkley",
     "timeISO": "2025-11-12T19:14:18.000Z",
@@ -8,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45904737,
-    "by": "wrcwill",
-    "timeISO": "2025-11-12T19:14:55.000Z",
-    "textPlain": "Unless I'm missing something, this has nothing to do with asynchronous code. The delete is just synchronous code running, same as if we called a function/closure right there.This is just about syntax sugar hiding function calls.",
+    "id": 45907185,
+    "by": "TinkersW",
+    "timeISO": "2025-11-12T21:43:39.000Z",
+    "textPlain": "The python example looks fixable with a reentrant mutex, no idea if that translates to the Rust issue.",
     "parent": 45903586,
     "depth": 1
   },
   {
-    "id": 45906699,
-    "by": "keeganpoppen",
-    "timeISO": "2025-11-12T21:07:48.000Z",
-    "textPlain": "props to the author— this post is extremely well-written",
+    "id": 45904737,
+    "by": "wrcwill",
+    "timeISO": "2025-11-12T19:14:55.000Z",
+    "textPlain": "Unless I'm missing something, this has nothing to do with asynchronous code. The delete is just synchronous code running, same as if we called a function/closure right there.This is just about syntax sugar hiding function calls.",
     "parent": 45903586,
     "depth": 1
   },
@@ -38,6 +46,22 @@
     "textPlain": "While I think the problem highlighted in the article is a longstanding problem for Rust[1], I don't think the example, or finalizers was the problem with Futurelock as described by Oxide.I'm not sure you can write a simple example in Python, because Rust's future's architecture and Python's is different. `futurelock` is an issue of cancellation safety which is a stranger concept (related to finalizers, but not in the way OP has described).Personally, I think `tokio::select!` is dangerous and I don't use it my code - it's very easy to deadlock yourself or create weird performance issues. I think the interface is too close to Go and if you don't understand what is going on, you can create deadlocks. That said, even if you avoid `tokio::select!`, I think cancellation safety is one of those dragons that exist in async rust.[1] https://without.boats/blog/poll-drop/",
     "parent": 45903586,
     "depth": 1
+  },
+  {
+    "id": 45906699,
+    "by": "keeganpoppen",
+    "timeISO": "2025-11-12T21:07:48.000Z",
+    "textPlain": "props to the author— this post is extremely well-written",
+    "parent": 45903586,
+    "depth": 1
+  },
+  {
+    "id": 45907276,
+    "by": "anticodon",
+    "timeISO": "2025-11-12T21:51:16.000Z",
+    "textPlain": "Yep, a __del__ in the redis client code caused almost random deadlocks at my job for several years. Manual intervention was required to restart stuck Celery jobs. Took me about 2-3 weeks to find the culprit (had to deploy python interpreter compiled with debug info into production, wait for deadlock to happen again, attach with gdb and find where it happens). One of the most difficult production issues I had to solve in my life (because it happened randomly and it was impossible to even remotely guess what is causing it).",
+    "parent": 45907087,
+    "depth": 2
   },
   {
     "id": 45905849,
