@@ -16,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45913363,
+    "by": "solatic",
+    "timeISO": "2025-11-13T10:53:15.000Z",
+    "textPlain": "Most people in this thread, it seems, just want a simple way to manage Kubernetes manifests, something that keeps track of different settings for different environments and what's in common for each environment in order to generate the final manifests for an environment. If so, Helm is over-engineered for your use-case. Stick with Kustomize or jsonnet.Helm's contribution (as horrible as text templating on YAML is) is, yes, to be a package manager. Part of a Helm chart includes jobs (\"hooks\") that can be run at different stages (pre-install, pre-upgrade, etc.) as well as a job to run when someone runs \"helm test\", and a way to rollback changes (\"helm rollback\"), which is more powerful than just rolling back a Deployment, because it will rollback changes to CRDs, give you hooks/jobs that can run pre- and post-rollback, etc.Helm charts are meant to be written by someone with the relevant skills sitting next to the developers, so that it can be handed off to another team to deploy into production. If that's not your organization or process, or if your developers are giving your ops teams Docker images instead of Helm charts, you're probably over-engineering by adopting it.",
+    "parent": 45902604,
+    "depth": 1
+  },
+  {
+    "id": 45913533,
+    "by": "sureglymop",
+    "timeISO": "2025-11-13T11:14:11.000Z",
+    "textPlain": "I really don't like helm. I think we have arrived at abstraction over abstraction over abstraction.The last project I had to be involved with used kustomize for different environments, flux to deploy, helm to use a helmchart which took in a list of configmaps using \"valuesFrom\". Not only does kustomize template and merge together values but so does the valuesFrom thing, however at \"runtime\" in the cluster.There's just not a single chance to get any coherent checking/linting or anything before deployment. I mean how could a language server even understand how all this spaghetti yaml merges together? And note that I was working on this as a developer in a very restricted environment/cluster.Yaml is too permissive already, people really start programming with it. The thing is, kubernetes resources are already an abstraction. That's kind of the nice thing about it, you can create arbitrary resources and kubernetes is the management platform for them. But I think it becomes hairy already when we create resources that manage other resources.And also, sure some infrastructure may be \"cattle\" but at some point in the equation there is state and complexity that has to be managed by someone who understands it. Kubernetes manifests are great for that, I think using a package manager to deploy resources is taking it too far. Inevitably helm charts and the schema of values change and then attention is needed anyway. It makes the bar for entry into the kubernetes ecosystem lower but is that actually a good thing for the people who then fall into it without the experience to solve the problems they inevitably encounter?Sorry for the rant but given my first paragraph I hope there is some understanding for my frustrations. Having all that said, I am glad they try to improve what has established itself now and still welcome these improvements.",
+    "parent": 45902604,
+    "depth": 1
+  },
+  {
     "id": 45911154,
     "by": "sprior",
     "timeISO": "2025-11-13T05:43:29.000Z",
@@ -88,14 +104,6 @@
     "depth": 1
   },
   {
-    "id": 45911463,
-    "by": "beefnugs",
-    "timeISO": "2025-11-13T06:31:36.000Z",
-    "textPlain": "nightmares (if anything went wrong i had to blow helm stuff away and start over) ontop of nightmares (kubernetes when i was trying it was tons of namespaces called beta, then you never knew what to update to or when you had to update, or what was incompatible) ontop of the realization that no one should be using kubernetes unless you have over 50 servers running many hundreds of services. Otherwise its just a million times simpler using docker compose",
-    "parent": 45902604,
-    "depth": 1
-  },
-  {
     "id": 45904140,
     "by": "woile",
     "timeISO": "2025-11-12T18:45:37.000Z",
@@ -108,6 +116,14 @@
     "by": "CraigJPerry",
     "timeISO": "2025-11-12T18:34:41.000Z",
     "textPlain": "Imagine 1,000s of helm charts. Your only abstraction tools are an umbrella chart or a library chart. There isn't much more in helm.I liked KRO's model a lot but stringly typed text templating at the scale of thousands of services doesn't work, it's not fun when you need to make a change. I kinda like jsonnet plus the google cli i forget the name of right now, and the abstraction the Grafana folks did too but ultimately i decided to roll my own thing and leaned heavily into type safety for this. It's ideal. With any luck i can open source it. There's a few similar ideas floating around now - Scala Yaga is one.",
+    "parent": 45902604,
+    "depth": 1
+  },
+  {
+    "id": 45911463,
+    "by": "beefnugs",
+    "timeISO": "2025-11-13T06:31:36.000Z",
+    "textPlain": "nightmares (if anything went wrong i had to blow helm stuff away and start over) ontop of nightmares (kubernetes when i was trying it was tons of namespaces called beta, then you never knew what to update to or when you had to update, or what was incompatible) ontop of the realization that no one should be using kubernetes unless you have over 50 servers running many hundreds of services. Otherwise its just a million times simpler using docker compose",
     "parent": 45902604,
     "depth": 1
   },
@@ -132,6 +148,14 @@
     "by": "verdverm",
     "timeISO": "2025-11-12T17:34:01.000Z",
     "textPlain": "Helm is my example of where DevOps lost it's way. The insanity of multiple tiers on templating an invisible char scoped language... it blows my mind that so many of us just deal with itNowadays I'm using CUE in front of TF & k8s, in part because I have workloads that need a bit of both and share config. I emit tf.json and Yaml as needed from a single source of truth",
+    "parent": 45902918,
+    "depth": 2
+  },
+  {
+    "id": 45913267,
+    "by": "vbezhenar",
+    "timeISO": "2025-11-13T10:39:26.000Z",
+    "textPlain": "I've embraced kustomize and I like it. It's simple enough and powerful enough for my needs. A bit verbose to type out all the manifests, but I can live with it.",
     "parent": 45902918,
     "depth": 2
   },
@@ -208,6 +232,14 @@
     "depth": 2
   },
   {
+    "id": 45913321,
+    "by": "vbezhenar",
+    "timeISO": "2025-11-13T10:46:55.000Z",
+    "textPlain": "Helm works at text level. This approach could have worked with YAML, JSON, XML or any other text format. You can template C++ code with Helm if you really want. It's just golang templates below.And that makes it wrong. YAML is structured format and proper templating should work with JSON-like data structures, not with text. Kustomize is better example.",
+    "parent": 45912106,
+    "depth": 2
+  },
+  {
     "id": 45912108,
     "by": "koalalorenzo",
     "timeISO": "2025-11-13T08:05:11.000Z",
@@ -216,18 +248,18 @@
     "depth": 2
   },
   {
-    "id": 45911252,
-    "by": "tribaal",
-    "timeISO": "2025-11-13T05:58:45.000Z",
-    "textPlain": "Probably an unpopular opinion, but it’s been a couple of jobs that I write “just python” to generate k8s manifests, and it works really, really well.There’s packages. You can write functions. You can write tests trivially (the output is basically a giant map that you just write out as yaml)…I’m applying this to other areas too with great success, for example our snowflake IaC is “just python” that generates SQL. It’s great.",
+    "id": 45913339,
+    "by": "vbezhenar",
+    "timeISO": "2025-11-13T10:49:45.000Z",
+    "textPlain": "Kubernetes API uses JSON. JSON is JavaScript Object Notation. So naturally the best approach to work with JSON is to write JavaScript or TypeScript code. You can just output JSON and consume it with kubectl. You can read data from whatever format you want, process it and output JSON. You can write your little functions to reduce boilerplate. There are many options that are obvious once you just embrace JavaScript.Of course most other programming languages will work just as well, it's just JavaScript being the most natural fit for JSON.",
     "parent": 45904202,
     "depth": 2
   },
   {
-    "id": 45911869,
-    "by": "mattcanhack",
-    "timeISO": "2025-11-13T07:33:16.000Z",
-    "textPlain": "Like the others, I'm using a programming language except it is Javascript because we're a Node.js company. It actually works well enough",
+    "id": 45911252,
+    "by": "tribaal",
+    "timeISO": "2025-11-13T05:58:45.000Z",
+    "textPlain": "Probably an unpopular opinion, but it’s been a couple of jobs that I write “just python” to generate k8s manifests, and it works really, really well.There’s packages. You can write functions. You can write tests trivially (the output is basically a giant map that you just write out as yaml)…I’m applying this to other areas too with great success, for example our snowflake IaC is “just python” that generates SQL. It’s great.",
     "parent": 45904202,
     "depth": 2
   },
@@ -240,11 +272,11 @@
     "depth": 2
   },
   {
-    "id": 45911820,
-    "by": "mch82",
-    "timeISO": "2025-11-13T07:26:44.000Z",
-    "textPlain": "Can you recommend any articles about minimum scale necessary to make Kubernetes worth it?",
-    "parent": 45911463,
+    "id": 45911869,
+    "by": "mattcanhack",
+    "timeISO": "2025-11-13T07:33:16.000Z",
+    "textPlain": "Like the others, I'm using a programming language except it is Javascript because we're a Node.js company. It actually works well enough",
+    "parent": 45904202,
     "depth": 2
   },
   {
@@ -261,6 +293,14 @@
     "timeISO": "2025-11-12T18:56:33.000Z",
     "textPlain": "No commits in 3 months.",
     "parent": 45904140,
+    "depth": 2
+  },
+  {
+    "id": 45911820,
+    "by": "mch82",
+    "timeISO": "2025-11-13T07:26:44.000Z",
+    "textPlain": "Can you recommend any articles about minimum scale necessary to make Kubernetes worth it?",
+    "parent": 45911463,
     "depth": 2
   },
   {
