@@ -64,10 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45919718,
-    "by": "schmichael",
-    "timeISO": "2025-11-13T19:57:51.000Z",
-    "textPlain": "> Really, setting the interval balances speed of detection/cost of slow detection vs cost of reacting to a momentary interruption.Another option is dynamically adjusting heartbeat interval based on cluster-size to ensure processing heartbeats has a fixed cost. That's what Nomad does and in my 10 year fuzzy memory heartbeating has never caused resource constraints on the schedulers: https://developer.hashicorp.com/nomad/docs/configuration/ser... For reference clusters are commonly over 10k nodes and to my knowledge peak between 20k-30k. At least if anyone is running Nomad larger than that I'd love to hear from them!That being said the default of 50/s is probably too low, and the liveness tradeoff we force on users is probably not articulated clearly enough.As an off-the-shelf scheduler we can't encode liveness costs for our users unfortunately, but we try to offer the right knobs to adjust it including per-workload parameters for what to do when heartbeats fail: https://developer.hashicorp.com/nomad/docs/job-specification...(Disclaimer: I'm on the Nomad team)",
+    "id": 45920574,
+    "by": "tstack",
+    "timeISO": "2025-11-13T21:09:47.000Z",
+    "textPlain": "> ... push it into overload ...Oh, oh, I get to talk about my favorite bug!I was working on network-booting servers with iPXE and we got a bug saying that things were working fine until the cluster size went over 4/5 machines.  In a larger cluster, machines would not come up from a reboot.  I thought QA was just being silly, why would the size of the cluster matter?  I took a closer look and, sure enough, was able to reproduce the bug.  Basically, the machine would sit there stuck trying to download the boot image over TCP from the server.After some investigation, it turned out to be related to the heartbeats sent between machines (they were ICMP pings).  Since iPXE is a very nice and fancy bootloader, it will happily respond to ICMP pings.  Note that, in order to do this, it would do an ARP to find address to send the response to.  Unfortunately, the size of the ARP cache was pretty small since this was \"embedded\" software (take a guess how big the cache was...).  Essentially, while iPXE was downloading the image, the address of the image server would get pushed out of the ARP cache by all these heartbeats.  Thus, the download would suffer since it had to constantly pause to redo the ARP request.  So, things would work with a smaller cluster size since the ARP cache was big enough to keep track of the download server and the peers in the cluster.I think I \"fixed\" it by responding to the ICMP using the source MAC address (making sure it wasn't broadcast) rather than doing an ARP.",
     "parent": 45916565,
     "depth": 2
   },
@@ -76,6 +76,14 @@
     "by": "hinkley",
     "timeISO": "2025-11-13T18:19:31.000Z",
     "textPlain": "When systems were smaller I tried to push for the realization that I don’t need a heartbeat from a machine that is currently returning status 200 messages from 60 req/s. The evidence of work is already there, and more meaningful than the status check.We end up adding real work to the status checks often enough anyway, to make sure the database is still visible and other services. So inference has a lot of power that a heartbeat does not.",
+    "parent": 45916565,
+    "depth": 2
+  },
+  {
+    "id": 45919718,
+    "by": "schmichael",
+    "timeISO": "2025-11-13T19:57:51.000Z",
+    "textPlain": "> Really, setting the interval balances speed of detection/cost of slow detection vs cost of reacting to a momentary interruption.Another option is dynamically adjusting heartbeat interval based on cluster-size to ensure processing heartbeats has a fixed cost. That's what Nomad does and in my 10 year fuzzy memory heartbeating has never caused resource constraints on the schedulers: https://developer.hashicorp.com/nomad/docs/configuration/ser... For reference clusters are commonly over 10k nodes and to my knowledge peak between 20k-30k. At least if anyone is running Nomad larger than that I'd love to hear from them!That being said the default of 50/s is probably too low, and the liveness tradeoff we force on users is probably not articulated clearly enough.As an off-the-shelf scheduler we can't encode liveness costs for our users unfortunately, but we try to offer the right knobs to adjust it including per-workload parameters for what to do when heartbeats fail: https://developer.hashicorp.com/nomad/docs/job-specification...(Disclaimer: I'm on the Nomad team)",
     "parent": 45916565,
     "depth": 2
   },
