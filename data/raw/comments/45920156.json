@@ -1,9 +1,17 @@
 [
   {
-    "id": 45921346,
-    "by": "nogridbag",
-    "timeISO": "2025-11-13T22:14:14.000Z",
-    "textPlain": "Are there any plans for supporting other databases? Our company primarily uses and has experience managing MySQL deployments. I evaluated Temporal some time ago as it seemed like a good fit for what we're building so I'm watching this closely. Thanks!",
+    "id": 45921935,
+    "by": "layer8",
+    "timeISO": "2025-11-13T23:09:33.000Z",
+    "textPlain": "It’s not clear what part of the functionality is specific to Postgres, and why. In particular in the Java world, you would expect any JDBC backend to be able to do the job.",
+    "parent": 45920156,
+    "depth": 1
+  },
+  {
+    "id": 45921834,
+    "by": "rileymichael",
+    "timeISO": "2025-11-13T22:58:57.000Z",
+    "textPlain": "glad to see the java sdk released, i've been following it for a while.one of the rough edges i've noticed w/DBOS is for workflows that span multiple services. all of the examples are contained in a single application and thus use a single dbos 'system db' instance. if you have multiple services (as you often do in the real world) that need to participate in a workflow.. you really can't. you need to break them into multiple workflows and enqueue them in each service by creating an instance of the dbos client pointed at the other services system db. aside from the obvious overhead from fragmenting a workflow into multiple (and that you have to push to the service instead of a worker pulling the step), that means that every service needs to be aware of and have access to, every other services system db. also worth noting that sharing a single system db between services was not advised when i asked.(docs for the above: https://docs.dbos.dev/architecture#using-dbos-in-a-distribut...)",
     "parent": 45920156,
     "depth": 1
   },
@@ -12,6 +20,14 @@
     "by": "reecardo",
     "timeISO": "2025-11-13T22:07:56.000Z",
     "textPlain": "We are increasingly using Temporal with Temporal Cloud and soon Nexus to manage numerous workflows. I'm curious what type of observability is avialable for DBOS and how much of that you get for \"free\". The reason we ended up in Temporal was not that previous job-systems were unreliable, it was simply that nobody wanted to go dig through a database to find out what happened with their job, and nobody has time/energy to build a UI just for that purpose.",
+    "parent": 45920156,
+    "depth": 1
+  },
+  {
+    "id": 45921346,
+    "by": "nogridbag",
+    "timeISO": "2025-11-13T22:14:14.000Z",
+    "textPlain": "Are there any plans for supporting other databases? Our company primarily uses and has experience managing MySQL deployments. I evaluated Temporal some time ago as it seemed like a good fit for what we're building so I'm watching this closely. Thanks!",
     "parent": 45920156,
     "depth": 1
   },
@@ -32,26 +48,50 @@
     "depth": 1
   },
   {
-    "id": 45921449,
-    "by": "qianli_cs",
-    "timeISO": "2025-11-13T22:22:34.000Z",
-    "textPlain": "Thanks! On the Python side, we already support SQLite out of the box. Supporting additional databases is feasible from an engineering standpoint, because the core is just SQ,L and we're likely to add more backends over time.Right now, we're focusing on Postgres because it's the most widely adopted database in our user base, and as a startup we need to stay focused. But architecturally, nothing is preventing us from supporting more engines going forward.",
-    "parent": 45921346,
+    "id": 45921989,
+    "by": "KraftyOne",
+    "timeISO": "2025-11-13T23:15:02.000Z",
+    "textPlain": "We actually wrote a blog post recently on why we chose Postgres! https://www.dbos.dev/blog/why-postgres-durable-executionThere's no technical reason why this couldn't be done with another database, and we may add support for more in the future (DBOS Python already supports SQLite), but we're not working on it right now.",
+    "parent": 45921935,
+    "depth": 2
+  },
+  {
+    "id": 45921970,
+    "by": "KraftyOne",
+    "timeISO": "2025-11-13T23:12:55.000Z",
+    "textPlain": "Thanks for the great feedback! Yeah, for isolation we recommend each service have its own system database and communicate via clients (so service A starts a workflow in service B by creating a client and calling \"client.enqueue\").How could we make this experience better while keeping DBOS a simple library? One improvement that comes to mind is to add an \"application name\" field to the workflows table so that multiple applications could share a system database. Then one application could directly enqueue a workflow to another application by specifying its name, and workflow observability tooling would work cross-application.",
+    "parent": 45921834,
     "depth": 2
   },
   {
     "id": 45921434,
     "by": "KraftyOne",
     "timeISO": "2025-11-13T22:21:18.000Z",
-    "textPlain": "There's an observability and workflow management UI: https://docs.dbos.dev/java/tutorials/workflow-managementYou can view your workflows and queues, search/filter them by any number of criteria, visualize graphs of workflow steps, cancel workflows, resume workflows, restart workflows from a specific step--everything you'd want.Currently, this is available as a cloud offering (Conductor), but we're also releasing a self-hostable version of it soon.",
+    "textPlain": "There's an observability and workflow management UI: https://docs.dbos.dev/java/tutorials/workflow-managementYou can view your workflows and queues, search/filter them by any number of criteria, visualize graphs of workflow steps, cancel workflows, resume workflows, restart workflows from a specific step--everything you'd want.Currently, this is available as a managed offering (Conductor - https://docs.dbos.dev/production/self-hosting/conductor), but we're also releasing a self-hostable version of it soon.",
     "parent": 45921270,
+    "depth": 2
+  },
+  {
+    "id": 45921452,
+    "by": "KraftyOne",
+    "timeISO": "2025-11-13T22:22:53.000Z",
+    "textPlain": "Our primary focus is Postgres. DBOS Python recently added SQLite support, we'll add this to other languages if it proves popular, but no current plans for MySQL.That said, while DBOS requires Postgres for its own checkpoints, it can (and often is) used alongside other databases like MySQL for application data.",
+    "parent": 45921346,
+    "depth": 2
+  },
+  {
+    "id": 45921499,
+    "by": "qianli_cs",
+    "timeISO": "2025-11-13T22:27:08.000Z",
+    "textPlain": "To build on what Peter said, we need to stay focused and make one backend solid before expanding. But architecturally, nothing prevents us from supporting more engines going forward.",
+    "parent": 45921346,
     "depth": 2
   },
   {
     "id": 45921399,
     "by": "KraftyOne",
     "timeISO": "2025-11-13T22:18:24.000Z",
-    "textPlain": "gevent works with DBOS Python out of the box (sync DBOS uses Python threading APIs and psycopg3 that gevent monkeypatches).Have you run into any issues using DBOS Python with gevent?  Please let us know!",
+    "textPlain": "DBOS Python works with gevent out of the box (sync DBOS uses Python threading APIs and psycopg3 that gevent monkeypatches).Have you run into any issues using DBOS Python with gevent?  Please let us know!",
     "parent": 45921239,
     "depth": 2
   },
@@ -61,6 +101,14 @@
     "timeISO": "2025-11-13T22:07:58.000Z",
     "textPlain": "Upvote on this! Currently building out a project using Flask and gevent, and would love to use DBOS python with my Flask gevent project",
     "parent": 45921239,
+    "depth": 2
+  },
+  {
+    "id": 45922000,
+    "by": "KraftyOne",
+    "timeISO": "2025-11-13T23:16:40.000Z",
+    "textPlain": "One thing we're looking at right now is what it would take to support Clojure or Kotlin.",
+    "parent": 45921091,
     "depth": 2
   }
 ]
