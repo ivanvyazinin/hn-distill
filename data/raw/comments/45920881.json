@@ -1,1 +1,178 @@
-[]
+[
+  {
+    "id": 45922380,
+    "by": "andy99",
+    "timeISO": "2025-11-14T00:13:06.000Z",
+    "textPlain": "Awk? https://adamdrake.com/command-line-tools-can-be-235x-faster-...",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922418,
+    "by": "luizfelberti",
+    "timeISO": "2025-11-14T00:17:55.000Z",
+    "textPlain": "Honestly this benchmark feels completely dominated by the instance's NIC capacity.They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)Minute differences in how these query engines schedule IO would have drastic effects in the benchmark outcomes, and I doubt the query engine itself was constantly fed during this workload, especially when evaluating DuckDB and Polars.The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922175,
+    "by": "esafak",
+    "timeISO": "2025-11-13T23:42:11.000Z",
+    "textPlain": "If I understand correctly, polars relies on delta-rs for Delta Lake support, and that is what does not support Deletion vectors: https://github.com/delta-io/delta-rs/issues/1094It seems like these single-node libraries can process a terabyte on a typical machine, and you'd have have over 10TB before moving to Spark.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922466,
+    "by": "jdnier",
+    "timeISO": "2025-11-14T00:25:21.000Z",
+    "textPlain": "DuckDb has a new \"DuckLake\" catalog format that would be another candidate to test. https://ducklake.select/",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922302,
+    "by": "blmarket",
+    "timeISO": "2025-11-14T00:02:26.000Z",
+    "textPlain": "Presto (a.k.a. AWS Athena) might be a faster/better alternative? Also would like to see if 650GB data is available locally.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922400,
+    "by": "co0lster",
+    "timeISO": "2025-11-14T00:16:19.000Z",
+    "textPlain": "650GB relates to size of parquet files which are compressed in reality it’s way more.32 GB of parquet cannot fit in 32GB of RAM",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45923189,
+    "by": "dogman123",
+    "timeISO": "2025-11-14T02:27:25.000Z",
+    "textPlain": "One thing that I never really see mentioned in these types of articles is that a lot of DuckDB’s functionality does not work if you need to spill to disk. iirc, percentiles/quartiles (among other aggregate functions) caused DuckDB to crash out when it spilled to disk.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45923021,
+    "by": "gdevenyi",
+    "timeISO": "2025-11-14T02:01:44.000Z",
+    "textPlain": "I hate this screenshots for commands and outputs everywhere",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922937,
+    "by": "abofh",
+    "timeISO": "2025-11-14T01:48:15.000Z",
+    "textPlain": "6$ of data does not a compelling story make.  This is not 1998",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922970,
+    "by": "hnidiots3",
+    "timeISO": "2025-11-14T01:54:08.000Z",
+    "textPlain": "650GB? We have 72PB IN S3, know people who have multiple EB in S3.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922561,
+    "by": "amluto",
+    "timeISO": "2025-11-14T00:42:55.000Z",
+    "textPlain": "It would be amusing to run this on a regular desktop computer or even a moderately nice laptop (with a fan - give it a chance!) and see how it does. 650GB will stream in quite quickly from any decent NVMe device, and those 8-16 cores might well be considerably faster than whatever cores the cloud machines are giving you.S3 is an amazingly engineered product, operates at truly impressive scale, is quite reasonably priced if you think of it as warm-to-very-cold storage with excellent durability properties, and has performance that barely holds a candle to any decent modern local storage device.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45923510,
+    "by": "mrlongroots",
+    "timeISO": "2025-11-14T03:25:54.000Z",
+    "textPlain": "Yep I think the value of the experiment is not clear.You want to use Spark for a large dataset with multiple stages. In this case, their I/O bandwidth is 1GB/s from S3. CPU memory bandwidth is 100-200GB/s for a multi-stage job. Spark is a way to pool memory for a large dataset with multiple stages, and use cluster-internal network bandwidth to do shuffling instead of storage.Maybe when you have S3 as your backend, the storage bandwidth bottleneck doesn't show up in perf, but it sure does show up in the bill. A crude rule of thumb: network bandwidth is 20X storage, main memory bandwidth is 20X network bandwidth, accelerator/GPU memory is 10X CPU. It's great that single-node DuckDB/Polars are that good, but this is like racing a taxiing aircraft against motorbikes.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45923394,
+    "by": "mrbungie",
+    "timeISO": "2025-11-14T03:05:36.000Z",
+    "textPlain": "> They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)The query being tested wouldn't scan the full files and in reality the query in most sane engines would be processing much less than 650GB of data (exploiting S3 byte-range reads): i.e. just 1 column: a timestamp, which is also correlated with the partition keys. Nowadays what I would mostly be worried about the distribution of file size, due to API calls + skew; or if the query is totally different to the common query access patterns that skips the metadata/columnar nature of the underlying parquet (i.e. doing an effective \"full scan\" over all row groups and/or columns).> The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.That's absolutely right.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45922774,
+    "by": "kccqzy",
+    "timeISO": "2025-11-14T01:16:33.000Z",
+    "textPlain": "10Gbps only? At Google where this type of processing would automatically be distributed, machines had 400Gbps NICs, not to mention other innovations like better TCP congestion control algorithms. No wonder people are tired of distributed computing.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45922622,
+    "by": "bushbaba",
+    "timeISO": "2025-11-14T00:52:44.000Z",
+    "textPlain": "I'm kind of suprised they didn't choose an ec2 instance with higher throughput. S3 can totally eek out 100s of Gibps with the right setup.BUT the author did say this is the simple stupid naive take, in which case DuckDB and Polars really shined.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45923169,
+    "by": "dukodk",
+    "timeISO": "2025-11-14T02:24:13.000Z",
+    "textPlain": "c5 is such a bad instance type, m6a would be so much better and even cheaper,\nI would love to see this on an m8a.2xlarge (7th and 8th generations don’t use SMT) and that is even cheaper and has up to 15 Gbps",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45922472,
+    "by": "mynameisash",
+    "timeISO": "2025-11-14T00:26:13.000Z",
+    "textPlain": "> It seems like these single-node libraries can process a terabyte on a typical machine, and you'd have have over 10TB before moving to Spark.I'm surprised by how often people jump to Spark because \"it's (highly) parallelizable!\" and \"you can throw more nodes at it easy-peasy!\" And yet, there are so many cases where you can just do things with better tools.Like the time a junior engineer asked for help processing 100s of ~5GB files of JSON data which turned out to be doing crazy amounts of string concatenation in Python (don't ask). It was taking something like 18 hours to run, IIRC, and writing a simple console tool to do the heavy lifting and letting Python's multiprocessing tackle it dropped the time to like 35 minutes.Right cool for the right job, people.",
+    "parent": 45922175,
+    "depth": 2
+  },
+  {
+    "id": 45922956,
+    "by": "garganzol",
+    "timeISO": "2025-11-14T01:52:01.000Z",
+    "textPlain": "DuckLake format has an unresolved built-in chicken and egg conflict: it requires SQL database to represent its catalog. But this is what some people are running away from when they choose Parquet format in the first place. Parquet = easy, SQL = hard, adding SQL to Parquet makes the resulting format hard. I would expect a catalog to be in Parquet format as well, then it becomes something self-bootstrapping and usable.",
+    "parent": 45922466,
+    "depth": 2
+  },
+  {
+    "id": 45922884,
+    "by": "barrkel",
+    "timeISO": "2025-11-14T01:37:30.000Z",
+    "textPlain": "This would speed things up since it looks like the bottleneck here is I/O.",
+    "parent": 45922400,
+    "depth": 2
+  },
+  {
+    "id": 45923261,
+    "by": "jtbaker",
+    "timeISO": "2025-11-14T02:40:25.000Z",
+    "textPlain": "I’m pretty sure I’ve done this and not had any issues. Can you share a minimum reproducible example?",
+    "parent": 45923189,
+    "depth": 2
+  },
+  {
+    "id": 45923015,
+    "by": "0cf8612b2e1e",
+    "timeISO": "2025-11-14T02:00:56.000Z",
+    "textPlain": "This is not a game of, “mine is bigger than yours”. Many many workloads in the wild are smaller than this.Motherduck have a few posts about how few people have “big data”. \nhttps://motherduck.com/blog/redshift-files-hunt-for-big-data...",
+    "parent": 45922970,
+    "depth": 2
+  },
+  {
+    "id": 45923270,
+    "by": "esafak",
+    "timeISO": "2025-11-14T02:41:18.000Z",
+    "textPlain": "That has to be multiple data sets. How big are your individual nightly jobs, and what are you processing them with?",
+    "parent": 45922970,
+    "depth": 2
+  }
+]

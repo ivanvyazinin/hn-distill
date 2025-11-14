@@ -88,14 +88,6 @@
     "depth": 2
   },
   {
-    "id": 45919718,
-    "by": "schmichael",
-    "timeISO": "2025-11-13T19:57:51.000Z",
-    "textPlain": "> Really, setting the interval balances speed of detection/cost of slow detection vs cost of reacting to a momentary interruption.Another option is dynamically adjusting heartbeat interval based on cluster-size to ensure processing heartbeats has a fixed cost. That's what Nomad does and in my 10 year fuzzy memory heartbeating has never caused resource constraints on the schedulers: https://developer.hashicorp.com/nomad/docs/configuration/ser... For reference clusters are commonly over 10k nodes and to my knowledge peak between 20k-30k. At least if anyone is running Nomad larger than that I'd love to hear from them!That being said the default of 50/s is probably too low, and the liveness tradeoff we force on users is probably not articulated clearly enough.As an off-the-shelf scheduler we can't encode liveness costs for our users unfortunately, but we try to offer the right knobs to adjust it including per-workload parameters for what to do when heartbeats fail: https://developer.hashicorp.com/nomad/docs/job-specification...(Disclaimer: I'm on the Nomad team)",
-    "parent": 45916565,
-    "depth": 2
-  },
-  {
     "id": 45916985,
     "by": "macintux",
     "timeISO": "2025-11-13T16:37:40.000Z",
@@ -108,6 +100,14 @@
     "by": "karmakaze",
     "timeISO": "2025-11-13T17:40:37.000Z",
     "textPlain": "I've dealt with exactly this. We had a couple thousand webapp server instances that had connections to a MySQL database. Each one only polled its connection for liveliness once per second, but those were little interruptions that were poking at the servers and showed up on top time consuming request charts.",
+    "parent": 45916565,
+    "depth": 2
+  },
+  {
+    "id": 45919718,
+    "by": "schmichael",
+    "timeISO": "2025-11-13T19:57:51.000Z",
+    "textPlain": "> Really, setting the interval balances speed of detection/cost of slow detection vs cost of reacting to a momentary interruption.Another option is dynamically adjusting heartbeat interval based on cluster-size to ensure processing heartbeats has a fixed cost. That's what Nomad does and in my 10 year fuzzy memory heartbeating has never caused resource constraints on the schedulers: https://developer.hashicorp.com/nomad/docs/configuration/ser... For reference clusters are commonly over 10k nodes and to my knowledge peak between 20k-30k. At least if anyone is running Nomad larger than that I'd love to hear from them!That being said the default of 50/s is probably too low, and the liveness tradeoff we force on users is probably not articulated clearly enough.As an off-the-shelf scheduler we can't encode liveness costs for our users unfortunately, but we try to offer the right knobs to adjust it including per-workload parameters for what to do when heartbeats fail: https://developer.hashicorp.com/nomad/docs/job-specification...(Disclaimer: I'm on the Nomad team)",
     "parent": 45916565,
     "depth": 2
   },
@@ -128,6 +128,14 @@
     "depth": 2
   },
   {
+    "id": 45922245,
+    "by": "Hortinstein",
+    "timeISO": "2025-11-13T23:52:00.000Z",
+    "textPlain": "Always thought Riak was a really cool database, distributed by default kinda blew my mind at the time!  Would love to hear more about basho",
+    "parent": 45916300,
+    "depth": 2
+  },
+  {
     "id": 45918445,
     "by": "westurner",
     "timeISO": "2025-11-13T18:18:04.000Z",
@@ -140,6 +148,30 @@
     "by": "the_duke",
     "timeISO": "2025-11-13T17:48:40.000Z",
     "textPlain": "Two interesting papers:* Epidemic broadcast trees: https://asc.di.fct.unl.pt/~jleitao/pdf/srds07-leitao.pdf* HyParView: https://asc.di.fct.unl.pt/~jleitao/pdf/dsn07-leitao.pdfThe iroh-gossip implementation is based on those: https://docs.rs/iroh-gossip/latest/iroh_gossip/",
+    "parent": 45916852,
+    "depth": 2
+  },
+  {
+    "id": 45922625,
+    "by": "lokar",
+    "timeISO": "2025-11-14T00:53:18.000Z",
+    "textPlain": "I’ve worked with a few, and seen a few built.  IME they are never really worth it.  They make the system much more complex, fragile and hard to debug.  The scale limits they aim to help are just not a big deal anymore.  A small group of “coordinator”  nodes to do this is much simpler and easy to build and scale.",
+    "parent": 45916852,
+    "depth": 2
+  },
+  {
+    "id": 45922050,
+    "by": "radiator",
+    "timeISO": "2025-11-13T23:23:52.000Z",
+    "textPlain": "Small example from CZMQ - High-level C Binding for ZeroMQ: http://czmq.zeromq.org/manual:zgossip . Perhaps not self-contained, one might have to read the manual of other resources, such as zactor, zsock or of the application Zyre - Local Area Clustering for Peer-to-Peer Applications https://github.com/zeromq/zyre .",
+    "parent": 45916852,
+    "depth": 2
+  },
+  {
+    "id": 45917061,
+    "by": "rishabhaiover",
+    "timeISO": "2025-11-13T16:43:48.000Z",
+    "textPlain": "https://thesecretlivesofdata.com/raft/",
     "parent": 45916852,
     "depth": 2
   },
@@ -160,11 +192,11 @@
     "depth": 2
   },
   {
-    "id": 45917061,
-    "by": "rishabhaiover",
-    "timeISO": "2025-11-13T16:43:48.000Z",
-    "textPlain": "https://thesecretlivesofdata.com/raft/",
-    "parent": 45916852,
+    "id": 45923144,
+    "by": "roncesvalles",
+    "timeISO": "2025-11-14T02:21:35.000Z",
+    "textPlain": "500ms is actually a very short interval for heartbeats in modern distributed systems. Kubernetes nodes out of the box send heartbeats every 10s, and Kubernetes only declares a node as dead when there's no heartbeat for 40s.The relevant timescale here is not CPU time but network time. There's so much jitter in networks that if your heartbeats are on CPU scale (even, say, 100ms) and you wait for 4 missed before declaring dead, you'd just be constantly failing over.",
+    "parent": 45915937,
     "depth": 2
   },
   {
@@ -180,6 +212,14 @@
     "by": "hinkley",
     "timeISO": "2025-11-13T18:25:12.000Z",
     "textPlain": "Top shelf would be noticing an anomaly in behavior for a node and then interrogating it to see what’s wrong.Automatic load balancing always gets weird, because it can end up sending more traffic to the sick server instead of less, because the results come back faster. So you have to be careful with status codes.",
+    "parent": 45915937,
+    "depth": 2
+  },
+  {
+    "id": 45922294,
+    "by": "nitwit005",
+    "timeISO": "2025-11-14T00:00:40.000Z",
+    "textPlain": "cat /proc/sys/net/ipv4/tcp_keepalive_time7200That is two hours in seconds.",
     "parent": 45915937,
     "depth": 2
   },
