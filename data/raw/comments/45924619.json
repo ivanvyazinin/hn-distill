@@ -3,7 +3,7 @@
     "id": 45928226,
     "by": "jitl",
     "timeISO": "2025-11-14T16:08:52.000Z",
-    "textPlain": "I don’t understand how you can test Postgres performance in CI or on a developer laptop. Until your tables are large and varied enough, Postgres can ignore indexes and prefer full table scans because it’s faster. Plans depend on statistics so your test data generator better output rows with the same distributions as you get in prod. Unless you have a large and representative load of concurrent queries, Postgres and filesystem caching can optimize around a single query shape, masking issues that will shit the bed in prod.Example: I wrote a recursive query that provided a huge reduction in queries issued from our app for a traversal. Worked beautifully in local, and halved p95 in our dogfood environment. Yippee! In prod? The query always timed out after 60 seconds, even though it had the same query plan as dogfood env and staging. Sad trombone noises.",
+    "textPlain": "I don’t understand how you can test Postgres performance in CI or on a developer laptop. Until your tables are large and varied enough, Postgres can ignore indexes and prefer full table scans because it’s faster. Plans depend on statistics so your test data generator better output rows with the same distributions as you get in prod. Unless you have a large and representative load of concurrent queries, Postgres and filesystem caching can optimize around a single query shape, masking issues that will shit the bed in prod.Example: I wrote a recursive query that provided a huge reduction in queries issued from our app for a traversal. Worked beautifully in local, and halved p95 in our dogfood environment. Yippee! In prod? The query always timed out after 60 seconds, even though it had the same query plan as dogfood env and staging. Sad trombone noises.For query semantics regression testing, we just write tests in our normal test framework and run them in CI like any other test. Test data setup works like any other test, and we can call some of our millions of lines of app code to help out with repetitive tasks. To prevent cross-test leakage we wrap each test in a BEGIN..ROLLBACK, and transform inner use of transactions to save points in our db client layer. I’d like to add libeatmydata to speed things up further but haven’t done so yet.",
     "parent": 45924619,
     "depth": 1
   },
@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45924912,
+    "by": "WilcoKruijer",
+    "timeISO": "2025-11-14T08:15:52.000Z",
+    "textPlain": "It's pretty terrible how poorly developers test their database queries. This looks like a great step in the right direction. I think how the ORM story in RegreSQL develops is crucial. The SQLAlchemy integration looks interesting, but at the same time super specific. There are a million ways to generate SQL statements and ORMs are just one of them. A question that comes to mind is how will you handle interactive transactions? I'd say most complexity in queries comes from the back-and-forth between database and server. Is that out of scope?Would also be fun if you could support PGLite [0], that's what I've been using to write \"unit\" tests connected to a \"real\" database.[0] https://pglite.dev/",
+    "parent": 45924619,
+    "depth": 1
+  },
+  {
     "id": 45925702,
     "by": "andy_ppp",
     "timeISO": "2025-11-14T10:49:45.000Z",
@@ -60,14 +68,6 @@
     "by": "h1fra",
     "timeISO": "2025-11-14T08:22:56.000Z",
     "textPlain": "Interesting. Perf regression can happen locally but they mostly happen in prod when data change in volume or in shape, can this run safely on a prod db?",
-    "parent": 45924619,
-    "depth": 1
-  },
-  {
-    "id": 45924912,
-    "by": "WilcoKruijer",
-    "timeISO": "2025-11-14T08:15:52.000Z",
-    "textPlain": "It's pretty terrible how poorly developers test their database queries. This looks like a great step in the right direction. I think how the ORM story in RegreSQL develops is crucial. The SQLAlchemy integration looks interesting, but at the same time super specific. There are a million ways to generate SQL statements and ORMs are just one of them. A question that comes to mind is how will you handle interactive transactions? I'd say most complexity in queries comes from the back-and-forth between database and server. Is that out of scope?Would also be fun if you could support PGLite [0], that's what I've been using to write \"unit\" tests connected to a \"real\" database.[0] https://pglite.dev/",
     "parent": 45924619,
     "depth": 1
   },
@@ -120,6 +120,46 @@
     "depth": 2
   },
   {
+    "id": 45925044,
+    "by": "jci",
+    "timeISO": "2025-11-14T08:39:03.000Z",
+    "textPlain": "My goto for this lately has been ephemeralpg [0] and pgTAP [1]. It’s been pretty great[0] https://github.com/eradman/ephemeralpg\n[1] https://github.com/theory/pgtap",
+    "parent": 45924912,
+    "depth": 2
+  },
+  {
+    "id": 45925000,
+    "by": "radimm",
+    "timeISO": "2025-11-14T08:31:22.000Z",
+    "textPlain": "OP here - I do agree some of the problems that come with SQL/ORM queries are pretty horrendous and that's exactly where I would like RegreSQL going. For now I can't promise the particular direction, but comments like this are the reason why I pushed myself to release it and keep it beyond my own playground. Thank you!",
+    "parent": 45924912,
+    "depth": 2
+  },
+  {
+    "id": 45928566,
+    "by": "sgarland",
+    "timeISO": "2025-11-14T16:37:27.000Z",
+    "textPlain": "> It's pretty terrible how poorly developers test their database queries.Yes. This becomes especially obvious when you rewrite ORM garbage for something complicated, and are told that they can’t accept it, because they’re not sure how to test it.",
+    "parent": 45924912,
+    "depth": 2
+  },
+  {
+    "id": 45925430,
+    "by": "mrasong",
+    "timeISO": "2025-11-14T09:53:05.000Z",
+    "textPlain": "Just found out about pglite, this library is insanely cool. You can even run Postgres right in the browser.",
+    "parent": 45924912,
+    "depth": 2
+  },
+  {
+    "id": 45926202,
+    "by": "jillesvangurp",
+    "timeISO": "2025-11-14T12:40:31.000Z",
+    "textPlain": "It's an area where people get conflicted between unit testing in isolation and integration testing. The compromise between those two approaches tend to be slow, flaky, and merely provide the illusion of code coverage which you shoot for with unit testing while not being quite realistic enough to push it towards the side of being a proper integration test. I've never liked tests like that and mostly consider them a typically gigantic waste of time. Code coverage is meaningless for integration tests.I deal with a lot of complex querying logic with mostly Elasticsearch. My appproach is to either unit test or integration test and just skip everything in between. With queries what I care about is that they work under realistic scenarios against the same version of Elasticsearch that we use in production. Creating test fixtures is expensive. So tests for read only querying shares the same test fixtures. That speeds things up. I don't care about separately testing simple crud operations because most of my scenarios trigger plenty of those. A unit test for that has no value to me. Unit testing whether my API can send queries to some fake Elasticsearch, empty Elasticsearch, etc. has limited value to me. There's some limited value in knowing the queries I'm sending are syntactically correct. But you get that for free with a proper integration test not failing. The unit test is redundant if you have a proper integration test. And a unit test without a proper integration test provided little practical value.What I actually do care about is all the complicated dashboard and other queries that make lot of assumptions about how data is structured, what fields are there, how they are indexed, whether they can be null, blank, or have invalid values, etc. work as intended. That kind of calls for an integration test. Anything trivial enough that a unit test would be good enough doesn't tend to need a lot of testing. Any scenario that touches enough of that stuff, kind of covers most o",
+    "parent": 45924912,
+    "depth": 2
+  },
+  {
     "id": 45926218,
     "by": "radimm",
     "timeISO": "2025-11-14T12:43:29.000Z",
@@ -157,38 +197,6 @@
     "timeISO": "2025-11-14T08:28:13.000Z",
     "textPlain": "Yeah my question exactly, another one from me would be will the best practice be to run it periodically?",
     "parent": 45924947,
-    "depth": 2
-  },
-  {
-    "id": 45925044,
-    "by": "jci",
-    "timeISO": "2025-11-14T08:39:03.000Z",
-    "textPlain": "My goto for this lately has been ephemeralpg [0] and pgTAP [1]. It’s been pretty great[0] https://github.com/eradman/ephemeralpg\n[1] https://github.com/theory/pgtap",
-    "parent": 45924912,
-    "depth": 2
-  },
-  {
-    "id": 45925000,
-    "by": "radimm",
-    "timeISO": "2025-11-14T08:31:22.000Z",
-    "textPlain": "OP here - I do agree some of the problems that come with SQL/ORM queries are pretty horrendous and that's exactly where I would like RegreSQL going. For now I can't promise the particular direction, but comments like this are the reason why I pushed myself to release it and keep it beyond my own playground. Thank you!",
-    "parent": 45924912,
-    "depth": 2
-  },
-  {
-    "id": 45925430,
-    "by": "mrasong",
-    "timeISO": "2025-11-14T09:53:05.000Z",
-    "textPlain": "Just found out about pglite, this library is insanely cool. You can even run Postgres right in the browser.",
-    "parent": 45924912,
-    "depth": 2
-  },
-  {
-    "id": 45926202,
-    "by": "jillesvangurp",
-    "timeISO": "2025-11-14T12:40:31.000Z",
-    "textPlain": "It's an area where people get conflicted between unit testing in isolation and integration testing. The compromise between those two approaches tend to be slow, flaky, and merely provide the illusion of code coverage which you shoot for with unit testing while not being quite realistic enough to push it towards the side of being a proper integration test. I've never liked tests like that and mostly consider them a typically gigantic waste of time. Code coverage is meaningless for integration tests.I deal with a lot of complex querying logic with mostly Elasticsearch. My appproach is to either unit test or integration test and just skip everything in between. With queries what I care about is that they work under realistic scenarios against the same version of Elasticsearch that we use in production. Creating test fixtures is expensive. So tests for read only querying shares the same test fixtures. That speeds things up. I don't care about separately testing simple crud operations because most of my scenarios trigger plenty of those. A unit test for that has no value to me. Unit testing whether my API can send queries to some fake Elasticsearch, empty Elasticsearch, etc. has limited value to me. There's some limited value in knowing the queries I'm sending are syntactically correct. But you get that for free with a proper integration test not failing. The unit test is redundant if you have a proper integration test. And a unit test without a proper integration test provided little practical value.What I actually do care about is all the complicated dashboard and other queries that make lot of assumptions about how data is structured, what fields are there, how they are indexed, whether they can be null, blank, or have invalid values, etc. work as intended. That kind of calls for an integration test. Anything trivial enough that a unit test would be good enough doesn't tend to need a lot of testing. Any scenario that touches enough of that stuff, kind of covers most o",
-    "parent": 45924912,
     "depth": 2
   }
 ]
