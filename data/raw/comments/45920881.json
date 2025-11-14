@@ -1,5 +1,13 @@
 [
   {
+    "id": 45926420,
+    "by": "faizshah",
+    "timeISO": "2025-11-14T13:15:56.000Z",
+    "textPlain": "I had to do something like this for a few TB of json recently. The unique thing about this workload was it was a ton of small 10-20mb files.I found that clickhouse was the fastest, but duckdb was the simplest to work with it usually just works. DuckDB was close enough to the max performance from clickhouse.I tried flink & pyspark but they were way slower (like 3-5x) than clickhouse and the code was kind of annoying. Dask and Ray were also way too slow, but dask’s parallelism was easy to code but it was just too slow. I also tried Datafusion and polars but clickhouse ended up being faster.These days I would recommend starting with DuckDB or Clickhouse for most workloads just cause it’s the easiest to work with AND has good performance. Personally I switched to using DuckDB instead of polars for most things where pandas is too slow.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
     "id": 45923942,
     "by": "srilman",
     "timeISO": "2025-11-14T04:47:58.000Z",
@@ -24,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45924300,
+    "by": "willvarfar",
+    "timeISO": "2025-11-14T06:02:24.000Z",
+    "textPlain": "I often crunch 'biggish data' on a single node using duckdb (because I love using the modern style of painless and efficient SQL engines).I don't use delta or iceberg (because I haven't needed to; I'm describing what I do, not what you can do :)), but rather just iterate over the underlying parquet files using filename listing or wildcarding.  I often run queries on BigQuery and suck down the results to a bunch of ~1GB local parquet files - way bigger than RAM - that I can then mine in duckdb using wildcarding.  Works great!I'm in a world where I get into the weeds of 'this kind of aggregation works much faster on Bigquery than duckdb, or vice versa, so I'll split my job into this part of sql running on Bigquery then feeding into this part running in duckdb'.  It's the fun end of data engineering.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
     "id": 45925694,
     "by": "l_c_m",
     "timeISO": "2025-11-14T10:48:55.000Z",
@@ -36,14 +52,6 @@
     "by": "DiskoHexyl",
     "timeISO": "2025-11-14T11:17:50.000Z",
     "textPlain": "Hardly a surprise, given the nature of Spark and benchmark prerequisites.\nComparing a positively ancient distributed JVM-based compute framework running on a single node, with modern native tools like DuckDB or Polars, and all that on a select from a single table- does it tell us something new?Even Trino runs circles around Spark, with some heavier jobs simply not completing in Spark at all (total data size up to a single PB, with about 10TB of RAM available for compute), and Trino isn't known for its extreme performance.\nStarRocks is noticeably faster still, so I wouldn't right off distributed compute just yet- at least for some applications.And even then, performance isn't the most important criterion for an analytics tool choice- more probably depends on the integrations, access control, security, ease of extendability, maintenance, scaling, support by existing instruments. Boring enterprise stuff, sure, but for those older frameworks it's all either readily available, or can be quickly added with little experience (writing a java plugin for Trino is as easy as it gets).With Duckdb or Polars (if used as a basis for a datalake/house etc) it may degrade into an entire team of engineers wasting resources on implementing the tooling around the tooling instead of providing something actually useful for the business",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
-    "id": 45924300,
-    "by": "willvarfar",
-    "timeISO": "2025-11-14T06:02:24.000Z",
-    "textPlain": "I often crunch 'biggish data' on a single node using duckdb (because I love using the modern style of painless and efficient SQL engines).I don't use delta or iceberg (because I haven't needed to; I'm describing what I do, not what you can do :)), but rather just iterate over the underlying parquet files using filename listing or wildcarding.  I often run queries on BigQuery and suck down the results to a bunch of ~1GB local parquet files - way bigger than RAM - that I can then mine in duckdb using wildcarding.  Works great!I'm in a world where I get into the weeds of 'this kind of aggregation works much faster on Bigquery than duckdb, or vice versa, so I'll split my job into this part of sql running on Bigquery then feeding into this part running in duckdb'.  It's the fun end of data engineering.",
     "parent": 45920881,
     "depth": 1
   },
@@ -64,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45924971,
-    "by": "benrutter",
-    "timeISO": "2025-11-14T08:26:39.000Z",
-    "textPlain": "I love this article! But I think this insight shouldn't be surprising. Distribution always has overheads, so if you can do things on a single machine it will almost always be faster.I think a lot of engineers expect 100 computers to be faster than 1, because of the size comparison. But we're really looking at a process here, and a process shifting data between machines will almost always have to do more stuff, and therefore be slower.Where spark/daft are needed is if you have 1tb of data or something crazy were a single machine isn't viable. If I'm honest though, I've seen a lot of occasions where someone thinks they have that happening, and none so far where they actually do.",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
     "id": 45922175,
     "by": "esafak",
     "timeISO": "2025-11-13T23:42:11.000Z",
     "textPlain": "If I understand correctly, polars relies on delta-rs for Delta Lake support, and that is what does not support Deletion vectors: https://github.com/delta-io/delta-rs/issues/1094It seems like these single-node libraries can process a terabyte on a typical machine, and you'd have have over 10TB before moving to Spark.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45924971,
+    "by": "benrutter",
+    "timeISO": "2025-11-14T08:26:39.000Z",
+    "textPlain": "I love this article! But I think this insight shouldn't be surprising. Distribution always has overheads, so if you can do things on a single machine it will almost always be faster.I think a lot of engineers expect 100 computers to be faster than 1, because of the size comparison. But we're really looking at a process here, and a process shifting data between machines will almost always have to do more stuff, and therefore be slower.Where spark/daft are needed is if you have 1tb of data or something crazy were a single machine isn't viable. If I'm honest though, I've seen a lot of occasions where someone thinks they have that happening, and none so far where they actually do.",
     "parent": 45920881,
     "depth": 1
   },
@@ -104,6 +112,14 @@
     "depth": 1
   },
   {
+    "id": 45922400,
+    "by": "co0lster",
+    "timeISO": "2025-11-14T00:16:19.000Z",
+    "textPlain": "650GB relates to size of parquet files which are compressed in reality it’s way more.32 GB of parquet cannot fit in 32GB of RAM",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
     "id": 45924713,
     "by": "mettamage",
     "timeISO": "2025-11-14T07:31:02.000Z",
@@ -120,10 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45922400,
-    "by": "co0lster",
-    "timeISO": "2025-11-14T00:16:19.000Z",
-    "textPlain": "650GB relates to size of parquet files which are compressed in reality it’s way more.32 GB of parquet cannot fit in 32GB of RAM",
+    "id": 45924349,
+    "by": "nevi-me",
+    "timeISO": "2025-11-14T06:13:50.000Z",
+    "textPlain": "The main reason why clusters still make sense is because you'll have a bunch of people accessing subsets of much larger data regularly, or competing processes that need to have their output ready at around the same time. You distribute not only compute, but also I/O, which others are pointing out to likely dominate the runtime of the benchmarks.Beyond Spark (one shouldn't really be using vanilla Spark anyways, see Apache Comet or Databricks Photon), distributing my compute makes sense because if a job takes an hour to run, (ignoring overnight jobs) there will be a bunch of people waiting for that data for an hour.If I run a 6 node cluster that makes the data available in 10 minutes, then I save in waiting time. And if I have 10 of those jobs that need to run at the same time, then I need a burst of compute to handle that.That 6 node cluster might not make sense on-prem unless I can use the compute for something else, which is where PAYG on some cloud vendor makes sense.",
     "parent": 45920881,
     "depth": 1
   },
@@ -132,14 +148,6 @@
     "by": "nikita2206",
     "timeISO": "2025-11-14T08:05:15.000Z",
     "textPlain": "I am not in data eng, but I do occasionally query data lake at my company. Where does Snowflake stand in this? (specially looking at that Modern Data Stack image)",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
-    "id": 45924349,
-    "by": "nevi-me",
-    "timeISO": "2025-11-14T06:13:50.000Z",
-    "textPlain": "The main reason why clusters still make sense is because you'll have a bunch of people accessing subsets of much larger data regularly, or competing processes that need to have their output ready at around the same time. You distribute not only compute, but also I/O, which others are pointing out to likely dominate the runtime of the benchmarks.Beyond Spark (one shouldn't really be using vanilla Spark anyways, see Apache Comet or Databricks Photon), distributing my compute makes sense because if a job takes an hour to run, (ignoring overnight jobs) there will be a bunch of people waiting for that data for an hour.If I run a 6 node cluster that makes the data available in 10 minutes, then I save in waiting time. And if I have 10 of those jobs that need to run at the same time, then I need a burst of compute to handle that.That 6 node cluster might not make sense on-prem unless I can use the compute for something else, which is where PAYG on some cloud vendor makes sense.",
     "parent": 45920881,
     "depth": 1
   },
@@ -200,6 +208,14 @@
     "depth": 1
   },
   {
+    "id": 45926485,
+    "by": "faizshah",
+    "timeISO": "2025-11-14T13:24:33.000Z",
+    "textPlain": "This isn’t true anymore we are way beyond 2014 Hadoop (what the blog post is about) at this point.Go try doing an aggregation of 650gb of json data using normal CLI tools vs duckdb or clickhouse. These tools are pipelining and parallelizing in a way that isn’t easy to do with just GNU Parallel (trust me, I’ve tried).",
+    "parent": 45924036,
+    "depth": 2
+  },
+  {
     "id": 45924145,
     "by": "Demiurge",
     "timeISO": "2025-11-14T05:27:49.000Z",
@@ -221,6 +237,14 @@
     "timeISO": "2025-11-14T07:50:21.000Z",
     "textPlain": "650GB is something one could handle using a local filesystem, no need for complex tooling.",
     "parent": 45924300,
+    "depth": 2
+  },
+  {
+    "id": 45926534,
+    "by": "Scubabear68",
+    "timeISO": "2025-11-14T13:31:31.000Z",
+    "textPlain": "This is a really good observation, and matches something I had to learn painfully over 30 years ago. At a Wall Street bank, we were trying to really push the limits with some middleware, and my mentor at the time very quietly suggested \"before you test your system's performance, understand the theoretical maximum of your setup first with no work\".The gist was - find your resource limits and saturate them and see what the best possible performance could be, then measure your system, and you can express it as a percentage of optimal. Or if you can't directly test/saturate your limits at least be aware of them.",
+    "parent": 45922418,
     "depth": 2
   },
   {
@@ -304,6 +328,14 @@
     "depth": 2
   },
   {
+    "id": 45926399,
+    "by": "rmnclmnt",
+    "timeISO": "2025-11-14T13:12:19.000Z",
+    "textPlain": "Until the product manager ask for the bill… then all of a sudden things get reconsidered",
+    "parent": 45924633,
+    "depth": 2
+  },
+  {
     "id": 45925767,
     "by": "data_marsupial",
     "timeISO": "2025-11-14T11:09:47.000Z",
@@ -320,14 +352,6 @@
     "depth": 2
   },
   {
-    "id": 45925872,
-    "by": "KeplerBoy",
-    "timeISO": "2025-11-14T11:38:08.000Z",
-    "textPlain": "It's a strided array and slows down memory access.",
-    "parent": 45925251,
-    "depth": 2
-  },
-  {
     "id": 45924123,
     "by": "m00x",
     "timeISO": "2025-11-14T05:23:51.000Z",
@@ -341,6 +365,14 @@
     "timeISO": "2025-11-14T01:37:30.000Z",
     "textPlain": "This would speed things up since it looks like the bottleneck here is I/O.",
     "parent": 45922400,
+    "depth": 2
+  },
+  {
+    "id": 45925872,
+    "by": "KeplerBoy",
+    "timeISO": "2025-11-14T11:38:08.000Z",
+    "textPlain": "It's a strided array and slows down memory access.",
+    "parent": 45925251,
     "depth": 2
   },
   {
@@ -365,38 +397,6 @@
     "timeISO": "2025-11-14T08:25:45.000Z",
     "textPlain": "I am curious as well about this, we use Snowflake, but as a software engineer I want to understand how Spark/Databricks is different, what are we missing out?How we work with data is simple, if SQL+dashboard solves the problem then we do it in Snowflake, if we need something more advanced, then code + bunch of SQL.Pretty sure ML engineers work in different ways, but I don't know that side well",
     "parent": 45924867,
-    "depth": 2
-  },
-  {
-    "id": 45923261,
-    "by": "jtbaker",
-    "timeISO": "2025-11-14T02:40:25.000Z",
-    "textPlain": "I’m pretty sure I’ve done this and not had any issues. Can you share a minimum reproducible example?",
-    "parent": 45923189,
-    "depth": 2
-  },
-  {
-    "id": 45924859,
-    "by": "tacker2000",
-    "timeISO": "2025-11-14T08:03:30.000Z",
-    "textPlain": "I also hate it. Cant read it properly on mobile and cant copy it if needed.But the worst thing is that these are not even real screenshots, the author pasted the text into some terminal window screenshot generator tool.",
-    "parent": 45923021,
-    "depth": 2
-  },
-  {
-    "id": 45923015,
-    "by": "0cf8612b2e1e",
-    "timeISO": "2025-11-14T02:00:56.000Z",
-    "textPlain": "This is not a game of, “mine is bigger than yours”. Many many workloads in the wild are smaller than this.Motherduck have a few posts about how few people have “big data”. \nhttps://motherduck.com/blog/redshift-files-hunt-for-big-data...",
-    "parent": 45922970,
-    "depth": 2
-  },
-  {
-    "id": 45923270,
-    "by": "esafak",
-    "timeISO": "2025-11-14T02:41:18.000Z",
-    "textPlain": "That has to be multiple data sets. How big are your individual nightly jobs, and what are you processing them with?",
-    "parent": 45922970,
     "depth": 2
   }
 ]
