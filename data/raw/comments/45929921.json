@@ -1,1 +1,114 @@
-[]
+[
+  {
+    "id": 45930209,
+    "by": "gtowey",
+    "timeISO": "2025-11-14T18:38:21.000Z",
+    "textPlain": "This article seems to indicate that manually triggered failovers will always fail if your application tries to maintain its normal write traffic during that process.Not that I'm discounting the author's experience, but something doesn't quite add up:- How is it possible that other users of Aurora aren't experiencing this issue basically all the time?  How could AWS not know it exists?- If they know, how is this not an urgent P0 issue for AWS? This seems like the most basic of basic usability features is 100% broken.- Is there something more nuanced to the failure case here such as does this depend on transactions in-progress? I can see how maybe the failover is waiting for in-flight transactions to close and then maybe hits a timeout where it proceeds with the other part of the failover by accident.  That could explain why it doesn't seem like the issue is more widespread.",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930371,
+    "by": "grhmc",
+    "timeISO": "2025-11-14T18:48:48.000Z",
+    "textPlain": "Yikes! This is exactly the kind of invariant I'd expect Aurora to maintain on my behalf. It is why I pay them so much...",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930459,
+    "by": "bob1029",
+    "timeISO": "2025-11-14T18:55:03.000Z",
+    "textPlain": "> Aurora's architecture differs from traditional PostgreSQL in a crucial way: it separates compute from storage.I find this approach very compelling. MSSQL has a similar thing with their hyperscale offering. It's probably the only service in Azure that I would actually use.",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930478,
+    "by": "robinduckett",
+    "timeISO": "2025-11-14T18:56:40.000Z",
+    "textPlain": "Glad to know I’m not crazy.",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930316,
+    "by": "jansommer",
+    "timeISO": "2025-11-14T18:44:44.000Z",
+    "textPlain": "People who have experience with Aurora and RDS Postgres: What's your experience in terms of performance? If you dont need multi A-Z and quick failover, can you achieve better performance with RDS and e.g. gp3 64.000 iops and 3125 throughput (assuming everything else can deliver that and cpu/mem isn't the bottleneck)? Aurora seems to be especially slow for inserts and also quite expensive compared to what I get with RDS when I estimate things in the calculator. And what's the story on read performance for Aurora vs RDS? There's an abundance of benchmarks showing Aurora is better in terms of performance but they leave out so much about their RDS config that I'm having a hard time believing them.",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930138,
+    "by": "redwood",
+    "timeISO": "2025-11-14T18:34:24.000Z",
+    "textPlain": "A good reminder of how people developing a mental model of adding read replicas as a way to scale is a slippery slope. At the end of the day you're scaling only one specific part of your system with certain consistency dynamics that are difficult to reason about",
+    "parent": 45929921,
+    "depth": 1
+  },
+  {
+    "id": 45930835,
+    "by": "aetherson",
+    "timeISO": "2025-11-14T19:18:15.000Z",
+    "textPlain": "My experience with AWS is that they are extremely, extremely parsimonious about any information they give out.  It is near-impossible to get them to give you any details about what is happening beyond the level of their API.  So my gut hunch is that they think that there's something very rare about this happening, but they refuse to give the article writer the information that might or might not help them avoid the bug.",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930512,
+    "by": "twisteriffic",
+    "timeISO": "2025-11-14T18:59:02.000Z",
+    "textPlain": ">  How is it possible that other users of Aurora aren't experiencing this issue basically all the time? How could AWS not know it exists?If it's anything like how Azure handles this kind of issue, it's likely \"lots of people have experienced it, a restart fixes it so no one cares that much, few have any idea how to figure out a root cause on their own, and the process to find a root cause with the vendor is so painful that no one ever sees it through\"",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930489,
+    "by": "theanomaly",
+    "timeISO": "2025-11-14T18:57:13.000Z",
+    "textPlain": "I'm surprised this hasn't come up more often too. When we worked with AWS on this, they confirmed there was nothing unique about our traffic pattern that would trigger this issue. We also didn't run into this race condition in any of our other regions running similar workloads. What's particularly concerning is that this seems to be a fundamental flaw in Aurora's failover mechanism that could theoretically affect anyone doing manual failover.",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930256,
+    "by": "maherbeg",
+    "timeISO": "2025-11-14T18:41:29.000Z",
+    "textPlain": "Yeah I agree, this seems like a pretty critical feature to the Aurora product itself. We saw a similar behavior recently where we had a connection pooler in between which indicates something wrong with how they propagate DNS changes during the failover. wtf aws",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930805,
+    "by": "nijave",
+    "timeISO": "2025-11-14T19:16:16.000Z",
+    "textPlain": "fwiw we haven't seen issues manually doing manual failovers for maintenance using the same/similar procedure described in the article. I imagine there is something more nuanced here and it's hard to draw too many conclusions without a lot more details being provided by AWS",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930414,
+    "by": "dboreham",
+    "timeISO": "2025-11-14T18:52:20.000Z",
+    "textPlain": "Although the article has an SEO-optimized vibe, I think it's reasonable to take it as true until refuted. My rule of thumb is that any rarely executed, very tricky operation (e.g. database writer fail over) is likely to not work because there are too many variables in play and way too few opportunities to find and fix bugs. So the overall story sounds very plausible to me. It has a feel of: it doesn't work under continuous heavy write load, in combination with some set of hardware performance parameters that plays badly with some arbitrary time out.\nNote that the system didn't actually fail. It just didn't process the fail over operation. It reverted to the original configuration and afaics preserved data.",
+    "parent": 45930209,
+    "depth": 2
+  },
+  {
+    "id": 45930616,
+    "by": "nijave",
+    "timeISO": "2025-11-14T19:05:23.000Z",
+    "textPlain": "You can hit the same problems horizontally scaling compute. One instance reads from the DB, a request hits a different instance which updates the DB. The original instance writes to the DB and overwrites the changes or makes decisions based on stale data.More broadly a distributed system problem",
+    "parent": 45930138,
+    "depth": 2
+  },
+  {
+    "id": 45930277,
+    "by": "terminalshort",
+    "timeISO": "2025-11-14T18:42:25.000Z",
+    "textPlain": "Works fine for workloads like:1. I need to grab some rows from a table2. Eventual consistency is good enoughAnd that's a lot of workloads.",
+    "parent": 45930138,
+    "depth": 2
+  }
+]
