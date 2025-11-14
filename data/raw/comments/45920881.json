@@ -1,5 +1,13 @@
 [
   {
+    "id": 45924665,
+    "by": "baq",
+    "timeISO": "2025-11-14T07:22:26.000Z",
+    "textPlain": "650GB would’ve fit in a not-exotic server ram a decade ago",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
     "id": 45923942,
     "by": "srilman",
     "timeISO": "2025-11-14T04:47:58.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45924349,
-    "by": "nevi-me",
-    "timeISO": "2025-11-14T06:13:50.000Z",
-    "textPlain": "The main reason why clusters still make sense is because you'll have a bunch of people accessing subsets of much larger data regularly, or competing processes that need to have their output ready at around the same time. You distribute not only compute, but also I/O, which others are pointing out to likely dominate the runtime of the benchmarks.Beyond Spark (one shouldn't really be using vanilla Spark anyways, see Apache Comet or Databricks Photon), distributing my compute makes sense because if a job takes an hour to run, (ignoring overnight jobs) there will be a bunch of people waiting for that data for an hour.If I run a 6 node cluster that makes the data available in 10 minutes, then I save in waiting time. And if I have 10 of those jobs that need to run at the same time, then I need a burst of compute to handle that.That 6 node cluster might not make sense on-prem unless I can use the compute for something else, which is where PAYG on some cloud vendor makes sense.",
+    "id": 45924633,
+    "by": "pu_pe",
+    "timeISO": "2025-11-14T07:14:18.000Z",
+    "textPlain": "In places I have worked at that used Databricks, I feel they chose it for the same reasons big orgs use Microsoft: it comes out of a box and has a big company behind it. Technical benchmarks or even cost considerations would be a distant second.",
     "parent": 45920881,
     "depth": 1
   },
@@ -40,6 +48,14 @@
     "depth": 1
   },
   {
+    "id": 45924542,
+    "by": "zkmon",
+    "timeISO": "2025-11-14T06:50:25.000Z",
+    "textPlain": "There are other factors as well, that drive the decision makers to clusters and big-data tech, even when the benchmarks do not justify that. At the root, the reasons are organizational, not technical. Risk aversion seeks to avoid single point of failure, needs accountability, favors outsourcing to specialists etc. Performance alone is not going to beat all of that.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
     "id": 45922418,
     "by": "luizfelberti",
     "timeISO": "2025-11-14T00:17:55.000Z",
@@ -52,6 +68,22 @@
     "by": "blmarket",
     "timeISO": "2025-11-14T00:02:26.000Z",
     "textPlain": "Presto (a.k.a. AWS Athena) might be a faster/better alternative? Also would like to see if 650GB data is available locally.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45924349,
+    "by": "nevi-me",
+    "timeISO": "2025-11-14T06:13:50.000Z",
+    "textPlain": "The main reason why clusters still make sense is because you'll have a bunch of people accessing subsets of much larger data regularly, or competing processes that need to have their output ready at around the same time. You distribute not only compute, but also I/O, which others are pointing out to likely dominate the runtime of the benchmarks.Beyond Spark (one shouldn't really be using vanilla Spark anyways, see Apache Comet or Databricks Photon), distributing my compute makes sense because if a job takes an hour to run, (ignoring overnight jobs) there will be a bunch of people waiting for that data for an hour.If I run a 6 node cluster that makes the data available in 10 minutes, then I save in waiting time. And if I have 10 of those jobs that need to run at the same time, then I need a burst of compute to handle that.That 6 node cluster might not make sense on-prem unless I can use the compute for something else, which is where PAYG on some cloud vendor makes sense.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45924489,
+    "by": "jiehong",
+    "timeISO": "2025-11-14T06:40:56.000Z",
+    "textPlain": "This is somewhat real world, except real world would probably index some parquet columns to avoid a full scan like that.",
     "parent": 45920881,
     "depth": 1
   },
@@ -120,6 +152,14 @@
     "depth": 2
   },
   {
+    "id": 45924648,
+    "by": "willvarfar",
+    "timeISO": "2025-11-14T07:19:51.000Z",
+    "textPlain": "Often, at the medium and large sized companies its not 'risk aversion', its resume padding.Architects want to build big impressive systems that justify their position and managers want that too because success is judged by size of systems and number of staff under management, not its efficiency; its all about perverse incentives.This is just a tax the scientists trying to use whatever the company settles on have to pay every time they wait for queries to run.These days scientists can just suck down a copy of a bunch of data to their laptop or a cheap cloud VM and do their crunching 'locally' there.  The company data swamp is just something they have to interface with occasionally.Of course things go pear-shaped if they get detected, so don't tell anyone :D",
+    "parent": 45924542,
+    "depth": 2
+  },
+  {
     "id": 45922561,
     "by": "amluto",
     "timeISO": "2025-11-14T00:42:55.000Z",
@@ -136,18 +176,18 @@
     "depth": 2
   },
   {
-    "id": 45923394,
-    "by": "mrbungie",
-    "timeISO": "2025-11-14T03:05:36.000Z",
-    "textPlain": "> They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)The query being tested wouldn't scan the full files and in reality the query in most sane engines would be processing much less than 650GB of data (exploiting S3 byte-range reads): i.e. just 1 column: a timestamp, which is also correlated with the partition keys. Nowadays what I would mostly be worried about the distribution of file size, due to API calls + skew; or if the query is totally different to the common query access patterns that skips the metadata/columnar nature of the underlying parquet (i.e. doing an effective \"full scan\" over all row groups and/or columns).> The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.That's absolutely right.",
-    "parent": 45922418,
-    "depth": 2
-  },
-  {
     "id": 45922774,
     "by": "kccqzy",
     "timeISO": "2025-11-14T01:16:33.000Z",
     "textPlain": "10Gbps only? At Google where this type of processing would automatically be distributed, machines had 400Gbps NICs, not to mention other innovations like better TCP congestion control algorithms. No wonder people are tired of distributed computing.",
+    "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45923394,
+    "by": "mrbungie",
+    "timeISO": "2025-11-14T03:05:36.000Z",
+    "textPlain": "> They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)The query being tested wouldn't scan the full files and in reality the query in most sane engines would be processing much less than 650GB of data (exploiting S3 byte-range reads): i.e. just 1 column: a timestamp, which is also correlated with the partition keys. Nowadays what I would mostly be worried about the distribution of file size, due to API calls + skew; or if the query is totally different to the common query access patterns that skips the metadata/columnar nature of the underlying parquet (i.e. doing an effective \"full scan\" over all row groups and/or columns).> The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.That's absolutely right.",
     "parent": 45922418,
     "depth": 2
   },
@@ -165,6 +205,14 @@
     "timeISO": "2025-11-14T02:24:13.000Z",
     "textPlain": "c5 is such a bad instance type, m6a would be so much better and even cheaper,\nI would love to see this on an m8a.2xlarge (7th and 8th generations don’t use SMT) and that is even cheaper and has up to 15 Gbps",
     "parent": 45922418,
+    "depth": 2
+  },
+  {
+    "id": 45924577,
+    "by": "fifilura",
+    "timeISO": "2025-11-14T06:59:06.000Z",
+    "textPlain": "Presto is renamed to Trino now.But I concur with what you say. It is also very cheap in both maintenance and running cost. It is just an amazing tool and you pay (RIP) pennies.",
+    "parent": 45922302,
     "depth": 2
   },
   {
