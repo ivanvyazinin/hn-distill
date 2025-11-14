@@ -32,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 45922418,
-    "by": "luizfelberti",
-    "timeISO": "2025-11-14T00:17:55.000Z",
-    "textPlain": "Honestly this benchmark feels completely dominated by the instance's NIC capacity.They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)Minute differences in how these query engines schedule IO would have drastic effects in the benchmark outcomes, and I doubt the query engine itself was constantly fed during this workload, especially when evaluating DuckDB and Polars.The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.",
+    "id": 45928099,
+    "by": "arconis987",
+    "timeISO": "2025-11-14T15:58:21.000Z",
+    "textPlain": "would like to see work like this, but for datasets in the hundreds of TB or single-digit PBbut i definitely agree about this point> Cluster fatigue is realimo, the concept of “extremely ephemeral query workers” is under-exploredstateless, maintenance-free, burstable fleets of query workers is what I would like to see more of in the future.it’s how we do it, and it gives us full-text search on multi-hundred terabyte data sets in S3, where queries finish in a handful of seconds. our approach: https://docs.scanner.dev/scanner/what-and-why/how-it-works/h...anyone else doing ephemeral query workers fleets?",
     "parent": 45920881,
     "depth": 1
   },
@@ -44,6 +44,14 @@
     "by": "faizshah",
     "timeISO": "2025-11-14T13:15:56.000Z",
     "textPlain": "I had to do something like this for a few TB of json recently. The unique thing about this workload was it was a ton of small 10-20mb files.I found that clickhouse was the fastest, but duckdb was the simplest to work with it usually just works. DuckDB was close enough to the max performance from clickhouse.I tried flink & pyspark but they were way slower (like 3-5x) than clickhouse and the code was kind of annoying. Dask and Ray were also way too slow, but dask’s parallelism was easy to code but it was just too slow. I also tried Datafusion and polars but clickhouse ended up being faster.These days I would recommend starting with DuckDB or Clickhouse for most workloads just cause it’s the easiest to work with AND has good performance. Personally I switched to using DuckDB instead of polars for most things where pandas is too slow.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922418,
+    "by": "luizfelberti",
+    "timeISO": "2025-11-14T00:17:55.000Z",
+    "textPlain": "Honestly this benchmark feels completely dominated by the instance's NIC capacity.They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)Minute differences in how these query engines schedule IO would have drastic effects in the benchmark outcomes, and I doubt the query engine itself was constantly fed during this workload, especially when evaluating DuckDB and Polars.The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.",
     "parent": 45920881,
     "depth": 1
   },
@@ -64,26 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45922302,
-    "by": "blmarket",
-    "timeISO": "2025-11-14T00:02:26.000Z",
-    "textPlain": "Presto (a.k.a. AWS Athena) might be a faster/better alternative? Also would like to see if 650GB data is available locally.",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
-    "id": 45927464,
-    "by": "knorker",
-    "timeISO": "2025-11-14T15:06:34.000Z",
-    "textPlain": "Your data fits in RAM.If this is a test of how well the process would work for big data sets, then I'm not sure it's even big enough to be able to extrapolate from.",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
     "id": 45922175,
     "by": "esafak",
     "timeISO": "2025-11-13T23:42:11.000Z",
     "textPlain": "If I understand correctly, polars relies on delta-rs for Delta Lake support, and that is what does not support Deletion vectors: https://github.com/delta-io/delta-rs/issues/1094It seems like these single-node libraries can process a terabyte on a typical machine, and you'd have have over 10TB before moving to Spark.",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45922302,
+    "by": "blmarket",
+    "timeISO": "2025-11-14T00:02:26.000Z",
+    "textPlain": "Presto (a.k.a. AWS Athena) might be a faster/better alternative? Also would like to see if 650GB data is available locally.",
     "parent": 45920881,
     "depth": 1
   },
@@ -120,18 +120,18 @@
     "depth": 1
   },
   {
-    "id": 45924542,
-    "by": "zkmon",
-    "timeISO": "2025-11-14T06:50:25.000Z",
-    "textPlain": "There are other factors as well, that drive the decision makers to clusters and big-data tech, even when the benchmarks do not justify that. At the root, the reasons are organizational, not technical. Risk aversion seeks to avoid single point of failure, needs accountability, favors outsourcing to specialists etc. Performance alone is not going to beat all of that.",
-    "parent": 45920881,
-    "depth": 1
-  },
-  {
     "id": 45922400,
     "by": "co0lster",
     "timeISO": "2025-11-14T00:16:19.000Z",
     "textPlain": "650GB relates to size of parquet files which are compressed in reality it’s way more.32 GB of parquet cannot fit in 32GB of RAM",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45924542,
+    "by": "zkmon",
+    "timeISO": "2025-11-14T06:50:25.000Z",
+    "textPlain": "There are other factors as well, that drive the decision makers to clusters and big-data tech, even when the benchmarks do not justify that. At the root, the reasons are organizational, not technical. Risk aversion seeks to avoid single point of failure, needs accountability, favors outsourcing to specialists etc. Performance alone is not going to beat all of that.",
     "parent": 45920881,
     "depth": 1
   },
@@ -156,6 +156,14 @@
     "by": "nikita2206",
     "timeISO": "2025-11-14T08:05:15.000Z",
     "textPlain": "I am not in data eng, but I do occasionally query data lake at my company. Where does Snowflake stand in this? (specially looking at that Modern Data Stack image)",
+    "parent": 45920881,
+    "depth": 1
+  },
+  {
+    "id": 45927464,
+    "by": "knorker",
+    "timeISO": "2025-11-14T15:06:34.000Z",
+    "textPlain": "Your data fits in RAM.If this is a test of how well the process would work for big data sets, then I'm not sure it's even big enough to be able to extrapolate from.",
     "parent": 45920881,
     "depth": 1
   },
@@ -264,10 +272,10 @@
     "depth": 2
   },
   {
-    "id": 45926534,
-    "by": "Scubabear68",
-    "timeISO": "2025-11-14T13:31:31.000Z",
-    "textPlain": "This is a really good observation, and matches something I had to learn painfully over 30 years ago. At a Wall Street bank, we were trying to really push the limits with some middleware, and my mentor at the time very quietly suggested \"before you test your system's performance, understand the theoretical maximum of your setup first with no work\".The gist was - find your resource limits and saturate them and see what the best possible performance could be, then measure your system, and you can express it as a percentage of optimal. Or if you can't directly test/saturate your limits at least be aware of them.",
+    "id": 45923394,
+    "by": "mrbungie",
+    "timeISO": "2025-11-14T03:05:36.000Z",
+    "textPlain": "> They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)The query being tested wouldn't scan the full files and in reality the query in most sane engines would be processing much less than 650GB of data (exploiting S3 byte-range reads): i.e. just 1 column: a timestamp, which is also correlated with the partition keys. Nowadays what I would mostly be worried about the distribution of file size, due to API calls + skew; or if the query is totally different to the common query access patterns that skips the metadata/columnar nature of the underlying parquet (i.e. doing an effective \"full scan\" over all row groups and/or columns).> The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.That's absolutely right.",
     "parent": 45922418,
     "depth": 2
   },
@@ -280,10 +288,10 @@
     "depth": 2
   },
   {
-    "id": 45923394,
-    "by": "mrbungie",
-    "timeISO": "2025-11-14T03:05:36.000Z",
-    "textPlain": "> They used a c5.4xlarge that has peak 10Gbps bandwidth, which at a constant 100% saturation would take in the ballpark of 9 minutes to load those 650GB from S3, making those 9 minutes your best case scenario for pulling the data (without even considering writing it back!)The query being tested wouldn't scan the full files and in reality the query in most sane engines would be processing much less than 650GB of data (exploiting S3 byte-range reads): i.e. just 1 column: a timestamp, which is also correlated with the partition keys. Nowadays what I would mostly be worried about the distribution of file size, due to API calls + skew; or if the query is totally different to the common query access patterns that skips the metadata/columnar nature of the underlying parquet (i.e. doing an effective \"full scan\" over all row groups and/or columns).> The irony of workloads like this is that it might be cheaper to pay for a gigantic instance to run the query and finish it quicker, than to pay for a cheaper instance taking several times longer.That's absolutely right.",
+    "id": 45926534,
+    "by": "Scubabear68",
+    "timeISO": "2025-11-14T13:31:31.000Z",
+    "textPlain": "This is a really good observation, and matches something I had to learn painfully over 30 years ago. At a Wall Street bank, we were trying to really push the limits with some middleware, and my mentor at the time very quietly suggested \"before you test your system's performance, understand the theoretical maximum of your setup first with no work\".The gist was - find your resource limits and saturate them and see what the best possible performance could be, then measure your system, and you can express it as a percentage of optimal. Or if you can't directly test/saturate your limits at least be aware of them.",
     "parent": 45922418,
     "depth": 2
   },
@@ -312,19 +320,19 @@
     "depth": 2
   },
   {
-    "id": 45924577,
-    "by": "fifilura",
-    "timeISO": "2025-11-14T06:59:06.000Z",
-    "textPlain": "Presto is renamed to Trino now.But I concur with what you say. It is also very cheap in both maintenance and running cost. It is just an amazing tool and you pay (RIP) pennies.",
-    "parent": 45922302,
-    "depth": 2
-  },
-  {
     "id": 45922472,
     "by": "mynameisash",
     "timeISO": "2025-11-14T00:26:13.000Z",
     "textPlain": "> It seems like these single-node libraries can process a terabyte on a typical machine, and you'd have have over 10TB before moving to Spark.I'm surprised by how often people jump to Spark because \"it's (highly) parallelizable!\" and \"you can throw more nodes at it easy-peasy!\" And yet, there are so many cases where you can just do things with better tools.Like the time a junior engineer asked for help processing 100s of ~5GB files of JSON data which turned out to be doing crazy amounts of string concatenation in Python (don't ask). It was taking something like 18 hours to run, IIRC, and writing a simple console tool to do the heavy lifting and letting Python's multiprocessing tackle it dropped the time to like 35 minutes.Right cool for the right job, people.",
     "parent": 45922175,
+    "depth": 2
+  },
+  {
+    "id": 45924577,
+    "by": "fifilura",
+    "timeISO": "2025-11-14T06:59:06.000Z",
+    "textPlain": "Presto is renamed to Trino now.But I concur with what you say. It is also very cheap in both maintenance and running cost. It is just an amazing tool and you pay (RIP) pennies.",
+    "parent": 45922302,
     "depth": 2
   },
   {
@@ -352,18 +360,18 @@
     "depth": 2
   },
   {
-    "id": 45926399,
-    "by": "rmnclmnt",
-    "timeISO": "2025-11-14T13:12:19.000Z",
-    "textPlain": "Until the product manager ask for the bill… then all of a sudden things get reconsidered",
-    "parent": 45924633,
-    "depth": 2
-  },
-  {
     "id": 45925767,
     "by": "data_marsupial",
     "timeISO": "2025-11-14T11:09:47.000Z",
     "textPlain": "There are real advantages from having a managed data platform compared to managing everything yourself, especially if you have a large number of data teams that need to collaborate.",
+    "parent": 45924633,
+    "depth": 2
+  },
+  {
+    "id": 45926399,
+    "by": "rmnclmnt",
+    "timeISO": "2025-11-14T13:12:19.000Z",
+    "textPlain": "Until the product manager ask for the bill… then all of a sudden things get reconsidered",
     "parent": 45924633,
     "depth": 2
   },
@@ -373,14 +381,6 @@
     "timeISO": "2025-11-14T11:38:08.000Z",
     "textPlain": "It's a strided array and slows down memory access.",
     "parent": 45925251,
-    "depth": 2
-  },
-  {
-    "id": 45924648,
-    "by": "willvarfar",
-    "timeISO": "2025-11-14T07:19:51.000Z",
-    "textPlain": "Often, at the medium and large sized companies its not 'risk aversion', its resume padding.Architects want to build big impressive systems that justify their position and managers want that too because success is judged by size of systems and number of staff under management, not its efficiency; its all about perverse incentives.This is just a tax the scientists trying to use whatever the company settles on have to pay every time they wait for queries to run.These days scientists can just suck down a copy of a bunch of data to their laptop or a cheap cloud VM and do their crunching 'locally' there.  The company data swamp is just something they have to interface with occasionally.Of course things go pear-shaped if they get detected, so don't tell anyone :D",
-    "parent": 45924542,
     "depth": 2
   },
   {
