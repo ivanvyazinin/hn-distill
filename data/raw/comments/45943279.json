@@ -1,9 +1,41 @@
 [
   {
+    "id": 45944095,
+    "by": "kklisura",
+    "timeISO": "2025-11-16T10:48:26.000Z",
+    "textPlain": "> I asked Claude if there is such a way to basically hard-code branch prediction rules into the machine code, and the answer was that there’s no way to do this on x86, but there is a way on ARM: the BEQP (predict branch taken) and BEQNP (predict branch not taken) instructions.> Those ARM instructions are just hallucinated, and the reality is actually the other way around: ARM doesn’t have a way of hard-coding ‘predictions’, but x86 does.This made me chuckle. Thanks.",
+    "parent": 45943279,
+    "depth": 1
+  },
+  {
     "id": 45943895,
     "by": "tux3",
     "timeISO": "2025-11-16T09:51:08.000Z",
     "textPlain": "My first instinct for a poorly predicted branch would be to use a conditional move.This isn't always a win, because you prevent the CPU from speculating down the wrong path, but you also prevent it from speculating the correct path.If you really don't care about the failure path and really don't mind unmaintainable low-level hacks, I can think of a few ways to get creative.First there's the whole array of anti uarch-speculation-exploit tricks in the Kernel that you can use as inspiration to control what the CPU is allowed to speculate. These little bits of assembly were reviewed by engineers from Intel and AMD, so these tricks can't stop working without also breaking the kernel with it.Another idea is to take inspiration from anti-reverse engineering tricks. Make the failure path an actual exception. I don't mean software stack unwinding, I mean divide by your boolean and then call your send function unconditionally. If the boolean is true, it costs nothing because the result of the division is unused and we just speculate past it. If the boolean is false, the CPU will raise a divide by 0 exception, and this invisible branch will never be predicted by the CPU. Then your exception handler recovers and calls the cold path.",
+    "parent": 45943279,
+    "depth": 1
+  },
+  {
+    "id": 45944007,
+    "by": "nneonneo",
+    "timeISO": "2025-11-16T10:24:45.000Z",
+    "textPlain": "What a fun problem to think about.My first instinct, knowing less about this domain than maybe I should, would be to abuse the return address predictor. I believe  CPUs will generally predict the target of a “ret” instruction using an internal stack of return addresses; some ARM flavours even make this explicit (https://developer.arm.com/documentation/den0042/0100/Unified...).The way to abuse this would be to put send() on the normal return path and call abandon() by rewriting the return address. In code:  void resolve(Transaction *t) {\n    predict(t);\n    send(t);\n  }\n\n  void predict(Transaction *t) {\n    if (!should_send(t)) *(void **)__builtin_return_address(0) = &abandon;\n  }\n\nThis isn’t exactly correct because it ignores control flow integrity (which you’d have to bypass), doesn’t work like this on every architecture, and abandon() would need to be written partly in assembly to deal with the fact that the stack is in a weird state post-return, but hopefully it conveys the idea anyway.The if in predict() is implementable as a branchless conditional move. The return address predictor should guess that predict() will return to send(), but in most cases you’ll smash the return address to point at abandon() instead.",
+    "parent": 45943279,
+    "depth": 1
+  },
+  {
+    "id": 45944062,
+    "by": "jcul",
+    "timeISO": "2025-11-16T10:40:48.000Z",
+    "textPlain": "Why not just make all the abandon transactions into fake discarded transactions, discard them at the send later. E.g. by poisoning the frame checksum or setting something invalid on them, so they get discarded.Seems you'd be doing this anyway with the dummy transactions.Then you have no branch, though may want to add dummy transactions anyway to keep the code in cache.",
+    "parent": 45943279,
+    "depth": 1
+  },
+  {
+    "id": 45944104,
+    "by": "ViolentTurkey",
+    "timeISO": "2025-11-16T10:51:16.000Z",
+    "textPlain": "Make sure your global branch history is the same when \"mistraining\" and predicting with your BTB. You may end up in the wrong BTB entry and still mess up your prediction :).",
     "parent": 45943279,
     "depth": 1
   },
@@ -14,5 +46,13 @@
     "textPlain": "Interesting problem! Not a very satisfying solution but I can't think of anything better. Even if there were hints that were respected, you'd still have the problem of the code not being in icache, unless you actually execute it occasionally.",
     "parent": 45943279,
     "depth": 1
+  },
+  {
+    "id": 45944121,
+    "by": "nandomrumber",
+    "timeISO": "2025-11-16T10:54:04.000Z",
+    "textPlain": "If a human wrote that here (on HN) someone would note the error and the poster would reply:Yes, sorry, you’re correct. I’ve usually had 97 more double ristrettos by this time in the morning.Some schools of though suggest this has already happened.",
+    "parent": 45944095,
+    "depth": 2
   }
 ]
