@@ -1,5 +1,13 @@
 [
   {
+    "id": 45947227,
+    "by": "nickysielicki",
+    "timeISO": "2025-11-16T18:28:11.000Z",
+    "textPlain": "What constraints/coordination exists with this, in terms of host driver support? What enforces that Nix does not attempt to use a newer cuda toolkit on a host with an older cuda driver?",
+    "parent": 45876884,
+    "depth": 1
+  },
+  {
     "id": 45945552,
     "by": "ronef",
     "timeISO": "2025-11-16T14:54:34.000Z",
@@ -24,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45947205,
+    "by": "jeremy_flox",
+    "timeISO": "2025-11-16T18:24:06.000Z",
+    "textPlain": "Jeremy from Flox, here, I want to chime in here so Ron can be with his family, even though he will no doubt be right back on here:Re: Relationship to nix-snapshotter and prior art\nThis is original work, though very much built on prior innovations. Our approach hooks into the upstream containerd runc shim to pull the FloxHub-managed environment and bind-mount the closure at startup. The key distinction is that we use how Flox environments are rendered to avoid Nix evaluation entirely, making it safe and fast for a k8s node to realize packages directly on the node. Less about images and containers, per se, and more out bringing the power of Flox and Nix at the buildtime end to the runtime end of SDLC.The cache story is surprisingly strong: nix store paths effectively behave like layers in the node’s registry, but with dramatically higher hit rates -- often across entirely unrelated pod deployments. Because all pods rely on the same underlying system libraries drawn from the “quantized” Flox catalog, different environments naturally share glibc, core utilities, and common dependencies, where traditional containers typically share nothing.Tools like nix-snapshotter, Nixery, and others have pioneered this space and we're grateful for that work. This rising \"post-Docker\" tide raises all ships.Re: Open Source\nThe software is brand new -- only slightly older than Ron’s baby -- and currently in alpha. KubeCon was our first opportunity for broad feedback, and we uncovered a few issues we’re still addressing. Our intent is to open-source the project once we’ve fully vetted the approach, ideally in the coming weeks.Yes, we launched early and the product is imperfect, but we’re doing so transparently and with a commitment to getting it right and releasing it to the community, we will continue to release early and often.Re: Abstraction depth concerns\nI appreciate @rootnod3’s point about deeper abstractions complicating debugging. We’re thinking hard about how to keep things simpl",
+    "parent": 45876884,
+    "depth": 1
+  },
+  {
     "id": 45944725,
     "by": "CuriouslyC",
     "timeISO": "2025-11-16T12:48:20.000Z",
@@ -36,6 +52,14 @@
     "by": "nrhrjrjrjtntbt",
     "timeISO": "2025-11-16T10:25:51.000Z",
     "textPlain": "How does this differ from the tooling that lets you build containers from nix?",
+    "parent": 45876884,
+    "depth": 1
+  },
+  {
+    "id": 45947046,
+    "by": "nixosbestos",
+    "timeISO": "2025-11-16T18:05:14.000Z",
+    "textPlain": "So, nix-snapshotter? Also, Flox going all in on \"environments\" seems like such a choice. I'm sure that Flox is not encouraging shipping a binary-in-a-devshell to Prod, so it seems an interesting branding decision.It's hard for me to understand if I should be excited about this. I think companies do themselves such huge disservices from not being transparent to the nerds that WILL be the ones helping choose/implement these things. Instead of the current feeling I have, there could be three sentences that explains what Flox is offering here beyond what *anyone* can go do right now with nix-snapshotter.If it's ecosystem stuff (you get Flox's CI, or CLI, or whatever else), that's not very well sold to me on the landing page. Otherwise I'm feeling left empty-handed.",
     "parent": 45876884,
     "depth": 1
   },
@@ -56,18 +80,18 @@
     "depth": 2
   },
   {
-    "id": 45946685,
-    "by": "antonvs",
-    "timeISO": "2025-11-16T17:18:01.000Z",
-    "textPlain": "Kubernetes can be a godsend at larger orgs.We have six dev teams and are just about done with migrating to k8s. It's an immense improvement over what we had before.It's a version of Greenspun's tenth rule: \"Any sufficiently complicated distributed system contains an ad hoc, informally-specified, bug-ridden, slow implementation of half of Kubernetes.\"",
-    "parent": 45945357,
-    "depth": 2
-  },
-  {
     "id": 45945608,
     "by": "ronef",
     "timeISO": "2025-11-16T15:03:30.000Z",
     "textPlain": "Going to sound weird but with both my hats on I super appreciate this perspective. I can only speak to some areas of Nix and Flox obviously and I know folks are looking into doing this to your point a whole lot better. Zooming in way more into solving for us that just want to run and fix it fast when it breaks.Also, think it's a huge ecosystem win for FreeBSD pushing on reproducibility too. I think we are trending in a direction where this just becomes a critical principle for certain stacks. (also needed when you dive into AI stacks/infra...)",
+    "parent": 45945357,
+    "depth": 2
+  },
+  {
+    "id": 45946685,
+    "by": "antonvs",
+    "timeISO": "2025-11-16T17:18:01.000Z",
+    "textPlain": "Kubernetes can be a godsend at larger orgs.We have six dev teams and are just about done with migrating to k8s. It's an immense improvement over what we had before.It's a version of Greenspun's tenth rule: \"Any sufficiently complicated distributed system contains an ad hoc, informally-specified, bug-ridden, slow implementation of half of Kubernetes.\"",
     "parent": 45945357,
     "depth": 2
   },
@@ -117,6 +141,14 @@
     "timeISO": "2025-11-16T10:39:16.000Z",
     "textPlain": "seems similar to thishttps://github.com/pdtpartners/nix-snapshotterso kind of allowing pull images from nix store, mounting shared host nix store per node into each container, incremental fast rebuilds, generating basic pod configs are good things.and local, ci and remote runs same flows and envs.",
     "parent": 45944012,
+    "depth": 2
+  },
+  {
+    "id": 45947222,
+    "by": "jeremy_flox",
+    "timeISO": "2025-11-16T18:28:00.000Z",
+    "textPlain": "Totally valid - we buried the lede here. Quick version:Not nix-snapshotter because we skip Nix eval entirely and get way better cache sharing across unrelated workloads (quantized catalog means everything shares base deps). On \"environments\": these aren't devshells-as-prod, they're the actual runtime; same as 'flox activate' works everywhere.  You're shipping a declarative, hash-pinned runtime that happens to also work great in dev/CIAnd yeah, we should have been upfront that this is alpha and we're planning to open source it after vetting at KubeCon.You're right that we're doing ourselves a disservice not being transparent with the technical crowd. What specific technical details would help you evaluate this?",
+    "parent": 45947046,
     "depth": 2
   },
   {
