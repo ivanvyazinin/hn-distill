@@ -1,11 +1,27 @@
 [
   {
+    "id": 45943002,
+    "by": "Ericson2314",
+    "timeISO": "2025-11-16T05:29:54.000Z",
+    "textPlain": "Oh this is really good!I wrote https://github.com/Ericson2314/rust-papers a decade ago for a slightly different purpose, but fundamentally we agree.For those trying to grok their stuff after reading the blog post, consider this.The borrow checker vs type checker distinction is a hack, a hack that works by relegating a bunch of stuff to be \"second class\". Second class means that the stuff only occurs within functions, and never across function boundaries.Proper type theories don't have this \"within function, between function\" distinction. Just as in the lambda calculus, you can slap a lambda around any term, in \"platonic rust\" you should be able to get any fragment and make it a reusable abstraction.The author's here lens is async, which is a good point that since we need to be able to slice apart functions into smaller fragments with the boundaries at await, we need this abstraction ability. With today's Rust in contrast, the only way to do safe manual non-cheating awake would instead to be drasticly limit where one could \"await\" in practice, to never catch this interesting stuff in action.In my thing I hadn't considered async at all, but was considering a kind of dual thing. Since these inconsievable types do in fact exist (in a Rust Done Right), and since we can also combine our little functions into a bigger function, then the inescable conclusion is that locations do not have a single fixed type, but have types that vary at different points in the control flow graph. (You can try model the control flow graph as a bunch of small functions and moves, but this runs afowl of non-movable stuff, including borrowed stuff, the ur-non-moveable stuff).Finally, if we're again trying to make everything first class to have a language without cheating and frustration artificial limits on where abstraction boundaries go, we have to consider not just static locations changing type, but also pointers changing type. (We don't want to liberate some types of locations but not other",
+    "parent": 45941443,
+    "depth": 1
+  },
+  {
     "id": 45942582,
     "by": "Animats",
     "timeISO": "2025-11-16T03:42:57.000Z",
     "textPlain": "This is going to take some serious reading.I've been struggling with a related problem over at [1]. \nFeel free to read this, but it's nowhere near finished.\nI'm trying to figure out how to do back references cleanly and safely. \nThe basic approach I'm taking is- We can do just about everything useful with Rc, Weak, RefCell, borrow(), borrow_mut(), upgrade, and downgrade. But it's really wordy and there's a lot of run time overhead. Can we fix the ergonomics, for at least the single-owner case?\nProbably. The general idea is to be able to write a field access to a weak link as    sometype.name\n\nwhen what's happening under the hood is    sometype.upgrade().unwrap().borrow().name\n\n- After fixing the ergonomics, can we fix the performance by hoisting some of the checking? Probably. It's possible to check at the drop of sometype whether anybody is using it, strongly or weakly. That allows removing some of the per-reference checking. With compiler support, we can do even more.What I've discovered so far is that the way to write about this is to come up with real-word use cases, then work on the machinery. Otherwise you get lost in type theory.\nThe \"Why\" has to precede the \"How\" to get buy-in.I notice this paper is (2024). Any progress?[1] https://github.com/John-Nagle/technotes/blob/main/docs/rust/...",
     "parent": 45941443,
     "depth": 1
+  },
+  {
+    "id": 45943063,
+    "by": "Ericson2314",
+    "timeISO": "2025-11-16T05:48:03.000Z",
+    "textPlain": "The post concludes by saying it's hopeless to get this stuff implemented because back compat, but I do think that that is true. (It might be hopeless for other reasons. It certainly felt hopeless in 2015.)All this is about adding things to the language. That's backwards compatible. E.g. Drop doesn't need to be changed, because from every Drop instance a DropVer2 instance can be written instead. async v1 can also continue to exist, just by continuing to generate it's existing shitty unsafe code. And if someone wants something better, they can just use async v2 instead.People get all freaked out about changing languages, but IMO the FUD is entirely due to sloppy imperative monkey brain. Languages are ideas, and ideas are immutable. The actual question is always, can we do \"safe FFI\" between two languages. Safe FFI between Rust Edition 20WX and 20YZ is so trivial that people forget to think about it that way. C and C++ is better since C \"continues to exist\", but of course the bar for \"safe FFI\" is so low when the language themselves are unsafe within themselves so that safety between them couldn't mean very much.With harder edition breaks like this, the \"safe FFI\" mentality actually yields fruit.",
+    "parent": 45943002,
+    "depth": 2
   },
   {
     "id": 45942806,
