@@ -1,0 +1,66 @@
+[
+  {
+    "id": 45949860,
+    "by": "Izkata",
+    "timeISO": "2025-11-17T00:36:58.000Z",
+    "textPlain": "> In Why your mock doesn’t work I explained this rule of mocking:> Mock where the object is used, not where it’s defined.For anyone looking for generic advice, this is a quirk of python due to how imports work in that language (details in the linked post) and shouldn't be considered universal.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949945,
+    "by": "dherls",
+    "timeISO": "2025-11-17T00:54:40.000Z",
+    "textPlain": "This blog post talks as if mocking the `open` function is a good thing that people should be told how to do. If you are mocking anything in the standard library your code is probably structured poorly.In the example the author walks through, a cleaner way would be to have the second function take the Options as a parameter and decouple those two functions. You can then test both in isolation.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949797,
+    "by": "gsnedders",
+    "timeISO": "2025-11-17T00:24:15.000Z",
+    "textPlain": "Arguably this is a problem in when the patch is unapplied.Presumably in the coverage case it’s being called by a trace function, which inevitably runs during test execution — and while we want the trace function to be called during the test function, we really want it without any patches the test function is using. But this arguably requires both an ability for the trace function to opt-out of patches and for the patcher to provide a way to temporarily disable all of them.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949893,
+    "by": "kaashif",
+    "timeISO": "2025-11-17T00:41:32.000Z",
+    "textPlain": "Why even mock anything in this example? You need to read the source code to work out what to mock, reaching deep inside the code to name some method to mock.But what if you just passed in the contents of the file or something?Edit: oh wait actually this is what the very last line in the blog post says! But I think it should be emphasized more!",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949894,
+    "by": "lelandbatey",
+    "timeISO": "2025-11-17T00:41:48.000Z",
+    "textPlain": "I feel like the #1 reason mocks break looks nothing like this and instead looks like: you change the internal behaviors of a function/method and now the mocks interact differently with the underlying code, forcing you to change the mocks. Which highlights how awful mocking as a concept is; it is of truly limited usefulness for anything but the most brittle of tests.Don't test the wrong things; if you care about some precondition, that should be an input. If you need to measure a side effect, that should be an output. Don't tweak global state to do your testing.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949835,
+    "by": "esafak",
+    "timeISO": "2025-11-17T00:32:11.000Z",
+    "textPlain": "It is worth pointing out that you can often use containerized services as an alternative to mocking.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45950043,
+    "by": "bluGill",
+    "timeISO": "2025-11-17T01:16:52.000Z",
+    "textPlain": "Details matters, but good test doubles here are important.  You want to capture all calls to IO and do something different. You don't want tests to break because someone has a different filesystem, didn't set their home directory as you want it setup, or worse is trying to run two different tests at the same time and the other test is changing files the other wants.Note that I said test doubles.  Mocks are a bit over specific - they are about verifying functions are called at the right time with the right arguments, but the easy ability to set return values makes it easy to abuse them for other things (this abuse is good, but it is still abuse of the intent).In this case you want a fake: a smart service that when you are in a test setups a temporary directory tree that contains all the files you need in the state that particular test needs, and destroys that when the test is done (with an optional mode to keep it - useful if a test fails to see debug).  Depending on your situation you may need something for network services, time, or other such things. Note that in most cases a filesystem itself is more than fast enough to use in tests, but you need isolation from other tests.  There are a number of ways to create this fake, it could override open, or it could just be a GetMyProgramDir function that you override are two that I can think of.",
+    "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45950085,
+    "by": "bluGill",
+    "timeISO": "2025-11-17T01:24:57.000Z",
+    "textPlain": "Most of the real world is about manipulating the real world.  For algorithms it is fine to say depend on the pure inputs/outputs.  However what we care about is that global state is manipulated correctly and so the integration tests that verify that are what are important.  In most cases your algorithm shouldn't be unit tested separately since it is only used in one place and changes when the users change: there is no point in extra tests. If  the algorithm is used in many places comprehensive unit tests are important, but they get in the way when the algorithm is used only once and so the tests just inhibit changes to the algorithm as requirements change (you have to change the user, the integration tests, and the unit tests that are redundant).As such I disagree. Global state is what you should be testing - but you need to be smart about it.  How you setup and verify global state matters.   Don't confuse global state above with global state of variables, I mean the external state of the program before and after, which means network, file, time, and other IO things.",
+    "parent": 45949894,
+    "depth": 2
+  }
+]
