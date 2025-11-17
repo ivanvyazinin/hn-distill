@@ -16,18 +16,10 @@
     "depth": 1
   },
   {
-    "id": 45952702,
-    "by": "decasia",
-    "timeISO": "2025-11-17T11:30:46.000Z",
-    "textPlain": "I misinterpreted the title and was hoping that this was going to be a post about realtime algorithmic music generation from the Postgres WAL, something like the Hatnote “listen to Wikipedia edits” project.http://listen.hatnote.com/",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
-    "id": 45952749,
-    "by": "jumski",
-    "timeISO": "2025-11-17T11:38:53.000Z",
-    "textPlain": "Worth mentioning that WAL is enabling and used by Supabase Realtime [0] and WalEx [1] which both are doing very similar thing - polling the WAL changes in order to emit them as Websocket events.I never worked with WalEx but have experience with Supabase Realtime and it is a joy to work with and fits great into the Supa ecosystem. So many layers are disappearing when you rely more on Postgres![0] https://github.com/supabase/realtime\n[1] https://github.com/cpursley/walex",
+    "id": 45954145,
+    "by": "agentultra",
+    "timeISO": "2025-11-17T14:57:48.000Z",
+    "textPlain": "I wrote a Haskell library for this as well: https://hackage.haskell.org/package/postgresql-replicant",
     "parent": 45885768,
     "depth": 1
   },
@@ -40,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45951321,
-    "by": "JoelJacobson",
-    "timeISO": "2025-11-17T06:39:53.000Z",
-    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
     "id": 45951925,
     "by": "refset",
     "timeISO": "2025-11-17T08:52:41.000Z",
@@ -56,10 +40,26 @@
     "depth": 1
   },
   {
-    "id": 45953304,
-    "by": "jwsteigerwalt",
-    "timeISO": "2025-11-17T13:20:20.000Z",
-    "textPlain": "I have had great success in the past building business event alert systems for underlying salesforce data with Notify on Heroku data warehouse replications of salesforce. The potential for performance issues was always a nagging issue in the back of my head and this article is a great example why.",
+    "id": 45952702,
+    "by": "decasia",
+    "timeISO": "2025-11-17T11:30:46.000Z",
+    "textPlain": "I misinterpreted the title and was hoping that this was going to be a post about realtime algorithmic music generation from the Postgres WAL, something like the Hatnote “listen to Wikipedia edits” project.http://listen.hatnote.com/",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951321,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:39:53.000Z",
+    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45952749,
+    "by": "jumski",
+    "timeISO": "2025-11-17T11:38:53.000Z",
+    "textPlain": "Worth mentioning that WAL is enabling and used by Supabase Realtime [0] and WalEx [1] which both are doing very similar thing - polling the WAL changes in order to emit them as Websocket events.I never worked with WalEx but have experience with Supabase Realtime and it is a joy to work with and fits great into the Supa ecosystem. So many layers are disappearing when you rely more on Postgres![0] https://github.com/supabase/realtime\n[1] https://github.com/cpursley/walex",
     "parent": 45885768,
     "depth": 1
   },
@@ -72,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45953608,
-    "by": "dm03514",
-    "timeISO": "2025-11-17T14:01:03.000Z",
-    "textPlain": "Great Article! This is also timely for me, I spent all last week deep in the postgres documentation learning about replication (wish I had this article).I'm building kafka connect (i.e. Debezium) compatible replication:https://github.com/turbolytics/librarian/pull/41-----I really like the mongo change stream API. I think it elegantly hides a lot of the complexity of replication. As a side-effect of building postres -> kafka replication, I'm also trying to build a nicer replication primitive for postgres, that hides some of the underlying replication protocol complexity!",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
     "id": 45951685,
     "by": "JoelJacobson",
     "timeISO": "2025-11-17T08:01:48.000Z",
     "textPlain": "> It works, but suddenly your query times explode! Instead of doing 1 million transactions per second* you can now do only 3 (*These numbers were exaggerated for dramatic effect)In general, a single-queue design doesn’t make throughput collapse when you add more parallelism; it just gives you a fixed ceiling. With a well-designed queue, throughput goes up with concurrency, then flattens when the serialized section (the queue) saturates, maybe sagging a bit from context switching.If instead you see performance severely degrade as you add workers, that typically means there’s an additional problem beyond “we have one queue” — things like broadcast wakeups (“every event wakes every listener”), global scans on each event, or other O(N) work per operation. That’s a very different, and more serious, scalability bug than simply relying on a single queue.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45953304,
+    "by": "jwsteigerwalt",
+    "timeISO": "2025-11-17T13:20:20.000Z",
+    "textPlain": "I have had great success in the past building business event alert systems for underlying salesforce data with Notify on Heroku data warehouse replications of salesforce. The potential for performance issues was always a nagging issue in the back of my head and this article is a great example why.",
     "parent": 45885768,
     "depth": 1
   },
@@ -100,6 +100,14 @@
     "by": "edistra",
     "timeISO": "2025-11-17T09:55:56.000Z",
     "textPlain": "Thanks for the deep dive on Postgres WAL.I recently had the opportunity to play with PostgreSQL WAL in the scope of implementing opensearch cdc pipeline, and it was really exciting to see what is possible to achieve with it.Be cautious with idle replica slots though, I got bitten by inactive slots filling up the production database storage.PostgreSQL 18 introduces idle_replication_slot_timeout to mitigate this.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45953608,
+    "by": "dm03514",
+    "timeISO": "2025-11-17T14:01:03.000Z",
+    "textPlain": "Great Article! This is also timely for me, I spent all last week deep in the postgres documentation learning about replication (wish I had this article).I'm building kafka connect (i.e. Debezium) compatible replication:https://github.com/turbolytics/librarian/pull/41-----I really like the mongo change stream API. I think it elegantly hides a lot of the complexity of replication. As a side-effect of building postres -> kafka replication, I'm also trying to build a nicer replication primitive for postgres, that hides some of the underlying replication protocol complexity!",
     "parent": 45885768,
     "depth": 1
   },
@@ -136,10 +144,10 @@
     "depth": 1
   },
   {
-    "id": 45951785,
-    "by": "tobyhinloopen",
-    "timeISO": "2025-11-17T08:25:50.000Z",
-    "textPlain": "We use it like this:    CREATE TRIGGER notify_events_trg AFTER INSERT ON xxx.events FOR EACH ROW EXECUTE PROCEDURE public.notify_events();\n\n    CREATE FUNCTION public.notify_events() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n    BEGIN\n      PERFORM pg_notify('events', row_to_json(NEW)::text);\n      RETURN NEW;\n    END;\n    $$;\n\nAnd then we have a bunch of triggers like this on many tables:    CREATE TRIGGER create_category_event_trg AFTER INSERT OR DELETE OR UPDATE ON public.categories FOR EACH ROW EXECUTE PROCEDURE public.create_category_event();\n\n    CREATE FUNCTION public.create_category_event() RETURNS trigger\n        LANGUAGE plpgsql SECURITY DEFINER\n        AS $$\n    DECLARE\n      category RECORD;\n      payload JSONB;\n    BEGIN\n      category := COALESCE(NEW, OLD);\n      payload := jsonb_build_object('id', category.id);\n      IF NEW IS NULL OR NEW.deleted_at IS NOT NULL THEN\n        payload := jsonb_set(payload, '{deleted}', 'true');\n      END IF;\n      INSERT INTO xxx.events (channel, inserted_at, payload)\n        VALUES ('category', NOW() AT TIME ZONE 'utc', payload);\n      RETURN NULL;\n    END;\n    $$;\n\nWe found no notable performance issues. We have a single LISTEN in another application. We did some stress testing and found that it performs way better than we would ever need",
+    "id": 45954070,
+    "by": "barrell",
+    "timeISO": "2025-11-17T14:50:01.000Z",
+    "textPlain": "I have listen/notify on most changes in my database. Not sure I've experienced any performance issue though but I can't say I've been putting things through their paces. IMHO listen/notify's simplicity outweighed the perf gains by WAL.I'm only sharing this should it be helpful:  def up do\n    whitelist = Enum.join(@user_columns ++ [\"tick\"], \"', '\")\n\n    execute \"\"\"\n    CREATE OR REPLACE FUNCTION notify_phrasing() RETURNS trigger AS $$\n    DECLARE\n      notif jsonb;\n      col_name text;\n      col_value text;\n      uuids jsonb := '{}'::jsonb;\n      user_columns text[] := ARRAY['#{whitelist}'];\n    BEGIN\n      -- First, add all UUID columns\n      FOR col_name IN\n        SELECT column_name\n        FROM information_schema.columns\n        WHERE table_name = TG_TABLE_NAME AND data_type = 'uuid'\n      LOOP\n        EXECUTE format('SELECT ($1).%I::text', col_name)\n        INTO col_value\n        USING CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;\n\n        IF col_value IS NOT NULL THEN\n          uuids := uuids || jsonb_build_object(col_name, col_value);\n        END IF;\n      END LOOP;\n\n      -- Then, add user columns if they exist in the table\n      FOREACH col_name IN ARRAY user_columns\n      LOOP\n        IF EXISTS (\n          SELECT 1\n          FROM information_schema.columns\n          WHERE table_name = TG_TABLE_NAME AND column_name = col_name\n        ) THEN\n          EXECUTE format('SELECT ($1).%I::text', col_name)\n          INTO col_value\n          USING CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END;\n\n          IF col_value IS NOT NULL THEN\n            uuids := uuids || jsonb_build_object(col_name, col_value);\n          END IF;\n        END IF;\n      END LOOP;\n\n      notif = jsonb_build_object(\n        'table', TG_TABLE_NAME,\n        'event', TG_OP,\n        'uuids', uuids\n      );\n\n      PERFORM pg_notify('phrasing', notif::text);\n      RETURN NULL;\n    END;\n    $$ LANGUAGE plpgsql;\n    \"\"\"\n\n    # Create trigger for each table\n    Enum.each(@tables, fn table ->\n     ",
     "parent": 45951379,
     "depth": 2
   },
@@ -152,11 +160,27 @@
     "depth": 2
   },
   {
+    "id": 45951785,
+    "by": "tobyhinloopen",
+    "timeISO": "2025-11-17T08:25:50.000Z",
+    "textPlain": "We use it like this:    CREATE TRIGGER notify_events_trg AFTER INSERT ON xxx.events FOR EACH ROW EXECUTE PROCEDURE public.notify_events();\n\n    CREATE FUNCTION public.notify_events() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n    BEGIN\n      PERFORM pg_notify('events', row_to_json(NEW)::text);\n      RETURN NEW;\n    END;\n    $$;\n\nAnd then we have a bunch of triggers like this on many tables:    CREATE TRIGGER create_category_event_trg AFTER INSERT OR DELETE OR UPDATE ON public.categories FOR EACH ROW EXECUTE PROCEDURE public.create_category_event();\n\n    CREATE FUNCTION public.create_category_event() RETURNS trigger\n        LANGUAGE plpgsql SECURITY DEFINER\n        AS $$\n    DECLARE\n      category RECORD;\n      payload JSONB;\n    BEGIN\n      category := COALESCE(NEW, OLD);\n      payload := jsonb_build_object('id', category.id);\n      IF NEW IS NULL OR NEW.deleted_at IS NOT NULL THEN\n        payload := jsonb_set(payload, '{deleted}', 'true');\n      END IF;\n      INSERT INTO xxx.events (channel, inserted_at, payload)\n        VALUES ('category', NOW() AT TIME ZONE 'utc', payload);\n      RETURN NULL;\n    END;\n    $$;\n\nWe found no notable performance issues. We have a single LISTEN in another application. We did some stress testing and found that it performs way better than we would ever need",
+    "parent": 45951379,
+    "depth": 2
+  },
+  {
     "id": 45952029,
     "by": "oulipo2",
     "timeISO": "2025-11-17T09:13:03.000Z",
     "textPlain": "The post seems to say that NOTIFY is generally not a good idea, then comments here say that NOTIFY can actually work, but it depends on some particular things (which are not easy to know for newcomers to Postgres), makes it a bit complicated to know what is the way to go for a new databaseIn my case I have an IoT setting, where my devices can change their \"DesiredState\", and I want to listen on this to push some message to MQTT... but then there might be also other cases where I want to listen to some messages elsewhere (eg do something when there is an alert on a device, or listen to some unrelated object, eg users, etc)I'm not clear right now what would be the best setting to do this, the tradeoffs, etcImagine I have eg 100k to 10M range of devices, that sometimes these are updated in bulks and change their DesiredState 10k at a time, would NOTIFY work in that case? Should I use the WAL/Debezium/etc?Can you try to \"dumb down\" in which cases we can use NOTIFY/LISTEN and in which case it's best not to? you're saying something about single-channel/multi-channel/etc but to a newcomer I'm not clear on what all these are",
     "parent": 45951379,
+    "depth": 2
+  },
+  {
+    "id": 45954120,
+    "by": "barrell",
+    "timeISO": "2025-11-17T14:55:41.000Z",
+    "textPlain": "Yeah I was debating heavily between WAL and L/N. Tried to get WAL set up, struggled; tried to learn more about WAL, failed; tried to persevere, shot myself in the foot.At the end of the day the simplicity of L/N made it well worth the performance degradation. Still making thousands-to-millions of writes per second, so when the original article said they were 'exaggerating' I think they may have gone too far.I've been hoping WAL gets some more documentation love in the years/decades L/N will serve me should I ever need to upgrade, so please share more! :D",
+    "parent": 45952735,
     "depth": 2
   },
   {
