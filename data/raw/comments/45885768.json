@@ -8,10 +8,42 @@
     "depth": 1
   },
   {
+    "id": 45952749,
+    "by": "jumski",
+    "timeISO": "2025-11-17T11:38:53.000Z",
+    "textPlain": "Worth mentioning that WAL is enabling and used by Supabase Realtime [0] and WalEx [1] which both are doing very similar thing - polling the WAL changes in order to emit them as Websocket events.I never worked with WalEx but have experience with Supabase Realtime and it is a joy to work with and fits great into the Supa ecosystem. So many layers are disappearing when you rely more on Postgres![0] https://github.com/supabase/realtime\n[1] https://github.com/cpursley/walex",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45952735,
+    "by": "matharmin",
+    "timeISO": "2025-11-17T11:36:21.000Z",
+    "textPlain": "We're relying on logical replication heavily for PowerSync, and I've found it is a great tool, but it is also very low-level and under-documented. This article gives a great overview - I wish I had this when we started with our implementation.Some examples of difficulties we've ran into:\n1. LSNs for transactions (commits) are strictly increasing, but not for individual operations across transactions. You may not pick this up during basic testing, but it starts showing up when you have concurrent transactions.\n2. You cannot resume logical replication in the middle of a transaction (you have to restart the transaction), which becomes relevant when you have large transactions.\n3. In most cases, replication slots cannot be preserved when upgrading Postgres major versions.\n4. When you have multiple Postgres clusters in a HA setup, you _can_ use logical replication, but it becomes more tricky (better in recent Postgres versions, but you're still responsible for making sure the slots are synced).\n5. Replication slots can break in many different ways, and there's no good way to know all the possible failure modes until you've run into them. Especially fun when your server ran out of disk space at some point. It's a little better with Postgres 17+ exposing wal_status and invalidation_reason on pg_replication_slots.\n6. You need to make sure to acknowledge keepalive messages and not only data messages, otherwise the WAL can keep growing indefinitely when you don't have incoming changes (depending on the hosting provider).\n7. Common drivers often either don't implement the replication protocol at all, or attempt to abstract away low-level details that you actually need. Here it's great that the article actually explains the low-level protocol details.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45952702,
+    "by": "decasia",
+    "timeISO": "2025-11-17T11:30:46.000Z",
+    "textPlain": "I misinterpreted the title and was hoping that this was going to be a post about realtime algorithmic music generation from the Postgres WAL, something like the Hatnote “listen to Wikipedia edits” project.http://listen.hatnote.com/",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
     "id": 45951321,
     "by": "JoelJacobson",
     "timeISO": "2025-11-17T06:39:53.000Z",
     "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951657,
+    "by": "isidor3",
+    "timeISO": "2025-11-17T07:55:29.000Z",
+    "textPlain": "I was hoping from the title that this would be about creating an audio representation so you could listen to the database work as if it were an old PC that had distinctive sounds for different tasks",
     "parent": 45885768,
     "depth": 1
   },
@@ -24,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45951657,
-    "by": "isidor3",
-    "timeISO": "2025-11-17T07:55:29.000Z",
-    "textPlain": "I was hoping from the title that this would be about creating an audio representation so you could listen to the database work as if it were an old PC that had distinctive sounds for different tasks",
+    "id": 45951925,
+    "by": "refset",
+    "timeISO": "2025-11-17T08:52:41.000Z",
+    "textPlain": "Recently released Clojure implementation of the same pattern: https://github.com/eerohele/muutos",
     "parent": 45885768,
     "depth": 1
   },
@@ -44,14 +76,6 @@
     "by": "edistra",
     "timeISO": "2025-11-17T09:55:56.000Z",
     "textPlain": "Thanks for the deep dive on Postgres WAL.I recently had the opportunity to play with PostgreSQL WAL in the scope of implementing opensearch cdc pipeline, and it was really exciting to see what is possible to achieve with it.Be cautious with idle replica slots though, I got bitten by inactive slots filling up the production database storage.PostgreSQL 18 introduces idle_replication_slot_timeout to mitigate this.",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
-    "id": 45951925,
-    "by": "refset",
-    "timeISO": "2025-11-17T08:52:41.000Z",
-    "textPlain": "Recently released Clojure implementation of the same pattern: https://github.com/eerohele/muutos",
     "parent": 45885768,
     "depth": 1
   },
@@ -80,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45950981,
-    "by": "morshu9001",
-    "timeISO": "2025-11-17T05:08:46.000Z",
-    "textPlain": "This is cool, but also, why is pg_notify designed with such a contentious queue?",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
     "id": 45952212,
     "by": "cpursley",
     "timeISO": "2025-11-17T09:50:42.000Z",
     "textPlain": "Thanks for the WalEx mention!: https://github.com/cpursley/walex also, there’s https://github.com/sequinstream/sequin if you want something more robust that already works with connectors and smokes debezium in terms of performance and is simpler to operate.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45950981,
+    "by": "morshu9001",
+    "timeISO": "2025-11-17T05:08:46.000Z",
+    "textPlain": "This is cool, but also, why is pg_notify designed with such a contentious queue?",
     "parent": 45885768,
     "depth": 1
   },
@@ -149,6 +173,14 @@
     "timeISO": "2025-11-17T10:54:15.000Z",
     "textPlain": "For those not on 18 yet, there's also max_slot_wal_keep_size, which invalidates slots based on the amount of WAL they retain rather than based on a period of inactivity. It's available since PG 13.",
     "parent": 45952241,
+    "depth": 2
+  },
+  {
+    "id": 45952962,
+    "by": "cpursley",
+    "timeISO": "2025-11-17T12:19:50.000Z",
+    "textPlain": "Btw, the WalEx repo has some useful links to articles about the Postgres WAL",
+    "parent": 45952212,
     "depth": 2
   },
   {

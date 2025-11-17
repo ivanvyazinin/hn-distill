@@ -1,5 +1,13 @@
 [
   {
+    "id": 45952958,
+    "by": "amiga386",
+    "timeISO": "2025-11-17T12:18:30.000Z",
+    "textPlain": "So if I understand this right:* common.lin contains filenames, so that filename-expansion code in the game can work. But the offsets and sizes associated with the files are garbage* <filename>.lin contains a stream of every byte read from every file, while loading the level <filename>. The stream is then compressed in 16k chunks by zlib.* There is no indication in that stream of which real file was being read, nor the length of each read, nor what seeking was done (if any). All that metadata is gone.* The only way to recover this metadata is to run the game code and log the exact sequence of file opens, seeks, reads.* Alternatively, extract all that Unreal object loader code from the game and reimplement it yourself, so that you can let the contents of the stream drive the correct reading of the stream. The code should be deterministic.This sounds pretty hellish for the game developers, and I bet the debug versions of their game _ignored_ <filename>.lin and used the real source files, but _wrote_ <filename>.lin immediately after every load... any change to the Unreal objects could alter how they were read, and if the data streamed didn't perfectly match up with what was in the real files, you'd be toast.It reminds me of the extreme optimisation that Farbrausch did for .kkrieger -- they built a single binary, then ran and played it under instrumentation, and _any_ code path that wasn't taken was deleted from the binary to make it smaller. They forgot to take any damage in that playthrough, so all the code that applies damage to the player was deleted. Oops!",
+    "parent": 45837259,
+    "depth": 1
+  },
+  {
     "id": 45951466,
     "by": "mcdeltat",
     "timeISO": "2025-11-17T07:15:24.000Z",
@@ -12,14 +20,6 @@
     "by": "LunicLynx",
     "timeISO": "2025-11-17T03:48:05.000Z",
     "textPlain": "The Xbox had strong requirements for loading times. This is probably a linear (lin) record of how the data was loaded unoptimized from the disk. And just written to a file.So in this file seek doesn’t do anything because seek kills the requirement of 45 sec per loading screen.Instead the logic is as follows: check if a .lin file exists. Yes: open a handle to it and only read from it with fread, what ever currently is at the current file position.\nNo: while reading any file write the read bytes to a .lin file in the order they are read.This gives a highlyy optimized .lin file which can be read from the disk into memory, without creating a better dedicated loading mechanism.So if your really would like to unpack this. The first file being read is most likely the key, as it dictates what comes next. If it is a level model, then the position of the player in it might affect which other files to load etc.In short it’s not a file format in the classical sense, it’s a linear stream of game data.",
-    "parent": 45837259,
-    "depth": 1
-  },
-  {
-    "id": 45952604,
-    "by": "tomaytotomato",
-    "timeISO": "2025-11-17T11:13:32.000Z",
-    "textPlain": "Loved Splinter CellI wonder if any of the original devs will stumble upon the author's article and then remember why they did those weird file offsets.There was a difference in the PC and Xbox versions, so it will be interesting to find out if the author sees any snippets or missing game assets in the Xbox version.",
     "parent": 45837259,
     "depth": 1
   },
@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45952607,
-    "by": "suckow",
-    "timeISO": "2025-11-17T11:13:59.000Z",
-    "textPlain": "Pretty fascinating. Unfortunately, you will never see something like this in 2025 because DEI has effectively killed innovative programming. Sorry not sorry.",
-    "parent": 45837259,
-    "depth": 1
-  },
-  {
     "id": 45950954,
     "by": "vivzkestrel",
     "timeISO": "2025-11-17T05:01:05.000Z",
     "textPlain": "what about splinter cell conviction, 15 yrs and nobody has figured out its map file format .unr that uses custom unreal engine 2.x. It even has a tool that lets you unpack its UMD files https://github.com/wcolding/UMDModTemplate The library on github requires this tool unumd https://www.gildor.org/smf/index.php/topic,458.msg15196.html... The same tool also works for blacklist. I would like to change the type of enemy spawned in the map but I cannot find any assistance on it. UEExplorer doesnt work because it is some kinda custom map file",
+    "parent": 45837259,
+    "depth": 1
+  },
+  {
+    "id": 45952604,
+    "by": "tomaytotomato",
+    "timeISO": "2025-11-17T11:13:32.000Z",
+    "textPlain": "Loved Splinter CellI wonder if any of the original devs will stumble upon the author's article and then remember why they did those weird file offsets.There was a difference in the PC and Xbox versions, so it will be interesting to find out if the author sees any snippets or missing game assets in the Xbox version.",
     "parent": 45837259,
     "depth": 1
   },
@@ -88,6 +88,30 @@
     "depth": 1
   },
   {
+    "id": 45952607,
+    "by": "suckow",
+    "timeISO": "2025-11-17T11:13:59.000Z",
+    "textPlain": "[flagged]",
+    "parent": 45837259,
+    "depth": 1
+  },
+  {
+    "id": 45953054,
+    "by": "debugnik",
+    "timeISO": "2025-11-17T12:38:53.000Z",
+    "textPlain": "About .kkrieger's trimming, I had only heard that they forgot to press up on the main menu so it doesn't work, not about the damage thing.",
+    "parent": 45952958,
+    "depth": 2
+  },
+  {
+    "id": 45952910,
+    "by": "bargainbin",
+    "timeISO": "2025-11-17T12:09:12.000Z",
+    "textPlain": "Exactly that - once it’s shipped it’s shipped. Doesn’t matter if the code is “clean” or “maintainable” or whatever.The longer it’s not released for sale, the more debt you’re incurring paying the staff.I’ve worked with a few ex-game devs and they’re always great devs, specifically at optimising. They’re not great at the “forward maintainability” aspect though because they’ve largely never had experience having to do it.",
+    "parent": 45951466,
+    "depth": 2
+  },
+  {
     "id": 45951726,
     "by": "richardfey",
     "timeISO": "2025-11-17T08:11:33.000Z",
@@ -120,10 +144,10 @@
     "depth": 2
   },
   {
-    "id": 45952440,
-    "by": "mrgaro",
-    "timeISO": "2025-11-17T10:43:18.000Z",
-    "textPlain": "It helps tremendously if you have a programming background as usually the developers behind the original format didn't have any need to make things harder than they need to be. Because of this, you can often guess how the format works, aka. \"If I was the original developer, how would I do this?\"",
+    "id": 45952657,
+    "by": "LunicLynx",
+    "timeISO": "2025-11-17T11:23:03.000Z",
+    "textPlain": "The way I do it is looking for markers. Most files have some kind of magic number in the beginning. So these can valuable to recognize.The next part is always looking into the values of 32 bit or 64 bit integers, if their value is higher than 0 but less then the files size they often are offsets into the file, meaning they address specific parts.Another recommendation is to understand what you are looking for. For games, you are most likely looking for meshes and textures. For meshes in 3D every vertex of a mesh is most likely represented by 3 floats / doubles. If you see clusters of 3 floats with sensical values (e.g. without an +/-E component) its likely that your looking at real floats.When looking for textures it can help to adjust the view on the data to the same resolution of the data your looking for. For example, if you are looking for a 8bit alpha map with a resolution of 64 x 64 then try to get 64 bytes in a row in your hex editor, you might be lucky to see the pattern show up.For save games I can only reiterated what has been mentioned before. Look for unique specific values in the file as integers. For example how much gold you have.I used these technics to reverse engineer:\n* Diablo 2 save games\n* World of Worcraft adt chunks\n* .NET Assembly files (I would recommend reading the ECMA specification though)\n* jade format of Beyond good and evilAh yes, invest in a good hex editor of course. For me Hex Workshop has been part of this journey.",
     "parent": 45951804,
     "depth": 2
   },
@@ -140,6 +164,14 @@
     "by": "ashdnazg",
     "timeISO": "2025-11-17T10:03:45.000Z",
     "textPlain": "The bare basics are working with a hex editor and understanding data types - ints, floats, null-terminated strings, length-prefixed strings etc.I'd recommend taking a well documented binary file format (Doom WAD file?), go over the documentation, and see that you manage to see the individual values in the hex editor.Now, after you have a feel for how things might look in hex, look at your own file. Start by saving an empty project from your program and identifying the header, maybe it's compressed?If it's not, change a tiny thing in the program and save again, compare the files to see what changed. Or alternatively change the file a tiny bit and load it.Write a parser and add things as you learn more. If the file isn't intentionally obfuscated, it should probably be just a matter of persevering until you can parse the entire file.",
+    "parent": 45951804,
+    "depth": 2
+  },
+  {
+    "id": 45952440,
+    "by": "mrgaro",
+    "timeISO": "2025-11-17T10:43:18.000Z",
+    "textPlain": "It helps tremendously if you have a programming background as usually the developers behind the original format didn't have any need to make things harder than they need to be. Because of this, you can often guess how the format works, aka. \"If I was the original developer, how would I do this?\"",
     "parent": 45951804,
     "depth": 2
   },
