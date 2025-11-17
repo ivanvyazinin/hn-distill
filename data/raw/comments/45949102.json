@@ -24,10 +24,26 @@
     "depth": 1
   },
   {
+    "id": 45951324,
+    "by": "z3t4",
+    "timeISO": "2025-11-17T06:40:35.000Z",
+    "textPlain": "If you make the function pure it will be easier to test. Pass the moving parts as function parameters, then you can pass in the mocks in the actual functions when testing. Example:    f = () => a+b\n\nrefactor for easier testing    f = (a, b) => a+b\n\nin your test you can now mock a and b",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
     "id": 45951082,
     "by": "_ZeD_",
     "timeISO": "2025-11-17T05:36:13.000Z",
     "textPlain": "Honestly I don't buy it.\nWorse, this is one of the reason I prefer to do \"minimal integration tests\" instead of unit tests.\nTake the example snippet of code    def get_user_settings() -> str:\n        with open(Path(\"~/settings.json\").expanduser()) as f:\n            return json.load(f)\n\n    def add_two_settings() -> int:\n        settings = get_user_settings()\n        return settings[\"opt1\"] + settings[\"opt2\"]\n\nand the very first comment just below>>> The thing we want to avoid is opening a real fileand then the article goes and goes around patching stdlib stuff etc.But instead I would suggest the real way to test it is to actually create the damn file, fill it with the \"normal\" (fixed) content and then run the damn test.This is because after years of battling against mocks of various sort I find that creating the \"real\" resource is actually less finicky than monkeypatching stuff around.Apart from that; yeah, sure the code should be refactored and the paths / resources moved out of the \"pure logical\" steps, but 1) this is an example and 2) this is the reality of most of the actual code, just 10x more complex and 100x more costly to refactor.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45951893,
+    "by": "dhuan_",
+    "timeISO": "2025-11-17T08:45:47.000Z",
+    "textPlain": "Great article. In addition, updating your mocking code can often be time-consuming. To try to make this easier, I built mock[1], which streamlines the process of setting up mock services for testing.https://dhuan.github.io/mock/latest/examples.html",
     "parent": 45949102,
     "depth": 1
   },
@@ -64,12 +80,28 @@
     "depth": 1
   },
   {
+    "id": 45951389,
+    "by": "globular-toast",
+    "timeISO": "2025-11-17T06:57:57.000Z",
+    "textPlain": "The main reason why your mock breaks later is because you refactored the code. You did the one thing tests are supposed to help you do, and the tests broke. If code was never modified, you wouldn't need automated tests. You'd just test it manually one time and never touch it again. The whole point of tests is you probably will rewrite internals later as you add new features, improve performance or just figure out better ways to write things. Mock-heavy tests are completely pointless in this respect. You end up rewriting the code and the test every time you touch it.There are really only a few reasons to use mocks at all. Like avoiding network services, nondeterminism, or performance reasons. If you need to do a lot of mocking in your tests this is a red flag and a sign that you could write your code differently. In this case you could just make the config file location an optional argument and set up one in a temp location in the tests. No mocking required and you're testing the real API of the config file module.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
     "id": 45949835,
     "by": "esafak",
     "timeISO": "2025-11-17T00:32:11.000Z",
     "textPlain": "It is worth pointing out that you can often use containerized services as an alternative to mocking.",
     "parent": 45949102,
     "depth": 1
+  },
+  {
+    "id": 45952380,
+    "by": "maeln",
+    "timeISO": "2025-11-17T10:30:54.000Z",
+    "textPlain": "Funnily enough, I am preparing a simple presentation at work to speak about exactly that. The idea of separating \"logic\" from I/O and side effects is an old one and can be found in many architectures (like hexagonal architecture). There is plenty of benefit doing this, but testing is a big one.It should be obvious, but this is not something that seem to be thought in school or in most workplaces, and when it is, it's often through the lens of functional programming, which most just treat as a curiosity and not a practical thing to use at work. So I started to teach this simple design principle to all my junior dev because this is something that is actually quite easy to implement, does not need a complete shift of architecture/big refactor when working on existing code, and is actually practical and useful.",
+    "parent": 45950554,
+    "depth": 2
   },
   {
     "id": 45950929,
@@ -96,11 +128,43 @@
     "depth": 2
   },
   {
+    "id": 45952420,
+    "by": "sunrunner",
+    "timeISO": "2025-11-17T10:39:39.000Z",
+    "textPlain": "> If you are mocking anything in the standard library your code is probably structured poorly.I like Hynek Schlawak's 'Don’t Mock What You Don’t Own' [1] phrasing, and while I'm not a fan of adding too many layers of abstraction to an application that hasn't proved that it needs them, the one structure I find consistently useful is to add a very thin layer over parts that do I/O, converting to/from types that you own to whatever is needed for the actual thing.These layers should be boring and narrow (for example, never mock past validation you depend upon), doing as little conversion as possible. You can also rephrase the general purpose open()-type usage into application/purpose-specific usages of that.Then you can either unittest.mock.patch these or provide alternate stub implementations for tests in a different way, with this this approach also translating easily to other languages that don't have the (double-edged sword) flexibility of Python's own unittest.mock.[1] https://hynek.me/articles/what-to-mock-in-5-mins/",
+    "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45952302,
+    "by": "1718627440",
+    "timeISO": "2025-11-17T10:12:48.000Z",
+    "textPlain": "> This blog post talks as if mocking the `open` function is a good thing that people should be told how to do. If you are mocking anything in the standard library your code is probably structured poorly.Valgrind is a mock of standard library/OS functions and I think its existence is a good thing.  Simulating OOM is also only possible by mocking stuff like open.",
+    "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45952464,
+    "by": "vkou",
+    "timeISO": "2025-11-17T10:49:06.000Z",
+    "textPlain": "> This blog post talks as if mocking the `open` function is a good thing that people should be told how to do.It does. And this is exactly the problem, here!> TFA: The thing we want to avoid is opening a real fileNo! No, no, no! You do not 'want to avoid opening a real file' in a test.It's completely fine to open a real file in a test! If your code depends on reading input files, then your test should include real input files in it! There's no reason to mock any of this. All of this stuff is easy to set up in any unit test library worth it's salt.",
+    "parent": 45949945,
+    "depth": 2
+  },
+  {
     "id": 45950043,
     "by": "bluGill",
     "timeISO": "2025-11-17T01:16:52.000Z",
     "textPlain": "Details matters, but good test doubles here are important.  You want to capture all calls to IO and do something different. You don't want tests to break because someone has a different filesystem, didn't set their home directory as you want it setup, or worse is trying to run two different tests at the same time and the other test is changing files the other wants.Note that I said test doubles.  Mocks are a bit over specific - they are about verifying functions are called at the right time with the right arguments, but the easy ability to set return values makes it easy to abuse them for other things (this abuse is good, but it is still abuse of the intent).In this case you want a fake: a smart service that when you are in a test setups a temporary directory tree that contains all the files you need in the state that particular test needs, and destroys that when the test is done (with an optional mode to keep it - useful if a test fails to see debug).  Depending on your situation you may need something for network services, time, or other such things. Note that in most cases a filesystem itself is more than fast enough to use in tests, but you need isolation from other tests.  There are a number of ways to create this fake, it could override open, or it could just be a GetMyProgramDir function that you override are two that I can think of.",
     "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45951317,
+    "by": "riffraff",
+    "timeISO": "2025-11-17T06:39:07.000Z",
+    "textPlain": "That works fine for files, but what if the integration is with a third party service for example?You can create an actual mock networked service but it's much more work.I think this is an example explaining what seems like a good practice for using mocks in python to me, the actual code in the post is barely \"supporting cast\".",
+    "parent": 45951082,
     "depth": 2
   },
   {
