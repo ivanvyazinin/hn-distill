@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 45954703,
+    "by": "purplesyringa",
+    "timeISO": "2025-11-17T15:55:06.000Z",
+    "textPlain": "This feels like a misrepresentation of features that actually matter for memory safety. Automatically freeing locals and bounds checking is unquestionably good, but it's only the very beginning.The real problems start when you need to manage memory lifetimes across the whole program, not locally. Can you return `UniquePtr` from a function? Can you store a copy of `SharedPtr` somewhere without accidentally forgetting to increment the refcount? Who is responsible for managing the lifetimes of elements in intrusive linked lists? How do you know whether a method consumes a pointer argument or stores a copy to it somewhere?I appreciate trying to write safer software, but we've always told people `#define xfree(p) do { free(p); p = NULL; } while (0)` is a bad pattern, and this post really feels like more of the same thing.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953265,
     "by": "fuhsnn",
     "timeISO": "2025-11-17T13:13:44.000Z",
@@ -24,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 45954171,
-    "by": "edwcross",
-    "timeISO": "2025-11-17T14:59:24.000Z",
-    "textPlain": "The post mentions cgrep several times, but I don't see a link to the code. Is it available somewhere?Github has several repositories named cgrep, but the first results are written in other languages than C (Haskell, Python, Typescript, Java, etc).",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953071,
     "by": "krapht",
     "timeISO": "2025-11-17T12:41:19.000Z",
     "textPlain": "C++: \"look at what others must do to mimic a fraction of my power\"This is cute, but also I'm baffled as to why you would want to use macros to emulate c++. Nothing is stopping you from writing c-like c++ if that's what you like style wise.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45954171,
+    "by": "edwcross",
+    "timeISO": "2025-11-17T14:59:24.000Z",
+    "textPlain": "The post mentions cgrep several times, but I don't see a link to the code. Is it available somewhere?Github has several repositories named cgrep, but the first results are written in other languages than C (Haskell, Python, Typescript, Java, etc).",
     "parent": 45952428,
     "depth": 1
   },
@@ -64,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45954801,
+    "by": "bad_username",
+    "timeISO": "2025-11-17T16:02:10.000Z",
+    "textPlain": "This reminds me that Scott Meyers (IMO rightfully) considered the destructor as the single most important fearure in C++.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953156,
     "by": "HexDecOctBin",
     "timeISO": "2025-11-17T12:55:24.000Z",
@@ -84,6 +100,14 @@
     "by": "khaledh",
     "timeISO": "2025-11-17T13:25:46.000Z",
     "textPlain": "The problem with macro-laden C is that your code becomes foreign and opaque to others. You're building a new mini-language layer on top of the base language that only your codebase uses. This has been my experience with many large C projects: I see tons of macros used all over the place and I have no idea what they do unless I hunt down and understand each one of them.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45954593,
+    "by": "kerkeslager",
+    "timeISO": "2025-11-17T15:44:19.000Z",
+    "textPlain": "I feel like there might be some value in this header file for some projects, but this is exactly the wrong use case.> In cgrep, parsing command-line options the old way is a breeding ground for CVEs and its bestiary. You have to remember to free the memory on every single exit path, difficult for the undisciplined.No, no, no. Command line options that will exist the entire lifetime of the program are the quintessential case for not ever calling free() on them because it's a waste of time. There is absolutely no reason to spend processor cycles to carefully call free() on a bunch of individual resources when the program is about to exit and the OS will reclaim the entire process memory in one go much faster than your program can. You're creating complexity and making your program slower and there is literally no upside: this isn't a tradeoff, it's a bad practice.",
     "parent": 45952428,
     "depth": 1
   },
@@ -116,6 +140,14 @@
     "by": "kouteiheika",
     "timeISO": "2025-11-17T13:42:24.000Z",
     "textPlain": "> the shared pointer implementation uses a POSIX mutex [...] C++’s shared pointer has the same problemIt doesn't. C++'s shared pointers use atomics, just like Rust's Arc does. There's no good reason (unless you have some very exotic requirements, into which I won't get into here) to implement shared pointers with mutexes. The implementation in the blog post here is just suboptimal.(But it's true that C++ doesn't have Rust's equivalent of Rc, which means that if you just need a reference counted pointer then using std::shared_ptr is not a zero cost abstraction.)",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
+    "id": 45954940,
+    "by": "lelanthran",
+    "timeISO": "2025-11-17T16:14:30.000Z",
+    "textPlain": "> Intentionally or not, this post demonstrates one of the things that makes safer abstractions in C less desirable: the shared pointer implementation uses a POSIX mutex, which means it’s (1) not cross platform, and (2) pays the mutex overhead even in provably single-threaded contexts. In other words, it’s not a zero-cost abstraction.It's an implementation detail. They could have used atomic load/store (since c11) to implement the increment/decrement.TBH I'm not sure what a mutex buys you in this situation (reference counting)",
     "parent": 45953391,
     "depth": 2
   },
@@ -176,14 +208,6 @@
     "depth": 2
   },
   {
-    "id": 45954016,
-    "by": "dboon",
-    "timeISO": "2025-11-17T14:44:11.000Z",
-    "textPlain": "No name mangling by default, far simpler toolchain, no dependence on libstdc++, compiles faster, usable with TCC/chibicc (i.e. much more amenable to custom tooling, be it at the level of a lexer, parser, or full compiler).C’s simplicity can be frustrating, but it’s an extremely hackable language thanks to that simplicity. Once you opt in to C++, even nominally, you lose that.",
-    "parent": 45953071,
-    "depth": 2
-  },
-  {
     "id": 45953166,
     "by": "Lerc",
     "timeISO": "2025-11-17T12:56:43.000Z",
@@ -200,11 +224,35 @@
     "depth": 2
   },
   {
+    "id": 45954016,
+    "by": "dboon",
+    "timeISO": "2025-11-17T14:44:11.000Z",
+    "textPlain": "No name mangling by default, far simpler toolchain, no dependence on libstdc++, compiles faster, usable with TCC/chibicc (i.e. much more amenable to custom tooling, be it at the level of a lexer, parser, or full compiler).C’s simplicity can be frustrating, but it’s an extremely hackable language thanks to that simplicity. Once you opt in to C++, even nominally, you lose that.",
+    "parent": 45953071,
+    "depth": 2
+  },
+  {
     "id": 45954009,
     "by": "sesm",
     "timeISO": "2025-11-17T14:43:47.000Z",
     "textPlain": "Embedded CPU vendors not shipping C++ compilers is what usually stops people.",
     "parent": 45953071,
+    "depth": 2
+  },
+  {
+    "id": 45954632,
+    "by": "mgr86",
+    "timeISO": "2025-11-17T15:48:44.000Z",
+    "textPlain": "yes, it is frustrating. I also am not quite sure what he is referencing and would be interested in trying out cgrep for myself.",
+    "parent": 45954171,
+    "depth": 2
+  },
+  {
+    "id": 45954608,
+    "by": "1718627440",
+    "timeISO": "2025-11-17T15:46:13.000Z",
+    "textPlain": "You can use GCC on MS Windows just fine.  Installing MSYS2 will also give you a package manager.",
+    "parent": 45954041,
     "depth": 2
   },
   {
@@ -229,6 +277,14 @@
     "timeISO": "2025-11-17T13:00:06.000Z",
     "textPlain": "How can anyone be this interested in maintaining an annex k implementation when it's widely regarded as a design failure, specially the global constraint handler. There's a reason why most C toolchains don't support it.https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1967.htm",
     "parent": 45953101,
+    "depth": 2
+  },
+  {
+    "id": 45954904,
+    "by": "saghm",
+    "timeISO": "2025-11-17T16:12:05.000Z",
+    "textPlain": "If you interpret 23 as hex, that's only five years after the year, which isn't too bad!",
+    "parent": 45953156,
     "depth": 2
   },
   {
@@ -288,6 +344,14 @@
     "depth": 2
   },
   {
+    "id": 45954628,
+    "by": "krautburglar",
+    "timeISO": "2025-11-17T15:48:18.000Z",
+    "textPlain": "[dead]",
+    "parent": 45954593,
+    "depth": 2
+  },
+  {
     "id": 45953168,
     "by": "brabel",
     "timeISO": "2025-11-17T12:57:07.000Z",
@@ -320,14 +384,6 @@
     "depth": 2
   },
   {
-    "id": 45954015,
-    "by": "capitol_",
-    "timeISO": "2025-11-17T14:44:10.000Z",
-    "textPlain": "I agree, if people just had refrained from building things in c/c++ that operated on data from across a security boundary we wouldn't be in this mess.",
-    "parent": 45953126,
-    "depth": 2
-  },
-  {
     "id": 45953246,
     "by": "pjmlp",
     "timeISO": "2025-11-17T13:09:37.000Z",
@@ -336,10 +392,10 @@
     "depth": 2
   },
   {
-    "id": 45953182,
-    "by": "ReptileMan",
-    "timeISO": "2025-11-17T12:58:44.000Z",
-    "textPlain": "Actually C performs quite good in exactly that area.https://ntrs.nasa.gov/citations/19950022400",
+    "id": 45954015,
+    "by": "capitol_",
+    "timeISO": "2025-11-17T14:44:10.000Z",
+    "textPlain": "I agree, if people just had refrained from building things in c/c++ that operated on data from across a security boundary we wouldn't be in this mess.",
     "parent": 45953126,
     "depth": 2
   }
