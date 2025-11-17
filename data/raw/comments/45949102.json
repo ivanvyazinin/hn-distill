@@ -16,6 +16,22 @@
     "depth": 1
   },
   {
+    "id": 45956537,
+    "by": "DarkNova6",
+    "timeISO": "2025-11-17T18:41:21.000Z",
+    "textPlain": "> An overly aggressive mock can work fine, but then break much later. Why?Because you are testing against implementation, not specification.You’re welcome.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45951082,
+    "by": "_ZeD_",
+    "timeISO": "2025-11-17T05:36:13.000Z",
+    "textPlain": "Honestly I don't buy it.\nWorse, this is one of the reason I prefer to do \"minimal integration tests\" instead of unit tests.\nTake the example snippet of code    def get_user_settings() -> str:\n        with open(Path(\"~/settings.json\").expanduser()) as f:\n            return json.load(f)\n\n    def add_two_settings() -> int:\n        settings = get_user_settings()\n        return settings[\"opt1\"] + settings[\"opt2\"]\n\nand the very first comment just below>>> The thing we want to avoid is opening a real fileand then the article goes and goes around patching stdlib stuff etc.But instead I would suggest the real way to test it is to actually create the damn file, fill it with the \"normal\" (fixed) content and then run the damn test.This is because after years of battling against mocks of various sort I find that creating the \"real\" resource is actually less finicky than monkeypatching stuff around.Apart from that; yeah, sure the code should be refactored and the paths / resources moved out of the \"pure logical\" steps, but 1) this is an example and 2) this is the reality of most of the actual code, just 10x more complex and 100x more costly to refactor.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
     "id": 45949860,
     "by": "Izkata",
     "timeISO": "2025-11-17T00:36:58.000Z",
@@ -28,14 +44,6 @@
     "by": "z3t4",
     "timeISO": "2025-11-17T06:40:35.000Z",
     "textPlain": "If you make the function pure it will be easier to test. Pass the moving parts as function parameters, then you can pass in the mocks in the actual functions when testing. Example:    f = () => a+b\n\nrefactor for easier testing    f = (a, b) => a+b\n\nin your test you can now mock a and b",
-    "parent": 45949102,
-    "depth": 1
-  },
-  {
-    "id": 45951082,
-    "by": "_ZeD_",
-    "timeISO": "2025-11-17T05:36:13.000Z",
-    "textPlain": "Honestly I don't buy it.\nWorse, this is one of the reason I prefer to do \"minimal integration tests\" instead of unit tests.\nTake the example snippet of code    def get_user_settings() -> str:\n        with open(Path(\"~/settings.json\").expanduser()) as f:\n            return json.load(f)\n\n    def add_two_settings() -> int:\n        settings = get_user_settings()\n        return settings[\"opt1\"] + settings[\"opt2\"]\n\nand the very first comment just below>>> The thing we want to avoid is opening a real fileand then the article goes and goes around patching stdlib stuff etc.But instead I would suggest the real way to test it is to actually create the damn file, fill it with the \"normal\" (fixed) content and then run the damn test.This is because after years of battling against mocks of various sort I find that creating the \"real\" resource is actually less finicky than monkeypatching stuff around.Apart from that; yeah, sure the code should be refactored and the paths / resources moved out of the \"pure logical\" steps, but 1) this is an example and 2) this is the reality of most of the actual code, just 10x more complex and 100x more costly to refactor.",
     "parent": 45949102,
     "depth": 1
   },
@@ -64,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45949893,
-    "by": "kaashif",
-    "timeISO": "2025-11-17T00:41:32.000Z",
-    "textPlain": "Why even mock anything in this example? You need to read the source code to work out what to mock, reaching deep inside the code to name some method to mock.But what if you just passed in the contents of the file or something?Edit: oh wait actually this is what the very last line in the blog post says! But I think it should be emphasized more!",
-    "parent": 45949102,
-    "depth": 1
-  },
-  {
     "id": 45949894,
     "by": "lelandbatey",
     "timeISO": "2025-11-17T00:41:48.000Z",
     "textPlain": "I feel like the #1 reason mocks break looks nothing like this and instead looks like: you change the internal behaviors of a function/method and now the mocks interact differently with the underlying code, forcing you to change the mocks. Which highlights how awful mocking as a concept is; it is of truly limited usefulness for anything but the most brittle of tests.Don't test the wrong things; if you care about some precondition, that should be an input. If you need to measure a side effect, that should be an output. Don't tweak global state to do your testing.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
+    "id": 45949893,
+    "by": "kaashif",
+    "timeISO": "2025-11-17T00:41:32.000Z",
+    "textPlain": "Why even mock anything in this example? You need to read the source code to work out what to mock, reaching deep inside the code to name some method to mock.But what if you just passed in the contents of the file or something?Edit: oh wait actually this is what the very last line in the blog post says! But I think it should be emphasized more!",
     "parent": 45949102,
     "depth": 1
   },
@@ -104,6 +112,14 @@
     "depth": 2
   },
   {
+    "id": 45952963,
+    "by": "jeroenhd",
+    "timeISO": "2025-11-17T12:19:51.000Z",
+    "textPlain": "The risk to that approach is that you end up writing code that cannot deal with the real world problems of I/O, such as timeouts, failed reads, jitter, and other weird behaviour.Separating I/O from logic makes a lot of sense and makes tests much easier to write and code much easier to reason about, but you'll still need to implement some sort of mocking interface if you want to catch I/O problems.",
+    "parent": 45950554,
+    "depth": 2
+  },
+  {
     "id": 45950929,
     "by": "majormajor",
     "timeISO": "2025-11-17T04:53:17.000Z",
@@ -116,6 +132,14 @@
     "by": "retrodaredevil",
     "timeISO": "2025-11-17T04:23:50.000Z",
     "textPlain": "I agree with you, however convincing an entire team of devs to explicitly separate the interface of impure parts of code is very difficult.If you introduce a mocking library to the test portion of the codebase, most developers will start to use it as a way to shortcut any refactoring they don't want to do. I think articles like this that try to explain how to better use mocks in tests are useful, although I wish they weren't necessary.",
+    "parent": 45950554,
+    "depth": 2
+  },
+  {
+    "id": 45954934,
+    "by": "wry_discontent",
+    "timeISO": "2025-11-17T16:13:57.000Z",
+    "textPlain": "This sounds great until one of your other functions calls that function.You're just describing dependency injection, but if  you say that, people won't want to listen cause doing that all the time sucks.",
     "parent": 45950554,
     "depth": 2
   },
@@ -144,18 +168,18 @@
     "depth": 2
   },
   {
-    "id": 45952464,
-    "by": "vkou",
-    "timeISO": "2025-11-17T10:49:06.000Z",
-    "textPlain": "> This blog post talks as if mocking the `open` function is a good thing that people should be told how to do.It does. And this is exactly the problem, here!> TFA: The thing we want to avoid is opening a real fileNo! No, no, no! You do not 'want to avoid opening a real file' in a test.It's completely fine to open a real file in a test! If your code depends on reading input files, then your test should include real input files in it! There's no reason to mock any of this. All of this stuff is easy to set up in any unit test library worth it's salt.",
-    "parent": 45949945,
-    "depth": 2
-  },
-  {
     "id": 45950043,
     "by": "bluGill",
     "timeISO": "2025-11-17T01:16:52.000Z",
     "textPlain": "Details matters, but good test doubles here are important.  You want to capture all calls to IO and do something different. You don't want tests to break because someone has a different filesystem, didn't set their home directory as you want it setup, or worse is trying to run two different tests at the same time and the other test is changing files the other wants.Note that I said test doubles.  Mocks are a bit over specific - they are about verifying functions are called at the right time with the right arguments, but the easy ability to set return values makes it easy to abuse them for other things (this abuse is good, but it is still abuse of the intent).In this case you want a fake: a smart service that when you are in a test setups a temporary directory tree that contains all the files you need in the state that particular test needs, and destroys that when the test is done (with an optional mode to keep it - useful if a test fails to see debug).  Depending on your situation you may need something for network services, time, or other such things. Note that in most cases a filesystem itself is more than fast enough to use in tests, but you need isolation from other tests.  There are a number of ways to create this fake, it could override open, or it could just be a GetMyProgramDir function that you override are two that I can think of.",
+    "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45952464,
+    "by": "vkou",
+    "timeISO": "2025-11-17T10:49:06.000Z",
+    "textPlain": "> This blog post talks as if mocking the `open` function is a good thing that people should be told how to do.It does. And this is exactly the problem, here!> TFA: The thing we want to avoid is opening a real fileNo! No, no, no! You do not 'want to avoid opening a real file' in a test.It's completely fine to open a real file in a test! If your code depends on reading input files, then your test should include real input files in it! There's no reason to mock any of this. All of this stuff is easy to set up in any unit test library worth it's salt.",
     "parent": 45949945,
     "depth": 2
   },
@@ -180,6 +204,14 @@
     "by": "bluGill",
     "timeISO": "2025-11-17T01:24:57.000Z",
     "textPlain": "Most of the real world is about manipulating the real world.  For algorithms it is fine to say depend on the pure inputs/outputs.  However what we care about is that global state is manipulated correctly and so the integration tests that verify that are what are important.  In most cases your algorithm shouldn't be unit tested separately since it is only used in one place and changes when the users change: there is no point in extra tests. If  the algorithm is used in many places comprehensive unit tests are important, but they get in the way when the algorithm is used only once and so the tests just inhibit changes to the algorithm as requirements change (you have to change the user, the integration tests, and the unit tests that are redundant).As such I disagree. Global state is what you should be testing - but you need to be smart about it.  How you setup and verify global state matters.   Don't confuse global state above with global state of variables, I mean the external state of the program before and after, which means network, file, time, and other IO things.",
+    "parent": 45949894,
+    "depth": 2
+  },
+  {
+    "id": 45955029,
+    "by": "wry_discontent",
+    "timeISO": "2025-11-17T16:21:03.000Z",
+    "textPlain": "I see a lot of times people (read: me) are lazy and make a mock that does not have anywhere near the behavior of the original.  It's more like a very partial stub.  I will mock an api with 20 possible calls with the 2 that I use.  Unsurprisingly, this mock is closely tied to the current implementation.",
     "parent": 45949894,
     "depth": 2
   }
