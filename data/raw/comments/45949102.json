@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45951028,
+    "by": "joshribakoff",
+    "timeISO": "2025-11-17T05:21:44.000Z",
+    "textPlain": "If you’re doing TDD, you could just view this as moving the “open” call to your unit test. As others point out, that encourages pure functions that can pipe in input from other sources than just file paths.",
+    "parent": 45949102,
+    "depth": 1
+  },
+  {
     "id": 45949945,
     "by": "dherls",
     "timeISO": "2025-11-17T00:54:40.000Z",
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45950929,
+    "by": "majormajor",
+    "timeISO": "2025-11-17T04:53:17.000Z",
+    "textPlain": "> Then the complex pure part you test the heck out of, and the stateful/side effectful impure part becomes barely a wrapper over system APIs.In practice the issues I see with this are that the \"side effect\" part is usually either: extensive enough to still justify mocking around testing it, and also intertwined enough with your logic to be hard to remove all the \"pure\" logic. I rarely see 90-95% of functions being pure logic vs side effects.E.g. for the first, you could have an action that requires several sequenced side effects and then your \"wrapper over APIs\" still needs validation of calling the right APIs in the right oder with the right params, for various scenarios. Enter mocks or fakes. (And sometimes people will get clever and say use pubsub or events for this, but... you're usually just making the full-system-level testing there harder, as well as introducing less determinism around your consistency.)For the second, something like \"do steps I and J. If the API you call in step J fails, unwind the change in I.\" Now you've got some logic back in there. And it's not uncommon for the branching to get more complex. Were you building everything in the system from first principles, you could try to architect something where I and J can be combined or consolidated in a way to work around this; when I and J are third party dependencies, that gets harder.",
+    "parent": 45950554,
+    "depth": 2
+  },
+  {
     "id": 45950831,
     "by": "retrodaredevil",
     "timeISO": "2025-11-17T04:23:50.000Z",
@@ -69,6 +85,14 @@
     "timeISO": "2025-11-17T01:16:52.000Z",
     "textPlain": "Details matters, but good test doubles here are important.  You want to capture all calls to IO and do something different. You don't want tests to break because someone has a different filesystem, didn't set their home directory as you want it setup, or worse is trying to run two different tests at the same time and the other test is changing files the other wants.Note that I said test doubles.  Mocks are a bit over specific - they are about verifying functions are called at the right time with the right arguments, but the easy ability to set return values makes it easy to abuse them for other things (this abuse is good, but it is still abuse of the intent).In this case you want a fake: a smart service that when you are in a test setups a temporary directory tree that contains all the files you need in the state that particular test needs, and destroys that when the test is done (with an optional mode to keep it - useful if a test fails to see debug).  Depending on your situation you may need something for network services, time, or other such things. Note that in most cases a filesystem itself is more than fast enough to use in tests, but you need isolation from other tests.  There are a number of ways to create this fake, it could override open, or it could just be a GetMyProgramDir function that you override are two that I can think of.",
     "parent": 45949945,
+    "depth": 2
+  },
+  {
+    "id": 45951034,
+    "by": "dpark",
+    "timeISO": "2025-11-17T05:22:38.000Z",
+    "textPlain": "> you change the internal behaviors of a function/method and now the mocks interact differently with the underlying code, forcing you to change the mocksRarely should a mock be “interacting with the underlying code”, because it should be a dead end that returns canned data and makes no other calls.If your mock is calling back into other code you’ve probably not got a mock but some other kind of “test double”. Maybe a “fake” in Martin Fowler’s terminology.If you have test doubles that are involved in a bunch of calls back and forth between different pieces of code then there’s a good chance you have poorly factored code and your doubles are complex because of that.Now, I won’t pretend changes don’t regularly break test doubles, but for mocks it’s usually method changes or additions and the fix is mechanical (though annoying). If your mocks are duplicating a bunch of logic, though, then something else is going on.",
+    "parent": 45949894,
     "depth": 2
   },
   {
