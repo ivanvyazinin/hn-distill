@@ -3,7 +3,7 @@
     "id": 45953391,
     "by": "woodruffw",
     "timeISO": "2025-11-17T13:30:01.000Z",
-    "textPlain": "Intentionally or not, this post demonstrates one of the things that makes safe abstractions in C less desirable: the shared pointer implementation uses a POSIX mutex, which means it’s (1) not cross platform, and (2) pays the mutex overhead even in provably single-threaded contexts. In other words, it’s not a zero-cost abstraction.C++’s shared pointer has the same problem; Rust avoids it by having two types (Rc and Arc) that the developer can select from (and which the compiler will prevent you from using unsafely).",
+    "textPlain": "Intentionally or not, this post demonstrates one of the things that makes safer abstractions in C less desirable: the shared pointer implementation uses a POSIX mutex, which means it’s (1) not cross platform, and (2) pays the mutex overhead even in provably single-threaded contexts. In other words, it’s not a zero-cost abstraction.C++’s shared pointer has the same problem; Rust avoids it by having two types (Rc and Arc) that the developer can select from (and which the compiler will prevent you from using unsafely).",
     "parent": 45952428,
     "depth": 1
   },
@@ -32,6 +32,14 @@
     "depth": 1
   },
   {
+    "id": 45953101,
+    "by": "rurban",
+    "timeISO": "2025-11-17T12:46:21.000Z",
+    "textPlain": "Just don't mix that up with the real safec.h header from safeclib:https://github.com/rurban/safeclib/tree/master/include",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953156,
     "by": "HexDecOctBin",
     "timeISO": "2025-11-17T12:55:24.000Z",
@@ -48,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45953688,
+    "by": "immibis",
+    "timeISO": "2025-11-17T14:10:27.000Z",
+    "textPlain": "This feels AI-generated.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953354,
     "by": "khaledh",
     "timeISO": "2025-11-17T13:25:46.000Z",
@@ -56,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45953101,
-    "by": "rurban",
-    "timeISO": "2025-11-17T12:46:21.000Z",
-    "textPlain": "Just don't mix that up with the real safec.h header from safeclib:https://github.com/rurban/safeclib/tree/master/include",
+    "id": 45953126,
+    "by": "keyle",
+    "timeISO": "2025-11-17T12:50:15.000Z",
+    "textPlain": "I don't understand this passion for turning C into what it's not...Just don't use C for sending astronauts in space. Simple.C wasn't designed to be safe, it was designed so you don't have to write in assembly.Just a quick look through this and it just shows one thing: someone else's walled garden of hell.",
     "parent": 45952428,
     "depth": 1
   },
@@ -72,12 +88,36 @@
     "depth": 1
   },
   {
-    "id": 45953126,
-    "by": "keyle",
-    "timeISO": "2025-11-17T12:50:15.000Z",
-    "textPlain": "I don't understand this passion for turning C into what it's not...Just don't use C for sending astronauts in space. Simple.C wasn't designed to be safe, it was designed so you don't have to write in assembly.Just a quick look through this and it just shows one thing: someone else's walled garden of hell.",
-    "parent": 45952428,
-    "depth": 1
+    "id": 45953466,
+    "by": "kouteiheika",
+    "timeISO": "2025-11-17T13:42:24.000Z",
+    "textPlain": "> the shared pointer implementation uses a POSIX mutex [...] C++’s shared pointer has the same problemIt doesn't. C++'s shared pointers use atomics, just like Rust's Arc does. There's no good reason (unless you have some very exotic requirements, into which I won't get into here) to implement shared pointers with mutexes. The implementation in the blog post here is just suboptimal.(But it's true that C++ doesn't have Rust's equivalent of Rc, which means that if you just need a reference counted pointer then using std::shared_ptr is not a zero cost abstraction.)",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
+    "id": 45953495,
+    "by": "spacedcowboy",
+    "timeISO": "2025-11-17T13:46:12.000Z",
+    "textPlain": "The number of times I might want to write something in C and have it less likely to crash absolutely dwarfs the number of times I care about that code being cross-platform.Sure, cross-platform is desirable, if there's no cost involved, and mandatory if you actually need it, but it's a \"nice to have\" most of the time, not a \"needs this\".As for mutex overheads, yep, that's annoying, but really, how annoying ? Modern CPUs are fast. Very very fast. Personally I'm far more likely to use an os_unfair_lock_t than a pthread_mutex_t (see the previous point) which minimizes the locking to a memory barrier, but even if locking were slow, I think I'd prefer safe.Rust is, I'm sure, great. It's not something I'm personally interested in getting involved with, but it's not necessary for C (or even this extra header) to do everything that Rust can do, for it to be an improvement on what is available.There's simply too much out there written in C to say \"just use Rust, or Swift, or ...\" - too many libraries, too many resources, too many tutorials, etc. You pays your money and takes your choice.",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
+    "id": 45953667,
+    "by": "saurik",
+    "timeISO": "2025-11-17T14:08:06.000Z",
+    "textPlain": "I'd think a POSIX mutex--a standard API that I not only could implement anywhere, but which has already been implemented all over the place--is way more \"cross platform\" than use of atomics.",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
+    "id": 45953601,
+    "by": "cassepipe",
+    "timeISO": "2025-11-17T14:00:28.000Z",
+    "textPlain": "It is surprisingly hard to find information about it, do you have any ? From what I can guess it's a new syntax but it's the feature itself is still an extension ?",
+    "parent": 45953265,
+    "depth": 2
   },
   {
     "id": 45953390,
@@ -109,6 +149,22 @@
     "timeISO": "2025-11-17T13:17:39.000Z",
     "textPlain": "> I'm baffled as to why you would want to use macros to emulate c++.I like the power of destructors (auto cleanup) and templates (generic containers).  But I also want a language that I can parse.  Like, at all.C is pretty easy to parse. Quite a few annoying corner cases, some context sensitive stuff, but still pretty workable. C++ on the other hand? It’s mostly pick a frontend or the highway.",
     "parent": 45953071,
+    "depth": 2
+  },
+  {
+    "id": 45953573,
+    "by": "ikamm",
+    "timeISO": "2025-11-17T13:56:42.000Z",
+    "textPlain": ">Nothing is stopping you from writing c-like c++ if that's what you like style wise.You'll just have to get used to the C++ community screaming at you that it's the wrong way to write C++ and that you should just use Go or Zig instead",
+    "parent": 45953071,
+    "depth": 2
+  },
+  {
+    "id": 45953192,
+    "by": "debugnik",
+    "timeISO": "2025-11-17T13:00:06.000Z",
+    "textPlain": "How can anyone be this interested in maintaining an annex k implementation when it's widely regarded as a design failure, specially the global constraint handler. There's a reason why most C toolchains don't support it.https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1967.htm",
+    "parent": 45953101,
     "depth": 2
   },
   {
@@ -144,11 +200,35 @@
     "depth": 2
   },
   {
-    "id": 45953192,
-    "by": "debugnik",
-    "timeISO": "2025-11-17T13:00:06.000Z",
-    "textPlain": "How can anyone be this interested in maintaining an annex k implementation when it's widely regarded as a design failure, specially the global constraint handler. There's a reason why most C toolchains don't support it.https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1967.htm",
-    "parent": 45953101,
+    "id": 45953147,
+    "by": "pkhuong",
+    "timeISO": "2025-11-17T12:54:08.000Z",
+    "textPlain": "> Just don't use C for sending astronauts in spaceBut do use C to control nuclear reactors https://list.cea.fr/en/page/frama-c/It's a lot easier to catch errors of omission in C than it is to catch unintended implicit behavior in C++.",
+    "parent": 45953126,
+    "depth": 2
+  },
+  {
+    "id": 45953246,
+    "by": "pjmlp",
+    "timeISO": "2025-11-17T13:09:37.000Z",
+    "textPlain": "Some C devs will make all kinds of crazy efforts only not to use C++.",
+    "parent": 45953126,
+    "depth": 2
+  },
+  {
+    "id": 45953302,
+    "by": "fransje26",
+    "timeISO": "2025-11-17T13:19:49.000Z",
+    "textPlain": "> Just don't use C for sending astronauts in space. Simple.Last time I checked, even SpaceX uses C to send astronauts to space...",
+    "parent": 45953126,
+    "depth": 2
+  },
+  {
+    "id": 45953182,
+    "by": "ReptileMan",
+    "timeISO": "2025-11-17T12:58:44.000Z",
+    "textPlain": "Actually C performs quite good in exactly that area.https://ntrs.nasa.gov/citations/19950022400",
+    "parent": 45953126,
     "depth": 2
   },
   {
@@ -165,38 +245,6 @@
     "timeISO": "2025-11-17T12:54:15.000Z",
     "textPlain": "Yeah, kids like to waste time to make C more safe or bring C++ features.\nIf you need them, use C++ or different language. Those examples make code look ugly and you are right, the corner cases.If you need to cleanup stuff on early return paths, use goto.. Its nothing wrong with it, jump to end when you do all the cleanup and return.\nTemporary buffers? if they arent big, dont be afraid to use static char buf[64];\nNo need to waste time for malloc() and free. They are big? preallocate early and reallocate or work on chunk sizes. Simple and effective.",
     "parent": 45953073,
-    "depth": 2
-  },
-  {
-    "id": 45953147,
-    "by": "pkhuong",
-    "timeISO": "2025-11-17T12:54:08.000Z",
-    "textPlain": "> Just don't use C for sending astronauts in spaceBut do use C to control nuclear reactors https://list.cea.fr/en/page/frama-c/It's a lot easier to catch errors of omission in C than it is to catch unintended implicit behavior in C++.",
-    "parent": 45953126,
-    "depth": 2
-  },
-  {
-    "id": 45953302,
-    "by": "fransje26",
-    "timeISO": "2025-11-17T13:19:49.000Z",
-    "textPlain": "> Just don't use C for sending astronauts in space. Simple.Last time I checked, even SpaceX uses C to send astronauts to space...",
-    "parent": 45953126,
-    "depth": 2
-  },
-  {
-    "id": 45953246,
-    "by": "pjmlp",
-    "timeISO": "2025-11-17T13:09:37.000Z",
-    "textPlain": "Some C devs will make all kinds of crazy efforts only not to use C++.",
-    "parent": 45953126,
-    "depth": 2
-  },
-  {
-    "id": 45953182,
-    "by": "ReptileMan",
-    "timeISO": "2025-11-17T12:58:44.000Z",
-    "textPlain": "Actually C performs quite good in exactly that area.https://ntrs.nasa.gov/citations/19950022400",
-    "parent": 45953126,
     "depth": 2
   }
 ]

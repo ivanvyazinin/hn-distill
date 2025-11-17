@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45953304,
-    "by": "jwsteigerwalt",
-    "timeISO": "2025-11-17T13:20:20.000Z",
-    "textPlain": "I have had great success in the past building business event alert systems for underlying salesforce data with Notify on Heroku data warehouse replications of salesforce. The potential for performance issues was always a nagging issue in the back of my head and this article is a great example why.",
+    "id": 45952735,
+    "by": "matharmin",
+    "timeISO": "2025-11-17T11:36:21.000Z",
+    "textPlain": "We're relying on logical replication heavily for PowerSync, and I've found it is a great tool, but it is also very low-level and under-documented. This article gives a great overview - I wish I had this when we started with our implementation.Some examples of difficulties we've ran into:\n1. LSNs for transactions (commits) are strictly increasing, but not for individual operations across transactions. You may not pick this up during basic testing, but it starts showing up when you have concurrent transactions.\n2. You cannot resume logical replication in the middle of a transaction (you have to restart the transaction), which becomes relevant when you have large transactions.\n3. In most cases, replication slots cannot be preserved when upgrading Postgres major versions.\n4. When you have multiple Postgres clusters in a HA setup, you _can_ use logical replication, but it becomes more tricky (better in recent Postgres versions, but you're still responsible for making sure the slots are synced).\n5. Replication slots can break in many different ways, and there's no good way to know all the possible failure modes until you've run into them. Especially fun when your server ran out of disk space at some point. It's a little better with Postgres 17+ exposing wal_status and invalidation_reason on pg_replication_slots.\n6. You need to make sure to acknowledge keepalive messages and not only data messages, otherwise the WAL can keep growing indefinitely when you don't have incoming changes (depending on the hosting provider).\n7. Common drivers often either don't implement the replication protocol at all, or attempt to abstract away low-level details that you actually need. Here it's great that the article actually explains the low-level protocol details.",
     "parent": 45885768,
     "depth": 1
   },
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45952735,
-    "by": "matharmin",
-    "timeISO": "2025-11-17T11:36:21.000Z",
-    "textPlain": "We're relying on logical replication heavily for PowerSync, and I've found it is a great tool, but it is also very low-level and under-documented. This article gives a great overview - I wish I had this when we started with our implementation.Some examples of difficulties we've ran into:\n1. LSNs for transactions (commits) are strictly increasing, but not for individual operations across transactions. You may not pick this up during basic testing, but it starts showing up when you have concurrent transactions.\n2. You cannot resume logical replication in the middle of a transaction (you have to restart the transaction), which becomes relevant when you have large transactions.\n3. In most cases, replication slots cannot be preserved when upgrading Postgres major versions.\n4. When you have multiple Postgres clusters in a HA setup, you _can_ use logical replication, but it becomes more tricky (better in recent Postgres versions, but you're still responsible for making sure the slots are synced).\n5. Replication slots can break in many different ways, and there's no good way to know all the possible failure modes until you've run into them. Especially fun when your server ran out of disk space at some point. It's a little better with Postgres 17+ exposing wal_status and invalidation_reason on pg_replication_slots.\n6. You need to make sure to acknowledge keepalive messages and not only data messages, otherwise the WAL can keep growing indefinitely when you don't have incoming changes (depending on the hosting provider).\n7. Common drivers often either don't implement the replication protocol at all, or attempt to abstract away low-level details that you actually need. Here it's great that the article actually explains the low-level protocol details.",
+    "id": 45951321,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:39:53.000Z",
+    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
     "parent": 45885768,
     "depth": 1
   },
@@ -56,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 45951321,
-    "by": "JoelJacobson",
-    "timeISO": "2025-11-17T06:39:53.000Z",
-    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "id": 45953304,
+    "by": "jwsteigerwalt",
+    "timeISO": "2025-11-17T13:20:20.000Z",
+    "textPlain": "I have had great success in the past building business event alert systems for underlying salesforce data with Notify on Heroku data warehouse replications of salesforce. The potential for performance issues was always a nagging issue in the back of my head and this article is a great example why.",
     "parent": 45885768,
     "depth": 1
   },
@@ -68,6 +68,14 @@
     "by": "davidelettieri",
     "timeISO": "2025-11-17T06:40:18.000Z",
     "textPlain": "It's worth mentioning debezium https://debezium.io/It allows to publish all changes from the db to Kafka.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45953608,
+    "by": "dm03514",
+    "timeISO": "2025-11-17T14:01:03.000Z",
+    "textPlain": "Great Article! This is also timely for me, I spent all last week deep in the postgres documentation learning about replication (wish I had this article).I'm building kafka connect (i.e. Debezium) compatible replication:https://github.com/turbolytics/librarian/pull/41-----I really like the mongo change stream API. I think it elegantly hides a lot of the complexity of replication. As a side-effect of building postres -> kafka replication, I'm also trying to build a nicer replication primitive for postgres, that hides some of the underlying replication protocol complexity!",
     "parent": 45885768,
     "depth": 1
   },
