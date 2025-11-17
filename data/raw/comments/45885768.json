@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45951321,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:39:53.000Z",
+    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
     "id": 45951685,
     "by": "JoelJacobson",
     "timeISO": "2025-11-17T08:01:48.000Z",
@@ -16,10 +24,18 @@
     "depth": 1
   },
   {
-    "id": 45951321,
-    "by": "JoelJacobson",
-    "timeISO": "2025-11-17T06:39:53.000Z",
-    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "id": 45951862,
+    "by": "antirez",
+    "timeISO": "2025-11-17T08:40:02.000Z",
+    "textPlain": "Related: Redis has a keyspace notification doing something similar that is not very well known, but when it is needed, it is really needed. We are thinking of extending this mechanism in new ways. Similarly I have seen setups where the notifications arriving from Postgres/MySQL are used in order to materialize (and keep updated) a cached view in Redis. To me, it is interesting how certain teams relay on these kind of mechanisms provided by database systems, and other teams like to do things in the client side to have full control, even in the face of having to reimplement some logic.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951657,
+    "by": "isidor3",
+    "timeISO": "2025-11-17T07:55:29.000Z",
+    "textPlain": "I was hoping from the title that this would be about creating an audio representation so you could listen to the database work as if it were an old PC that had distinctive sounds for different tasks",
     "parent": 45885768,
     "depth": 1
   },
@@ -32,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45951657,
-    "by": "isidor3",
-    "timeISO": "2025-11-17T07:55:29.000Z",
-    "textPlain": "I was hoping from the title that this would be about creating an audio representation so you could listen to the database work as if it were an old PC that had distinctive sounds for different tasks",
+    "id": 45951925,
+    "by": "refset",
+    "timeISO": "2025-11-17T08:52:41.000Z",
+    "textPlain": "Recently released Clojure implementation of the same pattern: https://github.com/eerohele/muutos",
     "parent": 45885768,
     "depth": 1
   },
@@ -69,6 +85,30 @@
     "timeISO": "2025-11-17T08:25:50.000Z",
     "textPlain": "We use it like this:    CREATE TRIGGER notify_events_trg AFTER INSERT ON xxx.events FOR EACH ROW EXECUTE PROCEDURE public.notify_events();\n\n    CREATE FUNCTION public.notify_events() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n    BEGIN\n      PERFORM pg_notify('events', row_to_json(NEW)::text);\n      RETURN NEW;\n    END;\n    $$;\n\nAnd then we have a bunch of triggers like this on many tables:    CREATE TRIGGER create_category_event_trg AFTER INSERT OR DELETE OR UPDATE ON public.categories FOR EACH ROW EXECUTE PROCEDURE public.create_category_event();\n\n    CREATE FUNCTION public.create_category_event() RETURNS trigger\n        LANGUAGE plpgsql SECURITY DEFINER\n        AS $$\n    DECLARE\n      category RECORD;\n      payload JSONB;\n    BEGIN\n      category := COALESCE(NEW, OLD);\n      payload := jsonb_build_object('id', category.id);\n      IF NEW IS NULL OR NEW.deleted_at IS NOT NULL THEN\n        payload := jsonb_set(payload, '{deleted}', 'true');\n      END IF;\n      INSERT INTO xxx.events (channel, inserted_at, payload)\n        VALUES ('category', NOW() AT TIME ZONE 'utc', payload);\n      RETURN NULL;\n    END;\n    $$;\n\nWe found no notable performance issues. We have a single LISTEN in another application. We did some stress testing and found that it performs way better than we would ever need",
     "parent": 45951379,
+    "depth": 2
+  },
+  {
+    "id": 45951864,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T08:40:29.000Z",
+    "textPlain": "Here is the Commitfest entry if you want to help with reviewing/development/testing of the patch: https://commitfest.postgresql.org/patch/6078/",
+    "parent": 45951379,
+    "depth": 2
+  },
+  {
+    "id": 45952029,
+    "by": "oulipo2",
+    "timeISO": "2025-11-17T09:13:03.000Z",
+    "textPlain": "The post seems to say that NOTIFY is generally not a good idea, then comments here say that NOTIFY can actually work, but it depends on some particular things (which are not easy to know for newcomers to Postgres), makes it a bit complicated to know what is the way to go for a new databaseIn my case I have an IoT setting, where my devices can change their \"DesiredState\", and I want to listen on this to push some message to MQTT... but then there might be also other cases where I want to listen to some messages elsewhere (eg do something when there is an alert on a device, or listen to some unrelated object, eg users, etc)I'm not clear right now what would be the best setting to do this, the tradeoffs, etcImagine I have eg 100k to 10M range of devices, that sometimes these are updated in bulks and change their DesiredState 10k at a time, would NOTIFY work in that case? Should I use the WAL/Debezium/etc?Can you try to \"dumb down\" in which cases we can use NOTIFY/LISTEN and in which case it's best not to? you're saying something about single-channel/multi-channel/etc but to a newcomer I'm not clear on what all these are",
+    "parent": 45951379,
+    "depth": 2
+  },
+  {
+    "id": 45952008,
+    "by": "oulipo2",
+    "timeISO": "2025-11-17T09:09:08.000Z",
+    "textPlain": "Does it handle the things that the post mentions about the ever-growing WAL, and the fact that some listeners can go offline and need to get back old messages (eg if Kafka crashes?)",
+    "parent": 45951323,
     "depth": 2
   }
 ]
