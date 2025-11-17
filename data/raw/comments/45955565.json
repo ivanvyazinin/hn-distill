@@ -1,5 +1,13 @@
 [
   {
+    "id": 45958246,
+    "by": "rdoherty",
+    "timeISO": "2025-11-17T21:02:25.000Z",
+    "textPlain": "This is probably one of the best summarizations of the past 10 years of my career in SRE. Once your systems get complex enough, something is always broken and you have to prepare for that. Detection & response become just as critical as pre-deploy testing.I do worry about all the automation being another failure point, along with the IaC stuff. That is all software too! How do you update that safely? It's turtles all the way down!",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
     "id": 45957761,
     "by": "wparad",
     "timeISO": "2025-11-17T20:15:09.000Z",
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45957168,
-    "by": "indigodaddy",
-    "timeISO": "2025-11-17T19:26:47.000Z",
-    "textPlain": "Back in the day (10-12 years ago) at a telecom/cable we accomplished this with F5 Big IP GSLB DNS (and later migrated to A10's GSLB equivalent devices) as the auth DNS server for services/zones that required or were suitable for HA.  (I can't totally remember but I'm guessing we must have had a pretty low TTL for this).Had no idea that Route 53 had this sort of functionality",
+    "id": 45958300,
+    "by": "hartator",
+    "timeISO": "2025-11-17T21:07:15.000Z",
+    "textPlain": "Interesting how engineers like to nerd out about SLAs, but never claim or issue credits when something does occur.",
     "parent": 45955565,
     "depth": 1
   },
@@ -28,6 +36,14 @@
     "by": "pinkmuffinere",
     "timeISO": "2025-11-17T18:46:10.000Z",
     "textPlain": "> During this time, us-east-1 was offline, and while we only run a limited amount of infrastructure in the region, we have to run it there because we have customers who want it there> [Our service can only go down] five minutes and 15 seconds per year.I don't have much experience in this area, so please correct me if I'm mistaken:Don't these two quotes together imply that they have failed to deliver on their SLA for the subset of their customers that want their service in us-east-1? I understand the customers won't be mad at them in this case, since us-east-1 itself is down, but I feel like their title is incorrect. Some subset of their service is running on top of AWS. When AWS goes down, that subset of their service is down. When AWS was down, it seems like they were also down for some customers.",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
+    "id": 45957168,
+    "by": "indigodaddy",
+    "timeISO": "2025-11-17T19:26:47.000Z",
+    "textPlain": "Back in the day (10-12 years ago) at a telecom/cable we accomplished this with F5 Big IP GSLB DNS (and later migrated to A10's GSLB equivalent devices) as the auth DNS server for services/zones that required or were suitable for HA.  (I can't totally remember but I'm guessing we must have had a pretty low TTL for this).Had no idea that Route 53 had this sort of functionality",
     "parent": 45955565,
     "depth": 1
   },
@@ -54,6 +70,22 @@
     "textPlain": "[dead]",
     "parent": 45955565,
     "depth": 1
+  },
+  {
+    "id": 45958417,
+    "by": "evanmoran",
+    "timeISO": "2025-11-17T21:16:48.000Z",
+    "textPlain": "Iac is definitely a failure point, but the manual alternative is much worse! I’ve had a lot of benefit from using pulumi, simply because the code can be more compact than the terraform hcl was.For example, for the fall over regions (from the article) you could make a pulumi function that parameterizes only the n things that are different per fall over env and guarantee / verify the scripts are nearly identical. Of course, many people use modules / terragrunt for similar reasons, but it ends up being quite powerful.",
+    "parent": 45958246,
+    "depth": 2
+  },
+  {
+    "id": 45957935,
+    "by": "ckozlowski",
+    "timeISO": "2025-11-17T20:30:58.000Z",
+    "textPlain": "Hi Warren! I'm Chris, and I'm with AWS, where among other things, I work on the Well-Architected Framework. Would you be willing to talk with us? You can reach me at kozlowck@amazon.com. Thanks!Edit: This is a fantastic write-up by the way!",
+    "parent": 45957761,
+    "depth": 2
   },
   {
     "id": 45957803,
@@ -93,6 +125,22 @@
     "timeISO": "2025-11-17T18:58:23.000Z",
     "textPlain": "The bulk of the article discusses their failover strategy, where they detect failures in a region and how they route requests to a backup region, and how to deal with data consistency and cost issues arising from that.",
     "parent": 45956593,
+    "depth": 2
+  },
+  {
+    "id": 45958026,
+    "by": "wparad",
+    "timeISO": "2025-11-17T20:40:23.000Z",
+    "textPlain": "Maybe I should have titled the article \"AWS Route53 HealthChecks are amazing\" :)",
+    "parent": 45957168,
+    "depth": 2
+  },
+  {
+    "id": 45957927,
+    "by": "wparad",
+    "timeISO": "2025-11-17T20:29:57.000Z",
+    "textPlain": "Good catch. The truth is, while we track downtime for incident reporting, it's much more correct to actually be tracking the number of requests that result in a failure. Our SLAs are based on request volume, and not specifically time. Most customers don't have perfect sustained usage. Being down when they aren't running is irrelevant to everyone.This is where the grey failures can come into play. It's really hard to tell, often impossible to know what the impact of an incident is to a customer, even if you know you are having an incident, without them telling you.In order to know that you are \"down\", our edge of the HTTP request would need to be able to track requests. For us that is CloudFront, but if there is an issue before that, at DNS, at network level, etc... we just can't know what the actual impact is.As far as measuring how you are down. We can pretty accurately know the list of failures that are happening, (when we can know), and what the results are.That's because most components are behind cloudfront in any case. And if cloudfront isn't having a problem, we'll have telemetry that tells us what the HTTP request/response status codes and connection completions look like. Then it's a matter of measuring from our first detection to the actual remediation being deployed (assuming there is one).Another thing that helps here is that we have multiple other products that also use Authress, and we can run technology in other regions that can report this information, for those accounts (obviously can't be for all customers), which can help us identify with additional accuracy, but is often unnecessary.",
+    "parent": 45957393,
     "depth": 2
   },
   {

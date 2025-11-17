@@ -3,7 +3,15 @@
     "id": 45957860,
     "by": "roger_",
     "timeISO": "2025-11-17T20:24:39.000Z",
-    "textPlain": "Been working on this very idea casually for couple years with ESP-IDF and I could never get the statistical signal processing just right (by my definition). Things I've tried: adapting filtering (LMS, Kalman), kernel methods (NEWMA, MMD), detectors (CUSUM, GLR), dimensionality reduction, whitening, etc.I'll have to look at this code, maybe I just overlooked the obvious or my requirements were too high!",
+    "textPlain": "Been working on this very idea casually for couple years with ESP-IDF and I could never get the statistical signal processing just right (by my definition). Things I've tried: adapting filtering (LMS, Kalman), kernel methods (NEWMA, MMD), detectors (CUSUM, GLR), dimensionality reduction (random projection, online PCA), whitening, etc.I use a single ESP32 in STA/AP mode which sniffs ACK packets with a specific destination mac, which come from any server on my WiFi network (uses a special sniffing mode IIRC). This way I can receive regular CSI packets originating from a fixed location and doesn't need another device running.I'll have to look at this code, maybe I just overlooked the obvious or my requirements were too high!",
+    "parent": 45953977,
+    "depth": 1
+  },
+  {
+    "id": 45958046,
+    "by": "Gys",
+    "timeISO": "2025-11-17T20:43:18.000Z",
+    "textPlain": "Interesting! Are you familiar with tommysense.com? I think it doing something similar? Did not yet have time to try it.",
     "parent": 45953977,
     "depth": 1
   },
@@ -14,6 +22,22 @@
     "textPlain": "Amazing stuff!Am I right in understanding that only a single ESP32 device is needed (plus a router)?",
     "parent": 45953977,
     "depth": 1
+  },
+  {
+    "id": 45958166,
+    "by": "francescopace",
+    "timeISO": "2025-11-17T20:55:12.000Z",
+    "textPlain": "ESPectre takes a different architectural approach that might address some of the challenges you encountered:1. Instead of STA/AP mode on a single ESP32, ESPectre uses the natural traffic between your existing router and an ESP32-S3 in station mode. To ensure a stable, continuous CSI packet rate, I implemented a traffic generator that sends ICMP pings to the gateway at a configurable rate (default: 20 pps). This provides bidirectional traffic (request + reply) that reliably triggers CSI generation, giving you predictable packet timing without relying on ambient network traffic or special sniffing modes.2. Rather than applying filters directly to raw CSI, ESPectre uses Moving Variance Segmentation (MVS) on unfiltered spatial turbulence (std dev of subcarrier amplitudes).3. The filters are applied to features, not to the segmentation signal itself. This preserves motion sensitivity while cleaning up the feature dataI found that having a stable transmitter (the router) combined with controlled traffic generation provides more consistent multipath patterns and predictable CSI timing, which makes the segmentation more reliable.",
+    "parent": 45957860,
+    "depth": 2
+  },
+  {
+    "id": 45958219,
+    "by": "francescopace",
+    "timeISO": "2025-11-17T20:59:56.000Z",
+    "textPlain": "Sorry, I replied to the wrong comment.Tommysense creates a sensing mesh between devices, while ESPectre uses your existing Wi-Fi router as the transmitter. As a result, ESPectre needs only one device per area but requires a compatible router with solid 2.4 GHz coverage. The overall goal is similar, but ESPectre is open-source!",
+    "parent": 45958046,
+    "depth": 2
   },
   {
     "id": 45957643,
