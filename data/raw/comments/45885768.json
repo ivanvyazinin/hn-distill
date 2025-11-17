@@ -8,18 +8,10 @@
     "depth": 1
   },
   {
-    "id": 45952749,
-    "by": "jumski",
-    "timeISO": "2025-11-17T11:38:53.000Z",
-    "textPlain": "Worth mentioning that WAL is enabling and used by Supabase Realtime [0] and WalEx [1] which both are doing very similar thing - polling the WAL changes in order to emit them as Websocket events.I never worked with WalEx but have experience with Supabase Realtime and it is a joy to work with and fits great into the Supa ecosystem. So many layers are disappearing when you rely more on Postgres![0] https://github.com/supabase/realtime\n[1] https://github.com/cpursley/walex",
-    "parent": 45885768,
-    "depth": 1
-  },
-  {
-    "id": 45952735,
-    "by": "matharmin",
-    "timeISO": "2025-11-17T11:36:21.000Z",
-    "textPlain": "We're relying on logical replication heavily for PowerSync, and I've found it is a great tool, but it is also very low-level and under-documented. This article gives a great overview - I wish I had this when we started with our implementation.Some examples of difficulties we've ran into:\n1. LSNs for transactions (commits) are strictly increasing, but not for individual operations across transactions. You may not pick this up during basic testing, but it starts showing up when you have concurrent transactions.\n2. You cannot resume logical replication in the middle of a transaction (you have to restart the transaction), which becomes relevant when you have large transactions.\n3. In most cases, replication slots cannot be preserved when upgrading Postgres major versions.\n4. When you have multiple Postgres clusters in a HA setup, you _can_ use logical replication, but it becomes more tricky (better in recent Postgres versions, but you're still responsible for making sure the slots are synced).\n5. Replication slots can break in many different ways, and there's no good way to know all the possible failure modes until you've run into them. Especially fun when your server ran out of disk space at some point. It's a little better with Postgres 17+ exposing wal_status and invalidation_reason on pg_replication_slots.\n6. You need to make sure to acknowledge keepalive messages and not only data messages, otherwise the WAL can keep growing indefinitely when you don't have incoming changes (depending on the hosting provider).\n7. Common drivers often either don't implement the replication protocol at all, or attempt to abstract away low-level details that you actually need. Here it's great that the article actually explains the low-level protocol details.",
+    "id": 45953304,
+    "by": "jwsteigerwalt",
+    "timeISO": "2025-11-17T13:20:20.000Z",
+    "textPlain": "I have had great success in the past building business event alert systems for underlying salesforce data with Notify on Heroku data warehouse replications of salesforce. The potential for performance issues was always a nagging issue in the back of my head and this article is a great example why.",
     "parent": 45885768,
     "depth": 1
   },
@@ -32,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45951321,
-    "by": "JoelJacobson",
-    "timeISO": "2025-11-17T06:39:53.000Z",
-    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "id": 45952749,
+    "by": "jumski",
+    "timeISO": "2025-11-17T11:38:53.000Z",
+    "textPlain": "Worth mentioning that WAL is enabling and used by Supabase Realtime [0] and WalEx [1] which both are doing very similar thing - polling the WAL changes in order to emit them as Websocket events.I never worked with WalEx but have experience with Supabase Realtime and it is a joy to work with and fits great into the Supa ecosystem. So many layers are disappearing when you rely more on Postgres![0] https://github.com/supabase/realtime\n[1] https://github.com/cpursley/walex",
     "parent": 45885768,
     "depth": 1
   },
@@ -48,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45951685,
-    "by": "JoelJacobson",
-    "timeISO": "2025-11-17T08:01:48.000Z",
-    "textPlain": "> It works, but suddenly your query times explode! Instead of doing 1 million transactions per second* you can now do only 3 (*These numbers were exaggerated for dramatic effect)In general, a single-queue design doesn’t make throughput collapse when you add more parallelism; it just gives you a fixed ceiling. With a well-designed queue, throughput goes up with concurrency, then flattens when the serialized section (the queue) saturates, maybe sagging a bit from context switching.If instead you see performance severely degrade as you add workers, that typically means there’s an additional problem beyond “we have one queue” — things like broadcast wakeups (“every event wakes every listener”), global scans on each event, or other O(N) work per operation. That’s a very different, and more serious, scalability bug than simply relying on a single queue.",
+    "id": 45952735,
+    "by": "matharmin",
+    "timeISO": "2025-11-17T11:36:21.000Z",
+    "textPlain": "We're relying on logical replication heavily for PowerSync, and I've found it is a great tool, but it is also very low-level and under-documented. This article gives a great overview - I wish I had this when we started with our implementation.Some examples of difficulties we've ran into:\n1. LSNs for transactions (commits) are strictly increasing, but not for individual operations across transactions. You may not pick this up during basic testing, but it starts showing up when you have concurrent transactions.\n2. You cannot resume logical replication in the middle of a transaction (you have to restart the transaction), which becomes relevant when you have large transactions.\n3. In most cases, replication slots cannot be preserved when upgrading Postgres major versions.\n4. When you have multiple Postgres clusters in a HA setup, you _can_ use logical replication, but it becomes more tricky (better in recent Postgres versions, but you're still responsible for making sure the slots are synced).\n5. Replication slots can break in many different ways, and there's no good way to know all the possible failure modes until you've run into them. Especially fun when your server ran out of disk space at some point. It's a little better with Postgres 17+ exposing wal_status and invalidation_reason on pg_replication_slots.\n6. You need to make sure to acknowledge keepalive messages and not only data messages, otherwise the WAL can keep growing indefinitely when you don't have incoming changes (depending on the hosting provider).\n7. Common drivers often either don't implement the replication protocol at all, or attempt to abstract away low-level details that you actually need. Here it's great that the article actually explains the low-level protocol details.",
     "parent": 45885768,
     "depth": 1
   },
@@ -64,6 +56,14 @@
     "depth": 1
   },
   {
+    "id": 45951321,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:39:53.000Z",
+    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
     "id": 45951323,
     "by": "davidelettieri",
     "timeISO": "2025-11-17T06:40:18.000Z",
@@ -72,10 +72,10 @@
     "depth": 1
   },
   {
-    "id": 45952241,
-    "by": "edistra",
-    "timeISO": "2025-11-17T09:55:56.000Z",
-    "textPlain": "Thanks for the deep dive on Postgres WAL.I recently had the opportunity to play with PostgreSQL WAL in the scope of implementing opensearch cdc pipeline, and it was really exciting to see what is possible to achieve with it.Be cautious with idle replica slots though, I got bitten by inactive slots filling up the production database storage.PostgreSQL 18 introduces idle_replication_slot_timeout to mitigate this.",
+    "id": 45951685,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T08:01:48.000Z",
+    "textPlain": "> It works, but suddenly your query times explode! Instead of doing 1 million transactions per second* you can now do only 3 (*These numbers were exaggerated for dramatic effect)In general, a single-queue design doesn’t make throughput collapse when you add more parallelism; it just gives you a fixed ceiling. With a well-designed queue, throughput goes up with concurrency, then flattens when the serialized section (the queue) saturates, maybe sagging a bit from context switching.If instead you see performance severely degrade as you add workers, that typically means there’s an additional problem beyond “we have one queue” — things like broadcast wakeups (“every event wakes every listener”), global scans on each event, or other O(N) work per operation. That’s a very different, and more serious, scalability bug than simply relying on a single queue.",
     "parent": 45885768,
     "depth": 1
   },
@@ -84,6 +84,14 @@
     "by": "antirez",
     "timeISO": "2025-11-17T08:40:02.000Z",
     "textPlain": "Related: Redis has a keyspace notification doing something similar that is not very well known, but when it is needed, it is really needed. We are thinking of extending this mechanism in new ways. Similarly I have seen setups where the notifications arriving from Postgres/MySQL are used in order to materialize (and keep updated) a cached view in Redis. To me, it is interesting how certain teams relay on these kind of mechanisms provided by database systems, and other teams like to do things in the client side to have full control, even in the face of having to reimplement some logic.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45952241,
+    "by": "edistra",
+    "timeISO": "2025-11-17T09:55:56.000Z",
+    "textPlain": "Thanks for the deep dive on Postgres WAL.I recently had the opportunity to play with PostgreSQL WAL in the scope of implementing opensearch cdc pipeline, and it was really exciting to see what is possible to achieve with it.Be cautious with idle replica slots though, I got bitten by inactive slots filling up the production database storage.PostgreSQL 18 introduces idle_replication_slot_timeout to mitigate this.",
     "parent": 45885768,
     "depth": 1
   },
@@ -149,6 +157,14 @@
     "timeISO": "2025-11-17T10:14:24.000Z",
     "textPlain": "We were kids learning C++ at school and we giggled each time we printed the \\a character (system bell). At home I piped /dev/mem to /dev/dsp to get the harshest white noise.",
     "parent": 45951657,
+    "depth": 2
+  },
+  {
+    "id": 45953363,
+    "by": "chamomeal",
+    "timeISO": "2025-11-17T13:27:01.000Z",
+    "textPlain": "I saw the post on the clojure subreddit! I’m stoked to try it out.Ever since I saw Martin Kleppman’s “Turning the database inside out” talk I’ve wanted an easy way to hook into a transaction log. Apache samza/kafka is very cool but I’m not going to set it up for personal projects. It’d be VERY cool to make materialized views straight from the log!!",
+    "parent": 45951925,
     "depth": 2
   },
   {
