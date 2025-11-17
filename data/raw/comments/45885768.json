@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45951685,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T08:01:48.000Z",
+    "textPlain": "> It works, but suddenly your query times explode! Instead of doing 1 million transactions per second* you can now do only 3 (*These numbers were exaggerated for dramatic effect)In general, a single-queue design doesn’t make throughput collapse when you add more parallelism; it just gives you a fixed ceiling. With a well-designed queue, throughput goes up with concurrency, then flattens when the serialized section (the queue) saturates, maybe sagging a bit from context switching.If instead you see performance severely degrade as you add workers, that typically means there’s an additional problem beyond “we have one queue” — things like broadcast wakeups (“every event wakes every listener”), global scans on each event, or other O(N) work per operation. That’s a very different, and more serious, scalability bug than simply relying on a single queue.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
     "id": 45951321,
     "by": "JoelJacobson",
     "timeISO": "2025-11-17T06:39:53.000Z",
@@ -20,6 +28,22 @@
     "by": "davidelettieri",
     "timeISO": "2025-11-17T06:40:18.000Z",
     "textPlain": "It's worth mentioning debezium https://debezium.io/It allows to publish all changes from the db to Kafka.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951657,
+    "by": "isidor3",
+    "timeISO": "2025-11-17T07:55:29.000Z",
+    "textPlain": "I was hoping from the title that this would be about creating an audio representation so you could listen to the database work as if it were an old PC that had distinctive sounds for different tasks",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951632,
+    "by": "a_t48",
+    "timeISO": "2025-11-17T07:49:49.000Z",
+    "textPlain": "I had to set one of these up somewhat under duress to replace a poorly written scheduled query to export data to BigQuery. It’s nice to know what it’s actually doing under the hood, thanks for the info.",
     "parent": 45885768,
     "depth": 1
   },
@@ -38,5 +62,13 @@
     "textPlain": "This is cool, but also, why is pg_notify designed with such a contentious queue?",
     "parent": 45885768,
     "depth": 1
+  },
+  {
+    "id": 45951785,
+    "by": "tobyhinloopen",
+    "timeISO": "2025-11-17T08:25:50.000Z",
+    "textPlain": "We use it like this:    CREATE TRIGGER notify_events_trg AFTER INSERT ON xxx.events FOR EACH ROW EXECUTE PROCEDURE public.notify_events();\n\n    CREATE FUNCTION public.notify_events() RETURNS trigger\n    LANGUAGE plpgsql\n    AS $$\n    BEGIN\n      PERFORM pg_notify('events', row_to_json(NEW)::text);\n      RETURN NEW;\n    END;\n    $$;\n\nAnd then we have a bunch of triggers like this on many tables:    CREATE TRIGGER create_category_event_trg AFTER INSERT OR DELETE OR UPDATE ON public.categories FOR EACH ROW EXECUTE PROCEDURE public.create_category_event();\n\n    CREATE FUNCTION public.create_category_event() RETURNS trigger\n        LANGUAGE plpgsql SECURITY DEFINER\n        AS $$\n    DECLARE\n      category RECORD;\n      payload JSONB;\n    BEGIN\n      category := COALESCE(NEW, OLD);\n      payload := jsonb_build_object('id', category.id);\n      IF NEW IS NULL OR NEW.deleted_at IS NOT NULL THEN\n        payload := jsonb_set(payload, '{deleted}', 'true');\n      END IF;\n      INSERT INTO xxx.events (channel, inserted_at, payload)\n        VALUES ('category', NOW() AT TIME ZONE 'utc', payload);\n      RETURN NULL;\n    END;\n    $$;\n\nWe found no notable performance issues. We have a single LISTEN in another application. We did some stress testing and found that it performs way better than we would ever need",
+    "parent": 45951379,
+    "depth": 2
   }
 ]
