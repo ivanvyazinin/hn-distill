@@ -40,18 +40,18 @@
     "depth": 1
   },
   {
-    "id": 45955873,
-    "by": "gebdev",
-    "timeISO": "2025-11-17T17:35:57.000Z",
-    "textPlain": "This is a great example of how ADTs  can be implemented in C by emulating classes, despite the loss in brevity.For the first item on reference counting, batched memory management is a possible alternative that still fits the C style. The use of something like an arena allocator approximates a memory lifetime, which can be a powerful safety tool. When you free the allocator, all pages are freed at once. Not only is this less error prone, but it can decrease performance. There’s no need to allocate and free each reference counted pointer, nor store reference counts, when one can free the entire allocator after argument parsing is done.This also decreases fallible error handling: The callee doesn’t need to free anything because the allocator is owned by the caller.Of course, the use of allocators does not make sense in every setting, but for common lifetimes such as: once per frame, the length of a specific algorithm, or even application scope, it’s an awesome tool!",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953847,
     "by": "archargelod",
     "timeISO": "2025-11-17T14:28:14.000Z",
     "textPlain": "You can get all of that and more with Nim[0].Nim is a language that compiles to C. So it is similar in principle to the \"safe_c.h\". We get power and speed of C, but in a safe and convenient language.> It's finally, but for CNim has `finally` and `defer` statement that runs code at the end of scope, even if you raise.> memory that automatically cleans itself upNim has ARC[1]:\"ARC is fully deterministic - the compiler automatically injects destructors when it deems that some variable is no longer needed. In this sense, it’s similar to C++ with its destructors (RAII)\"> automated reference countingSee above> a type-safe, auto-growing vector.Nim has sequences that are dynamically sized, type and bounds safe> zero-cost, non-owning viewsNim has openarray, that is also \"just a pointer and a length\", unfortunately it's usage is limited to parameters. \nBut there is also an experimental view types feature[2]> explicit, type-safe resultNim has `Option[T]`[3] in standard library> self-documenting contracts (requires and ensures)Nim's assert returns message on raise: `assert(foo > 0, \"Foo must be positive\")`> safe, bounds-checked operationsNim has bounds-checking enabled by default (can be disabled)> The UNLIKELY() macro tells the compiler which branches are cold, adding zero overhead in hot paths.Nim has likely / unlikely template[4]------------------------------------------------------------[0] https://nim-lang.org[1] https://nim-lang.org/blog/2020/10/15/introduction-to-arc-orc...[2] https://nim-lang.org/docs/manual_experimental.html#view-type...[3] https://nim-lang.org/docs/options.htm[4] https://nim-lang.org/docs/system.html#likely.t%2Cbool",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45955873,
+    "by": "gebdev",
+    "timeISO": "2025-11-17T17:35:57.000Z",
+    "textPlain": "This is a great example of how ADTs  can be implemented in C by emulating classes, despite the loss in brevity.For the first item on reference counting, batched memory management is a possible alternative that still fits the C style. The use of something like an arena allocator approximates a memory lifetime, which can be a powerful safety tool. When you free the allocator, all pages are freed at once. Not only is this less error prone, but it can decrease performance. There’s no need to allocate and free each reference counted pointer, nor store reference counts, when one can free the entire allocator after argument parsing is done.This also decreases fallible error handling: The callee doesn’t need to free anything because the allocator is owned by the caller.Of course, the use of allocators does not make sense in every setting, but for common lifetimes such as: once per frame, the length of a specific algorithm, or even application scope, it’s an awesome tool!",
     "parent": 45952428,
     "depth": 1
   },
@@ -96,14 +96,6 @@
     "depth": 1
   },
   {
-    "id": 45955220,
-    "by": "throwaway889900",
-    "timeISO": "2025-11-17T16:36:22.000Z",
-    "textPlain": "Does the StringView/Span implementation here seem lacking? If the underlying data goes away, wouldn't the pointer now point to an invalid freed location, because it doesn't track the underlying data in any way?",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953156,
     "by": "HexDecOctBin",
     "timeISO": "2025-11-17T12:55:24.000Z",
@@ -112,10 +104,10 @@
     "depth": 1
   },
   {
-    "id": 45956701,
-    "by": "varispeed",
-    "timeISO": "2025-11-17T18:55:30.000Z",
-    "textPlain": "I am not convinced. I much prefer using plain C without superpowers and write extensive test suite and analyse the code multiple times. There is always a chance to miss something, but code without \"magic\" is much easier to reason about.",
+    "id": 45955220,
+    "by": "throwaway889900",
+    "timeISO": "2025-11-17T16:36:22.000Z",
+    "textPlain": "Does the StringView/Span implementation here seem lacking? If the underlying data goes away, wouldn't the pointer now point to an invalid freed location, because it doesn't track the underlying data in any way?",
     "parent": 45952428,
     "depth": 1
   },
@@ -128,6 +120,14 @@
     "depth": 1
   },
   {
+    "id": 45956701,
+    "by": "varispeed",
+    "timeISO": "2025-11-17T18:55:30.000Z",
+    "textPlain": "I am not convinced. I much prefer using plain C without superpowers and write extensive test suite and analyse the code multiple times. There is always a chance to miss something, but code without \"magic\" is much easier to reason about.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953354,
     "by": "khaledh",
     "timeISO": "2025-11-17T13:25:46.000Z",
@@ -136,18 +136,18 @@
     "depth": 1
   },
   {
-    "id": 45954593,
-    "by": "kerkeslager",
-    "timeISO": "2025-11-17T15:44:19.000Z",
-    "textPlain": "I feel like there might be some value in this header file for some projects, but this is exactly the wrong use case.> In cgrep, parsing command-line options the old way is a breeding ground for CVEs and its bestiary. You have to remember to free the memory on every single exit path, difficult for the undisciplined.No, no, no. Command line options that will exist the entire lifetime of the program are the quintessential case for not ever calling free() on them because it's a waste of time. There is absolutely no reason to spend processor cycles to carefully call free() on a bunch of individual resources when the program is about to exit and the OS will reclaim the entire process memory in one go much faster than your program can. You're creating complexity and making your program slower and there is literally no upside: this isn't a tradeoff, it's a bad practice.",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953688,
     "by": "immibis",
     "timeISO": "2025-11-17T14:10:27.000Z",
     "textPlain": "This feels AI-generated.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45954593,
+    "by": "kerkeslager",
+    "timeISO": "2025-11-17T15:44:19.000Z",
+    "textPlain": "I feel like there might be some value in this header file for some projects, but this is exactly the wrong use case.> In cgrep, parsing command-line options the old way is a breeding ground for CVEs and its bestiary. You have to remember to free the memory on every single exit path, difficult for the undisciplined.No, no, no. Command line options that will exist the entire lifetime of the program are the quintessential case for not ever calling free() on them because it's a waste of time. There is absolutely no reason to spend processor cycles to carefully call free() on a bunch of individual resources when the program is about to exit and the OS will reclaim the entire process memory in one go much faster than your program can. You're creating complexity and making your program slower and there is literally no upside: this isn't a tradeoff, it's a bad practice.",
     "parent": 45952428,
     "depth": 1
   },
@@ -192,6 +192,14 @@
     "depth": 2
   },
   {
+    "id": 45953495,
+    "by": "spacedcowboy",
+    "timeISO": "2025-11-17T13:46:12.000Z",
+    "textPlain": "The number of times I might want to write something in C and have it less likely to crash absolutely dwarfs the number of times I care about that code being cross-platform.Sure, cross-platform is desirable, if there's no cost involved, and mandatory if you actually need it, but it's a \"nice to have\" most of the time, not a \"needs this\".As for mutex overheads, yep, that's annoying, but really, how annoying ? Modern CPUs are fast. Very very fast. Personally I'm far more likely to use an os_unfair_lock_t than a pthread_mutex_t (see the previous point) which minimizes the locking to a memory barrier, but even if locking were slow, I think I'd prefer safe.Rust is, I'm sure, great. It's not something I'm personally interested in getting involved with, but it's not necessary for C (or even this extra header) to do everything that Rust can do, for it to be an improvement on what is available.There's simply too much out there written in C to say \"just use Rust, or Swift, or ...\" - too many libraries, too many resources, too many tutorials, etc. You pays your money and takes your choice.",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
     "id": 45955631,
     "by": "kev009",
     "timeISO": "2025-11-17T17:13:16.000Z",
@@ -208,10 +216,10 @@
     "depth": 2
   },
   {
-    "id": 45953495,
-    "by": "spacedcowboy",
-    "timeISO": "2025-11-17T13:46:12.000Z",
-    "textPlain": "The number of times I might want to write something in C and have it less likely to crash absolutely dwarfs the number of times I care about that code being cross-platform.Sure, cross-platform is desirable, if there's no cost involved, and mandatory if you actually need it, but it's a \"nice to have\" most of the time, not a \"needs this\".As for mutex overheads, yep, that's annoying, but really, how annoying ? Modern CPUs are fast. Very very fast. Personally I'm far more likely to use an os_unfair_lock_t than a pthread_mutex_t (see the previous point) which minimizes the locking to a memory barrier, but even if locking were slow, I think I'd prefer safe.Rust is, I'm sure, great. It's not something I'm personally interested in getting involved with, but it's not necessary for C (or even this extra header) to do everything that Rust can do, for it to be an improvement on what is available.There's simply too much out there written in C to say \"just use Rust, or Swift, or ...\" - too many libraries, too many resources, too many tutorials, etc. You pays your money and takes your choice.",
+    "id": 45953667,
+    "by": "saurik",
+    "timeISO": "2025-11-17T14:08:06.000Z",
+    "textPlain": "I'd think a POSIX mutex--a standard API that I not only could implement anywhere, but which has already been implemented all over the place--is way more \"cross platform\" than use of atomics.",
     "parent": 45953391,
     "depth": 2
   },
@@ -220,14 +228,6 @@
     "by": "layer8",
     "timeISO": "2025-11-17T17:32:19.000Z",
     "textPlain": "The shared-pointer implementation isn’t actually shown (i.e. shared_ptr_copy), and the SharedPtr type doesn’t use a pthread_mutex_t.",
-    "parent": 45953391,
-    "depth": 2
-  },
-  {
-    "id": 45953667,
-    "by": "saurik",
-    "timeISO": "2025-11-17T14:08:06.000Z",
-    "textPlain": "I'd think a POSIX mutex--a standard API that I not only could implement anywhere, but which has already been implemented all over the place--is way more \"cross platform\" than use of atomics.",
     "parent": 45953391,
     "depth": 2
   },
@@ -301,6 +301,14 @@
     "timeISO": "2025-11-17T13:56:42.000Z",
     "textPlain": ">Nothing is stopping you from writing c-like c++ if that's what you like style wise.You'll just have to get used to the C++ community screaming at you that it's the wrong way to write C++ and that you should just use Go or Zig instead",
     "parent": 45953071,
+    "depth": 2
+  },
+  {
+    "id": 45957043,
+    "by": "lelanthran",
+    "timeISO": "2025-11-17T19:20:08.000Z",
+    "textPlain": "> This is a great example of how ADTs can be implemented in C by emulating classes, despite the loss in brevity.I don't see it that way, mostly because ADTs don't require automatic destructors or GC, etc, but also because I never considered a unique/shared pointer type to be an abstract data type> When you free the allocator, all pages are freed at once. Not only is this less error prone, but it can decrease performance.How does it decrease performance? My experience with arenas is that they increase performance at the cost of a little extra memory usage.",
+    "parent": 45955873,
     "depth": 2
   },
   {
@@ -389,14 +397,6 @@
     "timeISO": "2025-11-17T13:33:31.000Z",
     "textPlain": "Fil-C essentially lifts C onto a managed, garbage-collected runtime. This is a small header that adds some C++ features to C.(These features are still essentially unsafe: the unique pointer implementation still permits UAF, for example, because nothing prevents another thread from holding the pointer and failing to observe that it has been freed.)",
     "parent": 45953283,
-    "depth": 2
-  },
-  {
-    "id": 45954270,
-    "by": "jnwatson",
-    "timeISO": "2025-11-17T15:12:24.000Z",
-    "textPlain": "Like the Linux kernel?Macros are simply a fact of life in any decent-sized C codebase.  The Linux kernel has some good guidance to try to keep it from getting out of hand but it is just something you have to learn to deal with.",
-    "parent": 45953354,
     "depth": 2
   }
 ]
