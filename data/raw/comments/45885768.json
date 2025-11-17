@@ -1,5 +1,29 @@
 [
   {
+    "id": 45951379,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:55:42.000Z",
+    "textPlain": "> The problem with Postgres' NOTIFY is that all notifications go through a single queue!> Even if you have 20 database connections making 20 transactions in parallel, all of them need to wait for their turn to lock the notification queue, add their notification, and unlock the queue again. This creates a bottleneck especially in high-throughput databases.We're currently working hard on optimizing LISTEN/NOTIFY: https://www.postgresql.org/message-id/flat/6899c044-4a82-49b...If you have any experiences of actual workload where you are currently experiencing performance/scalability problems, I would be interested in hearing from you, to better understand the actual workload. In some workloads, you might only listen to a single channel. For such single-channel workloads, the current implementation seems hard to tweak further, given the semantics and in-commit-order guarantees. However, for multi-channel workloads, we could do a lot better, which is what the linked patch is about. The main problem with the current implementation for multi-channel workloads, is that we currently signal and wake all listening backends (a backend is the PostgreSQL processes your client is connected to), even if they are not interested in the specific channels being notified in the current commit. This means that if you have 100 connections open in which each connect client has made a LISTEN on a different channel, then when someone does a NOTIFY on one of those channels, instead of just signaling the backend that listen on that channel, all 100 backends will be signaled. For multi-channel workloads, this could mean an enormous extra cost coming from the context-switching due to the signaling.I would greatly appreciate if you could please reply to this comment and share your different workloads when you've had problems with LISTEN/NOTIFY, to better understand approximately how many listening backends you had, and how many channels you had, and the mix of volume on such channels. Anything tha",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951321,
+    "by": "JoelJacobson",
+    "timeISO": "2025-11-17T06:39:53.000Z",
+    "textPlain": "> If you call pg_notify or NOTIFY inside a trigger, it will get called 100,000 times and send out 100,000 notifications if you change 100,000 rows in a single transaction which from a performance perspective is ... not ideal.This is only true if those notifications are different; if they are identical, such as in the same the notification is to alert listeners some table has new data (for cache invalidation), they are sent out as one notification only. See source code comment in async.c:     *   Duplicate notifications from the same transaction are sent out as one\n     *   notification only. This is done to save work when for example a trigger\n     *   on a 2 million row table fires a notification for each row that has been\n     *   changed. If the application needs to receive every single notification\n     *   that has been sent, it can easily add some unique string into the extra\n     *   payload parameter.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
+    "id": 45951323,
+    "by": "davidelettieri",
+    "timeISO": "2025-11-17T06:40:18.000Z",
+    "textPlain": "It's worth mentioning debezium https://debezium.io/It allows to publish all changes from the db to Kafka.",
+    "parent": 45885768,
+    "depth": 1
+  },
+  {
     "id": 45951024,
     "by": "hbarka",
     "timeISO": "2025-11-17T05:21:07.000Z",
