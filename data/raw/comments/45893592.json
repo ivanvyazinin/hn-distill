@@ -1,5 +1,13 @@
 [
   {
+    "id": 45963145,
+    "by": "sebstefan",
+    "timeISO": "2025-11-18T09:41:58.000Z",
+    "textPlain": ">STM is an optimistic concurrency system. This means that threads never block waiting for locks. Instead, each concurrent operation proceeds, possibly in parallel, on their own independent transaction log. Each transaction tracks which pieces of data it has accessed or mutated and if at commit time it is detected that some other transaction has been committed and altered data which this transaction also accessed, then the latter transaction is rolled back and is simply retried.I already foresaw (and it gets mentioned later), the problem that if you have many small, frequent operations, they will prevent a big, long operation from happening because they will always change the state and cause conflicts before the big one can finish. You can easily code yourself an app that will softlock forever.The post doesn't offer a good solution (it talks about one where there's a tradeoff, but you don't need tradeoffs for this)The way this gets fixed it is to make the lock acquisition (or in this case, the priority of the merge?) preemptive (Wound-Wait)All transactions have a global, ever incrementing number attached to them, their ID, which we call \"seniority\", if you try to get a a lock, and the lock is held by a transaction with a lower seniority (=> a higher ID), you kill the transaction, take the lock, and once you're done the transaction you killed is allowed to retryIn the meantime, if a transaction with the lower seniority tries to get the lock, it gets blockedThis insures that your program will always finish.In the case of \"lots of frequent small transactions\" + \"one big, long report\", the report will get killed a few times, until your report inevitably becomes the most senior transaction to ask for this resource, and is allowed to complete.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
     "id": 45962750,
     "by": "juliangmp",
     "timeISO": "2025-11-18T08:34:15.000Z",
@@ -16,10 +24,10 @@
     "depth": 1
   },
   {
-    "id": 45963003,
-    "by": "foota",
-    "timeISO": "2025-11-18T09:13:43.000Z",
-    "textPlain": "I've found it interesting to think about trying to adopt data structures like CRDT designed for distributed systems to the problem of local consistency between CPU-local data structures spread across cores for parallelism.",
+    "id": 45963255,
+    "by": "philippta",
+    "timeISO": "2025-11-18T10:01:17.000Z",
+    "textPlain": "The fundamental problem here is shared memory / shared ownership.If you assign exclusive ownership of all accounting data to a single thread and use CSP to communicate transfers, all of these made up problems go away.",
     "parent": 45893592,
     "depth": 1
   },
@@ -28,6 +36,22 @@
     "by": "Nican",
     "timeISO": "2025-11-18T08:28:25.000Z",
     "textPlain": "This is a nice article, and I appreciate the examples. The next problem to solve is how to persist state on disk across two different accounts after a transfer has been done.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45963270,
+    "by": "icar",
+    "timeISO": "2025-11-18T10:03:38.000Z",
+    "textPlain": "I would've enjoyed if the solution was proposed in Go as well.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45963003,
+    "by": "foota",
+    "timeISO": "2025-11-18T09:13:43.000Z",
+    "textPlain": "I've found it interesting to think about trying to adopt data structures like CRDT designed for distributed systems to the problem of local consistency between CPU-local data structures spread across cores for parallelism.",
     "parent": 45893592,
     "depth": 1
   },
@@ -44,6 +68,14 @@
     "by": "qprofyeh",
     "timeISO": "2025-11-18T08:02:16.000Z",
     "textPlain": "@OP perhaps there’s a comparison bug in withdraw(): if (a.balance <= amount)",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45963214,
+    "by": "timeon",
+    "timeISO": "2025-11-18T09:55:27.000Z",
+    "textPlain": "> If the programmer forgets to lock the mutex the system won't stop them from accessing the data anyways, and even then there's no actual link between the data being locked and the lock itself, we need to trust the programmers to both understand and respect the agreement. A risky prospect on both counts.Not every language is like that. I would not use language (that allows this) for parallel programming. You can use other ways but how can you guarantee everyone who will edit the code-base will not use unenforced mutex?",
     "parent": 45893592,
     "depth": 1
   },
@@ -72,10 +104,18 @@
     "depth": 1
   },
   {
-    "id": 45962981,
-    "by": "Nauxuron",
-    "timeISO": "2025-11-18T09:09:54.000Z",
-    "textPlain": "> You can't even access the data without locking the mutex.It's even nicer than that: you can actually access data without locking the mutex, because while you hold a mutable borrow to the mutex, Rust statically guarantees that no one else can acquire locks on the mutex.https://doc.rust-lang.org/std/sync/struct.Mutex.html#method....",
+    "id": 45963189,
+    "by": "internet_points",
+    "timeISO": "2025-11-18T09:51:18.000Z",
+    "textPlain": "https://old.reddit.com/r/haskell/comments/1oujfmi/mutexes_su... apparently \"optimistic\" glosses over some details",
+    "parent": 45963145,
+    "depth": 2
+  },
+  {
+    "id": 45963302,
+    "by": "torginus",
+    "timeISO": "2025-11-18T10:09:13.000Z",
+    "textPlain": "Mutexes suffer from a host of problems, and imo are not a very good concurrency primitive - they were designed to turn single-threaded code into multi-threaded. With todays 8+ cores in most systems, usually a single point of contention quickly becomes a problem.They're liable to deadlocks/livelocks, and sometimes not only with other explicitly Mutex-like things (it might happen some library you use has a lock hidden deep inside).They're also often backed byOS primitives (with big overheads) with inconsistent behaviors between platforms (spinlocks, waiting etc). We've run into an issue with .NET, that their version of Mutex didn't wake up the blocked thread on Linux as fast as on Windows, meaning we needed about 100x the time to serve a request as the thread was sleeping too long.There are questions like when to use spinlocks and when to go to wait sleep, which unfortunately the developer has to answer.Not assigning blame here, just pointing out that threading primitives and behaviors don't translate perfectly between OSes.Multi-threading is hard, other solutions like queues suffer from issues like backpressure.That's why I'm skeptical about Rust's fearless concurrency promise - none of these bugs are solved by just figuring out data races - which are a huge issue, but not the only one.",
     "parent": 45962750,
     "depth": 2
   },
@@ -84,6 +124,14 @@
     "by": "mgaunard",
     "timeISO": "2025-11-18T09:01:16.000Z",
     "textPlain": "I find it better to model that as an Actor than a mutex, but I guess it's inherently the same thing, except the actor also allows asynchronous operations.",
+    "parent": 45962750,
+    "depth": 2
+  },
+  {
+    "id": 45962981,
+    "by": "Nauxuron",
+    "timeISO": "2025-11-18T09:09:54.000Z",
+    "textPlain": "> You can't even access the data without locking the mutex.It's even nicer than that: you can actually access data without locking the mutex, because while you hold a mutable borrow to the mutex, Rust statically guarantees that no one else can acquire locks on the mutex.https://doc.rust-lang.org/std/sync/struct.Mutex.html#method....",
     "parent": 45962750,
     "depth": 2
   },
@@ -112,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 45963140,
+    "by": "mrkeen",
+    "timeISO": "2025-11-18T09:41:32.000Z",
+    "textPlain": "And it's all still true, although I would offer the usual argument that concurrency!=parallelism, and if you reach for threads&STM to try to speed something up, you'll probably have a bad time.  With the overhead of GC, STM-retries, false-sharing, pointer-chasing, etc you might have a better time rewriting it single-threaded in C/Rust.STM shines in a concurrent setting, where you know you'll multiple threads accessing your system and you want to keep everything correct.  And nothing else comes close.",
+    "parent": 45962386,
+    "depth": 2
+  },
+  {
     "id": 45962554,
     "by": "VBprogrammer",
     "timeISO": "2025-11-18T08:04:48.000Z",
@@ -136,6 +192,22 @@
     "depth": 2
   },
   {
+    "id": 45963394,
+    "by": "torginus",
+    "timeISO": "2025-11-18T10:25:43.000Z",
+    "textPlain": "CSP suffers from backpressure issues (which is not to say its bad, but it's not a panacea either)",
+    "parent": 45963255,
+    "depth": 2
+  },
+  {
+    "id": 45963213,
+    "by": "hackingonempty",
+    "timeISO": "2025-11-18T09:55:18.000Z",
+    "textPlain": "Scala supports it with for-comprehensions which are equivalent to Haskell's do-notation but STM is not part of the Scala standard library.  Zio and Cats Effect are two popular Scala effects systems with STM.",
+    "parent": 45894962,
+    "depth": 2
+  },
+  {
     "id": 45962763,
     "by": "LelouBil",
     "timeISO": "2025-11-18T08:35:31.000Z",
@@ -152,14 +224,6 @@
     "depth": 2
   },
   {
-    "id": 45962691,
-    "by": "lmm",
-    "timeISO": "2025-11-18T08:26:44.000Z",
-    "textPlain": "Scala has great STM in the same way (monad-based).",
-    "parent": 45894962,
-    "depth": 2
-  },
-  {
     "id": 45895819,
     "by": "vijaysharma12",
     "timeISO": "2025-11-12T02:39:56.000Z",
@@ -168,10 +232,10 @@
     "depth": 2
   },
   {
-    "id": 45962822,
-    "by": "stackghost",
-    "timeISO": "2025-11-18T08:45:52.000Z",
-    "textPlain": "There are c++ libraries that offer it.",
+    "id": 45962691,
+    "by": "lmm",
+    "timeISO": "2025-11-18T08:26:44.000Z",
+    "textPlain": "Scala has great STM in the same way (monad-based).",
     "parent": 45894962,
     "depth": 2
   },
@@ -180,6 +244,14 @@
     "by": "spencerflem",
     "timeISO": "2025-11-18T08:42:02.000Z",
     "textPlain": "The new Verse lang by Epic Games & a core Haskell contributor has a lot of transaction features. I don’t know if it’s exactly the same as STM though.",
+    "parent": 45894962,
+    "depth": 2
+  },
+  {
+    "id": 45962822,
+    "by": "stackghost",
+    "timeISO": "2025-11-18T08:45:52.000Z",
+    "textPlain": "There are c++ libraries that offer it.",
     "parent": 45894962,
     "depth": 2
   },
@@ -200,6 +272,30 @@
     "depth": 2
   },
   {
+    "id": 45963088,
+    "by": "mrkeen",
+    "timeISO": "2025-11-18T09:33:04.000Z",
+    "textPlain": "> I know OOP isn't cool any more, but the above is what OOP solves.The article was a lengthy explanation of why the problem occurs in non-STM settings.  In OO settings.What do you propose as an OO solution?",
+    "parent": 45962801,
+    "depth": 2
+  },
+  {
+    "id": 45963226,
+    "by": "mrkeen",
+    "timeISO": "2025-11-18T09:57:27.000Z",
+    "textPlain": "> it's better to avoid shared mutable state entirely.Yes! I would even go so far as to have the type system separate the mutable from the non-mutable for this reason!> Something actor like fits better and C# or Go channels works wonders.Or even STM channels/queues:  https://hackage.haskell.org/package/stm/docs/Control-Concurrent-STM-TChan.html\n  https://hackage.haskell.org/package/stm/docs/Control-Concurrent-STM-TQueue.html",
+    "parent": 45962572,
+    "depth": 2
+  },
+  {
+    "id": 45963124,
+    "by": "internet_points",
+    "timeISO": "2025-11-18T09:39:45.000Z",
+    "textPlain": "TFA has a whole section praising actors for certain tasks and explaining why it doesn't fit here.",
+    "parent": 45962572,
+    "depth": 2
+  },
+  {
     "id": 45962957,
     "by": "kreetx",
     "timeISO": "2025-11-18T09:06:06.000Z",
@@ -213,6 +309,14 @@
     "timeISO": "2025-11-18T08:17:07.000Z",
     "textPlain": "Sure, but sometimes shared mutable state is better, especially from a performance point of view. For example blurring an image.",
     "parent": 45962572,
+    "depth": 2
+  },
+  {
+    "id": 45963223,
+    "by": "niek_pas",
+    "timeISO": "2025-11-18T09:56:38.000Z",
+    "textPlain": "I've never taken an undergraduate CS course so I'm happy to have read this!",
+    "parent": 45962914,
     "depth": 2
   },
   {
