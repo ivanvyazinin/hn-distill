@@ -8,14 +8,6 @@
     "depth": 1
   },
   {
-    "id": 45960494,
-    "by": "kazinator",
-    "timeISO": "2025-11-18T01:49:22.000Z",
-    "textPlain": "[delayed]",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953162,
     "by": "cachius",
     "timeISO": "2025-11-17T12:56:06.000Z",
@@ -28,6 +20,14 @@
     "by": "purplesyringa",
     "timeISO": "2025-11-17T15:55:06.000Z",
     "textPlain": "This feels like a misrepresentation of features that actually matter for memory safety. Automatically freeing locals and bounds checking is unquestionably good, but it's only the very beginning.The real problems start when you need to manage memory lifetimes across the whole program, not locally. Can you return `UniquePtr` from a function? Can you store a copy of `SharedPtr` somewhere without accidentally forgetting to increment the refcount? Who is responsible for managing the lifetimes of elements in intrusive linked lists? How do you know whether a method consumes a pointer argument or stores a copy to it somewhere?I appreciate trying to write safer software, but we've always told people `#define xfree(p) do { free(p); p = NULL; } while (0)` is a bad pattern, and this post really feels like more of the same thing.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45960606,
+    "by": "kazinator",
+    "timeISO": "2025-11-18T02:07:11.000Z",
+    "textPlain": "This won't play along with setjmp/longjmp exception handling schemes, unfortunately, without a lot of extra effort.You can do cleanup handling that integrates with your exception handling library by using pairs of macros inspired by the POSIX pthread_cleanup_push stuff.  #define cleanup_push(fn, type, ptr, init) { \\\n    cleanup_node_t node; \\\n    type ptr = init; do cleanup_push_api(&node, fn, ptr) while (0)\n\n  #define cleanup_pop(ptr) cleanup_pop_api(ptr) \\\n  }\n\ncleanup_push_api places a cleanup node into the exception stack. This is allocated on the stack: the node object. If an exception goes off, that node will be seen by the exception handling which will call fn(ptr).The cleanup_pop_api call removes the top node, doing a sanity check that the ptr in the node is the same as ptr. It calls fn(ptr).The fact that cleanup_push leaves an open curly brace closed by cleanup_pop catches some balancing errors at compile time.The POSIX pthread_cleanup_pop has an extra boolean parameter indicating whether to do the cleanup call or not. That's sometimes useful when the cleanup is only something done in the case of an abort.  E.g. suppose tha the \"cleanup\" routine is rollback_database_transaction. We don't want that in the happy case; in the happy case we call commit_database_transaction.",
     "parent": 45952428,
     "depth": 1
   },
@@ -48,18 +48,18 @@
     "depth": 1
   },
   {
-    "id": 45953847,
-    "by": "archargelod",
-    "timeISO": "2025-11-17T14:28:14.000Z",
-    "textPlain": "You can get all of that and more with Nim[0].Nim is a language that compiles to C. So it is similar in principle to the \"safe_c.h\". We get power and speed of C, but in a safe and convenient language.> It's finally, but for CNim has `finally` and `defer` statement that runs code at the end of scope, even if you raise.> memory that automatically cleans itself upNim has ARC[1]:\"ARC is fully deterministic - the compiler automatically injects destructors when it deems that some variable is no longer needed. In this sense, it’s similar to C++ with its destructors (RAII)\"> automated reference countingSee above> a type-safe, auto-growing vector.Nim has sequences that are dynamically sized, type and bounds safe> zero-cost, non-owning viewsNim has openarray, that is also \"just a pointer and a length\", unfortunately it's usage is limited to parameters. \nBut there is also an experimental view types feature[2]> explicit, type-safe resultNim has `Option[T]`[3] in standard library> self-documenting contracts (requires and ensures)Nim's assert returns message on raise: `assert(foo > 0, \"Foo must be positive\")`> safe, bounds-checked operationsNim has bounds-checking enabled by default (can be disabled)> The UNLIKELY() macro tells the compiler which branches are cold, adding zero overhead in hot paths.Nim has likely / unlikely template[4]------------------------------------------------------------[0] https://nim-lang.org[1] https://nim-lang.org/blog/2020/10/15/introduction-to-arc-orc...[2] https://nim-lang.org/docs/manual_experimental.html#view-type...[3] https://nim-lang.org/docs/options.htm[4] https://nim-lang.org/docs/system.html#likely.t%2Cbool",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953101,
     "by": "rurban",
     "timeISO": "2025-11-17T12:46:21.000Z",
     "textPlain": "Just don't mix that up with the real safec.h header from safeclib:https://github.com/rurban/safeclib/tree/master/include",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45953847,
+    "by": "archargelod",
+    "timeISO": "2025-11-17T14:28:14.000Z",
+    "textPlain": "You can get all of that and more with Nim[0].Nim is a language that compiles to C. So it is similar in principle to the \"safe_c.h\". We get power and speed of C, but in a safe and convenient language.> It's finally, but for CNim has `finally` and `defer` statement that runs code at the end of scope, even if you raise.> memory that automatically cleans itself upNim has ARC[1]:\"ARC is fully deterministic - the compiler automatically injects destructors when it deems that some variable is no longer needed. In this sense, it’s similar to C++ with its destructors (RAII)\"> automated reference countingSee above> a type-safe, auto-growing vector.Nim has sequences that are dynamically sized, type and bounds safe> zero-cost, non-owning viewsNim has openarray, that is also \"just a pointer and a length\", unfortunately it's usage is limited to parameters. \nBut there is also an experimental view types feature[2]> explicit, type-safe resultNim has `Option[T]`[3] in standard library> self-documenting contracts (requires and ensures)Nim's assert returns message on raise: `assert(foo > 0, \"Foo must be positive\")`> safe, bounds-checked operationsNim has bounds-checking enabled by default (can be disabled)> The UNLIKELY() macro tells the compiler which branches are cold, adding zero overhead in hot paths.Nim has likely / unlikely template[4]------------------------------------------------------------[0] https://nim-lang.org[1] https://nim-lang.org/blog/2020/10/15/introduction-to-arc-orc...[2] https://nim-lang.org/docs/manual_experimental.html#view-type...[3] https://nim-lang.org/docs/options.htm[4] https://nim-lang.org/docs/system.html#likely.t%2Cbool",
     "parent": 45952428,
     "depth": 1
   },
@@ -96,6 +96,14 @@
     "depth": 1
   },
   {
+    "id": 45960494,
+    "by": "kazinator",
+    "timeISO": "2025-11-18T01:49:22.000Z",
+    "textPlain": "// The Old Way (don't do this)\n  char* include_pattern = NULL;\n  if (optarg) {\n      include_pattern = strdup(optarg);\n  }\n  // ...200 lines later...\n  if (some_error) {\n      if (include_pattern) free(include_pattern); // Did I free it? Did I??\n      return 1;\n\nNope!  // ...200 lines later...\n  // common return block\n\n  out:\n  free(include_pattern);  // free(NULL) allowed since before 1989 ANSI C\n  return result;",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
     "id": 45953156,
     "by": "HexDecOctBin",
     "timeISO": "2025-11-17T12:55:24.000Z",
@@ -120,14 +128,6 @@
     "depth": 1
   },
   {
-    "id": 45956253,
-    "by": "k1rd",
-    "timeISO": "2025-11-17T18:15:16.000Z",
-    "textPlain": "Seems like someone should invent C+, which would be C but with the reasonable safety guardrails that C++ implemented in the last 10/20 years.",
-    "parent": 45952428,
-    "depth": 1
-  },
-  {
     "id": 45953283,
     "by": "hanstospace",
     "timeISO": "2025-11-17T13:16:43.000Z",
@@ -136,10 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45958091,
-    "by": "carlos256",
-    "timeISO": "2025-11-17T20:48:33.000Z",
-    "textPlain": "Please don't do It.",
+    "id": 45956253,
+    "by": "k1rd",
+    "timeISO": "2025-11-17T18:15:16.000Z",
+    "textPlain": "Seems like someone should invent C+, which would be C but with the reasonable safety guardrails that C++ implemented in the last 10/20 years.",
     "parent": 45952428,
     "depth": 1
   },
@@ -148,6 +148,14 @@
     "by": "khaledh",
     "timeISO": "2025-11-17T13:25:46.000Z",
     "textPlain": "The problem with macro-laden C is that your code becomes foreign and opaque to others. You're building a new mini-language layer on top of the base language that only your codebase uses. This has been my experience with many large C projects: I see tons of macros used all over the place and I have no idea what they do unless I hunt down and understand each one of them.",
+    "parent": 45952428,
+    "depth": 1
+  },
+  {
+    "id": 45958091,
+    "by": "carlos256",
+    "timeISO": "2025-11-17T20:48:33.000Z",
+    "textPlain": "Please don't do It.",
     "parent": 45952428,
     "depth": 1
   },
@@ -220,6 +228,14 @@
     "by": "spacedcowboy",
     "timeISO": "2025-11-17T13:46:12.000Z",
     "textPlain": "The number of times I might want to write something in C and have it less likely to crash absolutely dwarfs the number of times I care about that code being cross-platform.Sure, cross-platform is desirable, if there's no cost involved, and mandatory if you actually need it, but it's a \"nice to have\" most of the time, not a \"needs this\".As for mutex overheads, yep, that's annoying, but really, how annoying ? Modern CPUs are fast. Very very fast. Personally I'm far more likely to use an os_unfair_lock_t than a pthread_mutex_t (see the previous point) which minimizes the locking to a memory barrier, but even if locking were slow, I think I'd prefer safe.Rust is, I'm sure, great. It's not something I'm personally interested in getting involved with, but it's not necessary for C (or even this extra header) to do everything that Rust can do, for it to be an improvement on what is available.There's simply too much out there written in C to say \"just use Rust, or Swift, or ...\" - too many libraries, too many resources, too many tutorials, etc. You pays your money and takes your choice.",
+    "parent": 45953391,
+    "depth": 2
+  },
+  {
+    "id": 45960616,
+    "by": "kazinator",
+    "timeISO": "2025-11-18T02:09:00.000Z",
+    "textPlain": "ISO C has had mutexes since C11 I think.In any case, you could use the provided primitives to wrap the C11 mutex, or any other mutex.With some clever #ifdef, you can probably have a single or multithreaded build switch at compile time which makes all the mutex stuff do nothing.",
     "parent": 45953391,
     "depth": 2
   },
@@ -380,22 +396,6 @@
     "by": "Dwedit",
     "timeISO": "2025-11-17T14:58:54.000Z",
     "textPlain": "That's the nice thing about macros, you can also have the macro generate C++ code using destructors instead of using the cleanup attribute.  As long as your other C code is also valid C++ code, it should work.",
-    "parent": 45954041,
-    "depth": 2
-  },
-  {
-    "id": 45954608,
-    "by": "1718627440",
-    "timeISO": "2025-11-17T15:46:13.000Z",
-    "textPlain": "You can use GCC on MS Windows just fine.  Installing MSYS2 will also give you a package manager.",
-    "parent": 45954041,
-    "depth": 2
-  },
-  {
-    "id": 45954109,
-    "by": "Maxatar",
-    "timeISO": "2025-11-17T14:54:21.000Z",
-    "textPlain": "MSVC now supports C17.",
     "parent": 45954041,
     "depth": 2
   }

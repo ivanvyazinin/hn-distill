@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45960505,
-    "by": "markdown",
-    "timeISO": "2025-11-18T01:51:38.000Z",
-    "textPlain": "BTW clicking on your website logo takes one to https://authress.io/knowledge-base/ instead of https://authress.io",
-    "parent": 45955565,
-    "depth": 1
-  },
-  {
     "id": 45958246,
     "by": "rdoherty",
     "timeISO": "2025-11-17T21:02:25.000Z",
     "textPlain": "This is probably one of the best summarizations of the past 10 years of my career in SRE. Once your systems get complex enough, something is always broken and you have to prepare for that. Detection & response become just as critical as pre-deploy testing.I do worry about all the automation being another failure point, along with the IaC stuff. That is all software too! How do you update that safely? It's turtles all the way down!",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
+    "id": 45960639,
+    "by": "thisnullptr",
+    "timeISO": "2025-11-18T02:13:30.000Z",
+    "textPlain": "It’s fascinating to me people think their services are so important they can’t survive any downtime. Can we all admit that, while annoying, nothing really bad happened even when us-east-1 was down for almost half a working day?",
     "parent": 45955565,
     "depth": 1
   },
@@ -36,6 +36,14 @@
     "by": "indigodaddy",
     "timeISO": "2025-11-17T19:26:47.000Z",
     "textPlain": "Back in the day (10-12 years ago) at a telecom/cable we accomplished this with F5 Big IP GSLB DNS (and later migrated to A10's GSLB equivalent devices) as the auth DNS server for services/zones that required or were suitable for HA.  (I can't totally remember but I'm guessing we must have had a pretty low TTL for this).Had no idea that Route 53 had this sort of functionality",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
+    "id": 45960783,
+    "by": "JSR_FDED",
+    "timeISO": "2025-11-18T02:35:50.000Z",
+    "textPlain": "> We test before deployment. There is no better time to test.Love the deadpan delivery.",
     "parent": 45955565,
     "depth": 1
   },
@@ -64,6 +72,14 @@
     "depth": 1
   },
   {
+    "id": 45960505,
+    "by": "markdown",
+    "timeISO": "2025-11-18T01:51:38.000Z",
+    "textPlain": "BTW clicking on your website logo takes one to https://authress.io/knowledge-base/ instead of https://authress.io",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
     "id": 45957393,
     "by": "iso1631",
     "timeISO": "2025-11-17T19:44:25.000Z",
@@ -88,6 +104,14 @@
     "depth": 1
   },
   {
+    "id": 45960718,
+    "by": "shoo",
+    "timeISO": "2025-11-18T02:26:09.000Z",
+    "textPlain": "> the section about retries doesn't mention correlations. [...] By treating P_{3rdParty}(Failure) as fixed, they're assuming a model in which each each try is completely independent: all the failures are due to background noise. But that's totally wrong, as shown by the existence of big outages like the one they're describingYes, that jumped out at me as well. A slightly more sophisticated model could be to assume there are two possible causes of a failed 3rd party call: (a) a transient issue - failure can be masked by retrying, and (b) a serious outage - where retrying is likely to find that the 3rd party dependency is still unavailable.Our probabilistic model of this 3rd party dependency could then look something like  P(first call failure) = 0.10\n  P(transient issue | first call failure) = 0.90\n  P(serious outage | first call failure) = 0.10\n  P(call failure | transient issue, prior call failure) = 0.10\n  P(call failure | serious outage, prior call failure) = 0.95\n\nI.e. a failed call is 9x more likely to be caused by a transient issue than a serious outage. If the cause was a transient issue we assume independence between sequential attempts like in the article, but if the failure was caused by a serious outage there's only a 5% chance that each sequential retry attempt will succeed.In contrast with the math sketched in the article, where retrying a 3rd party call with a 10% failure rate 5 times could suffice for a 99.999% success rate, with the above model of failure modes including a serious outage failure mode producing a string of failures, we'd need to retry 135 times after a first failed call to achieve the same 99.999% success rate.Your points about overall latency client is willing to wait & retries causing additional load are good, in many systems \"135 retry attempts\" is impractical and would mean \"our overall system has failed and is unavailable\".Anyhow, it's still an interesting article. The meat of the argument and logic about 3rd party deps needing t",
+    "parent": 45959519,
+    "depth": 2
+  },
+  {
     "id": 45959617,
     "by": "lorrin",
     "timeISO": "2025-11-17T23:22:26.000Z",
@@ -109,6 +133,22 @@
     "timeISO": "2025-11-17T21:16:48.000Z",
     "textPlain": "Iac is definitely a failure point, but the manual alternative is much worse! I’ve had a lot of benefit from using pulumi, simply because the code can be more compact than the terraform hcl was.For example, for the fall over regions (from the article) you could make a pulumi function that parameterizes only the n things that are different per fall over env and guarantee / verify the scripts are nearly identical. Of course, many people use modules / terragrunt for similar reasons, but it ends up being quite powerful.",
     "parent": 45958246,
+    "depth": 2
+  },
+  {
+    "id": 45960806,
+    "by": "shoo",
+    "timeISO": "2025-11-18T02:39:47.000Z",
+    "textPlain": "In many contexts you are correct & further, as someone in that earlier thread about the AWS us-east-1 outage mentioned, customers can be more forgiving of outages if you as the vendor can point to a widespread AWS us-east-1 outage and note that us-east-1 is down for everyone.But, as JSR_FDED's sibling comment notes & as is spelled out in the article, authress' business model offering an auth service means that their outage may entirely brick their clients customer facing auth / machine to machine auth.I've worked in megacorp environments where an outage of certain internal services responsible for auth or issuing JWTs would break tens or hundreds of internal services and break various customer-facing flows.  In many business contexts a big messy customer facing outage for a day or so doesn't actually matter but in some contexts it really can.  In terms of blast radius, unavailability of a key auth service depended on by hundreds of things is up there with, i dunno, breaking the network.",
+    "parent": 45960639,
+    "depth": 2
+  },
+  {
+    "id": 45960777,
+    "by": "JSR_FDED",
+    "timeISO": "2025-11-18T02:33:44.000Z",
+    "textPlain": "If you’re providing auth services to many companies then a failure will increase the likelihood of something bad to an unacceptable degree.",
+    "parent": 45960639,
     "depth": 2
   },
   {
