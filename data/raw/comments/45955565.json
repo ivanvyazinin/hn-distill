@@ -3,7 +3,15 @@
     "id": 45959519,
     "by": "scottlamb",
     "timeISO": "2025-11-17T23:11:32.000Z",
-    "textPlain": "I'm surprised the section about retries doesn't mention correlations. They say:> P_{total}(Success) = 1 - P_{3rdParty}(Failure)^{RetryCount}That's assuming a model in which each each try is completely independent: all the failures are due to background noise. But that's totally wrong, as shown by the existence of big outages like the one they're describing, and not consistent with the way they describe outages in terms of time they are down (rather than purely fraction of requests).In reality, additional retries don't improve reliability as much as that formula says. Given that request 1 failed, request 2 (sent immediately afterward with the same body) probably will too. And there's another important effect: overload. During a major outage, retries often decrease reliability in aggregate—maybe retrying one request makes it more likely to go through, but retrying all the requests causes significant overload, often decreasing the total number of successes.I think this is correlation is a much bigger factor than \"the reliability of that retry handler\" that they go into instead. Not sure what they mean there anyway—if the retry handler is just a loop within the calling code, calling out its reliability separately from the rest of the calling code seems strange to me. Maybe they're talking about like an external queue (SQS and the like) for deferred retries, but that brings in a whole different assumption that they're talking about something that can be processed asynchronously. I don't see that mentioned, and it seems inconsistent with the description of these requests as on the critical path for their customers. Or maybe they're talking about hitting a \"circuit breaker\" that prevents excessive retries—which is a good practice due to the correlation I mentioned above, but it seems strange to describe it some obliquely.The rest of the article might be much clearer, but I have a fever and didn't make it through.",
+    "textPlain": "I'm surprised the section about retries doesn't mention correlations. They say:> P_{total}(Success) = 1 - P_{3rdParty}(Failure)^{RetryCount}By treating P_{3rdParty}(Failure) as fixed, they're assuming a model in which each each try is completely independent: all the failures are due to background noise. But that's totally wrong, as shown by the existence of big outages like the one they're describing, and not consistent with the way they describe outages in terms of time they are down (rather than purely fraction of requests).In reality, additional retries don't improve reliability as much as that formula says. Given that request 1 failed, request 2 (sent immediately afterward with the same body) probably will too. And there's another important effect: overload. During a major outage, retries often decrease reliability in aggregate—maybe retrying one request makes it more likely to go through, but retrying all the requests causes significant overload, often decreasing the total number of successes.I think this correlation is a much bigger factor than \"the reliability of that retry handler\" that they go into instead. Not sure what they mean there anyway—if the retry handler is just a loop within the calling code, calling out its reliability separately from the rest of the calling code seems strange to me. Maybe they're talking about an external queue (SQS and the like) for deferred retries, but that brings in a whole different assumption that they're talking about something that can be processed asynchronously. I don't see that mentioned, and it seems inconsistent with the description of these requests as on the critical path for their customers. Or maybe they're talking about hitting a \"circuit breaker\" that prevents excessive retries—which is a good practice due to the correlation I mentioned above, but if so it seems strange to describe it so obliquely, and again strange to describe its reliability as an inherent/independent thing, rather than a property of the se",
+    "parent": 45955565,
+    "depth": 1
+  },
+  {
+    "id": 45960505,
+    "by": "markdown",
+    "timeISO": "2025-11-18T01:51:38.000Z",
+    "textPlain": "BTW clicking on your website logo takes one to https://authress.io/knowledge-base/ instead of https://authress.io",
     "parent": 45955565,
     "depth": 1
   },
@@ -80,6 +88,14 @@
     "depth": 1
   },
   {
+    "id": 45959617,
+    "by": "lorrin",
+    "timeISO": "2025-11-17T23:22:26.000Z",
+    "textPlain": "Agreed, I think the introduction is wrong and detracts from the rest of the article.",
+    "parent": 45959519,
+    "depth": 2
+  },
+  {
     "id": 45958775,
     "by": "wparad",
     "timeISO": "2025-11-17T21:52:11.000Z",
@@ -93,6 +109,14 @@
     "timeISO": "2025-11-17T21:16:48.000Z",
     "textPlain": "Iac is definitely a failure point, but the manual alternative is much worse! I’ve had a lot of benefit from using pulumi, simply because the code can be more compact than the terraform hcl was.For example, for the fall over regions (from the article) you could make a pulumi function that parameterizes only the n things that are different per fall over env and guarantee / verify the scripts are nearly identical. Of course, many people use modules / terragrunt for similar reasons, but it ends up being quite powerful.",
     "parent": 45958246,
+    "depth": 2
+  },
+  {
+    "id": 45960152,
+    "by": "kondro",
+    "timeISO": "2025-11-18T00:46:34.000Z",
+    "textPlain": "While there appears to be some us-east-1 SPoF for Route 53 updates (as shown recently), the actual health checks themselves occur in up to 8 different regions [1] with an 18%[2] agreement of failure required to initiate a failover.AWS has very good isolation between regions and, while it relies on us-east-1 for control plane updates to Route 53, health checks and failovers are data plane operations[3] and aren't affected by a us-east-1 outage.Relying on a single provider always seems like a risk, but the increased complexity of designing systems for multi-cloud will usually result in an increased risk of failure, not a decrease.1. us-east-1, us-west-1, us-west-2, eu-west-1, ap-southeast-1, ap-southeast-2, ap-northeast-1 and sa-east-1 which defaults to all of them.2. https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dn...3. https://aws.amazon.com/blogs/networking-and-content-delivery...",
+    "parent": 45956864,
     "depth": 2
   },
   {
