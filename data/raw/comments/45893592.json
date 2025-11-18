@@ -1,9 +1,9 @@
 [
   {
-    "id": 45962703,
-    "by": "Nican",
-    "timeISO": "2025-11-18T08:28:25.000Z",
-    "textPlain": "This is a nice article, and I appreciate the examples. The next problem to solve is how to persist state on disk across two different accounts after a transfer has been done.",
+    "id": 45962750,
+    "by": "juliangmp",
+    "timeISO": "2025-11-18T08:34:15.000Z",
+    "textPlain": "I found that a lot of the problems I had been having with mutexes, stem from the fact that traditionally the mutex and the data it protects are separate.\nBolting them together, like Rust's Mutex<T> does, solves a lot these problems. It let's you write normal, synchronous code and leave the locking up to the caller, but without making it a nightmare. You can't even access the data without locking the mutex.This isn't an attack on the (very well written) article though. Just wanted to add my two cents.",
     "parent": 45893592,
     "depth": 1
   },
@@ -16,10 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45962534,
-    "by": "qprofyeh",
-    "timeISO": "2025-11-18T08:02:16.000Z",
-    "textPlain": "@OP perhaps there’s a comparison bug in withdraw(): if (a.balance <= amount)",
+    "id": 45963003,
+    "by": "foota",
+    "timeISO": "2025-11-18T09:13:43.000Z",
+    "textPlain": "I've found it interesting to think about trying to adopt data structures like CRDT designed for distributed systems to the problem of local consistency between CPU-local data structures spread across cores for parallelism.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45962703,
+    "by": "Nican",
+    "timeISO": "2025-11-18T08:28:25.000Z",
+    "textPlain": "This is a nice article, and I appreciate the examples. The next problem to solve is how to persist state on disk across two different accounts after a transfer has been done.",
     "parent": 45893592,
     "depth": 1
   },
@@ -32,12 +40,68 @@
     "depth": 1
   },
   {
+    "id": 45962534,
+    "by": "qprofyeh",
+    "timeISO": "2025-11-18T08:02:16.000Z",
+    "textPlain": "@OP perhaps there’s a comparison bug in withdraw(): if (a.balance <= amount)",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45962801,
+    "by": "stackghost",
+    "timeISO": "2025-11-18T08:42:46.000Z",
+    "textPlain": ">Ugh, a correct transfer function should conceptually just be the composition of our well encapsulated withdraw and a deposit functions, but defining it correctly has forced us to remove the locking from both withdraw and deposit, making both of them less safe to use.I know OOP isn't cool any more, but the above is what OOP solves.TFA's transfer() and withdraw() functions aren't compliant with double-entry accounting anyways, so you'd mark them private and only expose Transfer to callers.  Let the class handle its own details.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
     "id": 45962572,
     "by": "DeathArrow",
     "timeISO": "2025-11-18T08:06:37.000Z",
     "textPlain": "When working with high throughput concurrent code like consumer producer pipelines, it's better to avoid shared mutable state entirely. Something actor like fits better and C# or Go channels works wonders.",
     "parent": 45893592,
     "depth": 1
+  },
+  {
+    "id": 45962914,
+    "by": "mgaunard",
+    "timeISO": "2025-11-18T08:58:58.000Z",
+    "textPlain": "tl;dr mutexes are evil because they don't compose, STM is the solution because it does compose, otherwise just avoid shared state, or even state entirely.Not anything that's not already covered in any undergraduate CS course.",
+    "parent": 45893592,
+    "depth": 1
+  },
+  {
+    "id": 45962981,
+    "by": "Nauxuron",
+    "timeISO": "2025-11-18T09:09:54.000Z",
+    "textPlain": "> You can't even access the data without locking the mutex.It's even nicer than that: you can actually access data without locking the mutex, because while you hold a mutable borrow to the mutex, Rust statically guarantees that no one else can acquire locks on the mutex.https://doc.rust-lang.org/std/sync/struct.Mutex.html#method....",
+    "parent": 45962750,
+    "depth": 2
+  },
+  {
+    "id": 45962924,
+    "by": "mgaunard",
+    "timeISO": "2025-11-18T09:01:16.000Z",
+    "textPlain": "I find it better to model that as an Actor than a mutex, but I guess it's inherently the same thing, except the actor also allows asynchronous operations.",
+    "parent": 45962750,
+    "depth": 2
+  },
+  {
+    "id": 45962991,
+    "by": "indigo945",
+    "timeISO": "2025-11-18T09:11:44.000Z",
+    "textPlain": "This doesn't solve the deadlock problem, however.",
+    "parent": 45962750,
+    "depth": 2
+  },
+  {
+    "id": 45962973,
+    "by": "dist-epoch",
+    "timeISO": "2025-11-18T09:08:09.000Z",
+    "textPlain": "Sounds like the Java synchronized class.",
+    "parent": 45962750,
+    "depth": 2
   },
   {
     "id": 45962702,
@@ -56,10 +120,26 @@
     "depth": 2
   },
   {
-    "id": 45962691,
-    "by": "lmm",
-    "timeISO": "2025-11-18T08:26:44.000Z",
-    "textPlain": "Scala has great STM in the same way (monad-based).",
+    "id": 45962858,
+    "by": "exasperaited",
+    "timeISO": "2025-11-18T08:51:50.000Z",
+    "textPlain": "To be maximally fair to the Haskell people, they have been enormously influential. Haskell is like Canada: you grow up nicely there and then travel the world to bring your energy to it.",
+    "parent": 45962386,
+    "depth": 2
+  },
+  {
+    "id": 45962976,
+    "by": "dist-epoch",
+    "timeISO": "2025-11-18T09:09:09.000Z",
+    "textPlain": "I think Intel x86 had some hardware support for STM at some point. Not sure what's the status of that.",
+    "parent": 45962386,
+    "depth": 2
+  },
+  {
+    "id": 45962763,
+    "by": "LelouBil",
+    "timeISO": "2025-11-18T08:35:31.000Z",
+    "textPlain": "Not \"first class\" but pretty good in Kotlinhttps://arrow-kt.io/learn/coroutines/stm/",
     "parent": 45894962,
     "depth": 2
   },
@@ -72,10 +152,34 @@
     "depth": 2
   },
   {
+    "id": 45962691,
+    "by": "lmm",
+    "timeISO": "2025-11-18T08:26:44.000Z",
+    "textPlain": "Scala has great STM in the same way (monad-based).",
+    "parent": 45894962,
+    "depth": 2
+  },
+  {
     "id": 45895819,
     "by": "vijaysharma12",
     "timeISO": "2025-11-12T02:39:56.000Z",
     "textPlain": "I believe Clojure has first class support for STM.",
+    "parent": 45894962,
+    "depth": 2
+  },
+  {
+    "id": 45962822,
+    "by": "stackghost",
+    "timeISO": "2025-11-18T08:45:52.000Z",
+    "textPlain": "There are c++ libraries that offer it.",
+    "parent": 45894962,
+    "depth": 2
+  },
+  {
+    "id": 45962799,
+    "by": "spencerflem",
+    "timeISO": "2025-11-18T08:42:02.000Z",
+    "textPlain": "The new Verse lang by Epic Games & a core Haskell contributor has a lot of transaction features. I don’t know if it’s exactly the same as STM though.",
     "parent": 45894962,
     "depth": 2
   },
@@ -88,11 +192,35 @@
     "depth": 2
   },
   {
+    "id": 45962978,
+    "by": "kubanczyk",
+    "timeISO": "2025-11-18T09:09:29.000Z",
+    "textPlain": "I've caught unbalanced parens:    forkIO (atomically (transfer req.from req.to req.amount)",
+    "parent": 45962534,
+    "depth": 2
+  },
+  {
+    "id": 45962957,
+    "by": "kreetx",
+    "timeISO": "2025-11-18T09:06:06.000Z",
+    "textPlain": "Account balance is necessarily a shared mutable state.",
+    "parent": 45962572,
+    "depth": 2
+  },
+  {
     "id": 45962639,
     "by": "IshKebab",
     "timeISO": "2025-11-18T08:17:07.000Z",
     "textPlain": "Sure, but sometimes shared mutable state is better, especially from a performance point of view. For example blurring an image.",
     "parent": 45962572,
+    "depth": 2
+  },
+  {
+    "id": 45962964,
+    "by": "kreetx",
+    "timeISO": "2025-11-18T09:06:59.000Z",
+    "textPlain": "Which CS course did you go to?",
+    "parent": 45962914,
     "depth": 2
   }
 ]
