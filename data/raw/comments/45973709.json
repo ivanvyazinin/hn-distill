@@ -32,14 +32,6 @@
     "depth": 1
   },
   {
-    "id": 45981274,
-    "by": "jjice",
-    "timeISO": "2025-11-19T16:09:36.000Z",
-    "textPlain": "There's (obviously) a lot of discussion around the use of `unwrap` in production code. I feel like I'm watching comments speak past each other right now.I'd agree that the use of `unwrap` could possibly make sense in a place where you do want the system to fail hard. There's lot of good reasons to make the system fail hard. I'd lean towards an `expect` here, but whatever.That said, the function already returns a `Result` and we don't know what the calling code looks like. Maybe it does do an `unwrap` there too, or maybe there is a save way for this to log and continue that we're not aware of because we don't have enough info.Should a system as critical as the CF proxy fail hard? I don't know. I'd say yes if it was the kind of situation that could revert itself (like an incremental rollout), but this is such an interesting situation since it's a config being rolled out. Hindsight is 20:20 obviously, but it feels like there should've been better logging, deployment, rollback, and parsing/validation capabilities, no matter what the `unwrap`/`Result` option is.Also, it seems like the initial Clickhouse changes could've been testing much better, but I'm sure the CF team realizes that.On the bright side, this is a very solid write up so quickly after the outage. Much better than those times we get it two weeks later.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45973901,
     "by": "EvanAnderson",
     "timeISO": "2025-11-18T23:54:10.000Z",
@@ -64,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 45977805,
-    "by": "cowsandmilk",
-    "timeISO": "2025-11-19T10:09:49.000Z",
-    "textPlain": "Blog post from less than a week ago on how Cloudflare avoids outages on configuration changes: https://blog.cloudflare.com/finding-the-grain-of-sand-in-a-h...This has to sting a bit after that post.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45973945,
     "by": "otterley",
     "timeISO": "2025-11-18T23:58:26.000Z",
     "textPlain": "> work has already begun on how we will harden them against failures like this in the future. In particular we are:> Hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input> Enabling more global kill switches for features> Eliminating the ability for core dumps or other error reports to overwhelm system resources> Reviewing failure modes for error conditions across all core proxy modulesAbsent from this list are canary deployments and incremental or wave-based deployment of configuration files (which are often as dangerous as code changes) across fault isolation boundaries -- assuming CloudFlare has such boundaries at all. How are they going to contain the blast radius in the future?This is something the industry was supposed to learn from the CrowdStrike incident last year, but it's clear that we still have a long way to go.Also, enabling global anything (i.e., \"enabling global kill switches for features\") sounds like an incredibly risky idea. One can imagine a bug in a global switch that transforms disabling a feature into disabling an entire system.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45977805,
+    "by": "cowsandmilk",
+    "timeISO": "2025-11-19T10:09:49.000Z",
+    "textPlain": "Blog post from less than a week ago on how Cloudflare avoids outages on configuration changes: https://blog.cloudflare.com/finding-the-grain-of-sand-in-a-h...This has to sting a bit after that post.",
     "parent": 45973709,
     "depth": 1
   },
@@ -88,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45979533,
-    "by": "zf00002",
-    "timeISO": "2025-11-19T13:55:12.000Z",
-    "textPlain": "As an IT person, I wonder what it's like to work for a company like this. Where presumably IT stuff has a priority. Unlike the companies I've worked for where IT takes a backseat to everything until something goes wrong. Company I work had a huge new office built, with the plan it would be big enough for future growth, yet despite repeated attempts to reserve a larger space, our server room and infrastructure is actually smaller than our old building and has no room to grow.",
+    "id": 45981274,
+    "by": "jjice",
+    "timeISO": "2025-11-19T16:09:36.000Z",
+    "textPlain": "There's (obviously) a lot of discussion around the use of `unwrap` in production code. I feel like I'm watching comments speak past each other right now.I'd agree that the use of `unwrap` could possibly make sense in a place where you do want the system to fail hard. There's lot of good reasons to make the system fail hard. I'd lean towards an `expect` here, but whatever.That said, the function already returns a `Result` and we don't know what the calling code looks like. Maybe it does do an `unwrap` there too, or maybe there is a save way for this to log and continue that we're not aware of because we don't have enough info.Should a system as critical as the CF proxy fail hard? I don't know. I'd say yes if it was the kind of situation that could revert itself (like an incremental rollout), but this is such an interesting situation since it's a config being rolled out. Hindsight is 20:20 obviously, but it feels like there should've been better logging, deployment, rollback, and parsing/validation capabilities, no matter what the `unwrap`/`Result` option is.Also, it seems like the initial Clickhouse changes could've been testing much better, but I'm sure the CF team realizes that.On the bright side, this is a very solid write up so quickly after the outage. Much better than those times we get it two weeks later.",
     "parent": 45973709,
     "depth": 1
   },
@@ -112,6 +104,22 @@
     "depth": 1
   },
   {
+    "id": 45979533,
+    "by": "zf00002",
+    "timeISO": "2025-11-19T13:55:12.000Z",
+    "textPlain": "As an IT person, I wonder what it's like to work for a company like this. Where presumably IT stuff has a priority. Unlike the companies I've worked for where IT takes a backseat to everything until something goes wrong. Company I work had a huge new office built, with the plan it would be big enough for future growth, yet despite repeated attempts to reserve a larger space, our server room and infrastructure is actually smaller than our old building and has no room to grow.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45974093,
+    "by": "dzonga",
+    "timeISO": "2025-11-19T00:14:23.000Z",
+    "textPlain": "> thread fl2_worker_thread panicked: called Result::unwrap() on an Err valueI don't use Rust, but a lot of Rust people say if it compiles it runs.Well Rust won't save you from the usual programming mistake. Not blaming anyone at cloudflare here. I love Cloudflare and the awesome tools they put out.end of day - let's pick languages | tech because of what we love to do. if you love Rust - pick it all day. I actually wanna try it for industrial robot stuff or small controllers etc.there's no bad language - just occassional hiccups from us users who use those tools.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45976946,
     "by": "HL33tibCe7",
     "timeISO": "2025-11-19T07:56:00.000Z",
@@ -124,14 +132,6 @@
     "by": "dilyevsky",
     "timeISO": "2025-11-19T05:25:30.000Z",
     "textPlain": "Long time ago Google had a very similar incident where ddos protection system ingested a bad config and took everything down. Except it was auto resolved in like  four minutes by an automatic rollback system before oncall was even able to do anything. Perhaps Cloudflare should invest in a system like that",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974093,
-    "by": "dzonga",
-    "timeISO": "2025-11-19T00:14:23.000Z",
-    "textPlain": "> thread fl2_worker_thread panicked: called Result::unwrap() on an Err valueI don't use Rust, but a lot of Rust people say if it compiles it runs.Well Rust won't save you from the usual programming mistake. Not blaming anyone at cloudflare here. I love Cloudflare and the awesome tools they put out.end of day - let's pick languages | tech because of what we love to do. if you love Rust - pick it all day. I actually wanna try it for industrial robot stuff or small controllers etc.there's no bad language - just occassional hiccups from us users who use those tools.",
     "parent": 45973709,
     "depth": 1
   },
@@ -200,10 +200,10 @@
     "depth": 1
   },
   {
-    "id": 45980027,
-    "by": "throw7",
-    "timeISO": "2025-11-19T14:36:38.000Z",
-    "textPlain": "Is this true: from that core proxy diagram, I didn't realize cloudflare sees the full unencrypted packet between you and the server.If that's true, is there a way to tell (easily) whether a site is using cloudflare or not?",
+    "id": 45974941,
+    "by": "pdimitar",
+    "timeISO": "2025-11-19T01:50:58.000Z",
+    "textPlain": "While I heavily frown upon using `unwrap` and `expect` in Rust code and make sure to have Clippy tell me about every single usage of them, I also understand that  without them Rust might have been seen as an academic curiosity language.They are escape hatches. Without those your language would never take off.But here's the thing. Escape hatches are like emergency exits. They are not to be used by your team to go to lunch in a nearby restaurant.---Cloudflare should likely invest in better linting and CI/CD alerts. Not to mention isolated testing i.e. deploy this change only to a small subset and monitor, and only then do a wider deployment.Hindsight is 20/20 and we can all be smartasses after the fact of course. But I am really surprised because lately I am only using Rust for hobby projects and even I know I should not use `unwrap` and `expect` beyond the first iteration phases.---I have advocated for this before but IMO Rust at this point will benefit greatly from disallowing those unsafe APIs by default in release mode. Though I understand why they don't want to do it -- likely millions of CI/CD pipelines will break overnight. But in the interim, maybe a rustc flag we can put in our `Cargo.toml` that enables such a stricter mode? Or have that flag just remove all the panicky API _at compile time_ though I believe this might be a Gargantuan effort and is likely never happening (sadly).In any case, I would expect many other failures from Cloudflare but not _this_ one in particular.",
     "parent": 45973709,
     "depth": 1
   },
@@ -216,42 +216,10 @@
     "depth": 1
   },
   {
-    "id": 45974941,
-    "by": "pdimitar",
-    "timeISO": "2025-11-19T01:50:58.000Z",
-    "textPlain": "While I heavily frown upon using `unwrap` and `expect` in Rust code and make sure to have Clippy tell me about every single usage of them, I also understand that  without them Rust might have been seen as an academic curiosity language.They are escape hatches. Without those your language would never take off.But here's the thing. Escape hatches are like emergency exits. They are not to be used by your team to go to lunch in a nearby restaurant.---Cloudflare should likely invest in better linting and CI/CD alerts. Not to mention isolated testing i.e. deploy this change only to a small subset and monitor, and only then do a wider deployment.Hindsight is 20/20 and we can all be smartasses after the fact of course. But I am really surprised because lately I am only using Rust for hobby projects and even I know I should not use `unwrap` and `expect` beyond the first iteration phases.---I have advocated for this before but IMO Rust at this point will benefit greatly from disallowing those unsafe APIs by default in release mode. Though I understand why they don't want to do it -- likely millions of CI/CD pipelines will break overnight. But in the interim, maybe a rustc flag we can put in our `Cargo.toml` that enables such a stricter mode? Or have that flag just remove all the panicky API _at compile time_ though I believe this might be a Gargantuan effort and is likely never happening (sadly).In any case, I would expect many other failures from Cloudflare but not _this_ one in particular.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45980842,
-    "by": "Barry-Perkins",
-    "timeISO": "2025-11-19T15:32:40.000Z",
-    "textPlain": "The Cloudflare outage on November 18, 2025 highlights how critical internet infrastructure dependencies can impact services globally. The post-mortem provides transparency on root causes and recovery, offering valuable lessons in resilience and incident management.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45974527,
     "by": "habibur",
     "timeISO": "2025-11-19T00:59:22.000Z",
     "textPlain": "On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures\n    As of 17:06 all systems at Cloudflare were functioning as normal\n\n6 hours / 5 years gives ~99.98% uptime.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45979850,
-    "by": "Chihuahua0633",
-    "timeISO": "2025-11-19T14:23:39.000Z",
-    "textPlain": "> The first automated test detected the issue at 11:31 and manual investigation started at 11:32. The incident call was created at 11:35.I'm impressed they were able to corral people this quickly.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45978100,
-    "by": "arkanovicz",
-    "timeISO": "2025-11-19T10:55:07.000Z",
-    "textPlain": "Interesting technical insight, but I would be curious to hear firsthand accounts from the teams on the ground, particularly regarding how the engineers felt the increasing pressure, frantically refreshing their dashboards, searching for phantom DDoS, scrolling codes updates...",
     "parent": 45973709,
     "depth": 1
   },
@@ -264,18 +232,26 @@
     "depth": 1
   },
   {
-    "id": 45975899,
-    "by": "aetherspawn",
-    "timeISO": "2025-11-19T04:36:35.000Z",
-    "textPlain": "Cloudflare Access is still experiencing weird issues for us (it’s asking users to SSO login to our public website even though our zone rules - set on a completely different zone - haven’t changed).I don’t think the infrastructure has been as fully recovered as they think yet…",
+    "id": 45978100,
+    "by": "arkanovicz",
+    "timeISO": "2025-11-19T10:55:07.000Z",
+    "textPlain": "Interesting technical insight, but I would be curious to hear firsthand accounts from the teams on the ground, particularly regarding how the engineers felt the increasing pressure, frantically refreshing their dashboards, searching for phantom DDoS, scrolling codes updates...",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45976875,
-    "by": "MagicMoonlight",
-    "timeISO": "2025-11-19T07:42:56.000Z",
-    "textPlain": "Having a system which automatically deploys configuration files across a million servers every 5 minutes without testing it seems stupid to me.",
+    "id": 45980027,
+    "by": "throw7",
+    "timeISO": "2025-11-19T14:36:38.000Z",
+    "textPlain": "Is this true: from that core proxy diagram, I didn't realize cloudflare sees the full unencrypted packet between you and the server.If that's true, is there a way to tell (easily) whether a site is using cloudflare or not?",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975899,
+    "by": "aetherspawn",
+    "timeISO": "2025-11-19T04:36:35.000Z",
+    "textPlain": "Cloudflare Access is still experiencing weird issues for us (it’s asking users to SSO login to our public website even though our zone rules - set on a completely different zone - haven’t changed).I don’t think the infrastructure has been as fully recovered as they think yet…",
     "parent": 45973709,
     "depth": 1
   },
@@ -288,10 +264,18 @@
     "depth": 1
   },
   {
-    "id": 45978484,
-    "by": "keepamovin",
-    "timeISO": "2025-11-19T11:54:27.000Z",
-    "textPlain": "That's interesting. That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network. It's like the issues with HOSTS.TXT needing to be copied among the network of the early internet to allow routing (taking days to download etc) and DNS having to be created to make that propagation less unwieldy.",
+    "id": 45976875,
+    "by": "MagicMoonlight",
+    "timeISO": "2025-11-19T07:42:56.000Z",
+    "textPlain": "Having a system which automatically deploys configuration files across a million servers every 5 minutes without testing it seems stupid to me.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45979850,
+    "by": "Chihuahua0633",
+    "timeISO": "2025-11-19T14:23:39.000Z",
+    "textPlain": "> The first automated test detected the issue at 11:31 and manual investigation started at 11:32. The incident call was created at 11:35.I'm impressed they were able to corral people this quickly.",
     "parent": 45973709,
     "depth": 1
   },
@@ -304,10 +288,10 @@
     "depth": 1
   },
   {
-    "id": 45979494,
-    "by": "chaos_emergent",
-    "timeISO": "2025-11-19T13:52:05.000Z",
-    "textPlain": "Just a moment to reflect on how much freaking leverage computers give us today - a single permission change took down half the internet. Truly crazy times.",
+    "id": 45978484,
+    "by": "keepamovin",
+    "timeISO": "2025-11-19T11:54:27.000Z",
+    "textPlain": "That's interesting. That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network. It's like the issues with HOSTS.TXT needing to be copied among the network of the early internet to allow routing (taking days to download etc) and DNS having to be created to make that propagation less unwieldy.",
     "parent": 45973709,
     "depth": 1
   },
@@ -316,6 +300,14 @@
     "by": "spprashant",
     "timeISO": "2025-11-19T03:25:07.000Z",
     "textPlain": "A lot of outages off late seem to be related to automated config management.Companies seem to place a lot of trust is configs being pushed automatically without human review into running systems. Considering how important these configs are, shouldn't they perhaps first be deployed to a staging/isolated network for a monitoring window before pushing to production systems?Not trying to pontificate here, these systems are more complicated than anything I have maintained. Just trying to think of best practices perhaps everyone can adopt.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45980842,
+    "by": "Barry-Perkins",
+    "timeISO": "2025-11-19T15:32:40.000Z",
+    "textPlain": "The Cloudflare outage on November 18, 2025 highlights how critical internet infrastructure dependencies can impact services globally. The post-mortem provides transparency on root causes and recovery, offering valuable lessons in resilience and incident management.",
     "parent": 45973709,
     "depth": 1
   },
@@ -336,10 +328,10 @@
     "depth": 1
   },
   {
-    "id": 45978341,
-    "by": "BrtByte",
-    "timeISO": "2025-11-19T11:36:05.000Z",
-    "textPlain": "This incident feels like a strong argument for stricter guardrails around internal config propagation",
+    "id": 45979494,
+    "by": "chaos_emergent",
+    "timeISO": "2025-11-19T13:52:05.000Z",
+    "textPlain": "Just a moment to reflect on how much freaking leverage computers give us today - a single permission change took down half the internet. Truly crazy times.",
     "parent": 45973709,
     "depth": 1
   },
@@ -352,10 +344,10 @@
     "depth": 1
   },
   {
-    "id": 45978680,
-    "by": "cmilton",
-    "timeISO": "2025-11-19T12:18:08.000Z",
-    "textPlain": "How many changes to production systems does Cloudflare make throughout a day? Are they a part of any change management process? That would be the first place I would check after a random outage, recent changes.",
+    "id": 45978341,
+    "by": "BrtByte",
+    "timeISO": "2025-11-19T11:36:05.000Z",
+    "textPlain": "This incident feels like a strong argument for stricter guardrails around internal config propagation",
     "parent": 45973709,
     "depth": 1
   },
@@ -368,10 +360,10 @@
     "depth": 1
   },
   {
-    "id": 45979812,
-    "by": "zhisme",
-    "timeISO": "2025-11-19T14:20:20.000Z",
-    "textPlain": "Thank you for being honest, all must learn from the mistakes.",
+    "id": 45978680,
+    "by": "cmilton",
+    "timeISO": "2025-11-19T12:18:08.000Z",
+    "textPlain": "How many changes to production systems does Cloudflare make throughout a day? Are they a part of any change management process? That would be the first place I would check after a random outage, recent changes.",
     "parent": 45973709,
     "depth": 1
   },
@@ -384,10 +376,10 @@
     "depth": 1
   },
   {
-    "id": 45978980,
-    "by": "baalimago",
-    "timeISO": "2025-11-19T12:50:14.000Z",
-    "textPlain": "Interesting. Although principle of least privilege is great, it should not be applied as a feature to filter data.",
+    "id": 45974721,
+    "by": "cvhc",
+    "timeISO": "2025-11-19T01:23:11.000Z",
+    "textPlain": "I don't get why that SQL query was even used in the first place. It seems it fetches feature names at runtime instead of using a static hardcoded schema. Considering this decides the schema of a global config, I don't think the dynamicity is a good idea.",
     "parent": 45973709,
     "depth": 1
   },
@@ -396,6 +388,14 @@
     "by": "slanterns",
     "timeISO": "2025-11-19T04:58:36.000Z",
     "textPlain": "https://x.com/guanlandai/status/1990967570011468071",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45978980,
+    "by": "baalimago",
+    "timeISO": "2025-11-19T12:50:14.000Z",
+    "textPlain": "Interesting. Although principle of least privilege is great, it should not be applied as a feature to filter data.",
     "parent": 45973709,
     "depth": 1
   }
