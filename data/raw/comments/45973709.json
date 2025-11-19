@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 45973869,
-    "by": "SerCe",
-    "timeISO": "2025-11-18T23:51:06.000Z",
-    "textPlain": "As always, kudos for releasing a post mortem in less than 24 hours after the outage, very few tech organisations are capable of doing this.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45973896,
     "by": "gucci-on-fleek",
     "timeISO": "2025-11-18T23:53:52.000Z",
     "textPlain": "> This showed up to Internet users trying to access our customers' sites as an error page indicating a failure within Cloudflare's network.As a visitor to random web pages, I definitely appreciated this—much better than their completely false “checking the security of your connection” message.> The issue was not caused, directly or indirectly, by a cyber attack or malicious activity of any kind. Instead, it was triggered by a change to one of our database systems' permissionsAlso appreciate the honesty here.> On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures to deliver core network traffic. […]> Core traffic was largely flowing as normal by 14:30. We worked over the next few hours to mitigate increased load on various parts of our network as traffic rushed back online. As of 17:06 all systems at Cloudflare were functioning as normal.Why did this take so long to resolve? I read through the entire article, and I understand why the outage happened, but when most of the network goes down, why wasn't the first step to revert any recent configuration changes, even ones that seem unrelated to the outage? (Or did I just misread something and this was explained somewhere?)Of course, the correct solution is always obvious in retrospect, and it's impressive that it only took 7 minutes between the start of the outage and the incident being investigated, but it taking a further 4 hours to resolve the problem and 8 hours total for everything to be back to normal isn't great.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45973869,
+    "by": "SerCe",
+    "timeISO": "2025-11-18T23:51:06.000Z",
+    "textPlain": "As always, kudos for releasing a post mortem in less than 24 hours after the outage, very few tech organisations are capable of doing this.",
     "parent": 45973709,
     "depth": 1
   },
@@ -40,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 45975590,
+    "by": "keypusher",
+    "timeISO": "2025-11-19T03:37:34.000Z",
+    "textPlain": "The most surprising thing to me here is that it took 3 hours to root cause, and points to a glaring hole in the platform observability.  Even taking into account the fact that the service was failing intermittently at first, it still took 1.5 hours after it started failing consistently to root cause.  But the service was crashing on startup.  If a core service is throwing a panic at startup like that, it should be raising alerts or at least easily findable via log aggregation.  It seems like maybe there was some significant time lost in assuming it was an attack, but it also seems strange to me that nobody was asking \"what just changed?\", which is usually the first question I ask during an incident.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45975214,
     "by": "bri3d",
     "timeISO": "2025-11-19T02:34:39.000Z",
@@ -56,6 +64,14 @@
     "depth": 1
   },
   {
+    "id": 45973953,
+    "by": "vsgherzi",
+    "timeISO": "2025-11-18T23:59:11.000Z",
+    "textPlain": "Why does cloudflare allow unwraps in their code? I would've assumed they'd have clippy lints stopping that sort of thing. Why not just match with { ok(value) => {}, Err(error) => {} } the function already has a Result type.At the bare minimum they could've used an expect(\"this should never happen, if it does database schema is incorrect\").The whole point of errors as values is preventing this kind of thing....  It wouldn't have stopped the outage but it would've made it easy to diagnose.If anyone at cloudflare is here please let me in that codebase :)",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45974941,
     "by": "pdimitar",
     "timeISO": "2025-11-19T01:50:58.000Z",
@@ -64,10 +80,10 @@
     "depth": 1
   },
   {
-    "id": 45973953,
-    "by": "vsgherzi",
-    "timeISO": "2025-11-18T23:59:11.000Z",
-    "textPlain": "Why does cloudflare allow unwraps in their code? I would've assumed they'd have clippy lints stopping that sort of thing. Why not just match with { ok(value) => {}, Err(error) => {} } the function already has a Result type.At the bare minimum they could've used an expect(\"this should never happen, if it does database schema is incorrect\").The whole point of errors as values is preventing this kind of thing....  It wouldn't have stopped the outage but it would've made it easy to diagnose.If anyone at cloudflare is here please let me in that codebase :)",
+    "id": 45975519,
+    "by": "jdlyga",
+    "timeISO": "2025-11-19T03:27:56.000Z",
+    "textPlain": "We shouldn't be having critical internet-wide outages on a monthly basis. Something is systematically wrong with the way we're architecting our systems.",
     "parent": 45973709,
     "depth": 1
   },
@@ -80,10 +96,18 @@
     "depth": 1
   },
   {
-    "id": 45975397,
-    "by": "abigailphoebe",
-    "timeISO": "2025-11-19T03:07:24.000Z",
-    "textPlain": "kudos to getting this blog post out so fast, it’s well written and  is appreciated.i’m a little confused on how this was initially confused for an attack though?is there no internal visibility into where 5xx’s are being thrown? i’m surprised there isn’t some kind of \"this request terminated at the <bot checking logic>\" error mapping that could have initially pointed you guys towards that over an attack.also a bit taken aback that .unwrap()’s are ever allowed within such an important context.would appreciate some insight!",
+    "id": 45975497,
+    "by": "spprashant",
+    "timeISO": "2025-11-19T03:25:07.000Z",
+    "textPlain": "A lot of outages off late seem to be related to automated config management.Companies seem to place a lot of trust is configs being pushed automatically without human review into running systems. Considering how important these configs are, shouldn't they perhaps first be deployed to a staging/isolated network for a monitoring window before pushing to production systems?Not trying to pontificate here, these systems are more complicated than anything I have maintained. Just trying to think of best practices perhaps everyone can adopt.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975124,
+    "by": "nwellinghoff",
+    "timeISO": "2025-11-19T02:20:02.000Z",
+    "textPlain": "The real take away is that so much functionality depends on a few players. This is a fundamental flaw in design that is getting worse by the year as the winner takes all winners win. Not saying they didn’t earn their wins. But the fact remains. The system is not robust. Then again, so what. It went down for a while. Maybe we shouldn’t depend on the internet being “up” all the time.",
     "parent": 45973709,
     "depth": 1
   },
@@ -112,6 +136,14 @@
     "depth": 1
   },
   {
+    "id": 45975820,
+    "by": "nurettin",
+    "timeISO": "2025-11-19T04:23:45.000Z",
+    "textPlain": "I can never get used to the error happening at call site rather than within the function where the early return of Err happened. It is not \"much cleaner\", you have no idea which line and file caused it at call site. By default Returning should have a way of setting a marker which can then be used to map back to the line() and file(). 10+ years and still no ergonomics.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45974460,
     "by": "testemailfordg2",
     "timeISO": "2025-11-19T00:52:16.000Z",
@@ -120,10 +152,26 @@
     "depth": 1
   },
   {
-    "id": 45974353,
-    "by": "RagingCactus",
-    "timeISO": "2025-11-19T00:42:03.000Z",
-    "textPlain": "Lots of people here are (perhaps rightfully) pointing to the unwrap() call being an issue. That might be true, but to me the fact that a reasonably \"clean\" panic at a defined line of code was not quickly picked up in any error monitoring system sounds just as important to investigate.Assuming something similar to Sentry would be in use, it should clearly pick up the many process crashes that start occurring right as the downtime starts. And the well defined clean crashes should in theory also stand out against all the random errors that start occuring all over the system as it begins to go down, precisely because it's always failing at the exact same point.",
+    "id": 45974449,
+    "by": "yoyohello13",
+    "timeISO": "2025-11-19T00:51:45.000Z",
+    "textPlain": "People really like to hate on Rust for some reason. This wasn’t a Rust problem, no language would have saved them from this kind of issue. In fact, the compiler would have warned that this was a possible issue.I get it, don’t pick languages just because they are trendy, but if any company’s use case is a perfect fit for Rust it’s cloudflare.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975620,
+    "by": "Adam2025",
+    "timeISO": "2025-11-19T03:41:54.000Z",
+    "textPlain": "Cloudflare’s write-up is clear and to the point. A small change spread wider than expected, and they explained where the process failed. It’s a good reminder that reliability depends on strong workflows as much as infrastructure.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975397,
+    "by": "abigailphoebe",
+    "timeISO": "2025-11-19T03:07:24.000Z",
+    "textPlain": "kudos to getting this blog post out so fast, it’s well written and  is appreciated.i’m a little confused on how this was initially confused for an attack though?is there no internal visibility into where 5xx’s are being thrown? i’m surprised there isn’t some kind of \"this request terminated at the <bot checking logic>\" error mapping that could have initially pointed you guys towards that over an attack.also a bit taken aback that .unwrap()’s are ever allowed within such an important context.would appreciate some insight!",
     "parent": 45973709,
     "depth": 1
   },
@@ -136,26 +184,26 @@
     "depth": 1
   },
   {
-    "id": 45975048,
-    "by": "snoppy45",
-    "timeISO": "2025-11-19T02:08:34.000Z",
-    "textPlain": "I think you should give me a credit for all the income I lost due to this outage. Who authorized a change to the core infrastructure during the period of the year when your customers make the most income? Seriously, this is a management failure at the highest levels of decision-making. We don't make any changes to our server infrastructure/stack during the busiest time of the year, and neither should you. If there were an alternative to Cloudflare, I'd leave your service and move my systems elsewhere.",
+    "id": 45974353,
+    "by": "RagingCactus",
+    "timeISO": "2025-11-19T00:42:03.000Z",
+    "textPlain": "Lots of people here are (perhaps rightfully) pointing to the unwrap() call being an issue. That might be true, but to me the fact that a reasonably \"clean\" panic at a defined line of code was not quickly picked up in any error monitoring system sounds just as important to investigate.Assuming something similar to Sentry would be in use, it should clearly pick up the many process crashes that start occurring right as the downtime starts. And the well defined clean crashes should in theory also stand out against all the random errors that start occuring all over the system as it begins to go down, precisely because it's always failing at the exact same point.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45975124,
-    "by": "nwellinghoff",
-    "timeISO": "2025-11-19T02:20:02.000Z",
-    "textPlain": "The real take away is that so much functionality depends on a few players. This is a fundamental flaw in design that is getting worse by the year as the winner takes all winners win. Not saying they didn’t earn their wins. But the fact remains. The system is not robust. Then again, so what. It went down for a while. Maybe we shouldn’t depend on the internet being “up” all the time.",
+    "id": 45975624,
+    "by": "vasuadari",
+    "timeISO": "2025-11-19T03:42:57.000Z",
+    "textPlain": "Wondering why they didn’t disable the bot management temporarily to recover. Websites could have survived temporarily without it compared to the outage itself.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45975317,
-    "by": "themark",
-    "timeISO": "2025-11-19T02:50:51.000Z",
-    "textPlain": "“…and the fluctuation stabilized in the failing state.”Sounds like the ops team had one hell of a day.",
+    "id": 45974080,
+    "by": "ksajadi",
+    "timeISO": "2025-11-19T00:13:01.000Z",
+    "textPlain": "May I just say that Matthew Prince is the CEO of Cloudflare and a lawyer by training (and a very nice guy overall). The quality of this postmortem is great but the fact that it is from him makes one respect the company even more.",
     "parent": 45973709,
     "depth": 1
   },
@@ -184,14 +232,6 @@
     "depth": 1
   },
   {
-    "id": 45975032,
-    "by": "cvshane",
-    "timeISO": "2025-11-19T02:05:44.000Z",
-    "textPlain": "Would be nice if their Turnstile could be turned off on their login page when something like this happens, so we can attempt to route traffic away from Cloudflare during the outage. Or at least have a simple app where this can be modified from.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45974578,
     "by": "wildmXranat",
     "timeISO": "2025-11-19T01:05:48.000Z",
@@ -200,18 +240,18 @@
     "depth": 1
   },
   {
-    "id": 45974080,
-    "by": "ksajadi",
-    "timeISO": "2025-11-19T00:13:01.000Z",
-    "textPlain": "May I just say that Matthew Prince is the CEO of Cloudflare and a lawyer by training (and a very nice guy overall). The quality of this postmortem is great but the fact that it is from him makes one respect the company even more.",
+    "id": 45975032,
+    "by": "cvshane",
+    "timeISO": "2025-11-19T02:05:44.000Z",
+    "textPlain": "Would be nice if their Turnstile could be turned off on their login page when something like this happens, so we can attempt to route traffic away from Cloudflare during the outage. Or at least have a simple app where this can be modified from.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45974449,
-    "by": "yoyohello13",
-    "timeISO": "2025-11-19T00:51:45.000Z",
-    "textPlain": "People really like to hate on Rust for some reason. This wasn’t a Rust problem, no language would have saved them from this kind of issue. In fact, the compiler would have warned that this was a possible issue.I get it, don’t pick languages just because they are trendy, but if any company’s use case is a perfect fit for Rust it’s cloudflare.",
+    "id": 45975317,
+    "by": "themark",
+    "timeISO": "2025-11-19T02:50:51.000Z",
+    "textPlain": "“…and the fluctuation stabilized in the failing state.”Sounds like the ops team had one hell of a day.",
     "parent": 45973709,
     "depth": 1
   },
@@ -232,10 +272,10 @@
     "depth": 1
   },
   {
-    "id": 45974864,
-    "by": "alhirzel",
-    "timeISO": "2025-11-19T01:40:09.000Z",
-    "textPlain": "> I worry this is the big botnet flexing.Even worse - the small botnet that controls everything.",
+    "id": 45975627,
+    "by": "uecker",
+    "timeISO": "2025-11-19T03:43:16.000Z",
+    "textPlain": "So an unhandled error condition after an configuration update similar to Crowdstrike - if they had just used a programming language where this can't happen due to the superior type system such as Rust. Oh wait.",
     "parent": 45973709,
     "depth": 1
   },
@@ -248,42 +288,18 @@
     "depth": 1
   },
   {
+    "id": 45974864,
+    "by": "alhirzel",
+    "timeISO": "2025-11-19T01:40:09.000Z",
+    "textPlain": "> I worry this is the big botnet flexing.Even worse - the small botnet that controls everything.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45974748,
     "by": "back_to_basics",
     "timeISO": "2025-11-19T01:26:23.000Z",
     "textPlain": "While it's certainly worthwhile to discuss the Technical and Procedural elements that contributed to this Service Outage, the far more important (and mutually-exclusive aspect) to discuss should be:Why have we built / permitted the building of / Subscribed to such a Failure-intolerant \"Network\"?",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974364,
-    "by": "slyall",
-    "timeISO": "2025-11-19T00:43:32.000Z",
-    "textPlain": "Ironically just now I got a Cloudflare \"Error code 524\" page because blog.cloudflare.com was down",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974310,
-    "by": "nanankcornering",
-    "timeISO": "2025-11-19T00:37:29.000Z",
-    "textPlain": "Matt, Looking forward in regaining Elon's and his team trust to use CF again.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975202,
-    "by": "weihz5138",
-    "timeISO": "2025-11-19T02:32:49.000Z",
-    "textPlain": "Glad it's fixed, keep going!",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974992,
-    "by": "ulfw",
-    "timeISO": "2025-11-19T02:00:07.000Z",
-    "textPlain": "The internet hasn't been the internet in years. It was originally built to withstand wars. The whole idea of our IP based internet was to reroute packages should networks go down. Decentralisation was the mantra and how it differed from early centralised systems such as AOL et al.This is all gone. The internet is a centralised system in the hand of just a few companies. If AWS goes down half the internet does. If Azure, Google Cloud, Oracle Cloud, Tencent Cloud or Alibaba Cloud goes down a large part of the internet does.Yesterday with Cloudflare down half the sites I tried gave me nothing but errors.The internet is dead.",
     "parent": 45973709,
     "depth": 1
   },
@@ -296,18 +312,34 @@
     "depth": 1
   },
   {
-    "id": 45975031,
-    "by": "AtNightWeCode",
-    "timeISO": "2025-11-19T02:05:40.000Z",
-    "textPlain": "So they made a newbie mistake in SQL that would not even pass an AI review. They did not verify the change in a test environment. And I guess the logs are so full of errors it is hard to pinpoint which matters. Yikes.",
+    "id": 45974364,
+    "by": "slyall",
+    "timeISO": "2025-11-19T00:43:32.000Z",
+    "textPlain": "Ironically just now I got a Cloudflare \"Error code 524\" page because blog.cloudflare.com was down",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45975014,
-    "by": "lapcat",
-    "timeISO": "2025-11-19T02:03:34.000Z",
-    "textPlain": "It's unbelievable that the end of this postmortem is an advertisement for Cloudflare.The last thing we need here is for more of the internet to sign up for Cloudflare.",
+    "id": 45975048,
+    "by": "snoppy45",
+    "timeISO": "2025-11-19T02:08:34.000Z",
+    "textPlain": "I think you should give me a credit for all the income I lost due to this outage. Who authorized a change to the core infrastructure during the period of the year when your customers make the most income? Seriously, this is a management failure at the highest levels of decision-making. We don't make any changes to our server infrastructure/stack during the busiest time of the year, and neither should you. If there were an alternative to Cloudflare, I'd leave your service and move my systems elsewhere.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45974310,
+    "by": "nanankcornering",
+    "timeISO": "2025-11-19T00:37:29.000Z",
+    "textPlain": "Matt, Looking forward in regaining Elon's and his team trust to use CF again.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975481,
+    "by": "robofanatic",
+    "timeISO": "2025-11-19T03:23:28.000Z",
+    "textPlain": "hope no one was fired",
     "parent": 45973709,
     "depth": 1
   },
@@ -336,66 +368,34 @@
     "depth": 1
   },
   {
+    "id": 45975031,
+    "by": "AtNightWeCode",
+    "timeISO": "2025-11-19T02:05:40.000Z",
+    "textPlain": "So they made a newbie mistake in SQL that would not even pass an AI review. They did not verify the change in a test environment. And I guess the logs are so full of errors it is hard to pinpoint which matters. Yikes.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45975014,
+    "by": "lapcat",
+    "timeISO": "2025-11-19T02:03:34.000Z",
+    "textPlain": "It's unbelievable that the end of this postmortem is an advertisement for Cloudflare.The last thing we need here is for more of the internet to sign up for Cloudflare.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45974992,
+    "by": "ulfw",
+    "timeISO": "2025-11-19T02:00:07.000Z",
+    "textPlain": "The internet hasn't been the internet in years. It was originally built to withstand wars. The whole idea of our IP based internet was to reroute packages should networks go down. Decentralisation was the mantra and how it differed from early centralised systems such as AOL et al.This is all gone. The internet is a centralised system in the hand of just a few companies. If AWS goes down half the internet does. If Azure, Google Cloud, Oracle Cloud, Tencent Cloud or Alibaba Cloud goes down a large part of the internet does.Yesterday with Cloudflare down half the sites I tried gave me nothing but errors.The internet is dead.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45973810,
     "by": "nawgz",
     "timeISO": "2025-11-18T23:44:32.000Z",
     "textPlain": "> a change to one of our database systems' permissions which caused the database to output multiple entries into a “feature file” used by our Bot Management system ... to keep [that] system up to date with ever changing threats> The software had a limit on the size of the feature file that was below its doubled size. That caused the software to failA configuration error can cause internet-scale outages. What an era we live inEdit: also, after finishing my reading, I have to express some surprise that this type of error wasn't caught in a staging environment. If the entire error is that \"during migration of ClickHouse nodes, the migration -> query -> configuration file pipeline caused configuration files to become illegally large\", it seems intuitive to me that doing this same migration in staging would have identified this exact error, no?I'm not big on distributed systems by any means, so maybe I'm overly naive, but frankly posting a faulty Rust code snippet that was unwrapping an error value without checking for the error didn't inspire confidence for me!",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974380,
-    "by": "jijji",
-    "timeISO": "2025-11-19T00:44:51.000Z",
-    "textPlain": "this is where change management really shines because in a change management environment this would have been prevented by a backout procedure and it would never have been rolled out to production before going into QA, with peer review happening before that... I don't know if they lack change management but it's definitely something to think about",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975189,
-    "by": "homeonthemtn",
-    "timeISO": "2025-11-19T02:31:35.000Z",
-    "textPlain": "Another long day...",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975173,
-    "by": "awesome_dude",
-    "timeISO": "2025-11-19T02:29:45.000Z",
-    "textPlain": "But but but muh rust makes EVERYTHING safer!!!!My dude, everything is a footgun if you hold it wrong enough",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45973813,
-    "by": "binarymax",
-    "timeISO": "2025-11-18T23:45:03.000Z",
-    "textPlain": "28M 500 errors/sec for several hours from a single provider. Must be a new record.No other time in history has one single company been responsible for so much commerce and traffic.  I wonder what some outage analogs to the pre-internet ages would be.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45973966,
-    "by": "moralestapia",
-    "timeISO": "2025-11-19T00:00:04.000Z",
-    "textPlain": "No publicity is bad publicity.Best post mortem I've read in a while, this thing will be studied for years.A bit ironic that their internal FL2 tool is supposed to make Cloudflare \"faster and more secure\" but brought a lot of things down. And yeah, as other have already pointed out, that's a very unsafe use of Rust, should've never made it to production.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974457,
-    "by": "JamesJGoodwin",
-    "timeISO": "2025-11-19T00:52:06.000Z",
-    "textPlain": "[dead]",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974261,
-    "by": "rvz",
-    "timeISO": "2025-11-19T00:31:56.000Z",
-    "textPlain": "Great write up.This is the first significant outage that has involved Rust code, and as you can see the .unwrap is known to carry the risk of a panic and should never be used on production code.",
     "parent": 45973709,
     "depth": 1
   }
