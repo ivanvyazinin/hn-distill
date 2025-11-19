@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 45982770,
-    "by": "maciekkmrk",
-    "timeISO": "2025-11-19T18:09:13.000Z",
-    "textPlain": "An entire blog article post to say \"read the docs and enable VPC S3 endpoint\".It's all in the docs:\nhttps://docs.aws.amazon.com/vpc/latest/privatelink/concepts....>There is another type of VPC endpoint, Gateway, which creates a gateway endpoint to send traffic to Amazon S3 or DynamoDB. Gateway endpoints do not use AWS PrivateLink, unlike the other types of VPC endpoints. For more information, see Gateway endpoints.Even the first page of VPC docs:\nhttps://docs.aws.amazon.com/vpc/latest/userguide/what-is-ama...>Use a VPC endpoint to connect to AWS services privately, without the use of an internet gateway or NAT device.The author of the blog writes:> When you're using VPCs with a NAT Gateway (which most production AWS setups do), S3 transfers still go through the NAT Gateway by default.Yes, you are using a virtual private network. Where is it supposed to go? It's like being surprised that data in your home network goes through a router.",
-    "parent": 45977744,
-    "depth": 1
-  },
-  {
     "id": 45978320,
     "by": "stef25",
     "timeISO": "2025-11-19T11:32:06.000Z",
     "textPlain": "Made a similar mistake like this once. While just playing around to see what's possible I upload some data to the AWS algo that will recommended products to your users based on everyone's previous purchases.I uploaded a small xls with uid and prodid columns and then kind of forgot about it.A few months later I get a note from bank saying your account is overdrawn. The account is only used for freelancing work which I wasn't doing at the time, so I never checked that account.Looks like AWS was charging me over 1K / month while the algo continuously worked on that bit of data that was uploaded one time. They charged until there was no money left.That was about 5K in weekend earnings gone. Several months worth of salary in my main job. That was a lot of money for me.Few times I've felt so horrible.",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
+    "id": 45982770,
+    "by": "maciekkmrk",
+    "timeISO": "2025-11-19T18:09:13.000Z",
+    "textPlain": "An entire blog article post to say \"read the docs and enable VPC S3 endpoint\".It's all in the docs:\nhttps://docs.aws.amazon.com/vpc/latest/privatelink/concepts....>There is another type of VPC endpoint, Gateway, which creates a gateway endpoint to send traffic to Amazon S3 or DynamoDB. Gateway endpoints do not use AWS PrivateLink, unlike the other types of VPC endpoints. For more information, see Gateway endpoints.Even the first page of VPC docs:\nhttps://docs.aws.amazon.com/vpc/latest/userguide/what-is-ama...>Use a VPC endpoint to connect to AWS services privately, without the use of an internet gateway or NAT device.The author of the blog writes:> When you're using VPCs with a NAT Gateway (which most production AWS setups do), S3 transfers still go through the NAT Gateway by default.Yes, you are using a virtual private network. Where is it supposed to go? It's like being surprised that data in your home network goes through a router.",
     "parent": 45977744,
     "depth": 1
   },
@@ -40,10 +40,10 @@
     "depth": 1
   },
   {
-    "id": 45982808,
-    "by": "kidsil",
-    "timeISO": "2025-11-19T18:12:05.000Z",
-    "textPlain": "Great write-up, thanks for sharing the numbers.I get pulled into a fair number of \"why did my AWS bill explode?\" situations, and this exact pattern (NAT + S3 + \"I thought same-region EC2→S3 was free\") comes up more often than you’d expect.The mental model that seems to stick is: S3 transfer pricing and \"how you reach S3\" pricing are two different things. You can be right that EC2→S3 is free and still pay a lot because all your traffic goes through a NAT Gateway.The small checklist I give people:1. If a private subnet talks a lot to S3 or DynamoDB, start by assuming you want a Gateway Endpoint, not the NAT, unless you have a strong security requirement that says otherwise.2. Put NAT on its own Cost Explorer view / dashboard. If that line moves in a way you didn’t expect, treat it as a bug and go find the job or service that changed.3. Before you turn on a new sync or batch job that moves a lot of data, sketch (I tend to do this with Mermaid) \"from where to where, through what, and who charges me for each leg?\" It takes a few minutes and usually catches this kind of trap.Cost Anomaly Detection doing its job here is also the underrated part of the story. A $1k lesson is painful, but finding it at $20k is much worse.",
+    "id": 45983930,
+    "by": "blutoot",
+    "timeISO": "2025-11-19T19:29:34.000Z",
+    "textPlain": "Regardless of the AWS tech in question (and yes VPCE for non-compute services is a very common pattern in an enterprise setup using AWS since VPC with NAT is a pretty fundamental requirement), I honestly believe this was the biggest miss from the author: “Always validate your assumptions. I thought \"EC2 to S3 is free\" was enough. I should have tested with a small amount of data and monitored the costs before scaling up to terabytes.” To me this is a symptom of DevOps/infra engineers being too much in love  with infra automation without actually testing the full end to end flow.",
     "parent": 45977744,
     "depth": 1
   },
@@ -64,14 +64,6 @@
     "depth": 1
   },
   {
-    "id": 45981467,
-    "by": "cobolcomesback",
-    "timeISO": "2025-11-19T16:24:42.000Z",
-    "textPlain": "This wouldn’t have specifically helped in this situation (EC2 reading from S3), but on the general topic of preventing unexpected charges from AWS:AWS just yesterday launched flat rate pricing for their CDN (including a flat rate allowance for bandwidth and S3 storage), including a guaranteed $0 tier. It’s just the CDN for now, but hopefully it gets expanded to other services as well.https://news.ycombinator.com/item?id=45975411",
-    "parent": 45977744,
-    "depth": 1
-  },
-  {
     "id": 45978081,
     "by": "CjHuber",
     "timeISO": "2025-11-19T10:53:00.000Z",
@@ -80,10 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45981634,
-    "by": "jb_rad",
-    "timeISO": "2025-11-19T16:37:20.000Z",
-    "textPlain": "I did this when I was ~22 messing with infra for the first time. A $300 bill in two days when I had $2000 in the bank really stung. I love AWS for many things, but I really wish they made the cost calculations transparent for beginners.",
+    "id": 45982808,
+    "by": "kidsil",
+    "timeISO": "2025-11-19T18:12:05.000Z",
+    "textPlain": "Great write-up, thanks for sharing the numbers.I get pulled into a fair number of \"why did my AWS bill explode?\" situations, and this exact pattern (NAT + S3 + \"I thought same-region EC2→S3 was free\") comes up more often than you’d expect.The mental model that seems to stick is: S3 transfer pricing and \"how you reach S3\" pricing are two different things. You can be right that EC2→S3 is free and still pay a lot because all your traffic goes through a NAT Gateway.The small checklist I give people:1. If a private subnet talks a lot to S3 or DynamoDB, start by assuming you want a Gateway Endpoint, not the NAT, unless you have a strong security requirement that says otherwise.2. Put NAT on its own Cost Explorer view / dashboard. If that line moves in a way you didn’t expect, treat it as a bug and go find the job or service that changed.3. Before you turn on a new sync or batch job that moves a lot of data, sketch (I tend to do this with Mermaid) \"from where to where, through what, and who charges me for each leg?\" It takes a few minutes and usually catches this kind of trap.Cost Anomaly Detection doing its job here is also the underrated part of the story. A $1k lesson is painful, but finding it at $20k is much worse.",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
+    "id": 45981467,
+    "by": "cobolcomesback",
+    "timeISO": "2025-11-19T16:24:42.000Z",
+    "textPlain": "This wouldn’t have specifically helped in this situation (EC2 reading from S3), but on the general topic of preventing unexpected charges from AWS:AWS just yesterday launched flat rate pricing for their CDN (including a flat rate allowance for bandwidth and S3 storage), including a guaranteed $0 tier. It’s just the CDN for now, but hopefully it gets expanded to other services as well.https://news.ycombinator.com/item?id=45975411",
     "parent": 45977744,
     "depth": 1
   },
@@ -96,10 +96,10 @@
     "depth": 1
   },
   {
-    "id": 45982435,
-    "by": "dylan604",
-    "timeISO": "2025-11-19T17:46:35.000Z",
-    "textPlain": "Had the exact same thing happen. Only we used a company vetted/recommended by AWS to set this up for us, as we have no AWS experts and we're all too busy tasked doing actual startup things. So we staffed it out. Even the \"professionals\" get it wrong, and we racked up a huge expense as well. Staffed out company shrugged shoulders, and then just said sorry about your tab. We worked with AWS support to correct situation, and cried to daddy AWS account manager for a negotiated rate.",
+    "id": 45981634,
+    "by": "jb_rad",
+    "timeISO": "2025-11-19T16:37:20.000Z",
+    "textPlain": "I did this when I was ~22 messing with infra for the first time. A $300 bill in two days when I had $2000 in the bank really stung. I love AWS for many things, but I really wish they made the cost calculations transparent for beginners.",
     "parent": 45977744,
     "depth": 1
   },
@@ -108,6 +108,14 @@
     "by": "viraptor",
     "timeISO": "2025-11-19T10:58:41.000Z",
     "textPlain": "The service gateways are such a weird thing in AWS. There seems to be no reason not to use them and it's like they only exist as a trap for the unaware.",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
+    "id": 45982435,
+    "by": "dylan604",
+    "timeISO": "2025-11-19T17:46:35.000Z",
+    "textPlain": "Had the exact same thing happen. Only we used a company vetted/recommended by AWS to set this up for us, as we have no AWS experts and we're all too busy tasked doing actual startup things. So we staffed it out. Even the \"professionals\" get it wrong, and we racked up a huge expense as well. Staffed out company shrugged shoulders, and then just said sorry about your tab. We worked with AWS support to correct situation, and cried to daddy AWS account manager for a negotiated rate.",
     "parent": 45977744,
     "depth": 1
   },
@@ -144,14 +152,6 @@
     "depth": 1
   },
   {
-    "id": 45981451,
-    "by": "siliconc0w",
-    "timeISO": "2025-11-19T16:22:50.000Z",
-    "textPlain": "It used to be that you could whine to your account rep and they'd waive sudden accidental charges like this.  Which we did regularly due to all the sharp edges.  These days I gather it's a bit harder.",
-    "parent": 45977744,
-    "depth": 1
-  },
-  {
     "id": 45980135,
     "by": "tlaverdure",
     "timeISO": "2025-11-19T14:43:05.000Z",
@@ -160,10 +160,26 @@
     "depth": 1
   },
   {
+    "id": 45981451,
+    "by": "siliconc0w",
+    "timeISO": "2025-11-19T16:22:50.000Z",
+    "textPlain": "It used to be that you could whine to your account rep and they'd waive sudden accidental charges like this.  Which we did regularly due to all the sharp edges.  These days I gather it's a bit harder.",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
     "id": 45978045,
     "by": "harel",
     "timeISO": "2025-11-19T10:47:47.000Z",
     "textPlain": "You probably saved me a future grand++. Thanks",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
+    "id": 45983965,
+    "by": "citizenpaul",
+    "timeISO": "2025-11-19T19:31:43.000Z",
+    "textPlain": "Its staggering to me that after all this time there are somehow still people in potions like this that are working without basic cost monitoring alerts on cloud/SaaS servicesIt really shows the Silicon Vally disconnect with the real world, where money matters.",
     "parent": 45977744,
     "depth": 1
   },
@@ -224,14 +240,6 @@
     "depth": 1
   },
   {
-    "id": 45981043,
-    "by": "lloydatkinson",
-    "timeISO": "2025-11-19T15:49:54.000Z",
-    "textPlain": "I can’t see this as anything but on purpose",
-    "parent": 45977744,
-    "depth": 1
-  },
-  {
     "id": 45978056,
     "by": "nrhrjrjrjtntbt",
     "timeISO": "2025-11-19T10:49:21.000Z",
@@ -244,6 +252,14 @@
     "by": "Hikikomori",
     "timeISO": "2025-11-19T11:30:31.000Z",
     "textPlain": "Saved >120k/month by deploying some vpc endpoints and vpc peering (rather than tgw).",
+    "parent": 45977744,
+    "depth": 1
+  },
+  {
+    "id": 45981043,
+    "by": "lloydatkinson",
+    "timeISO": "2025-11-19T15:49:54.000Z",
+    "textPlain": "I can’t see this as anything but on purpose",
     "parent": 45977744,
     "depth": 1
   },
@@ -272,10 +288,10 @@
     "depth": 1
   },
   {
-    "id": 45983605,
-    "by": "the8472",
-    "timeISO": "2025-11-19T19:01:46.000Z",
-    "textPlain": "Or go IPv6 and use an egress gateway instead.https://docs.aws.amazon.com/vpc/latest/userguide/egress-only...",
+    "id": 45984521,
+    "by": "patabyte",
+    "timeISO": "2025-11-19T20:14:38.000Z",
+    "textPlain": "> which every old-school Linuxer should be able to do in their sleep.Oof, this hit home, hah.",
     "parent": 45979852,
     "depth": 2
   },
@@ -284,6 +300,14 @@
     "by": "cowsandmilk",
     "timeISO": "2025-11-19T16:12:02.000Z",
     "textPlain": "S3 Gateway endpoints break cross-region S3 operations. Changing defaults will break customers.",
+    "parent": 45979852,
+    "depth": 2
+  },
+  {
+    "id": 45983605,
+    "by": "the8472",
+    "timeISO": "2025-11-19T19:01:46.000Z",
+    "textPlain": "Or go IPv6 and use an egress gateway instead.https://docs.aws.amazon.com/vpc/latest/userguide/egress-only...",
     "parent": 45979852,
     "depth": 2
   },
@@ -344,18 +368,18 @@
     "depth": 2
   },
   {
-    "id": 45982684,
-    "by": "nijave",
-    "timeISO": "2025-11-19T18:04:14.000Z",
-    "textPlain": "I've always been under the impression billing is async and you really need it to be synchronous unless cost caps work as a soft limit.You can transfer from S3 on a single instance usually as fast as the instances NIC--100Gbps+You'd need a synchronous system that checks quotas before each request and for a lot of systems you'd also need request cancellation (imagine transferring a 5TiB file from S3 and your cap triggers at 100GiB--the server needs to be able to receive a billing violation alert in real time and cancel the request)I imagine anything capped provided to customers already AWS just estimates and eats the lossObviously such a system is possible since IAM/STS mostly do this but I suspect it's a tradeoff providers are reluctant to make",
-    "parent": 45978260,
-    "depth": 2
-  },
-  {
     "id": 45980183,
     "by": "moduspol",
     "timeISO": "2025-11-19T14:45:53.000Z",
     "textPlain": "AWS would much rather let you accidentally overspend and then forgive it when you complain than see stories about critical infrastructure getting shut off or failing in unexpected ways due to a miscommunication in billing.",
+    "parent": 45978260,
+    "depth": 2
+  },
+  {
+    "id": 45982684,
+    "by": "nijave",
+    "timeISO": "2025-11-19T18:04:14.000Z",
+    "textPlain": "I've always been under the impression billing is async and you really need it to be synchronous unless cost caps work as a soft limit.You can transfer from S3 on a single instance usually as fast as the instances NIC--100Gbps+You'd need a synchronous system that checks quotas before each request and for a lot of systems you'd also need request cancellation (imagine transferring a 5TiB file from S3 and your cap triggers at 100GiB--the server needs to be able to receive a billing violation alert in real time and cancel the request)I imagine anything capped provided to customers already AWS just estimates and eats the lossObviously such a system is possible since IAM/STS mostly do this but I suspect it's a tradeoff providers are reluctant to make",
     "parent": 45978260,
     "depth": 2
   },
@@ -372,30 +396,6 @@
     "by": "strogonoff",
     "timeISO": "2025-11-19T14:14:43.000Z",
     "textPlain": "I think it’s disingenuous to claim that AWS only offers delayed alerts and half-decent cost controls. Granted, these features were not there in the beginning, but for years now AWS, in addition to the better known stuff like strategic limits on auto scaling, allows subscribing to price threshold triggers via SNS and perform automatic actions, which could be anything including scaling down or stopping services completely if the cost skyrockets.",
-    "parent": 45978260,
-    "depth": 2
-  },
-  {
-    "id": 45980076,
-    "by": "jrjeksjd8d",
-    "timeISO": "2025-11-19T14:39:32.000Z",
-    "textPlain": "The problem with hard caps is that there's no way to retroactively fix \"our site went down\". As much as engineers are loathe to actually reach out to a cloud provider, are there any anecdotes of AWS playing hardball and collecting a 10k debt for network traffic?Conversely the first time someone hits an edge case in billing limits and their site goes down, losing 10k worth of possible customer transactions there's no way to unring that bell.The second constituency are also, you know, the customers with real cloud budgets. I don't blame AWS for not building a feature that could (a) negatively impact real, paying customers (b) is primarily targeted at people who by definition don't want to pay a lot of money.",
-    "parent": 45978260,
-    "depth": 2
-  },
-  {
-    "id": 45978398,
-    "by": "sofixa",
-    "timeISO": "2025-11-19T11:42:29.000Z",
-    "textPlain": "It's not that it's technically impossible. The very simple problem is that there is no way of providing hard spend caps without giving you the opportunity to bring down your whole production environment when the cap is met. No cloud provides wants to give their customers that much rope to hang themselves with. You just know too many customers will do it wrong or will forget to update the cap or will not coordinate internally, and things will stop working and take forever to fix.It's easier to waive cost overages than deal with any of that.",
-    "parent": 45978260,
-    "depth": 2
-  },
-  {
-    "id": 45980401,
-    "by": "belter",
-    "timeISO": "2025-11-19T15:01:14.000Z",
-    "textPlain": "These topics are not advanced...they are foundational scenarios covered in any entry level AWS or AWS Cloud third-party training.But over the last few years, people have convinced themselves that the cost of ignorance is low. Companies hand out unlimited self-paced learning portals, tick the “training provided” box, and quietly stop validating whether anyone actually learned anything.I remember when you had to spend weeks in structured training before you were allowed to touch real systems. But starting around five or six years ago, something changed: Practitioners began deciding for themselves what they felt like learning. They dismantled standard instruction paths and, in doing so, never discovered their own unknown unknowns.In the end, it created a generation of supposedly “trained” professionals who skipped the fundamentals and now can’t understand why their skills have giant gaps.",
     "parent": 45978260,
     "depth": 2
   }
