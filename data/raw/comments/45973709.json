@@ -8,18 +8,26 @@
     "depth": 1
   },
   {
-    "id": 45973896,
-    "by": "gucci-on-fleek",
-    "timeISO": "2025-11-18T23:53:52.000Z",
-    "textPlain": "> This showed up to Internet users trying to access our customers' sites as an error page indicating a failure within Cloudflare's network.As a visitor to random web pages, I definitely appreciated this—much better than their completely false “checking the security of your connection” message.> The issue was not caused, directly or indirectly, by a cyber attack or malicious activity of any kind. Instead, it was triggered by a change to one of our database systems' permissionsAlso appreciate the honesty here.> On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures to deliver core network traffic. […]> Core traffic was largely flowing as normal by 14:30. We worked over the next few hours to mitigate increased load on various parts of our network as traffic rushed back online. As of 17:06 all systems at Cloudflare were functioning as normal.Why did this take so long to resolve? I read through the entire article, and I understand why the outage happened, but when most of the network goes down, why wasn't the first step to revert any recent configuration changes, even ones that seem unrelated to the outage? (Or did I just misread something and this was explained somewhere?)Of course, the correct solution is always obvious in retrospect, and it's impressive that it only took 7 minutes between the start of the outage and the incident being investigated, but it taking a further 4 hours to resolve the problem and 8 hours total for everything to be back to normal isn't great.",
+    "id": 45977111,
+    "by": "hnarn",
+    "timeISO": "2025-11-19T08:25:29.000Z",
+    "textPlain": "> That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network.> The software running on these machines to route traffic across our network reads this feature file to keep our Bot Management system up to date with ever changing threats. The software had a limit on the size of the feature file that was below its doubled size. That caused the software to fail.I'm no FAANG 10x engineer, and I appreciate things can be obvious in hindsight, but I'm somewhat surprised that engineering at the level of Cloudflare does not:1. Push out files A/B to ensure the old file is not removed.2. Handle the failure of loading the file (for whatever reason) by automatically reloading the old file instead and logging the error.This seems like pretty basic SRE stuff.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45973869,
-    "by": "SerCe",
-    "timeISO": "2025-11-18T23:51:06.000Z",
-    "textPlain": "As always, kudos for releasing a post mortem in less than 24 hours after the outage, very few tech organisations are capable of doing this.",
+    "id": 45977140,
+    "by": "0x001D",
+    "timeISO": "2025-11-19T08:31:28.000Z",
+    "textPlain": "Configuration can be validated. https://cuelang.org",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45973896,
+    "by": "gucci-on-fleek",
+    "timeISO": "2025-11-18T23:53:52.000Z",
+    "textPlain": "> This showed up to Internet users trying to access our customers' sites as an error page indicating a failure within Cloudflare's network.As a visitor to random web pages, I definitely appreciated this—much better than their completely false “checking the security of your connection” message.> The issue was not caused, directly or indirectly, by a cyber attack or malicious activity of any kind. Instead, it was triggered by a change to one of our database systems' permissionsAlso appreciate the honesty here.> On 18 November 2025 at 11:20 UTC (all times in this blog are UTC), Cloudflare's network began experiencing significant failures to deliver core network traffic. […]> Core traffic was largely flowing as normal by 14:30. We worked over the next few hours to mitigate increased load on various parts of our network as traffic rushed back online. As of 17:06 all systems at Cloudflare were functioning as normal.Why did this take so long to resolve? I read through the entire article, and I understand why the outage happened, but when most of the network goes down, why wasn't the first step to revert any recent configuration changes, even ones that seem unrelated to the outage? (Or did I just misread something and this was explained somewhere?)Of course, the correct solution is always obvious in retrospect, and it's impressive that it only took 7 minutes between the start of the outage and the incident being investigated, but it taking a further 4 hours to resolve the problem and 8 hours total for everything to be back to normal isn't great.",
     "parent": 45973709,
     "depth": 1
   },
@@ -32,10 +40,26 @@
     "depth": 1
   },
   {
+    "id": 45973869,
+    "by": "SerCe",
+    "timeISO": "2025-11-18T23:51:06.000Z",
+    "textPlain": "As always, kudos for releasing a post mortem in less than 24 hours after the outage, very few tech organisations are capable of doing this.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45973901,
     "by": "EvanAnderson",
     "timeISO": "2025-11-18T23:54:10.000Z",
     "textPlain": "It reads a lot like the Crowdstrike SNAFU. Machine-generated configuration file b0rks-up the software that consumes it.The \"...was then propagated to all the machines that make up our network...\" followed by \"....caused the software to fail.\" screams for a phased rollout / rollback methodology. I get that \"...it’s critical that it is rolled out frequently and rapidly as bad actors change their tactics quickly\" but today's outage highlights that rapid deployment isn't all upside.The remediation section doesn't give me any sense that phased deployment, acceptance testing, and rapid rollback are part of the planned remediation strategy.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976946,
+    "by": "HL33tibCe7",
+    "timeISO": "2025-11-19T07:56:00.000Z",
+    "textPlain": "An unwrap like that in production code on the critical path is very surprising to me.I haven’t worked in Rust codebases, but I have never worked in a Go codebase where a `panic` in such a location would make it through code review.Is this normal in Rust?",
     "parent": 45973709,
     "depth": 1
   },
@@ -48,18 +72,18 @@
     "depth": 1
   },
   {
-    "id": 45973948,
-    "by": "lukan",
-    "timeISO": "2025-11-18T23:58:29.000Z",
-    "textPlain": "\"Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare. While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page.\"Unfortunately they do not share, what caused the status page to went down as well. (Does this happen often? Otherwise a big coincidence it seems)",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45975214,
     "by": "bri3d",
     "timeISO": "2025-11-19T02:34:39.000Z",
     "textPlain": "Everyone is hating on unwrap, but to me the odd and more interesting part is that it took 3 hours to figure this out? Even with a DDoS red herring, shouldn’t there have been a crash log or telemetry anomaly correlated? Also, shouldn’t the next steps and resolution focus more on this aspect, since it’s a high leverage tool for identifying any outage caused by a panic rather than just preventing a recurrence of random weird edge case #9999999?",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45973948,
+    "by": "lukan",
+    "timeISO": "2025-11-18T23:58:29.000Z",
+    "textPlain": "\"Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare. While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page.\"Unfortunately they do not share, what caused the status page to went down as well. (Does this happen often? Otherwise a big coincidence it seems)",
     "parent": 45973709,
     "depth": 1
   },
@@ -72,10 +96,26 @@
     "depth": 1
   },
   {
+    "id": 45976173,
+    "by": "dilyevsky",
+    "timeISO": "2025-11-19T05:25:30.000Z",
+    "textPlain": "Long time ago Google had a very similar incident where ddos protection system ingested a bad config and took everything down. Except it was auto resolved in like  four minutes by an automatic rollback system before oncall was even able to do anything. Perhaps Cloudflare should invest in a system like that",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45975590,
     "by": "keypusher",
     "timeISO": "2025-11-19T03:37:34.000Z",
     "textPlain": "The most surprising thing to me here is that it took 3 hours to root cause, and points to a glaring hole in the platform observability.  Even taking into account the fact that the service was failing intermittently at first, it still took 1.5 hours after it started failing consistently to root cause.  But the service was crashing on startup.  If a core service is throwing a panic at startup like that, it should be raising alerts or at least easily findable via log aggregation.  It seems like maybe there was some significant time lost in assuming it was an attack, but it also seems strange to me that nobody was asking \"what just changed?\", which is usually the first question I ask during an incident.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976995,
+    "by": "jokoon",
+    "timeISO": "2025-11-19T08:05:34.000Z",
+    "textPlain": "I don't understand what's the business of cloudflare.They just sell proxies, to whoever.Why are they the only company doing ddos protection?I just don't get it.",
     "parent": 45973709,
     "depth": 1
   },
@@ -88,14 +128,6 @@
     "depth": 1
   },
   {
-    "id": 45974941,
-    "by": "pdimitar",
-    "timeISO": "2025-11-19T01:50:58.000Z",
-    "textPlain": "While I heavily frown upon using `unwrap` and `expect` in Rust code and make sure to have Clippy tell me about every single usage of them, I also understand that  without them Rust might have been seen as an academic curiosity language.They are escape hatches. Without those your language would never take off.But here's the thing. Escape hatches are like emergency exits. They are not to be used by your team to go to lunch in a nearby restaurant.---Cloudflare should likely invest in better linting and CI/CD alerts. Not to mention isolated testing i.e. deploy this change only to a small subset and monitor, and only then do a wider deployment.Hindsight is 20/20 and we can all be smartasses after the fact of course. But I am really surprised because lately I am only using Rust for hobby projects and even I know I should not use `unwrap` and `expect` beyond the first iteration phases.---I have advocated for this before but IMO Rust at this point will benefit greatly from disallowing those unsafe APIs by default in release mode. Though I understand why they don't want to do it -- likely millions of CI/CD pipelines will break overnight. But in the interim, maybe a rustc flag we can put in our `Cargo.toml` that enables such a stricter mode? Or have that flag just remove all the panicky API _at compile time_ though I believe this might be a Gargantuan effort and is likely never happening (sadly).In any case, I would expect many other failures from Cloudflare but not _this_ one in particular.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45975519,
     "by": "jdlyga",
     "timeISO": "2025-11-19T03:27:56.000Z",
@@ -104,18 +136,10 @@
     "depth": 1
   },
   {
-    "id": 45976540,
-    "by": "kylegalbraith",
-    "timeISO": "2025-11-19T06:44:15.000Z",
-    "textPlain": "The outage sucked for everyone. The root cause also feels like something they could have caught much earlier in a canary rollout from my reading of this.All that said, to have an outage reported turned around practically the same day, that is this detailed, is quite impressive. Here's to hoping they make their changes from this learning, and we don't see this exact failure mode again.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45976195,
-    "by": "zeroq",
-    "timeISO": "2025-11-19T05:29:25.000Z",
-    "textPlain": "But Rust was supposed to cure cancer and solve world hunger.\nIs this the end of the hello world but in Rust saga?",
+    "id": 45974941,
+    "by": "pdimitar",
+    "timeISO": "2025-11-19T01:50:58.000Z",
+    "textPlain": "While I heavily frown upon using `unwrap` and `expect` in Rust code and make sure to have Clippy tell me about every single usage of them, I also understand that  without them Rust might have been seen as an academic curiosity language.They are escape hatches. Without those your language would never take off.But here's the thing. Escape hatches are like emergency exits. They are not to be used by your team to go to lunch in a nearby restaurant.---Cloudflare should likely invest in better linting and CI/CD alerts. Not to mention isolated testing i.e. deploy this change only to a small subset and monitor, and only then do a wider deployment.Hindsight is 20/20 and we can all be smartasses after the fact of course. But I am really surprised because lately I am only using Rust for hobby projects and even I know I should not use `unwrap` and `expect` beyond the first iteration phases.---I have advocated for this before but IMO Rust at this point will benefit greatly from disallowing those unsafe APIs by default in release mode. Though I understand why they don't want to do it -- likely millions of CI/CD pipelines will break overnight. But in the interim, maybe a rustc flag we can put in our `Cargo.toml` that enables such a stricter mode? Or have that flag just remove all the panicky API _at compile time_ though I believe this might be a Gargantuan effort and is likely never happening (sadly).In any case, I would expect many other failures from Cloudflare but not _this_ one in particular.",
     "parent": 45973709,
     "depth": 1
   },
@@ -124,6 +148,14 @@
     "by": "RagingCactus",
     "timeISO": "2025-11-19T00:42:03.000Z",
     "textPlain": "Lots of people here are (perhaps rightfully) pointing to the unwrap() call being an issue. That might be true, but to me the fact that a reasonably \"clean\" panic at a defined line of code was not quickly picked up in any error monitoring system sounds just as important to investigate.Assuming something similar to Sentry would be in use, it should clearly pick up the many process crashes that start occurring right as the downtime starts. And the well defined clean crashes should in theory also stand out against all the random errors that start occuring all over the system as it begins to go down, precisely because it's always failing at the exact same point.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976195,
+    "by": "zeroq",
+    "timeISO": "2025-11-19T05:29:25.000Z",
+    "textPlain": "But Rust was supposed to cure cancer and solve world hunger.\nIs this the end of the hello world but in Rust saga?",
     "parent": 45973709,
     "depth": 1
   },
@@ -152,10 +184,10 @@
     "depth": 1
   },
   {
-    "id": 45976173,
-    "by": "dilyevsky",
-    "timeISO": "2025-11-19T05:25:30.000Z",
-    "textPlain": "Long time ago Google had a very similar incident where ddos protection system ingested a bad config and took everything down. Except it was auto resolved in like  four minutes by an automatic rollback system before oncall was even able to do anything. Perhaps Cloudflare should invest in a system like that",
+    "id": 45975899,
+    "by": "aetherspawn",
+    "timeISO": "2025-11-19T04:36:35.000Z",
+    "textPlain": "Cloudflare Access is still experiencing weird issues for us (it’s asking users to SSO login to our public website even though our zone rules - set on a completely different zone - haven’t changed).I don’t think the infrastructure has been as fully recovered as they think yet…",
     "parent": 45973709,
     "depth": 1
   },
@@ -164,6 +196,22 @@
     "by": "nwellinghoff",
     "timeISO": "2025-11-19T02:20:02.000Z",
     "textPlain": "The real take away is that so much functionality depends on a few players. This is a fundamental flaw in design that is getting worse by the year as the winner takes all winners win. Not saying they didn’t earn their wins. But the fact remains. The system is not robust. Then again, so what. It went down for a while. Maybe we shouldn’t depend on the internet being “up” all the time.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976875,
+    "by": "MagicMoonlight",
+    "timeISO": "2025-11-19T07:42:56.000Z",
+    "textPlain": "Having a system which automatically deploys configuration files across a million servers every 5 minutes without testing it seems stupid to me.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976540,
+    "by": "kylegalbraith",
+    "timeISO": "2025-11-19T06:44:15.000Z",
+    "textPlain": "The outage sucked for everyone. The root cause also feels like something they could have caught much earlier in a canary rollout from my reading of this.All that said, to have an outage reported turned around practically the same day, that is this detailed, is quite impressive. Here's to hoping they make their changes from this learning, and we don't see this exact failure mode again.",
     "parent": 45973709,
     "depth": 1
   },
@@ -184,26 +232,10 @@
     "depth": 1
   },
   {
-    "id": 45976704,
-    "by": "Martcpp",
-    "timeISO": "2025-11-19T07:14:57.000Z",
-    "textPlain": "deny (clippy:: unwrap_used)",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45974449,
     "by": "yoyohello13",
     "timeISO": "2025-11-19T00:51:45.000Z",
     "textPlain": "People really like to hate on Rust for some reason. This wasn’t a Rust problem, no language would have saved them from this kind of issue. In fact, the compiler would have warned that this was a possible issue.I get it, don’t pick languages just because they are trendy, but if any company’s use case is a perfect fit for Rust it’s cloudflare.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975899,
-    "by": "aetherspawn",
-    "timeISO": "2025-11-19T04:36:35.000Z",
-    "textPlain": "Cloudflare Access is still experiencing weird issues for us (it’s asking users to SSO login to our public website even though our zone rules - set on a completely different zone - haven’t changed).I don’t think the infrastructure has been as fully recovered as they think yet…",
     "parent": 45973709,
     "depth": 1
   },
@@ -216,14 +248,6 @@
     "depth": 1
   },
   {
-    "id": 45976015,
-    "by": "slanterns",
-    "timeISO": "2025-11-19T04:58:36.000Z",
-    "textPlain": "https://x.com/guanlandai/status/1990967570011468071",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45974080,
     "by": "ksajadi",
     "timeISO": "2025-11-19T00:13:01.000Z",
@@ -232,18 +256,26 @@
     "depth": 1
   },
   {
-    "id": 45976667,
-    "by": "makach",
-    "timeISO": "2025-11-19T07:08:56.000Z",
-    "textPlain": "Excellent write up. Cybersecurity professionals read the story and learn. It’s textbook lesson in post-mortem incident analysis - a mvp for what is expected from us all in a similar situation.Reputationally this is extremely embarrassing for Cloudflare, but imo they seem to get their feet back on the ground. I was surprised to see not just one, but two apologies to the internet. This just cements how professional and dedicated the Cloudflare team is to ensure stable resilient internet and how embarrassed they must have been.A reputational hit for sure, but outcome is lessons learned and hopefully stronger resilience.",
+    "id": 45976015,
+    "by": "slanterns",
+    "timeISO": "2025-11-19T04:58:36.000Z",
+    "textPlain": "https://x.com/guanlandai/status/1990967570011468071",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45976151,
-    "by": "nromiun",
-    "timeISO": "2025-11-19T05:22:52.000Z",
-    "textPlain": "Unbelievable. I guess it's time to grep for every .unwrap in our code.",
+    "id": 45976754,
+    "by": "agonux",
+    "timeISO": "2025-11-19T07:24:04.000Z",
+    "textPlain": "Time to rewrite with golang, explicit error handling ;-)",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45974721,
+    "by": "cvhc",
+    "timeISO": "2025-11-19T01:23:11.000Z",
+    "textPlain": "I don't get why that SQL query was even used in the first place. It seems it fetches feature names at runtime instead of using a static hardcoded schema. Considering this decides the schema of a global config, I don't think the dynamicity is a good idea.",
     "parent": 45973709,
     "depth": 1
   },
@@ -256,10 +288,10 @@
     "depth": 1
   },
   {
-    "id": 45974721,
-    "by": "cvhc",
-    "timeISO": "2025-11-19T01:23:11.000Z",
-    "textPlain": "I don't get why that SQL query was even used in the first place. It seems it fetches feature names at runtime instead of using a static hardcoded schema. Considering this decides the schema of a global config, I don't think the dynamicity is a good idea.",
+    "id": 45976151,
+    "by": "nromiun",
+    "timeISO": "2025-11-19T05:22:52.000Z",
+    "textPlain": "Unbelievable. I guess it's time to grep for every .unwrap in our code.",
     "parent": 45973709,
     "depth": 1
   },
@@ -280,14 +312,6 @@
     "depth": 1
   },
   {
-    "id": 45976306,
-    "by": "hbarka",
-    "timeISO": "2025-11-19T05:56:14.000Z",
-    "textPlain": "ClickHouse db was mentioned. Does this incident raise any critiques about it?",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45975936,
     "by": "laurentiurad",
     "timeISO": "2025-11-19T04:42:11.000Z",
@@ -296,10 +320,10 @@
     "depth": 1
   },
   {
-    "id": 45975972,
-    "by": "sanjitb",
-    "timeISO": "2025-11-19T04:49:38.000Z",
-    "textPlain": "cloudflare:> Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare.also cloudflare:> The Cloudflare Dashboard was also impacted due to both Workers KV being used internally and Cloudflare Turnstile being deployed as part of our login flow.",
+    "id": 45976850,
+    "by": "dev_l1x_be",
+    "timeISO": "2025-11-19T07:39:26.000Z",
+    "textPlain": "Was it DNS this time?",
     "parent": 45973709,
     "depth": 1
   },
@@ -320,18 +344,18 @@
     "depth": 1
   },
   {
-    "id": 45975624,
-    "by": "vasuadari",
-    "timeISO": "2025-11-19T03:42:57.000Z",
-    "textPlain": "Wondering why they didn’t disable the bot management temporarily to recover. Websites could have survived temporarily without it compared to the outage itself.",
+    "id": 45975972,
+    "by": "sanjitb",
+    "timeISO": "2025-11-19T04:49:38.000Z",
+    "textPlain": "cloudflare:> Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare.also cloudflare:> The Cloudflare Dashboard was also impacted due to both Workers KV being used internally and Cloudflare Turnstile being deployed as part of our login flow.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45976146,
-    "by": "aspbee555",
-    "timeISO": "2025-11-19T05:22:21.000Z",
-    "textPlain": "unwraps are so very easy to use and they have bit me so many times because you can nearly never run into a problem and suddenly crashes from an unwrap that almost always was fine",
+    "id": 45976306,
+    "by": "hbarka",
+    "timeISO": "2025-11-19T05:56:14.000Z",
+    "textPlain": "ClickHouse db was mentioned. Does this incident raise any critiques about it?",
     "parent": 45973709,
     "depth": 1
   },
@@ -344,58 +368,34 @@
     "depth": 1
   },
   {
-    "id": 45976508,
-    "by": "mmaunder",
-    "timeISO": "2025-11-19T06:37:05.000Z",
-    "textPlain": "tl;dr\nA permissions change in a ClickHouse database caused a query to return duplicate rows for a “feature file” used by Cloudflares Bot Management system, which doubled the file size. That oversized file was propagated to their core proxy machines, triggered an unhandled error in the proxy’s bot-module (it exceeded its pre-allocated limit), and as a result the network started returning 5xx errors. The issue wasn’t a cyber-attack — it was a configuration/automation failure.",
+    "id": 45975624,
+    "by": "vasuadari",
+    "timeISO": "2025-11-19T03:42:57.000Z",
+    "textPlain": "Wondering why they didn’t disable the bot management temporarily to recover. Websites could have survived temporarily without it compared to the outage itself.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45974679,
-    "by": "1970-01-01",
-    "timeISO": "2025-11-19T01:17:53.000Z",
-    "textPlain": "I would have been a bit cheeky and opened with 'It wasn't DNS.'",
+    "id": 45976887,
+    "by": "anal_reactor",
+    "timeISO": "2025-11-19T07:44:54.000Z",
+    "textPlain": "Honestly... everyone shit themselves that internet doesn't work, but next week this outage will be forgotten by 99% of population. I was doing something on my PC when I saw clear information that Cloudflare is down, so I decided to just go take a nap, then read a book, then go for a walk. Once I was done, the internet was working again. Panic was not necessary on my side.What I'm trying to say is that things would be much better if everyone took a chill pill and accepted the possibility that in rare instances, the internet doesn't work and that's fine. You don't need to keep scrolling TikTok 24/7.> but my use case is especially importantTake a chill pill. Probably it isn't.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45976510,
-    "by": "jeffrallen",
-    "timeISO": "2025-11-19T06:37:25.000Z",
-    "textPlain": "This is an excellent lesson learned: Harden loading of internally generated config files as though they were untrusted content.Gonna use that one at $WORK.",
+    "id": 45976935,
+    "by": "xlii",
+    "timeISO": "2025-11-19T07:53:00.000Z",
+    "textPlain": "Cloudflare rewrites Rust services to <next-cool-language> /joke...(I'd pick Haskell, cause I'm having fun with it recently :P)",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45974640,
-    "by": "sema4hacker",
-    "timeISO": "2025-11-19T01:12:29.000Z",
-    "textPlain": "If you deploy a change to your system, and things start to go wrong that same day, the prime suspect (no matter how unlikely it might seem) should be the change you made.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974457,
-    "by": "JamesJGoodwin",
-    "timeISO": "2025-11-19T00:52:06.000Z",
-    "textPlain": ">Currently that limit is set to 200, well above our current use of ~60 features. Again, the limit exists because for performance reasons we preallocate memory for the features.So they basically hardcoded something, didn't bother to cover the overflow case with unit tests, didn't have basic error catching that would fallback and send logs/alerts to their internal monitoring system and this is why half of the internet went down?",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975317,
-    "by": "themark",
-    "timeISO": "2025-11-19T02:50:51.000Z",
-    "textPlain": "“…and the fluctuation stabilized in the failing state.”Sounds like the ops team had one hell of a day.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45976162,
-    "by": "keiywuvfwofw",
-    "timeISO": "2025-11-19T05:24:47.000Z",
-    "textPlain": "This post was written by chatgpt??https://blog.cloudflare.com/18-november-2025-outage/#:~:text...",
+    "id": 45976146,
+    "by": "aspbee555",
+    "timeISO": "2025-11-19T05:22:21.000Z",
+    "textPlain": "unwraps are so very easy to use and they have bit me so many times because you can nearly never run into a problem and suddenly crashes from an unwrap that almost always was fine",
     "parent": 45973709,
     "depth": 1
   }
