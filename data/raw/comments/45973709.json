@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 45978246,
+    "by": "darksideofthem",
+    "timeISO": "2025-11-19T11:19:32.000Z",
+    "textPlain": "Speaking of resiliency, the entire Bot Management module doesn't seems to be a critical part of the system, so for example, what happens if that module goes down for an hour? the other parts of the system should work. So I would rank every module and it's role in the system, and would design it in a way that when a non-critical module fails, other parts still can function.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45973896,
     "by": "gucci-on-fleek",
     "timeISO": "2025-11-18T23:53:52.000Z",
@@ -40,10 +48,10 @@
     "depth": 1
   },
   {
-    "id": 45977878,
-    "by": "leonaves",
-    "timeISO": "2025-11-19T10:21:01.000Z",
-    "textPlain": "Why have a limit on the file size if the thing that happens when you hit the limit is the entire network goes down? Surely not having a limit can't be worse?",
+    "id": 45977111,
+    "by": "hnarn",
+    "timeISO": "2025-11-19T08:25:29.000Z",
+    "textPlain": "> That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network.> The software running on these machines to route traffic across our network reads this feature file to keep our Bot Management system up to date with ever changing threats. The software had a limit on the size of the feature file that was below its doubled size. That caused the software to fail.I'm no FAANG 10x engineer, and I appreciate things can be obvious in hindsight, but I'm somewhat surprised that engineering at the level of Cloudflare does not:1. Push out files A/B to ensure the old file is not removed.2. Handle the failure of loading the file (for whatever reason) by automatically reloading the old file instead and logging the error.This seems like pretty basic SRE stuff.",
     "parent": 45973709,
     "depth": 1
   },
@@ -56,18 +64,10 @@
     "depth": 1
   },
   {
-    "id": 45977111,
-    "by": "hnarn",
-    "timeISO": "2025-11-19T08:25:29.000Z",
-    "textPlain": "> That feature file, in turn, doubled in size. The larger-than-expected feature file was then propagated to all the machines that make up our network.> The software running on these machines to route traffic across our network reads this feature file to keep our Bot Management system up to date with ever changing threats. The software had a limit on the size of the feature file that was below its doubled size. That caused the software to fail.I'm no FAANG 10x engineer, and I appreciate things can be obvious in hindsight, but I'm somewhat surprised that engineering at the level of Cloudflare does not:1. Push out files A/B to ensure the old file is not removed.2. Handle the failure of loading the file (for whatever reason) by automatically reloading the old file instead and logging the error.This seems like pretty basic SRE stuff.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45973945,
-    "by": "otterley",
-    "timeISO": "2025-11-18T23:58:26.000Z",
-    "textPlain": "> work has already begun on how we will harden them against failures like this in the future. In particular we are:> Hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input> Enabling more global kill switches for features> Eliminating the ability for core dumps or other error reports to overwhelm system resources> Reviewing failure modes for error conditions across all core proxy modulesAbsent from this list are canary deployments and incremental or wave-based deployment of configuration files (which are often as dangerous as code changes) across fault isolation boundaries -- assuming CloudFlare has such boundaries at all. How are they going to contain the blast radius in the future?This is something the industry was supposed to learn from the CrowdStrike incident last year, but it's clear that we still have a long way to go.Also, enabling global anything (i.e., \"enabling global kill switches for features\") sounds like an incredibly risky idea. One can imagine a bug in a global switch that transforms disabling a feature into disabling an entire system.",
+    "id": 45978100,
+    "by": "arkanovicz",
+    "timeISO": "2025-11-19T10:55:07.000Z",
+    "textPlain": "Interesting technical insight, but I would be curious to hear firsthand accounts from the teams on the ground, particularly regarding how the engineers felt the increasing pressure, frantically refreshing their dashboards, searching for phantom DDoS, scrolling codes updates...",
     "parent": 45973709,
     "depth": 1
   },
@@ -80,18 +80,26 @@
     "depth": 1
   },
   {
-    "id": 45973948,
-    "by": "lukan",
-    "timeISO": "2025-11-18T23:58:29.000Z",
-    "textPlain": "\"Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare. While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page.\"Unfortunately they do not share, what caused the status page to went down as well. (Does this happen often? Otherwise a big coincidence it seems)",
+    "id": 45973945,
+    "by": "otterley",
+    "timeISO": "2025-11-18T23:58:26.000Z",
+    "textPlain": "> work has already begun on how we will harden them against failures like this in the future. In particular we are:> Hardening ingestion of Cloudflare-generated configuration files in the same way we would for user-generated input> Enabling more global kill switches for features> Eliminating the ability for core dumps or other error reports to overwhelm system resources> Reviewing failure modes for error conditions across all core proxy modulesAbsent from this list are canary deployments and incremental or wave-based deployment of configuration files (which are often as dangerous as code changes) across fault isolation boundaries -- assuming CloudFlare has such boundaries at all. How are they going to contain the blast radius in the future?This is something the industry was supposed to learn from the CrowdStrike incident last year, but it's clear that we still have a long way to go.Also, enabling global anything (i.e., \"enabling global kill switches for features\") sounds like an incredibly risky idea. One can imagine a bug in a global switch that transforms disabling a feature into disabling an entire system.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45976946,
-    "by": "HL33tibCe7",
-    "timeISO": "2025-11-19T07:56:00.000Z",
-    "textPlain": "An unwrap like that in production code on the critical path is very surprising to me.I haven’t worked in Rust codebases, but I have never worked in a Go codebase where a `panic` in such a location would make it through code review.Is this normal in Rust?",
+    "id": 45978152,
+    "by": "l___l",
+    "timeISO": "2025-11-19T11:03:54.000Z",
+    "textPlain": "> The software had a limit on the size of the feature file that was below its doubled size. That caused the software to fail.What could have prevented this failure?Cloudflare's software could have included a check that refused to generate the feature file if it's size was higher than the limit.A testcase could have caught this.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45973948,
+    "by": "lukan",
+    "timeISO": "2025-11-18T23:58:29.000Z",
+    "textPlain": "\"Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare. While it turned out to be a coincidence, it led some of the team diagnosing the issue to believe that an attacker may be targeting both our systems as well as our status page.\"Unfortunately they do not share, what caused the status page to went down as well. (Does this happen often? Otherwise a big coincidence it seems)",
     "parent": 45973709,
     "depth": 1
   },
@@ -104,10 +112,10 @@
     "depth": 1
   },
   {
-    "id": 45975590,
-    "by": "keypusher",
-    "timeISO": "2025-11-19T03:37:34.000Z",
-    "textPlain": "The most surprising thing to me here is that it took 3 hours to root cause, and points to a glaring hole in the platform observability.  Even taking into account the fact that the service was failing intermittently at first, it still took 1.5 hours after it started failing consistently to root cause.  But the service was crashing on startup.  If a core service is throwing a panic at startup like that, it should be raising alerts or at least easily findable via log aggregation.  It seems like maybe there was some significant time lost in assuming it was an attack, but it also seems strange to me that nobody was asking \"what just changed?\", which is usually the first question I ask during an incident.",
+    "id": 45976946,
+    "by": "HL33tibCe7",
+    "timeISO": "2025-11-19T07:56:00.000Z",
+    "textPlain": "An unwrap like that in production code on the critical path is very surprising to me.I haven’t worked in Rust codebases, but I have never worked in a Go codebase where a `panic` in such a location would make it through code review.Is this normal in Rust?",
     "parent": 45973709,
     "depth": 1
   },
@@ -120,18 +128,18 @@
     "depth": 1
   },
   {
-    "id": 45976173,
-    "by": "dilyevsky",
-    "timeISO": "2025-11-19T05:25:30.000Z",
-    "textPlain": "Long time ago Google had a very similar incident where ddos protection system ingested a bad config and took everything down. Except it was auto resolved in like  four minutes by an automatic rollback system before oncall was even able to do anything. Perhaps Cloudflare should invest in a system like that",
+    "id": 45975590,
+    "by": "keypusher",
+    "timeISO": "2025-11-19T03:37:34.000Z",
+    "textPlain": "The most surprising thing to me here is that it took 3 hours to root cause, and points to a glaring hole in the platform observability.  Even taking into account the fact that the service was failing intermittently at first, it still took 1.5 hours after it started failing consistently to root cause.  But the service was crashing on startup.  If a core service is throwing a panic at startup like that, it should be raising alerts or at least easily findable via log aggregation.  It seems like maybe there was some significant time lost in assuming it was an attack, but it also seems strange to me that nobody was asking \"what just changed?\", which is usually the first question I ask during an incident.",
     "parent": 45973709,
     "depth": 1
   },
   {
-    "id": 45977798,
-    "by": "elAhmo",
-    "timeISO": "2025-11-19T10:08:39.000Z",
-    "textPlain": "Timely post mortem. Sucks to have this happened, but at least they are quite transparent and detailed in the writeup.",
+    "id": 45976173,
+    "by": "dilyevsky",
+    "timeISO": "2025-11-19T05:25:30.000Z",
+    "textPlain": "Long time ago Google had a very similar incident where ddos protection system ingested a bad config and took everything down. Except it was auto resolved in like  four minutes by an automatic rollback system before oncall was even able to do anything. Perhaps Cloudflare should invest in a system like that",
     "parent": 45973709,
     "depth": 1
   },
@@ -144,10 +152,10 @@
     "depth": 1
   },
   {
-    "id": 45977681,
-    "by": "gkoz",
-    "timeISO": "2025-11-19T09:47:44.000Z",
-    "textPlain": "Given this was triggered by an old school configuration change across multiple servers, there's too little discussion of that particular process.It sounds like the change could've been rolled out more slowly, halted when the incident started and perhaps rolled back just in case.",
+    "id": 45978159,
+    "by": "markhandoff",
+    "timeISO": "2025-11-19T11:04:33.000Z",
+    "textPlain": "Dear Matthew Prince, don't you think we (the ones affected by your staff's mistake) should get some sort of compensation??? Yours truly, a Cloudflare client who lost money during the November 18th outage.",
     "parent": 45973709,
     "depth": 1
   },
@@ -168,6 +176,14 @@
     "depth": 1
   },
   {
+    "id": 45978004,
+    "by": "__alexs",
+    "timeISO": "2025-11-19T10:42:00.000Z",
+    "textPlain": "Is dual sourcing CDNs feasible these days? Seems like having the capability to swap between CDN providers is good both from a negotiating perspective and a resiliency one.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45973954,
     "by": "ed_mercer",
     "timeISO": "2025-11-18T23:59:14.000Z",
@@ -176,10 +192,10 @@
     "depth": 1
   },
   {
-    "id": 45976995,
-    "by": "jokoon",
-    "timeISO": "2025-11-19T08:05:34.000Z",
-    "textPlain": "I don't understand what's the business of cloudflare.They just sell proxies, to whoever.Why are they the only company doing ddos protection?I just don't get it.",
+    "id": 45976195,
+    "by": "zeroq",
+    "timeISO": "2025-11-19T05:29:25.000Z",
+    "textPlain": "But Rust was supposed to cure cancer and solve world hunger.\nIs this the end of the hello world but in Rust saga?",
     "parent": 45973709,
     "depth": 1
   },
@@ -200,10 +216,34 @@
     "depth": 1
   },
   {
+    "id": 45976995,
+    "by": "jokoon",
+    "timeISO": "2025-11-19T08:05:34.000Z",
+    "textPlain": "I don't understand what's the business of cloudflare.They just sell proxies, to whoever.Why are they the only company doing ddos protection?I just don't get it.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45977878,
+    "by": "leonaves",
+    "timeISO": "2025-11-19T10:21:01.000Z",
+    "textPlain": "Why have a limit on the file size if the thing that happens when you hit the limit is the entire network goes down? Surely not having a limit can't be worse?",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45974449,
     "by": "yoyohello13",
     "timeISO": "2025-11-19T00:51:45.000Z",
     "textPlain": "People really like to hate on Rust for some reason. This wasn’t a Rust problem, no language would have saved them from this kind of issue. In fact, the compiler would have warned that this was a possible issue.I get it, don’t pick languages just because they are trendy, but if any company’s use case is a perfect fit for Rust it’s cloudflare.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45977681,
+    "by": "gkoz",
+    "timeISO": "2025-11-19T09:47:44.000Z",
+    "textPlain": "Given this was triggered by an old school configuration change across multiple servers, there's too little discussion of that particular process.It sounds like the change could've been rolled out more slowly, halted when the incident started and perhaps rolled back just in case.",
     "parent": 45973709,
     "depth": 1
   },
@@ -216,14 +256,6 @@
     "depth": 1
   },
   {
-    "id": 45976195,
-    "by": "zeroq",
-    "timeISO": "2025-11-19T05:29:25.000Z",
-    "textPlain": "But Rust was supposed to cure cancer and solve world hunger.\nIs this the end of the hello world but in Rust saga?",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45975124,
     "by": "nwellinghoff",
     "timeISO": "2025-11-19T02:20:02.000Z",
@@ -232,18 +264,10 @@
     "depth": 1
   },
   {
-    "id": 45977685,
-    "by": "130R",
-    "timeISO": "2025-11-19T09:48:05.000Z",
-    "textPlain": "If the software has a limit on the size of the feature file then the process that propagates the file should probably validate the size before propagating ..",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45977511,
-    "by": "zyngaro",
-    "timeISO": "2025-11-19T09:23:15.000Z",
-    "textPlain": "Catastrophique failure for failing to read a file bigger that expected? Wow. This is really embarrassing.",
+    "id": 45977798,
+    "by": "elAhmo",
+    "timeISO": "2025-11-19T10:08:39.000Z",
+    "textPlain": "Timely post mortem. Sucks to have this happened, but at least they are quite transparent and detailed in the writeup.",
     "parent": 45973709,
     "depth": 1
   },
@@ -252,14 +276,6 @@
     "by": "testemailfordg2",
     "timeISO": "2025-11-19T00:52:16.000Z",
     "textPlain": "\"Customers on our old proxy engine, known as FL, did not see errors, but bot scores were not generated correctly, resulting in all traffic receiving a bot score of zero.\"This simply means, the exception handling quality of your new FL2 is non-existent and is not at par / code logic wise similar to FL.I hope it was not because of AI driven efficiency gains.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45976875,
-    "by": "MagicMoonlight",
-    "timeISO": "2025-11-19T07:42:56.000Z",
-    "textPlain": "Having a system which automatically deploys configuration files across a million servers every 5 minutes without testing it seems stupid to me.",
     "parent": 45973709,
     "depth": 1
   },
@@ -288,10 +304,18 @@
     "depth": 1
   },
   {
-    "id": 45977287,
-    "by": "niedbalski",
-    "timeISO": "2025-11-19T08:55:02.000Z",
-    "textPlain": "Sure this has been said but the issue here is not code is the ability to canary and rollback quickly from any arbitrary (config) change.",
+    "id": 45975397,
+    "by": "abigailphoebe",
+    "timeISO": "2025-11-19T03:07:24.000Z",
+    "textPlain": "kudos to getting this blog post out so fast, it’s well written and  is appreciated.i’m a little confused on how this was initially confused for an attack though?is there no internal visibility into where 5xx’s are being thrown? i’m surprised there isn’t some kind of \"this request terminated at the <bot checking logic>\" error mapping that could have initially pointed you guys towards that over an attack.also a bit taken aback that .unwrap()’s are ever allowed within such an important context.would appreciate some insight!",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45976875,
+    "by": "MagicMoonlight",
+    "timeISO": "2025-11-19T07:42:56.000Z",
+    "textPlain": "Having a system which automatically deploys configuration files across a million servers every 5 minutes without testing it seems stupid to me.",
     "parent": 45973709,
     "depth": 1
   },
@@ -312,6 +336,22 @@
     "depth": 1
   },
   {
+    "id": 45977511,
+    "by": "zyngaro",
+    "timeISO": "2025-11-19T09:23:15.000Z",
+    "textPlain": "Catastrophique failure for failing to read a file bigger that expected? Wow. This is really embarrassing.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
+    "id": 45977287,
+    "by": "niedbalski",
+    "timeISO": "2025-11-19T08:55:02.000Z",
+    "textPlain": "Sure this has been said but the issue here is not code is the ability to canary and rollback quickly from any arbitrary (config) change.",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45976015,
     "by": "slanterns",
     "timeISO": "2025-11-19T04:58:36.000Z",
@@ -320,10 +360,10 @@
     "depth": 1
   },
   {
-    "id": 45977614,
-    "by": "sachahjkl",
-    "timeISO": "2025-11-19T09:38:20.000Z",
-    "textPlain": "me af when there's a postmortem rubbing hands, impish smile on my face",
+    "id": 45977685,
+    "by": "130R",
+    "timeISO": "2025-11-19T09:48:05.000Z",
+    "textPlain": "If the software has a limit on the size of the feature file then the process that propagates the file should probably validate the size before propagating ..",
     "parent": 45973709,
     "depth": 1
   },
@@ -336,14 +376,6 @@
     "depth": 1
   },
   {
-    "id": 45975397,
-    "by": "abigailphoebe",
-    "timeISO": "2025-11-19T03:07:24.000Z",
-    "textPlain": "kudos to getting this blog post out so fast, it’s well written and  is appreciated.i’m a little confused on how this was initially confused for an attack though?is there no internal visibility into where 5xx’s are being thrown? i’m surprised there isn’t some kind of \"this request terminated at the <bot checking logic>\" error mapping that could have initially pointed you guys towards that over an attack.also a bit taken aback that .unwrap()’s are ever allowed within such an important context.would appreciate some insight!",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
     "id": 45974565,
     "by": "avereveard",
     "timeISO": "2025-11-19T01:03:48.000Z",
@@ -352,50 +384,18 @@
     "depth": 1
   },
   {
+    "id": 45976306,
+    "by": "hbarka",
+    "timeISO": "2025-11-19T05:56:14.000Z",
+    "textPlain": "ClickHouse db was mentioned. Does this incident raise any critiques about it?",
+    "parent": 45973709,
+    "depth": 1
+  },
+  {
     "id": 45976151,
     "by": "nromiun",
     "timeISO": "2025-11-19T05:22:52.000Z",
     "textPlain": "Unbelievable. I guess it's time to grep for every .unwrap in our code.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45974578,
-    "by": "wildmXranat",
-    "timeISO": "2025-11-19T01:05:48.000Z",
-    "textPlain": "Hold up ,- when I used a C or similar language for accessing a database and wanted to clamp down on memory usage to deterministically control how much I want to allocated, I would explicitly limit the number of rows in the query.There never was an unbound \"select all rows from some table\" without a \"fetch first N rows only\" or \"limit N\"If you knew that this design is rigid, why not leverage the query to actually do it ?What am I missing ?",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975620,
-    "by": "Adam2025",
-    "timeISO": "2025-11-19T03:41:54.000Z",
-    "textPlain": "Cloudflare’s write-up is clear and to the point. A small change spread wider than expected, and they explained where the process failed. It’s a good reminder that reliability depends on strong workflows as much as infrastructure.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975936,
-    "by": "laurentiurad",
-    "timeISO": "2025-11-19T04:42:11.000Z",
-    "textPlain": "Reason for the failure: switched to Chad IDE to ship new features.",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45977140,
-    "by": "0x001D",
-    "timeISO": "2025-11-19T08:31:28.000Z",
-    "textPlain": "Configuration can be validated. https://cuelang.org",
-    "parent": 45973709,
-    "depth": 1
-  },
-  {
-    "id": 45975972,
-    "by": "sanjitb",
-    "timeISO": "2025-11-19T04:49:38.000Z",
-    "textPlain": "cloudflare:> Throwing us off and making us believe this might have been an attack was another apparent symptom we observed: Cloudflare’s status page went down. The status page is hosted completely off Cloudflare’s infrastructure with no dependencies on Cloudflare.also cloudflare:> The Cloudflare Dashboard was also impacted due to both Workers KV being used internally and Cloudflare Turnstile being deployed as part of our login flow.",
     "parent": 45973709,
     "depth": 1
   }
