@@ -1,9 +1,9 @@
 [
   {
-    "id": 45989061,
-    "by": "jolmg",
-    "timeISO": "2025-11-20T04:46:33.000Z",
-    "textPlain": "> Although this is probably the easiest way to implement '#!' inside the kernel, I'm a little bit surprised that it survived in Linux (in a completely independent implementation) and in OpenBSD (where the security people might have had a double-take at some point). But given Hyrum's Law there are probably people out there who are depending on this behavior so we're now stuck with it.I don't see what there would be to gain in disallowing the program path on the shebang line to be relative. The person that wrote the shebang can also write relative paths in some other part of the file.",
+    "id": 45989441,
+    "by": "somat",
+    "timeISO": "2025-11-20T06:00:44.000Z",
+    "textPlain": "The thing that surprised me was that you can't write an interpreter in an interpreted language, at least not in obsd. It is possible if you jump through a few hoops but you can't directly call it.An example: if you made a language in python\n/bin/my_lang: #does nothing but pretend it does    #!/usr/local/bin/python3\n    import sys\n    print('my_lang args', sys.argv)\n    for line in sys.stdin:\n      print('invalid_line:', line)\n\nmy_script:    #!/bin/my_lang\n    line of stuff\n    another line of stuff\n\n    chmod u+x my_script\n    ./my_script\n\nProbably for the best, but I was a bit sad that my recursive interpreter scheme was not going to work.Update: looks like linux does allow nested interpreters, good for them.https://www.in-ulm.de/~mascheck/various/shebang/#interpreter...really that whole document is a delightful read.",
     "parent": 45970885,
     "depth": 1
   },
@@ -16,11 +16,51 @@
     "depth": 1
   },
   {
-    "id": 45989225,
-    "by": "saurik",
-    "timeISO": "2025-11-20T05:16:32.000Z",
-    "textPlain": "Or, like, if you aren't reading and caring about what the interpreter is--as that's the only time this can burn you: it isn't doing a PATH lookup, so you can't walk into this one on accident--then it could literally be something like /bin/rm on some key file. This entire article is based on an assumption that this is somehow so obviously bad that there doesn't even need to be an explanation or defense of any kind of that idea.",
-    "parent": 45989061,
+    "id": 45989061,
+    "by": "jolmg",
+    "timeISO": "2025-11-20T04:46:33.000Z",
+    "textPlain": "> Although this is probably the easiest way to implement '#!' inside the kernel, I'm a little bit surprised that it survived in Linux (in a completely independent implementation) and in OpenBSD (where the security people might have had a double-take at some point). But given Hyrum's Law there are probably people out there who are depending on this behavior so we're now stuck with it.I don't see what there would be to gain in disallowing the program path on the shebang line to be relative. The person that wrote the shebang can also write relative paths in some other part of the file.",
+    "parent": 45970885,
+    "depth": 1
+  },
+  {
+    "id": 45989485,
+    "by": "rmunn",
+    "timeISO": "2025-11-20T06:09:27.000Z",
+    "textPlain": "Hit the link expecting to read about UTF-8 Byte Order Marks at the top of the file, so that the first few bytes aren't actually #! but 0xEF 0xBB 0xBF #! instead. Ran into this one just a few months ago when a coworker who uses Windows had checked a Bash script into the Git repo. His editor was configured to save files as \"UTF-8 with BOM\" and so we were getting errors that looked like \"./doit.sh: line 1: #!/bin/bash: No such file or directory\". Can you see the invisible BOMb in that line? It's there, I promise you.That's not what the article was actually about, as it turned out. The surprise in the article was about relative paths for script shebang lines. Which was useful to learn about, of course, but I was actually surprised by the surprise.",
+    "parent": 45970885,
+    "depth": 1
+  },
+  {
+    "id": 45989364,
+    "by": "jibal",
+    "timeISO": "2025-11-20T05:46:14.000Z",
+    "textPlain": "There's no security issue here. Certainly the OP hasn't explained why there is one.",
+    "parent": 45970885,
+    "depth": 1
+  },
+  {
+    "id": 45989486,
+    "by": "jolmg",
+    "timeISO": "2025-11-20T06:09:40.000Z",
+    "textPlain": "Worked for me, but the way you described it has issues:1. You chmod my_script twice.2. Did you chmod u+x /bin/my_lang too? Since you put it in /bin, are you sure the owner isn't root?, in which case your user wouldn't have execute permission. Try +x instead of u+x.3. Do you have python in that path? Try `/usr/bin/env python` instead.4. In case you expected otherwise, my_script wouldn't be passed through stdin. It's just provided as an argument to my_lang.",
+    "parent": 45989441,
+    "depth": 2
+  },
+  {
+    "id": 45989539,
+    "by": "teo_zero",
+    "timeISO": "2025-11-20T06:19:53.000Z",
+    "textPlain": "Wait... your interpreter reads from stdin. Shouldn't it read its first arg, instead?",
+    "parent": 45989441,
+    "depth": 2
+  },
+  {
+    "id": 45989475,
+    "by": "teo_zero",
+    "timeISO": "2025-11-20T06:08:30.000Z",
+    "textPlain": "> apparently I can just have done `#!bash`I think you're mixing two concepts: relative paths (which are allowed after #! but not very useful at all) and file lookup through $PATH (which is not done by the kernel, maybe it's some shell trickery).",
+    "parent": 45989024,
     "depth": 2
   },
   {
@@ -32,10 +72,10 @@
     "depth": 2
   },
   {
-    "id": 45989057,
-    "by": "miffe",
-    "timeISO": "2025-11-20T04:45:21.000Z",
-    "textPlain": "Seems like it only works in zsh, not bash or fish",
+    "id": 45989128,
+    "by": "saintfire",
+    "timeISO": "2025-11-20T04:56:00.000Z",
+    "textPlain": "You can use `#!/usr/bin/env bash` on NixOS",
     "parent": 45989024,
     "depth": 2
   },
@@ -48,11 +88,27 @@
     "depth": 2
   },
   {
-    "id": 45989128,
-    "by": "saintfire",
-    "timeISO": "2025-11-20T04:56:00.000Z",
-    "textPlain": "You can use `#!/usr/bin/env bash` on NixOS",
+    "id": 45989057,
+    "by": "miffe",
+    "timeISO": "2025-11-20T04:45:21.000Z",
+    "textPlain": "Seems like it only works in zsh, not bash or fish",
     "parent": 45989024,
+    "depth": 2
+  },
+  {
+    "id": 45989225,
+    "by": "saurik",
+    "timeISO": "2025-11-20T05:16:32.000Z",
+    "textPlain": "Or, like, if you aren't reading and caring about what the interpreter is--as that's the only time this can burn you: it isn't doing a PATH lookup, so you can't walk into this one on accident--then it could literally be something like /bin/rm on some key file. This entire article is based on an assumption that this is somehow so obviously bad that there doesn't even need to be an explanation or defense of any kind of that idea.",
+    "parent": 45989061,
+    "depth": 2
+  },
+  {
+    "id": 45989529,
+    "by": "cm2187",
+    "timeISO": "2025-11-20T06:17:32.000Z",
+    "textPlain": "tbh it is lame for any program reading a text file to not support BOM. It's just one if.",
+    "parent": 45989485,
     "depth": 2
   }
 ]
