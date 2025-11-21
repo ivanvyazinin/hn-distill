@@ -1,9 +1,9 @@
 [
   {
-    "id": 46007761,
-    "by": "websiteapi",
-    "timeISO": "2025-11-21T19:09:49.000Z",
-    "textPlain": "there's a lot of hype around durable execution these days. why do that instead of regular use of queues? is it the dev ergonomics that's cool here?you can (and people already) model steps in any arbitrarily large workflow and have those results be processed in a modular fashion and have whatever process that begins this workflow check the state of the necessary preconditions prior to taking any action and thus go to the currently needed step, or retry ones that failed, and so forth.",
+    "id": 46008299,
+    "by": "the_mitsuhiko",
+    "timeISO": "2025-11-21T20:00:01.000Z",
+    "textPlain": "I think this is great.  We should see more simple solution to this problem.I recently started doing something very similar on Postgres [1] and I'm greatly enjoying using it.  I think the total solution I ended up with is under 3000 lines of code for both the SQL and the TypeScript SDK combined, and it's much easier to use and to operate than many of the solutions on the market today.[1]: https://github.com/earendil-works/absurd",
     "parent": 45992316,
     "depth": 1
   },
@@ -12,6 +12,22 @@
     "by": "fiddlerwoaroof",
     "timeISO": "2025-11-21T18:40:46.000Z",
     "textPlain": "Every several years people reinvent serializable continuations",
+    "parent": 45992316,
+    "depth": 1
+  },
+  {
+    "id": 46007761,
+    "by": "websiteapi",
+    "timeISO": "2025-11-21T19:09:49.000Z",
+    "textPlain": "there's a lot of hype around durable execution these days. why do that instead of regular use of queues? is it the dev ergonomics that's cool here?you can (and people already) model steps in any arbitrarily large workflow and have those results be processed in a modular fashion and have whatever process that begins this workflow check the state of the necessary preconditions prior to taking any action and thus go to the currently needed step, or retry ones that failed, and so forth.",
+    "parent": 45992316,
+    "depth": 1
+  },
+  {
+    "id": 46008430,
+    "by": "Brian-Watkins",
+    "timeISO": "2025-11-21T20:12:13.000Z",
+    "textPlain": "[dead]",
     "parent": 45992316,
     "depth": 1
   },
@@ -29,6 +45,46 @@
     "timeISO": "2025-11-21T18:56:08.000Z",
     "textPlain": "Haha so true. Shame image based programming never really caught on.Janet lang lets you serialize coroutines which is fun. Make this sort of stuff trivial.",
     "parent": 46007446,
+    "depth": 2
+  },
+  {
+    "id": 46008143,
+    "by": "smitty1e",
+    "timeISO": "2025-11-21T19:44:02.000Z",
+    "textPlain": "Is this reinvention somehow \"transactional\" in nature?",
+    "parent": 46007446,
+    "depth": 2
+  },
+  {
+    "id": 46008038,
+    "by": "ryeats",
+    "timeISO": "2025-11-21T19:32:56.000Z",
+    "textPlain": "As you say it can be done but it's an anti-pattern to use a message queue as a database which is essentially what you are doing for these kinds of long running tasks. The reason is that their are a lot of state your likely going to want to status as a task runs and persist and checkpoint yes you can carefully string together a series of database calls chained with message transactions so you don't lose something when an issue happens but then you also need bespoke logic to restart or retry each step and it can turn into a bit of a mess.",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
+    "id": 46008279,
+    "by": "kodablah",
+    "timeISO": "2025-11-21T19:58:42.000Z",
+    "textPlain": "> is it the dev ergonomics that's cool here?Yup. Being able to write imperative code that automatically resumes where it left off is very valuable. It's best to represent durable turing completeness using modern approaches of authoring such logic - programming languages. Being able to loop, try/catch, apply advanced conditional logic, etc in a crash-proof algorithm that can run for weeks/months/years and is introspectable has a lot of value over just using queues.Durable execution is all just queues and task processing and event sourcing under the hood though.",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
+    "id": 46007901,
+    "by": "tptacek",
+    "timeISO": "2025-11-21T19:22:11.000Z",
+    "textPlain": "We build what is effectively a durable execution \"engine\" for our orchestrator (ours is backed by boltdb and not SQLite, which I objected to, correctly). The steps in our workflows build running virtual machines and include things like allocating addresses, loading BPF programs, preparing root filesystems, and registering services.Short answer: we need to be able to redeploy and bounce the orchestrator without worrying about what stage each running VM on our platform is in.JP, the dev that built this out for us, talks a bit about the design rationale (search for \"Cadence\") here:https://fly.io/blog/the-exit-interview-jp/The library itself is open:https://github.com/superfly/fsm",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
+    "id": 46008154,
+    "by": "snicker7",
+    "timeISO": "2025-11-21T19:46:13.000Z",
+    "textPlain": "Message queues (e.g. SQS) are inappropriate for tracking long-running tasks/workflows. This is due to the operational requirements such as:- Checking the status of a task (queued, pending, failed, cancelled, completed)\n- Cancelling a queued task (or pending task if the execution environment supports it)\n- Re-prioritizing queued tasks\n- Searching for tasks based off an attribute (e.g. tag)You really do need a database for this.",
+    "parent": 46007761,
     "depth": 2
   }
 ]

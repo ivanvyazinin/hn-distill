@@ -1,1 +1,42 @@
-[]
+[
+  {
+    "id": 46008197,
+    "by": "koolba",
+    "timeISO": "2025-11-21T19:50:55.000Z",
+    "textPlain": "The article says:> Never Handroll Your Own Two-Phase CommitAnd then buried at the end:> A few notable features of this snippet:> Limiting number of retries makes the code more complicated, but definitely worth it for user-facing side-effects like emails.This isn't two-phase commit. This is lock the DB indefinitely while remote system is processing and pray we don't crash saving the transaction after it completes. That locked also eats up a database connection so your concurrency is limited by the size of your DB pool.More importantly, if the email sends but the transaction to update the task status fails, it will try again. And again. Forever. If you're going to track retries it would have to be before you start the attempt. Otherwise the \"update the attempts count\" logic itself could fail and lead to more retries.The real answer to all this is to use a provider that supports idempotency keys. Then when you can retry the action repeatedly without it actually happening again. My favorite article on this subject: https://brandur.org/idempotency-keys",
+    "parent": 46007267,
+    "depth": 1
+  },
+  {
+    "id": 46008363,
+    "by": "rictic",
+    "timeISO": "2025-11-21T20:05:48.000Z",
+    "textPlain": "Missing from the article: how to communicate progress and failure to the user?This is much more complicated with task queues. Doable still! But often skipped, because it's tempting to imagine that the backend will just handle the failure by retrying. But there are lots of kinds of failure that can happen.The recipient's server doesn't accept the email. The recipient's domain name expired. Actually, we don't have an email address for that recipient at all.The user has seen \"got it, will do, don't worry about it\" but if that email is time sensitive, they might want to know that it hasn't been sent yet, and maybe they should place a phone call instead.",
+    "parent": 46007267,
+    "depth": 1
+  },
+  {
+    "id": 46008460,
+    "by": "rgbrgb",
+    "timeISO": "2025-11-21T20:14:37.000Z",
+    "textPlain": "If you're in TS/JS land, I like to use an open source version of this called graphile-worker [0].[0]: https://worker.graphile.org",
+    "parent": 46007267,
+    "depth": 1
+  },
+  {
+    "id": 46008298,
+    "by": "stack_framer",
+    "timeISO": "2025-11-21T20:00:01.000Z",
+    "textPlain": "> I like slim and stupid servers, where each endpoint wraps a very dumb DB query.I thought I was alone in this, but I build all my personal projects this way! I wish I could use this approach at work, but too many colleagues crave \"engineering.\"",
+    "parent": 46007267,
+    "depth": 1
+  },
+  {
+    "id": 46008406,
+    "by": "maxmcd",
+    "timeISO": "2025-11-21T20:09:44.000Z",
+    "textPlain": "Just that row should be locked since it's: \"for update skip locked\".I agree the concurrency limitation is kind of rough, but it's kind of elegant because you don't have to implement some kind of timeout/retry thing. You're certainly still exposed to the possibility of double-sending, so yes, probably much nicer to update the row to \"processing\" and re-process those rows on a timeout.",
+    "parent": 46008197,
+    "depth": 2
+  }
+]
