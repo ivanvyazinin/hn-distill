@@ -1,13 +1,5 @@
 [
   {
-    "id": 46005813,
-    "by": "Philpax",
-    "timeISO": "2025-11-21T16:13:02.000Z",
-    "textPlain": "I've also had success with this. One of my hobby horses is a second, independent implementation of the Perchance language for creating random generators [0]. Perchance is genuinely very cool, but it was never designed to be embedded into other things, and I've always wanted a solution for that.Anyway, I have/had an obscene amount of Claude Code Web credits to burn, so I set it to work on implementing a completely standalone Rust implementation of Perchance using documentation and examples alone, and, well, it exists now [1]. And yes, it was done entirely with CCW [2].It's deterministic, can be embedded anywhere that Rust compiles to (including WASM), has pretty readable code,  is largely pure (all I/O is controlled by the user), and features high-quality diagnostics. As proof of it working, I had it build and set up the deploys for a React frontend [3]. This also features an experimental \"trace\" feature that Perchance-proper does not have, but it's experimental because it doesn't work properly :pNow, I can't be certain it's 1-for-1-spec-accurate, as the documentation does not constitute a spec, and we're dealing with randomness, but it's close enough that it's satisfactory for my use cases. I genuinely think this is pretty damn cool: with a few days of automated PRs, I have a second, independent mostly-complete interpreter for a language that has never had one (previous attempts, including my own, have fizzled out early).[0]: https://perchance.org/welcome\n[1]: https://github.com/philpax/perchance-interpreter\n[2]: https://github.com/philpax/perchance-interpreter/pulls?q=is%...\n[3]: https://philpax.me/experimental/perchance/",
-    "parent": 46003144,
-    "depth": 1
-  },
-  {
     "id": 46004377,
     "by": "williamcotton",
     "timeISO": "2025-11-21T13:30:07.000Z",
@@ -16,10 +8,18 @@
     "depth": 1
   },
   {
-    "id": 46003610,
-    "by": "vidarh",
-    "timeISO": "2025-11-21T11:48:23.000Z",
-    "textPlain": "It's a fun post, and I love language experiments with LLMs (I'm close to hitting the weekly limit of my Claude Max subscription because I have a near-constantly running session working on my Ruby compiler; Claude can fix -- albeit with messy code sometimes -- issues that requires complex tracing of backtraces with gdb, and fix complex parser interactions almost entirely unaided as long as it has a test suite to run).But here's the Ruby version of one of the scripts:    BEGIN {\n      result = [1, 2, 3, 4, 5]\n        .filter {|x| x % 2 == 0 }\n        .map {|x| x * x}\n        .reduce {|acc,x| acc + x }\n     puts \"Result: #{result}\"\n    }\n\nThe point being that running a script with the \"-n\" switch un runs BEGIN/END blocks and puts an implicit \"while gets ... end\" around the rest. Adding \"-a\" auto-splits the line like awk. Adding \"-p\" also prints $_ at the end of each iteration.So here's a more typical Awk-like experience:    ruby -pe '$_.upcase!' somefile.txt ($_ has the whole line)\n\nOr:    ruby -F, -ane '$F[1]' # Extracts the second field field -F sets the default character to split on, and -a adds an implicit $F = $_.split.\n\nThat is not to detract from what he's doing because it's fun. But if your goal is just to use a better Awk, then Ruby is usually better Awk, and so, for that matter, is Perl, and for most things where an Awk script doesn't fit on the command line the only reason to really use Awk is that it is more likely to be available.",
+    "id": 46005813,
+    "by": "Philpax",
+    "timeISO": "2025-11-21T16:13:02.000Z",
+    "textPlain": "I've also had success with this. One of my hobby horses is a second, independent implementation of the Perchance language for creating random generators [0]. Perchance is genuinely very cool, but it was never designed to be embedded into other things, and I've always wanted a solution for that.Anyway, I have/had an obscene amount of Claude Code Web credits to burn, so I set it to work on implementing a completely standalone Rust implementation of Perchance using documentation and examples alone, and, well, it exists now [1]. And yes, it was done entirely with CCW [2].It's deterministic, can be embedded anywhere that Rust compiles to (including WASM), has pretty readable code,  is largely pure (all I/O is controlled by the user), and features high-quality diagnostics. As proof of it working, I had it build and set up the deploys for a React frontend [3]. This also features an experimental \"trace\" feature that Perchance-proper does not have, but it's experimental because it doesn't work properly :pNow, I can't be certain it's 1-for-1-spec-accurate, as the documentation does not constitute a spec, and we're dealing with randomness, but it's close enough that it's satisfactory for my use cases. I genuinely think this is pretty damn cool: with a few days of automated PRs, I have a second, independent mostly-complete interpreter for a language that has never had one (previous attempts, including my own, have fizzled out early).[0]: https://perchance.org/welcome\n[1]: https://github.com/philpax/perchance-interpreter\n[2]: https://github.com/philpax/perchance-interpreter/pulls?q=is%...\n[3]: https://philpax.me/experimental/perchance/",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
+    "id": 46006184,
+    "by": "l9o",
+    "timeISO": "2025-11-21T16:52:55.000Z",
+    "textPlain": "I've been working on something similar, a typed shell scripting language called shady (hehe). haven't shared it because like 99% of the code was written by claude and I'm definitely not a programming language expert. it's a toy really.but I learned a ton building this thing. it has an LSP server now with autocompletion and go to definition, a type checker, a very much broken auto formatter (this was surprisingly harder to get done than the LSP), the whole deal. all the stuff previously would take months or a whole team to build. there's tons of bugs and it's not something I'd use for anything, nu shell is obviously way better.the language itself is pretty straightforward. you write functions that manipulate processes and strings, and any public function automatically becomes a CLI command. so like if you write \"public deploy $env: str $version: str = ...\" you get a ./script.shady deploy command with proper --help and everything. it does so by converting the function signatures into clap commands.while building it I had lots of process pipelines deadlocking, type errors pointing at the wrong spans, that kind of thing. it seems like LLMs really struggle understanding race conditions and the concept of time, but they seem to be getting better. fixed a 3-process pipeline hanging bug last week that required actually understanding how the pipe handles worked. but as others pointed out, I have also been impressed at how frequently sonnet 4.5 writes working code if given a bit of guidance.one thing that blew my mind: I started with pest for parsing but when I got to the LSP I realized incremental parsing would be essential. because I was diligent about test coverage, sonnet 4.5 perfectly converted the entire parser to tree-sitter for me. all tests passed. that was wild. earlier versions of the model like 3.5 or 3.7 struggled with Rust quite a bit from my experience.claude wrote most of the code but I made the design decisions and had to understand enough to fix bugs and add",
     "parent": 46003144,
     "depth": 1
   },
@@ -32,6 +32,22 @@
     "depth": 1
   },
   {
+    "id": 46003610,
+    "by": "vidarh",
+    "timeISO": "2025-11-21T11:48:23.000Z",
+    "textPlain": "It's a fun post, and I love language experiments with LLMs (I'm close to hitting the weekly limit of my Claude Max subscription because I have a near-constantly running session working on my Ruby compiler; Claude can fix -- albeit with messy code sometimes -- issues that requires complex tracing of backtraces with gdb, and fix complex parser interactions almost entirely unaided as long as it has a test suite to run).But here's the Ruby version of one of the scripts:    BEGIN {\n      result = [1, 2, 3, 4, 5]\n        .filter {|x| x % 2 == 0 }\n        .map {|x| x * x}\n        .reduce {|acc,x| acc + x }\n     puts \"Result: #{result}\"\n    }\n\nThe point being that running a script with the \"-n\" switch un runs BEGIN/END blocks and puts an implicit \"while gets ... end\" around the rest. Adding \"-a\" auto-splits the line like awk. Adding \"-p\" also prints $_ at the end of each iteration.So here's a more typical Awk-like experience:    ruby -pe '$_.upcase!' somefile.txt ($_ has the whole line)\n\nOr:    ruby -F, -ane '$F[1]' # Extracts the second field field -F sets the default character to split on, and -a adds an implicit $F = $_.split.\n\nThat is not to detract from what he's doing because it's fun. But if your goal is just to use a better Awk, then Ruby is usually better Awk, and so, for that matter, is Perl, and for most things where an Awk script doesn't fit on the command line the only reason to really use Awk is that it is more likely to be available.",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
+    "id": 46006483,
+    "by": "cmrdporcupine",
+    "timeISO": "2025-11-21T17:18:55.000Z",
+    "textPlain": "\"The downside of vibe coding the whole interpreter is that I have zero knowledge of the code. \"This is exactly the problem.  When I first got my mitts on Claude Code I went bonkers with this kind of thing.  Write my own JITing Lisp in a weekend? Yes please! Finish my 1/3rded-done unfinished WASM VM that I shelved? Sure!The problem comes, that you dig too deep and unearth the Balrog of \"how TF does this work?\" You're creating future problems for yourself.",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
     "id": 46004050,
     "by": "ikari_pl",
     "timeISO": "2025-11-21T12:57:31.000Z",
@@ -40,18 +56,18 @@
     "depth": 1
   },
   {
-    "id": 46005656,
-    "by": "runeks",
-    "timeISO": "2025-11-21T15:55:44.000Z",
-    "textPlain": "I think it would be super interesting to see how the LLM handles extending/modifying the code it has written. Ie. adding/removing features, in order to simulate the life cycle of a normal software project. After all, LLM-produced code would only be of limited use if it’s worse at adding new features than humans are.As I understand, this would require somehow “saving the state” of the LLM, as it exists after the last prompt — since I don’t think the LLM can arrive at the same state by just being fed the code it has written.",
-    "parent": 46003144,
-    "depth": 1
-  },
-  {
     "id": 46003536,
     "by": "qsort",
     "timeISO": "2025-11-21T11:36:45.000Z",
     "textPlain": "The money shot: https://github.com/Janiczek/fawkPurely interpretive implementation of the kind you'd write in school, still, above and beyond anything I'd have any right to complain about.",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
+    "id": 46004816,
+    "by": "low_tech_love",
+    "timeISO": "2025-11-21T14:14:15.000Z",
+    "textPlain": "Slightly off-topic: I have an honest question for all of you out there who love Advent of Code, please don't take this the wrong way, it is a real curiosity: what is it for you that makes the AoC challenge so special when compared with all of the thousands of other coding challenges/exercises/competitions out there? I've been doing coding challenges for a long time and I never got anything special out of AoC, so I'm really curious. Is it simply that it reached a wider audience?",
     "parent": 46003144,
     "depth": 1
   },
@@ -72,10 +88,10 @@
     "depth": 1
   },
   {
-    "id": 46004816,
-    "by": "low_tech_love",
-    "timeISO": "2025-11-21T14:14:15.000Z",
-    "textPlain": "Slightly off-topic: I have an honest question for all of you out there who love Advent of Code, please don't take this the wrong way, it is a real curiosity: what is it for you that makes the AoC challenge so special when compared with all of the thousands of other coding challenges/exercises/competitions out there? I've been doing coding challenges for a long time and I never got anything special out of AoC, so I'm really curious. Is it simply that it reached a wider audience?",
+    "id": 46005656,
+    "by": "runeks",
+    "timeISO": "2025-11-21T15:55:44.000Z",
+    "textPlain": "I think it would be super interesting to see how the LLM handles extending/modifying the code it has written. Ie. adding/removing features, in order to simulate the life cycle of a normal software project. After all, LLM-produced code would only be of limited use if it’s worse at adding new features than humans are.As I understand, this would require somehow “saving the state” of the LLM, as it exists after the last prompt — since I don’t think the LLM can arrive at the same state by just being fed the code it has written.",
     "parent": 46003144,
     "depth": 1
   },
@@ -88,10 +104,18 @@
     "depth": 1
   },
   {
-    "id": 46005532,
-    "by": "root_axis",
-    "timeISO": "2025-11-21T15:41:46.000Z",
-    "textPlain": "It'd be interesting to see how well the LLM would be able to write code using the new language since it doesn't exist in the training data.",
+    "id": 46003457,
+    "by": "slybot",
+    "timeISO": "2025-11-21T11:24:18.000Z",
+    "textPlain": "I did AoC 2021 until D10 using awk, it was fun but not easy and couldn't proceed further:  https://github.com/nusretipek/Advent-of-Code-2021",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
+    "id": 46004309,
+    "by": "andsoitis",
+    "timeISO": "2025-11-21T13:24:34.000Z",
+    "textPlain": "> And it did it.it would be nice when people do these things give us a transcript or recording of their dialog with the LLM so that more people can learn.",
     "parent": 46003144,
     "depth": 1
   },
@@ -104,10 +128,18 @@
     "depth": 1
   },
   {
-    "id": 46003457,
-    "by": "slybot",
-    "timeISO": "2025-11-21T11:24:18.000Z",
-    "textPlain": "I did AoC 2021 until D10 using awk, it was fun but not easy and couldn't proceed further:  https://github.com/nusretipek/Advent-of-Code-2021",
+    "id": 46003600,
+    "by": "jamesu",
+    "timeISO": "2025-11-21T11:47:05.000Z",
+    "textPlain": "A few months ago I used ChatGPT to rewrite a bison based parser to recursive descent and was pretty surprised how well it held up - though I still needed to keep prompting the AI to fix things or add elements it skipped, and in the end I probably rewrote 20% of it because I wasn't happy with its strange use of C++ features making certain parts hard to follow.",
+    "parent": 46003144,
+    "depth": 1
+  },
+  {
+    "id": 46005532,
+    "by": "root_axis",
+    "timeISO": "2025-11-21T15:41:46.000Z",
+    "textPlain": "It'd be interesting to see how well the LLM would be able to write code using the new language since it doesn't exist in the training data.",
     "parent": 46003144,
     "depth": 1
   },
@@ -128,22 +160,6 @@
     "depth": 1
   },
   {
-    "id": 46003600,
-    "by": "jamesu",
-    "timeISO": "2025-11-21T11:47:05.000Z",
-    "textPlain": "A few months ago I used ChatGPT to rewrite a bison based parser to recursive descent and was pretty surprised how well it held up - though I still needed to keep prompting the AI to fix things or add elements it skipped, and in the end I probably rewrote 20% of it because I wasn't happy with its strange use of C++ features making certain parts hard to follow.",
-    "parent": 46003144,
-    "depth": 1
-  },
-  {
-    "id": 46004875,
-    "by": "timonoko",
-    "timeISO": "2025-11-21T14:21:34.000Z",
-    "textPlain": "Gemini tried to compile 10000 line Microsoft Assembler to Linux Assembler. Scariest thing was it seemed to know exactly what the program was doing. And eventually said  I'm sorry Dave, I'm afraid I can't do that. I cannot implement this 24 bit memory model.",
-    "parent": 46003144,
-    "depth": 1
-  },
-  {
     "id": 46004201,
     "by": "runeks",
     "timeISO": "2025-11-21T13:14:08.000Z",
@@ -160,10 +176,10 @@
     "depth": 1
   },
   {
-    "id": 46004309,
-    "by": "andsoitis",
-    "timeISO": "2025-11-21T13:24:34.000Z",
-    "textPlain": "> And it did it.it would be nice when people do these things give us a transcript or recording of their dialog with the LLM so that more people can learn.",
+    "id": 46004875,
+    "by": "timonoko",
+    "timeISO": "2025-11-21T14:21:34.000Z",
+    "textPlain": "Gemini tried to compile 10000 line Microsoft Assembler to Linux Assembler. Scariest thing was it seemed to know exactly what the program was doing. And eventually said  I'm sorry Dave, I'm afraid I can't do that. I cannot implement this 24 bit memory model.",
     "parent": 46003144,
     "depth": 1
   },
@@ -208,10 +224,18 @@
     "depth": 1
   },
   {
-    "id": 46005872,
-    "by": "vidarh",
-    "timeISO": "2025-11-21T16:20:22.000Z",
-    "textPlain": "I like the pipe approach. I build a large web app with a custom framework that was built around a pipeline years ago, and it was an interesting way to decompose things.",
+    "id": 46005982,
+    "by": "mike_hearn",
+    "timeISO": "2025-11-21T16:31:25.000Z",
+    "textPlain": "FWIW if someone wants a tool like this with better support, JetBrains has defined a .http file format that contains a DSL for making HTTP requests and running JS on the results.https://www.jetbrains.com/help/idea/http-client-in-product-c...There's a CLI tool for executing these files:https://www.jetbrains.com/help/idea/http-client-cli.htmlThere's a substantially similar plugin for VSCode here: https://github.com/Huachao/vscode-restclient",
+    "parent": 46004377,
+    "depth": 2
+  },
+  {
+    "id": 46006162,
+    "by": "cdaringe",
+    "timeISO": "2025-11-21T16:51:07.000Z",
+    "textPlain": "Cool! Have you seen https://camlworks.github.io/dream/I get OCaml isnt for everybody, but dream is the web framework i wish i knew first",
     "parent": 46004377,
     "depth": 2
   },
@@ -224,11 +248,51 @@
     "depth": 2
   },
   {
+    "id": 46005872,
+    "by": "vidarh",
+    "timeISO": "2025-11-21T16:20:22.000Z",
+    "textPlain": "I like the pipe approach. I build a large web app with a custom framework that was built around a pipeline years ago, and it was an interesting way to decompose things.",
+    "parent": 46004377,
+    "depth": 2
+  },
+  {
     "id": 46004648,
     "by": "keepamovin",
     "timeISO": "2025-11-21T13:55:27.000Z",
     "textPlain": "I like this syntax. And yes it amazing. And fun, so fun!",
     "parent": 46004377,
+    "depth": 2
+  },
+  {
+    "id": 46006189,
+    "by": "davidsainez",
+    "timeISO": "2025-11-21T16:53:08.000Z",
+    "textPlain": "Thanks for sharing. I hear people make extraordinary claims about LLMs (not saying that is what you are doing) but it's hard to evaluate exactly what they mean without seeing the results. I've been working on a similar project (a static analysis tool) and I've been using sonnet 4.5 to help me build it. On cursory review it produces acceptable results but closer inspection reveals obvious performance or architectural mistakes. In its current state, one-shotted llm code feels like wood filler: very useful in many cases but I would not trust it to be load bearing.",
+    "parent": 46005813,
+    "depth": 2
+  },
+  {
+    "id": 46006115,
+    "by": "cdaringe",
+    "timeISO": "2025-11-21T16:46:23.000Z",
+    "textPlain": "Fun stuff! I can see also using ICU MFv{1,2} for this, sprinkling in randomization in the skeletons",
+    "parent": 46005813,
+    "depth": 2
+  },
+  {
+    "id": 46006274,
+    "by": "simonw",
+    "timeISO": "2025-11-21T17:01:37.000Z",
+    "textPlain": "\"because I was diligent about test coverage, sonnet 4.5 perfectly converted the entire parser to tree-sitter for me. all tests passed.\"I often suspect that people who complain about getting poor results from agents haven't yet started treating automated tests as a hard requirement for working with them.If you don't have substantial test coverage your coding agents are effectively flying blind. If you DO have good test coverage prompts like \"port this parser to tree-sitter\" become surprisingly effective.",
+    "parent": 46006184,
+    "depth": 2
+  },
+  {
+    "id": 46004536,
+    "by": "chrisweekly",
+    "timeISO": "2025-11-21T13:44:01.000Z",
+    "textPlain": "THANK YOU for SHARING YOUR WORK!!So many commenters claim to have done things w/ AI, but don't share the prompts. Cool experiment, cooler that you shared it properly.",
+    "parent": 46004007,
     "depth": 2
   },
   {
@@ -245,14 +309,6 @@
     "timeISO": "2025-11-21T13:01:42.000Z",
     "textPlain": "So I have had to work very hard to use $80 worth of my $250 free Claude code credits. What am I doing wrong?",
     "parent": 46003610,
-    "depth": 2
-  },
-  {
-    "id": 46004536,
-    "by": "chrisweekly",
-    "timeISO": "2025-11-21T13:44:01.000Z",
-    "textPlain": "THANK YOU for SHARING YOUR WORK!!So many commenters claim to have done things w/ AI, but don't share the prompts. Cool experiment, cooler that you shared it properly.",
-    "parent": 46004007,
     "depth": 2
   },
   {
@@ -277,46 +333,6 @@
     "timeISO": "2025-11-21T12:59:23.000Z",
     "textPlain": "I've been surprised by how often Sonnet 4.5 writes working code the first try.",
     "parent": 46004050,
-    "depth": 2
-  },
-  {
-    "id": 46005866,
-    "by": "Philpax",
-    "timeISO": "2025-11-21T16:19:22.000Z",
-    "textPlain": "I described my experience using Claude Code Web to vibe-code a language interpreter here [0], with a link to the closed PRs [1].As it turns out, you don't really need to \"save the state\"; with decent-enough code and documentation (both of which the LLM can write), it can figure out what needs to be done and go from there. This is obviously not perfect - and a human developer with a working memory could get to the problem faster - but its reorientation process is fast enough that you generally don't have to worry about it.[0]: https://news.ycombinator.com/item?id=46005813\n[1]: https://github.com/philpax/perchance-interpreter/pulls?q=is%...",
-    "parent": 46005656,
-    "depth": 2
-  },
-  {
-    "id": 46005888,
-    "by": "rogeliodh",
-    "timeISO": "2025-11-21T16:21:51.000Z",
-    "textPlain": "They are very good at understanding current code and its architecture so no need to save state. In any case, it is good to explicitly ask them to generate proper comments for their architectural decisions and to keep updated AGENT.md file",
-    "parent": 46005656,
-    "depth": 2
-  },
-  {
-    "id": 46003553,
-    "by": "epolanski",
-    "timeISO": "2025-11-21T11:39:07.000Z",
-    "textPlain": "Even more, it's like talking about a sheet without seeing the sheet itself.",
-    "parent": 46003397,
-    "depth": 2
-  },
-  {
-    "id": 46004005,
-    "by": "johnisgood",
-    "timeISO": "2025-11-21T12:51:54.000Z",
-    "textPlain": "See https://github.com/Janiczek/fawk and .fawk files in https://github.com/Janiczek/fawk/tree/main/tests.",
-    "parent": 46003397,
-    "depth": 2
-  },
-  {
-    "id": 46003869,
-    "by": "Blamklmo",
-    "timeISO": "2025-11-21T12:25:36.000Z",
-    "textPlain": "[dead]",
-    "parent": 46003397,
     "depth": 2
   },
   {
@@ -352,51 +368,35 @@
     "depth": 2
   },
   {
-    "id": 46005877,
-    "by": "ModernMech",
-    "timeISO": "2025-11-21T16:20:50.000Z",
-    "textPlain": "I've tested this, the LLM will tend to strongly pattern match to the closest language syntactically, so if your language is too divergent then you have continually remind it of your syntax or semantics. But if your language is just a skin for C or JavaScript then it'll do fine.",
-    "parent": 46005532,
+    "id": 46003553,
+    "by": "epolanski",
+    "timeISO": "2025-11-21T11:39:07.000Z",
+    "textPlain": "Even more, it's like talking about a sheet without seeing the sheet itself.",
+    "parent": 46003397,
     "depth": 2
   },
   {
-    "id": 46003835,
-    "by": "oguz-ismail2",
-    "timeISO": "2025-11-21T12:21:54.000Z",
+    "id": 46004005,
+    "by": "johnisgood",
+    "timeISO": "2025-11-21T12:51:54.000Z",
+    "textPlain": "See https://github.com/Janiczek/fawk and .fawk files in https://github.com/Janiczek/fawk/tree/main/tests.",
+    "parent": 46003397,
+    "depth": 2
+  },
+  {
+    "id": 46003869,
+    "by": "Blamklmo",
+    "timeISO": "2025-11-21T12:25:36.000Z",
     "textPlain": "[dead]",
-    "parent": 46003457,
+    "parent": 46003397,
     "depth": 2
   },
   {
-    "id": 46003607,
-    "by": "oguz-ismail",
-    "timeISO": "2025-11-21T11:47:42.000Z",
-    "textPlain": "[dead]",
-    "parent": 46003457,
-    "depth": 2
-  },
-  {
-    "id": 46004254,
-    "by": "mjaniczek",
-    "timeISO": "2025-11-21T13:19:23.000Z",
-    "textPlain": "Yes :)",
-    "parent": 46004201,
-    "depth": 2
-  },
-  {
-    "id": 46004829,
-    "by": "shevy-java",
-    "timeISO": "2025-11-21T14:15:29.000Z",
-    "textPlain": "wang-lang? Is that a naughty language?",
-    "parent": 46003552,
-    "depth": 2
-  },
-  {
-    "id": 46004594,
-    "by": "chrisweekly",
-    "timeISO": "2025-11-21T13:49:22.000Z",
-    "textPlain": "Yes! This. It'd take so little effort to share, thereby validating your credibility, providing value, teaching,... it's so full of win I can't understand why so few people do this.",
-    "parent": 46004309,
+    "id": 46005866,
+    "by": "Philpax",
+    "timeISO": "2025-11-21T16:19:22.000Z",
+    "textPlain": "I described my experience using Claude Code Web to vibe-code a language interpreter here [0], with a link to the closed PRs [1].As it turns out, you don't really need to \"save the state\"; with decent-enough code and documentation (both of which the LLM can write), it can figure out what needs to be done and go from there. This is obviously not perfect - and a human developer with a working memory could get to the problem faster - but its reorientation process is fast enough that you generally don't have to worry about it.[0]: https://news.ycombinator.com/item?id=46005813\n[1]: https://github.com/philpax/perchance-interpreter/pulls?q=is%...",
+    "parent": 46005656,
     "depth": 2
   }
 ]
