@@ -48,6 +48,30 @@
     "depth": 1
   },
   {
+    "id": 46009633,
+    "by": "jedberg",
+    "timeISO": "2025-11-21T22:15:15.000Z",
+    "textPlain": "The key to a durable workflow is making each step idempotent.  Then you don't have to worry about those things.  You just run the failed step again.  If it already worked the first time, it's a no-op.For example, stripe lets you include an idempotency key with your request.  If you try to make a charge again with the same key, it ignores you. A DE framework like DBOS will automatically generate the idempotency key for you.But you're correct, if you can't make the operation idempotent, then you have to handle that yourself.",
+    "parent": 46008976,
+    "depth": 2
+  },
+  {
+    "id": 46009362,
+    "by": "hedgehog",
+    "timeISO": "2025-11-21T21:46:29.000Z",
+    "textPlain": "In my one encounter with one of these systems it induced new code and tooling complexity, orders of magnitude performance overhead for most operations, and made dev and debug workflows much slower. All for... an occasional convenience far outweighed by the overall drag of using it. There are probably other environments where something like this makes sense but I can't figure out what they are.",
+    "parent": 46008976,
+    "depth": 2
+  },
+  {
+    "id": 46009374,
+    "by": "throwaway894345",
+    "timeISO": "2025-11-21T21:48:29.000Z",
+    "textPlain": "> they don’t actually get you out of having to handle errorsI wrote a durable system that recovers from all sorts of errors (mostly network faults) without writing much error handling code. It just retries automatically, and importantly the happy path and the error path are exactly the same, so I don’t have to worry that my error path has much less execution than my happy path.> but the part of that transaction that failed was “charging the customer” - did it fail before or after the charge went through?In all cases, whether the happy path or the error path, the first thing you do is compare the desired state (“there exists a transaction exists charging the customer $5”) with the actual state (“has the customer been charged $5?”) and that determines whether you (re)issue the transaction or just update your internal state.> once you’ve built sufficient atomicity into your system to handle the actual failure cases - the benefits of taking on the complexity of a DE system are substantially lower than the marketing pitchI probably agree with this. The main value is probably not in the framework but rather in the larger architecture that it encourages—separating things out into idempotent functions that can be safely retried. I could maybe be persuaded otherwise, but most of my “durable execution” patterns seem to be more of a “controller pattern” (in the sense of a Kubernetes controller, running a reconciling control loop) and it just happens that any distributed, durable controller platform includes a durable execution subsystem.",
+    "parent": 46008976,
+    "depth": 2
+  },
+  {
     "id": 46008690,
     "by": "kodablah",
     "timeISO": "2025-11-21T20:37:18.000Z",
@@ -56,11 +80,27 @@
     "depth": 2
   },
   {
+    "id": 46009409,
+    "by": "nileshtrivedi",
+    "timeISO": "2025-11-21T21:51:56.000Z",
+    "textPlain": "This looks useful.Hope would you say it compares with pgqueuer?",
+    "parent": 46008299,
+    "depth": 2
+  },
+  {
     "id": 46008777,
     "by": "gunnarmorling",
     "timeISO": "2025-11-21T20:45:58.000Z",
     "textPlain": "Ah, that's awesome. Definitely need to take a closer look at your implementation.",
     "parent": 46008299,
+    "depth": 2
+  },
+  {
+    "id": 46009583,
+    "by": "rileymichael",
+    "timeISO": "2025-11-21T22:09:41.000Z",
+    "textPlain": "unfortunately they've never really taken off so folks reach for explicit state machines instead. there have been a handful of options on the jvm over the years (e.g. quasar, kilim) but they're all abandoned now, the loom continuation API is internal with no hint of it becoming public, kotlin's aren't serializable and the issue is inactive (https://github.com/Kotlin/kotlinx.coroutines/issues/76), etc.. such a shame",
+    "parent": 46007446,
     "depth": 2
   },
   {
@@ -88,6 +128,14 @@
     "depth": 2
   },
   {
+    "id": 46009559,
+    "by": "hmaxdml",
+    "timeISO": "2025-11-21T22:07:36.000Z",
+    "textPlain": "The hype is because DE is such an dev exp improvement over building your own queue. Good DE frameworks come with workflows, pub/sub, notifications, distributed queues with tons of flow control options, etc.",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
     "id": 46008038,
     "by": "ryeats",
     "timeISO": "2025-11-21T19:32:56.000Z",
@@ -96,10 +144,10 @@
     "depth": 2
   },
   {
-    "id": 46008279,
-    "by": "kodablah",
-    "timeISO": "2025-11-21T19:58:42.000Z",
-    "textPlain": "> is it the dev ergonomics that's cool here?Yup. Being able to write imperative code that automatically resumes where it left off is very valuable. It's best to represent durable turing completeness using modern approaches of authoring such logic - programming languages. Being able to loop, try/catch, apply advanced conditional logic, etc in a crash-proof algorithm that can run for weeks/months/years and is introspectable has a lot of value over just using queues.Durable execution is all just queues and task processing and event sourcing under the hood though.",
+    "id": 46008154,
+    "by": "snicker7",
+    "timeISO": "2025-11-21T19:46:13.000Z",
+    "textPlain": "Message queues (e.g. SQS) are inappropriate for tracking long-running tasks/workflows. This is due to the operational requirements such as:- Checking the status of a task (queued, pending, failed, cancelled, completed)\n- Cancelling a queued task (or pending task if the execution environment supports it)\n- Re-prioritizing queued tasks\n- Searching for tasks based off an attribute (e.g. tag)You really do need a database for this.",
     "parent": 46007761,
     "depth": 2
   },
@@ -112,10 +160,10 @@
     "depth": 2
   },
   {
-    "id": 46008154,
-    "by": "snicker7",
-    "timeISO": "2025-11-21T19:46:13.000Z",
-    "textPlain": "Message queues (e.g. SQS) are inappropriate for tracking long-running tasks/workflows. This is due to the operational requirements such as:- Checking the status of a task (queued, pending, failed, cancelled, completed)\n- Cancelling a queued task (or pending task if the execution environment supports it)\n- Re-prioritizing queued tasks\n- Searching for tasks based off an attribute (e.g. tag)You really do need a database for this.",
+    "id": 46008279,
+    "by": "kodablah",
+    "timeISO": "2025-11-21T19:58:42.000Z",
+    "textPlain": "> is it the dev ergonomics that's cool here?Yup. Being able to write imperative code that automatically resumes where it left off is very valuable. It's best to represent durable turing completeness using modern approaches of authoring such logic - programming languages. Being able to loop, try/catch, apply advanced conditional logic, etc in a crash-proof algorithm that can run for weeks/months/years and is introspectable has a lot of value over just using queues.Durable execution is all just queues and task processing and event sourcing under the hood though.",
     "parent": 46007761,
     "depth": 2
   }
