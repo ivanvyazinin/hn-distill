@@ -16,6 +16,14 @@
     "depth": 1
   },
   {
+    "id": 46010568,
+    "by": "adamzwasserman",
+    "timeISO": "2025-11-21T23:57:15.000Z",
+    "textPlain": "Reminds me of IBM TPF (Transaction Processing Facility) - the system that powered airline reservations for decades. TPF used per-transaction logging with restart/recovery semantics at massive scale. You could literally unplug the power mid-transaction, plug it back in, and resume exactly where you left off.The embedded database approach here is interesting though - low latency, no network calls, perfect for single-agent workflows. TPF assumed massive concurrent load across distributed terminals. Different problems, similar durability patterns.",
+    "parent": 45992316,
+    "depth": 1
+  },
+  {
     "id": 46008299,
     "by": "the_mitsuhiko",
     "timeISO": "2025-11-21T20:00:01.000Z",
@@ -24,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 46009758,
-    "by": "whinvik",
-    "timeISO": "2025-11-21T22:26:24.000Z",
-    "textPlain": "Sorry for the off-topic but I have been lately seeing a lot of hype around durable execution.I still cannot figure out how this is any different than launching a workflow in something like Airflow. Is the novel thing here that it can be done using the same DB you already have running?",
+    "id": 46012010,
+    "by": "9642370096647",
+    "timeISO": "2025-11-22T04:06:05.000Z",
+    "textPlain": "This is irrelevant for local LLMs where a seed value may be specified and generation is totally deterministic. This only helps with online LLMs.",
     "parent": 45992316,
     "depth": 1
   },
@@ -44,6 +52,14 @@
     "by": "websiteapi",
     "timeISO": "2025-11-21T19:09:49.000Z",
     "textPlain": "there's a lot of hype around durable execution these days. why do that instead of regular use of queues? is it the dev ergonomics that's cool here?you can (and people already) model steps in any arbitrarily large workflow and have those results be processed in a modular fashion and have whatever process that begins this workflow check the state of the necessary preconditions prior to taking any action and thus go to the currently needed step, or retry ones that failed, and so forth.",
+    "parent": 45992316,
+    "depth": 1
+  },
+  {
+    "id": 46009758,
+    "by": "whinvik",
+    "timeISO": "2025-11-21T22:26:24.000Z",
+    "textPlain": "Sorry for the off-topic but I have been lately seeing a lot of hype around durable execution.I still cannot figure out how this is any different than launching a workflow in something like Airflow. Is the novel thing here that it can be done using the same DB you already have running?",
     "parent": 45992316,
     "depth": 1
   },
@@ -88,18 +104,18 @@
     "depth": 2
   },
   {
-    "id": 46009409,
-    "by": "nileshtrivedi",
-    "timeISO": "2025-11-21T21:51:56.000Z",
-    "textPlain": "This looks useful.Hope would you say it compares with pgqueuer?",
-    "parent": 46008299,
-    "depth": 2
-  },
-  {
     "id": 46008777,
     "by": "gunnarmorling",
     "timeISO": "2025-11-21T20:45:58.000Z",
     "textPlain": "Ah, that's awesome. Definitely need to take a closer look at your implementation.",
+    "parent": 46008299,
+    "depth": 2
+  },
+  {
+    "id": 46009409,
+    "by": "nileshtrivedi",
+    "timeISO": "2025-11-21T21:51:56.000Z",
+    "textPlain": "This looks useful.Hope would you say it compares with pgqueuer?",
     "parent": 46008299,
     "depth": 2
   },
@@ -112,18 +128,18 @@
     "depth": 2
   },
   {
-    "id": 46009583,
-    "by": "rileymichael",
-    "timeISO": "2025-11-21T22:09:41.000Z",
-    "textPlain": "unfortunately they've never really taken off so folks reach for explicit state machines instead. there have been a handful of options on the jvm over the years (e.g. quasar, kilim) but they're all abandoned now, the loom continuation API is internal with no hint of it becoming public, kotlin's aren't serializable and the issue is inactive (https://github.com/Kotlin/kotlinx.coroutines/issues/76), etc.. such a shame",
-    "parent": 46007446,
-    "depth": 2
-  },
-  {
     "id": 46007619,
     "by": "andersmurphy",
     "timeISO": "2025-11-21T18:56:08.000Z",
     "textPlain": "Haha so true. Shame image based programming never really caught on.Janet lang lets you serialize coroutines which is fun. Make this sort of stuff trivial.",
+    "parent": 46007446,
+    "depth": 2
+  },
+  {
+    "id": 46009583,
+    "by": "rileymichael",
+    "timeISO": "2025-11-21T22:09:41.000Z",
+    "textPlain": "unfortunately they've never really taken off so folks reach for explicit state machines instead. there have been a handful of options on the jvm over the years (e.g. quasar, kilim) but they're all abandoned now, the loom continuation API is internal with no hint of it becoming public, kotlin's aren't serializable and the issue is inactive (https://github.com/Kotlin/kotlinx.coroutines/issues/76), etc.. such a shame",
     "parent": 46007446,
     "depth": 2
   },
@@ -136,26 +152,10 @@
     "depth": 2
   },
   {
-    "id": 46008038,
-    "by": "ryeats",
-    "timeISO": "2025-11-21T19:32:56.000Z",
-    "textPlain": "As you say it can be done but it's an anti-pattern to use a message queue as a database which is essentially what you are doing for these kinds of long running tasks. The reason is that their are a lot of state your likely going to want to status as a task runs and persist and checkpoint yes you can carefully string together a series of database calls chained with message transactions so you don't lose something when an issue happens but then you also need bespoke logic to restart or retry each step and it can turn into a bit of a mess.",
-    "parent": 46007761,
-    "depth": 2
-  },
-  {
     "id": 46008154,
     "by": "snicker7",
     "timeISO": "2025-11-21T19:46:13.000Z",
     "textPlain": "Message queues (e.g. SQS) are inappropriate for tracking long-running tasks/workflows. This is due to the operational requirements such as:- Checking the status of a task (queued, pending, failed, cancelled, completed)\n- Cancelling a queued task (or pending task if the execution environment supports it)\n- Re-prioritizing queued tasks\n- Searching for tasks based off an attribute (e.g. tag)You really do need a database for this.",
-    "parent": 46007761,
-    "depth": 2
-  },
-  {
-    "id": 46009559,
-    "by": "hmaxdml",
-    "timeISO": "2025-11-21T22:07:36.000Z",
-    "textPlain": "The hype is because DE is such an dev exp improvement over building your own queue. Good DE frameworks come with workflows, pub/sub, notifications, distributed queues with tons of flow control options, etc.",
     "parent": 46007761,
     "depth": 2
   },
@@ -172,6 +172,22 @@
     "by": "kodablah",
     "timeISO": "2025-11-21T19:58:42.000Z",
     "textPlain": "> is it the dev ergonomics that's cool here?Yup. Being able to write imperative code that automatically resumes where it left off is very valuable. It's best to represent durable turing completeness using modern approaches of authoring such logic - programming languages. Being able to loop, try/catch, apply advanced conditional logic, etc in a crash-proof algorithm that can run for weeks/months/years and is introspectable has a lot of value over just using queues.Durable execution is all just queues and task processing and event sourcing under the hood though.",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
+    "id": 46008038,
+    "by": "ryeats",
+    "timeISO": "2025-11-21T19:32:56.000Z",
+    "textPlain": "As you say it can be done but it's an anti-pattern to use a message queue as a database which is essentially what you are doing for these kinds of long running tasks. The reason is that their are a lot of state your likely going to want to status as a task runs and persist and checkpoint yes you can carefully string together a series of database calls chained with message transactions so you don't lose something when an issue happens but then you also need bespoke logic to restart or retry each step and it can turn into a bit of a mess.",
+    "parent": 46007761,
+    "depth": 2
+  },
+  {
+    "id": 46009559,
+    "by": "hmaxdml",
+    "timeISO": "2025-11-21T22:07:36.000Z",
+    "textPlain": "The hype is because DE is such an dev exp improvement over building your own queue. Good DE frameworks come with workflows, pub/sub, notifications, distributed queues with tons of flow control options, etc.",
     "parent": 46007761,
     "depth": 2
   }
