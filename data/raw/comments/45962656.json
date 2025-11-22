@@ -8,10 +8,10 @@
     "depth": 1
   },
   {
-    "id": 46014977,
-    "by": "techn00",
-    "timeISO": "2025-11-22T14:16:38.000Z",
-    "textPlain": "Good article, you might like my lib https://github.com/DeluxeOwl/chronicle - covers a lot of event sourcing pains for Go",
+    "id": 46014050,
+    "by": "fleahunter",
+    "timeISO": "2025-11-22T11:46:35.000Z",
+    "textPlain": "The part people underestimate is how much organizational discipline event sourcing quietly demands.Technically, sure, you can bolt an append-only table on Postgres and call it a day. But the hard part is living with the consequences of “events are facts” when your product manager changes their mind, your domain model evolves, or a third team starts depending on your event stream as an integration API.Events stop being an internal persistence detail and become a public contract. Now versioning, schema evolution, and “we’ll just rename this field” turn into distributed change management problems. Your infra is suddenly the easy bit compared to designing events that are stable, expressive, and not leaking implementation details.And once people discover they can rebuild projections “any time”, they start treating projections as disposable, which works right up until you have a 500M event stream and a 6 hour replay window that makes every migration a scheduled outage.Event sourcing shines when the business actually cares about history (finance, compliance, complex workflows) and you’re willing to invest in modeling and ops. Used as a generic CRUD replacement it’s a complexity bomb with a 12-18 month fuse.",
     "parent": 45962656,
     "depth": 1
   },
@@ -24,6 +24,22 @@
     "depth": 1
   },
   {
+    "id": 46015194,
+    "by": "tamnd",
+    "timeISO": "2025-11-22T14:47:30.000Z",
+    "textPlain": "I don't think this design in the article works in practice.A single `events` table falls apart as the system grows, and untyped JSONB data in `event_data` column just moves the mess into code. Event payloads drift, handlers fill with branching logic, and replaying or migrating old events becomes slow and risky. The pattern promises clarity but eventually turns into a pile of conditionals trying to decode years of inconsistent data.A simpler and more resilient approach is using the database features already built for this. Stored procedures can record both business data and audit records in a controlled way. CDC provides a clean stream for the tables that actually need downstream consumers. And even carefully designed triggers give you consistent invariants and auditability without maintaining a separate projection system that can lag or break.Event sourcing works when the domain truly centers on events, but for most systems these database driven tools stay cleaner, cheaper, and far more predictable over time.",
+    "parent": 45962656,
+    "depth": 1
+  },
+  {
+    "id": 46015279,
+    "by": "cedws",
+    "timeISO": "2025-11-22T14:59:16.000Z",
+    "textPlain": "Stuffing data into JSONB columns always makes me feel uncomfortable. Not necessarily for performance/efficiency reasons. You also loose the strong schema that SQL gives you, you don't get to use constraints. You might as well use Mongo, no?How can you be sure that the data stuffed into JSONB fits a particular schema, and that future changes are backwards compatible with rows added long ago?",
+    "parent": 45962656,
+    "depth": 1
+  },
+  {
     "id": 46014708,
     "by": "liampulles",
     "timeISO": "2025-11-22T13:38:53.000Z",
@@ -32,10 +48,18 @@
     "depth": 1
   },
   {
-    "id": 46014050,
-    "by": "fleahunter",
-    "timeISO": "2025-11-22T11:46:35.000Z",
-    "textPlain": "The part people underestimate is how much organizational discipline event sourcing quietly demands.Technically, sure, you can bolt an append-only table on Postgres and call it a day. But the hard part is living with the consequences of “events are facts” when your product manager changes their mind, your domain model evolves, or a third team starts depending on your event stream as an integration API.Events stop being an internal persistence detail and become a public contract. Now versioning, schema evolution, and “we’ll just rename this field” turn into distributed change management problems. Your infra is suddenly the easy bit compared to designing events that are stable, expressive, and not leaking implementation details.And once people discover they can rebuild projections “any time”, they start treating projections as disposable, which works right up until you have a 500M event stream and a 6 hour replay window that makes every migration a scheduled outage.Event sourcing shines when the business actually cares about history (finance, compliance, complex workflows) and you’re willing to invest in modeling and ops. Used as a generic CRUD replacement it’s a complexity bomb with a 12-18 month fuse.",
+    "id": 46015122,
+    "by": "gethly",
+    "timeISO": "2025-11-22T14:37:51.000Z",
+    "textPlain": "I posted similar thing 6 months ago, https://news.ycombinator.com/item?id=43870318, and got only one upvote and this gets to front page after few hours. Ah, C'est la vie.",
+    "parent": 45962656,
+    "depth": 1
+  },
+  {
+    "id": 46014977,
+    "by": "techn00",
+    "timeISO": "2025-11-22T14:16:38.000Z",
+    "textPlain": "Good article, you might like my lib https://github.com/DeluxeOwl/chronicle - covers a lot of event sourcing pains for Go",
     "parent": 45962656,
     "depth": 1
   },
@@ -56,14 +80,6 @@
     "depth": 1
   },
   {
-    "id": 46014945,
-    "by": "pdhborges",
-    "timeISO": "2025-11-22T14:11:04.000Z",
-    "textPlain": "I would upvote this comment more if I could.I already refrained from introducing event sourcing to tackle wierd dependecies multiple time just by justaposing the amount of discipline that the team has that lead to the current state vs the discipline that is required to keep the event source solution going.",
-    "parent": 46014546,
-    "depth": 2
-  },
-  {
     "id": 46014591,
     "by": "simonw",
     "timeISO": "2025-11-22T13:22:09.000Z",
@@ -72,19 +88,11 @@
     "depth": 2
   },
   {
-    "id": 46014275,
-    "by": "anthonylevine",
-    "timeISO": "2025-11-22T12:28:00.000Z",
-    "textPlain": "> CQRS sounds good, until you just want to read a value that you know has been written.This is for you and the author apparently: Prating CQRS does not mean you're splitting up databases. CQRS is simply using different models for reading and writing. That's it. Nothing about different databases or projections or event sourcing.This quote from the article is just flat out false:> CQRS introduces eventual consistency between write and read models:No it doesn't. Eventual consistency is a design decision made independent of using CQRS. Just because CQRS might make it easier to split, it doesn't in any way have an opinion on whether you should or not.>  by folks and companies who host queueing technologies (like Kafka).Well that's good because Kafka isn't an event-sourcing technology and shouldn't be used as one.",
-    "parent": 46013851,
-    "depth": 2
-  },
-  {
-    "id": 46014631,
-    "by": "javier2",
-    "timeISO": "2025-11-22T13:28:18.000Z",
-    "textPlain": "This. This is also a reason why its so impressive google docs/sheets has managed to stay largely the same for so long",
-    "parent": 46014050,
+    "id": 46014945,
+    "by": "pdhborges",
+    "timeISO": "2025-11-22T14:11:04.000Z",
+    "textPlain": "I would upvote this comment more if I could.I already refrained from introducing event sourcing to tackle wierd dependecies multiple time just by justaposing the amount of discipline that the team has that lead to the current state vs the discipline that is required to keep the event source solution going.",
+    "parent": 46014546,
     "depth": 2
   },
   {
@@ -96,11 +104,43 @@
     "depth": 2
   },
   {
+    "id": 46014631,
+    "by": "javier2",
+    "timeISO": "2025-11-22T13:28:18.000Z",
+    "textPlain": "This. This is also a reason why its so impressive google docs/sheets has managed to stay largely the same for so long",
+    "parent": 46014050,
+    "depth": 2
+  },
+  {
     "id": 46014249,
     "by": "mexicocitinluez",
     "timeISO": "2025-11-22T12:22:26.000Z",
     "textPlain": "> or a third team starts depending on your event stream as an integration API.> vents stop being an internal persistence detail and become a public contract.You can't blame event sourcing for people not doing it correctly, though.The events aren't a public contract and shouldn't be treated as such. Treating them that way will result in issues.> Used as a generic CRUD replacement it’s a complexity bomb with a 12-18 month fuse.This is true, but all you're really saying it \"Use the right tool for the right job\".",
     "parent": 46014050,
+    "depth": 2
+  },
+  {
+    "id": 46014275,
+    "by": "anthonylevine",
+    "timeISO": "2025-11-22T12:28:00.000Z",
+    "textPlain": "> CQRS sounds good, until you just want to read a value that you know has been written.This is for you and the author apparently: Prating CQRS does not mean you're splitting up databases. CQRS is simply using different models for reading and writing. That's it. Nothing about different databases or projections or event sourcing.This quote from the article is just flat out false:> CQRS introduces eventual consistency between write and read models:No it doesn't. Eventual consistency is a design decision made independent of using CQRS. Just because CQRS might make it easier to split, it doesn't in any way have an opinion on whether you should or not.>  by folks and companies who host queueing technologies (like Kafka).Well that's good because Kafka isn't an event-sourcing technology and shouldn't be used as one.",
+    "parent": 46013851,
+    "depth": 2
+  },
+  {
+    "id": 46015207,
+    "by": "tamnd",
+    "timeISO": "2025-11-22T14:48:49.000Z",
+    "textPlain": "The only place this kind of append-only event log consistently works well is clickstream-style workloads.You rarely replay them to reconstruct business state; you just pump them into analytics or enrichment pipelines.",
+    "parent": 46015194,
+    "depth": 2
+  },
+  {
+    "id": 46015355,
+    "by": "LVB",
+    "timeISO": "2025-11-22T15:09:32.000Z",
+    "textPlain": "JSONB can have constraints. I think with an extension you can do full JSON Schema validation, too.",
+    "parent": 46015279,
     "depth": 2
   },
   {
