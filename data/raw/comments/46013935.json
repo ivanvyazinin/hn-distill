@@ -1,13 +1,5 @@
 [
   {
-    "id": 46017908,
-    "by": "Scotrix",
-    "timeISO": "2025-11-22T20:21:45.000Z",
-    "textPlain": "While working on a new startup I had exactly the same challenges and issues. As soon as it gets complex, data gets bigger, amount of tools increases it becomes tremendously difficult to control agents, network of agents or anything LLM related. Add then specific domains like legal or finance where most of the time there is just 0 or 1 and nothing in between (metaphorical speaking) and it becomes a nightmare in code and side effects.So I started to actually build something to solve most of my own problems reliably and pushing deterministic outputs with help of LLMs (e.g. imagine finding the right columns/sheets in massive spreadsheets), my idea and solution which helped not only me but also more business folks to fix and test agents so far is visualizing flows, connect and extract data visually while keeping it very close to static types (other than e.g. llama flow).\nWould love to hear your thoughts about this: https://llm-flow-designer.com",
-    "parent": 46013935,
-    "depth": 1
-  },
-  {
     "id": 46014987,
     "by": "_pdp_",
     "timeISO": "2025-11-22T14:17:43.000Z",
@@ -16,18 +8,26 @@
     "depth": 1
   },
   {
-    "id": 46015314,
-    "by": "moinism",
-    "timeISO": "2025-11-22T15:03:25.000Z",
-    "textPlain": "Amen. Been seeing these agent SDKs coming out left and right for a couple of years and thought it'd be a breeze to build an agent. Now I'm trying to build one for ~3 weeks, and I've tried three different SDKs and a couple of architectures.Here's what I found:- Claude Code SDK (now called Agent SDK) is amazing, but I think they are still in the process of decoupling it from the Claude Code, and that's why a few things are weird. e.g, You can define a subagent programmatically, but not skills. Skills have to be placed in the filesystem and then referenced in the plugin. Also, only Anthoripic models are supported :(- OpenAI's SDK's tight coupling with their platform is a plus point. i.e, you get agents and tool-use traces by default in your dashboard. Which you can later use for evaluation, distillation, or fine-tuning. \nBut: \n  2. They have agent handoffs (which works in some cases), but not subagents. You can use tools as subagents, though.\n  1. Not easy to use a third-party model provider. Their docs provide sample codes, but it's not as easy as that.- Google Agent Kit doesn't provide any Typescript SDK yet. So didn't try.- Mastra, even though it looks pretty sweet, spins up a server for your agent, which you can then use via REST API. umm.. why?- SmythOS SDK is the one I'm currently testing because it provides flexibility in terms of choosing the model provider and defining your own architecture (handoffs or subagents, etc.). It has its quirks, but I think it'll work for now.Question: If you don't mind sharing, what is your current architecture? Agent -> SubAgents -> SubSubAgents? Linear? or a Planner-Executor?I'll write a detailed post about my learnings from architectures (fingers crossed) soon.",
+    "id": 46018341,
+    "by": "linux2647",
+    "timeISO": "2025-11-22T21:15:48.000Z",
+    "textPlain": "The tmux usage referenced at the end of the article was fascinating to watch.  I’d never considered using tmux as a way of getting more insight into how an agent is working through a problem. Or to watch it debug something",
     "parent": 46013935,
     "depth": 1
   },
   {
-    "id": 46017635,
-    "by": "Vanclief",
-    "timeISO": "2025-11-22T19:46:53.000Z",
-    "textPlain": "We have been working hard on the past two months implementing agents for different tasks. We started with Claude code, as we really liked working with hooks. However being vendor locked and having usage limit problems, we ended up implementing our own \"runtime\" that keeps the conversation structure while having hooks. Right now it only works with OpenAI but its designed to be able to incorporate Claude / Gemini down the roadWe ended up open sourcing that runtime if anyone is interested:https://github.com/Vanclief/agent-composer",
+    "id": 46018123,
+    "by": "cvhc",
+    "timeISO": "2025-11-22T20:48:45.000Z",
+    "textPlain": "I'm frustrated that some fundamental aspects in agent development lack clear guideline.One example is input/output types of function tools. Frameworks offer some flexiblity and seemingly I can use fundamental types and simple data structures (list, dict/map). But on the other hand I know all data types are eventually stringified and this has implications.I have recently observed two issues when my agent calls a function that simply takes some int64 numeric IDs: (1) when the IDs are presented as hexadecimal in the context, the LLM attempts to convert them to decimal itself but mess it up because it doesn't really calculate; (2) some big IDs are not passed precisely in Google ADK framework [1], presumbly because its JSON serialization failed to keep the precision. I ended up changing the function to take string args instead. I also wasn't sure if the tool should return the data as original as possible in a moderately deeply nested dict, or step further to properly organize the output in a more human-readable text format for model ingestion.OpenAI's doc [2] writes: \"A result must be a string, but the format is up to you (JSON, error codes, plain text, etc.). The model will interpret that string as needed.\" -- But that clearly contradicts with the framework's capability and some official examples where dict/numbers are returned.[1] https://github.com/google/adk-python/issues/3592\n[2] https://platform.openai.com/docs/guides/function-calling",
+    "parent": 46013935,
+    "depth": 1
+  },
+  {
+    "id": 46015314,
+    "by": "moinism",
+    "timeISO": "2025-11-22T15:03:25.000Z",
+    "textPlain": "Amen. Been seeing these agent SDKs coming out left and right for a couple of years and thought it'd be a breeze to build an agent. Now I'm trying to build one for ~3 weeks, and I've tried three different SDKs and a couple of architectures.Here's what I found:- Claude Code SDK (now called Agent SDK) is amazing, but I think they are still in the process of decoupling it from the Claude Code, and that's why a few things are weird. e.g, You can define a subagent programmatically, but not skills. Skills have to be placed in the filesystem and then referenced in the plugin. Also, only Anthoripic models are supported :(- OpenAI's SDK's tight coupling with their platform is a plus point. i.e, you get agents and tool-use traces by default in your dashboard. Which you can later use for evaluation, distillation, or fine-tuning. \nBut: \n  2. They have agent handoffs (which works in some cases), but not subagents. You can use tools as subagents, though.\n  1. Not easy to use a third-party model provider. Their docs provide sample codes, but it's not as easy as that.- Google Agent Kit doesn't provide any Typescript SDK yet. So didn't try.- Mastra, even though it looks pretty sweet, spins up a server for your agent, which you can then use via REST API. umm.. why?- SmythOS SDK is the one I'm currently testing because it provides flexibility in terms of choosing the model provider and defining your own architecture (handoffs or subagents, etc.). It has its quirks, but I think it'll work for now.Question: If you don't mind sharing, what is your current architecture? Agent -> SubAgents -> SubSubAgents? Linear? or a Planner-Executor?I'll write a detailed post about my learnings from architectures (fingers crossed) soon.",
     "parent": 46013935,
     "depth": 1
   },
@@ -48,6 +48,14 @@
     "depth": 1
   },
   {
+    "id": 46015957,
+    "by": "eclipsetheworld",
+    "timeISO": "2025-11-22T16:33:21.000Z",
+    "textPlain": "We're repeating the same overengineering cycle we saw with early LangChain/RAG stacks. Just a couple of months ago the term agent was hard to define, but I've realized the best mental model is just a standard REPL:Read: Gather context (user input + tool outputs).\nEval: LLM inference (decides: do I need a tool, or am I done?).\nPrint: Execute the tool (the side effect) or return the answer.\nLoop: Feed the result back into the context window.Rolling a lightweight implementation around this concept has been significantly more robust for me than fighting with the abstractions in the heavy-weight SDKs.",
+    "parent": 46013935,
+    "depth": 1
+  },
+  {
     "id": 46016124,
     "by": "ReDeiPirati",
     "timeISO": "2025-11-22T16:54:51.000Z",
@@ -56,10 +64,18 @@
     "depth": 1
   },
   {
-    "id": 46015957,
-    "by": "eclipsetheworld",
-    "timeISO": "2025-11-22T16:33:21.000Z",
-    "textPlain": "We're repeating the same overengineering cycle we saw with early LangChain/RAG stacks. Just a couple of months ago the term agent was hard to define, but I've realized the best mental model is just a standard REPL:Read: Gather context (user input + tool outputs).\nEval: LLM inference (decides: do I need a tool, or am I done?).\nPrint: Execute the tool (the side effect) or return the answer.\nLoop: Feed the result back into the context window.Rolling a lightweight implementation around this concept has been significantly more robust for me than fighting with the abstractions in the heavy-weight SDKs.",
+    "id": 46017908,
+    "by": "Scotrix",
+    "timeISO": "2025-11-22T20:21:45.000Z",
+    "textPlain": "While working on a new startup I had exactly the same challenges and issues. As soon as it gets complex, data gets bigger, amount of tools increases it becomes tremendously difficult to control agents, network of agents or anything LLM related. Add then specific domains like legal or finance where most of the time there is just 0 or 1 and nothing in between (metaphorical speaking) it becomes a nightmare in code and side effects.So I started to actually build something to solve most of my own problems reliably and pushing deterministic outputs with help of LLMs (e.g. imagine finding the right columns/sheets in massive spreadsheets to create tool execution flows and fine tuning finding a range of data sources).\nMy idea and solution which helped not only me but also quite a few business folks so far to fix and test agents is visualizing flows, connect and extract data visually, test and deploy changes in real time while keeping it very close to static types and predictable output (other than e.g. llama flow).Would love to hear your thoughts about my approach: https://llm-flow-designer.com",
+    "parent": 46013935,
+    "depth": 1
+  },
+  {
+    "id": 46017635,
+    "by": "Vanclief",
+    "timeISO": "2025-11-22T19:46:53.000Z",
+    "textPlain": "We have been working hard on the past two months implementing agents for different tasks. We started with Claude code, as we really liked working with hooks. However being vendor locked and having usage limit problems, we ended up implementing our own \"runtime\" that keeps the conversation structure while having hooks. Right now it only works with OpenAI but its designed to be able to incorporate Claude / Gemini down the roadWe ended up open sourcing that runtime if anyone is interested:https://github.com/Vanclief/agent-composer",
     "parent": 46013935,
     "depth": 1
   },
@@ -88,18 +104,18 @@
     "depth": 1
   },
   {
-    "id": 46015477,
-    "by": "lvl155",
-    "timeISO": "2025-11-22T15:28:26.000Z",
-    "textPlain": "Design is hard because models change almost on a weekly basis. Quality abruptly falls off or drastically changes without announcements. It’s like building a house without proper foundation. I don’t know how many tokens I wasted because of this. I want to say 30% of the cost and resources this year for me.",
-    "parent": 46013935,
-    "depth": 1
-  },
-  {
     "id": 46014888,
     "by": "CuriouslyC",
     "timeISO": "2025-11-22T14:04:20.000Z",
     "textPlain": "The 'Reinforcement in the Agent Loop' section is a big deal, I use this pattern to enable async/event steered agents, it's super powerful. In long context you can use it to re-inject key points (\"reminders\"), etc.",
+    "parent": 46013935,
+    "depth": 1
+  },
+  {
+    "id": 46015477,
+    "by": "lvl155",
+    "timeISO": "2025-11-22T15:28:26.000Z",
+    "textPlain": "Design is hard because models change almost on a weekly basis. Quality abruptly falls off or drastically changes without announcements. It’s like building a house without proper foundation. I don’t know how many tokens I wasted because of this. I want to say 30% of the cost and resources this year for me.",
     "parent": 46013935,
     "depth": 1
   },
@@ -128,26 +144,10 @@
     "depth": 1
   },
   {
-    "id": 46017114,
-    "by": "dangoodmanUT",
-    "timeISO": "2025-11-22T18:40:34.000Z",
-    "textPlain": "I think output functions aren't necessary, you should just use the text output when the agentic loop ends, and prompt to what kind of output you want (markdown, summary of changes, etc.)",
-    "parent": 46013935,
-    "depth": 1
-  },
-  {
     "id": 46014904,
     "by": "srameshc",
     "timeISO": "2025-11-22T14:06:42.000Z",
     "textPlain": "I still feel there is no sure shot way to build an abstraction yet. Probably that is why Loveable decided to build on Gemini AI rather than giving options of choosing model. On the other hand I like Pydantic AI framework and got myself a decent working solution where my preference is to stick with cheaper models by default and only use expensive only in cases where failure rate is too high.",
-    "parent": 46013935,
-    "depth": 1
-  },
-  {
-    "id": 46017124,
-    "by": "jfghi",
-    "timeISO": "2025-11-22T18:42:07.000Z",
-    "textPlain": "Technologically and mathematically this is all quite interesting.  However, I have no desire to ever use an agent and I doubt there are many that will.",
     "parent": 46013935,
     "depth": 1
   },
@@ -160,18 +160,26 @@
     "depth": 1
   },
   {
-    "id": 46015495,
-    "by": "jonmagic",
-    "timeISO": "2025-11-22T15:32:21.000Z",
-    "textPlain": "Great post. Re: frameworks, I tried a number of them and then found Pocketflow and haven’t found a reason to try anything else since. It’s now been ported to half a dozen or more languages (including my port to Ruby). The simple api and mental model makes it easy for everyone on my team to jump into, extend, and compose. Highly recommend for anyone frustrated with the larger SDKs.",
+    "id": 46017114,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-11-22T18:40:34.000Z",
+    "textPlain": "I think output functions aren't necessary, you should just use the text output when the agentic loop ends, and prompt to what kind of output you want (markdown, summary of changes, etc.)",
     "parent": 46013935,
     "depth": 1
   },
   {
-    "id": 46016305,
-    "by": "ColinEberhardt",
-    "timeISO": "2025-11-22T17:13:25.000Z",
-    "textPlain": "> We find testing and evals to be the hardest problem here …I wonder what this means for the agents that people are deploying into production? Are they tested at all? Or just manual ad-hoc testing?Sounds risky!",
+    "id": 46017124,
+    "by": "jfghi",
+    "timeISO": "2025-11-22T18:42:07.000Z",
+    "textPlain": "Technologically and mathematically this is all quite interesting.  However, I have no desire to ever use an agent and I doubt there are many that will.",
+    "parent": 46013935,
+    "depth": 1
+  },
+  {
+    "id": 46015495,
+    "by": "jonmagic",
+    "timeISO": "2025-11-22T15:32:21.000Z",
+    "textPlain": "Great post. Re: frameworks, I tried a number of them and then found Pocketflow and haven’t found a reason to try anything else since. It’s now been ported to half a dozen or more languages (including my port to Ruby). The simple api and mental model makes it easy for everyone on my team to jump into, extend, and compose. Highly recommend for anyone frustrated with the larger SDKs.",
     "parent": 46013935,
     "depth": 1
   },
@@ -184,18 +192,18 @@
     "depth": 1
   },
   {
-    "id": 46016753,
-    "by": "munro",
-    "timeISO": "2025-11-22T18:01:48.000Z",
-    "textPlain": "I had built an agent with LangGraph a 9 months ago--now seems React agents are in LangChain.  Over all pretty happy with that, I just don't use any of the dumb stuff like embedding/search layer: just tools&stateBut I was actually playing with a few frameworks yesterday and struggling--I want what I want without having to write it. ;).  Ended up using pydantic_ai package, literally just want tools w/ pydantic validation--but out of the box it doesn't have good observability, you would have to use their proprietary SaaS; and it comes bundled with Temporal.io (yo odio eso proyecto).  I had to write my own observability which was annoying, and it sucks.If anyone has any things they've built, I would love to know, and TypeScript is an option.  I want:\n- ReAct agent with tools that have schema validation\n- built in REALTIME observability w/ WebUI\n- customizable playground ChatUI (This is where TypeScript would shine)\n- no corporate takeover tentaclesp.s.s: I know... I purposely try to avoid hard recommendations on HN, to avoid enshittification. \"reddit best X\" has been gamed. And generally skip these subtle promotional posts..",
+    "id": 46016305,
+    "by": "ColinEberhardt",
+    "timeISO": "2025-11-22T17:13:25.000Z",
+    "textPlain": "> We find testing and evals to be the hardest problem here …I wonder what this means for the agents that people are deploying into production? Are they tested at all? Or just manual ad-hoc testing?Sounds risky!",
     "parent": 46013935,
     "depth": 1
   },
   {
-    "id": 46015991,
-    "by": "rbren",
-    "timeISO": "2025-11-22T16:37:44.000Z",
-    "textPlain": "If you want to hack on an emerging agent SDK (specializing in software development), join us at https://github.com/OpenHands/software-agent-sdk",
+    "id": 46016753,
+    "by": "munro",
+    "timeISO": "2025-11-22T18:01:48.000Z",
+    "textPlain": "I had built an agent with LangGraph a 9 months ago--now seems React agents are in LangChain.  Over all pretty happy with that, I just don't use any of the dumb stuff like embedding/search layer: just tools&stateBut I was actually playing with a few frameworks yesterday and struggling--I want what I want without having to write it. ;).  Ended up using pydantic_ai package, literally just want tools w/ pydantic validation--but out of the box it doesn't have good observability, you would have to use their proprietary SaaS; and it comes bundled with Temporal.io (yo odio eso proyecto).  I had to write my own observability which was annoying, and it sucks.If anyone has any things they've built, I would love to know, and TypeScript is an option.  I want:\n- ReAct agent with tools that have schema validation\n- built in REALTIME observability w/ WebUI\n- customizable playground ChatUI (This is where TypeScript would shine)\n- no corporate takeover tentaclesp.s.s: I know... I purposely try to avoid hard recommendations on HN, to avoid enshittification. \"reddit best X\" has been gamed. And generally skip these subtle promotional posts..",
     "parent": 46013935,
     "depth": 1
   },
@@ -224,26 +232,18 @@
     "depth": 1
   },
   {
-    "id": 46017932,
-    "by": "wetpaws",
-    "timeISO": "2025-11-22T20:23:57.000Z",
-    "textPlain": "[dead]",
-    "parent": 46017908,
-    "depth": 2
+    "id": 46015991,
+    "by": "rbren",
+    "timeISO": "2025-11-22T16:37:44.000Z",
+    "textPlain": "If you want to hack on an emerging agent SDK (specializing in software development), join us at https://github.com/OpenHands/software-agent-sdk",
+    "parent": 46013935,
+    "depth": 1
   },
   {
     "id": 46016159,
     "by": "siva7",
     "timeISO": "2025-11-22T16:58:54.000Z",
     "textPlain": "This is the most important observation. I'm getting so many workshop invitations from my corporate colleagues about AI and agents. What most people don't get that these clever patterns they \"invented\" will be obsolete next week. This nice company blog about agents - one which got viral recently - will be obsolete next month. It's hard to swallow for my colleagues that in these age - like when you studied gang of four or a software architecture pattern book that you have learned a common language - no, these days the half-life of a pattern for AI is about a week. Even when you ask 10 professionals what an agent actually is - you will get 10 different answers yet they assume that how they use it is the common understanding.",
-    "parent": 46014987,
-    "depth": 2
-  },
-  {
-    "id": 46017112,
-    "by": "lelanthran",
-    "timeISO": "2025-11-22T18:40:30.000Z",
-    "textPlain": "> I've started a company in this space about 2 years ago. We are doing fine.You have a positive cash flow from sales of agents? Your revenue exceeds your operating costs?I've been very skeptical that it is possible to make money from agents, having seen how difficult it was for the current well-known players to do so.What is your secret sauce?",
     "parent": 46014987,
     "depth": 2
   },
@@ -256,10 +256,18 @@
     "depth": 2
   },
   {
-    "id": 46017678,
-    "by": "toddmorey",
-    "timeISO": "2025-11-22T19:51:28.000Z",
-    "textPlain": "In some ways, the fact that the technology will shift is the problem as model behavior keeps changing. It's rather maddening unstable ground to build on. Really hard to gauge the impact to customer experience from a new model.",
+    "id": 46017112,
+    "by": "lelanthran",
+    "timeISO": "2025-11-22T18:40:30.000Z",
+    "textPlain": "> I've started a company in this space about 2 years ago. We are doing fine.You have a positive cash flow from sales of agents? Your revenue exceeds your operating costs?I've been very skeptical that it is possible to make money from agents, having seen how difficult it was for the current well-known players to do so.What is your secret sauce?",
+    "parent": 46014987,
+    "depth": 2
+  },
+  {
+    "id": 46018054,
+    "by": "sethev",
+    "timeISO": "2025-11-22T20:38:35.000Z",
+    "textPlain": "I suspect you're right, but it's a bit discouraging to consider that an alternative way of framing this is that companies like OpenAI have a huge advantage in this landscape and anything that works will end up behind their API.",
     "parent": 46014987,
     "depth": 2
   },
@@ -272,10 +280,10 @@
     "depth": 2
   },
   {
-    "id": 46017419,
-    "by": "verdverm",
-    "timeISO": "2025-11-22T19:15:53.000Z",
-    "textPlain": "Vendor choice matters.You could use the like of Amazon / Anthropic, or use Google who has had transparent disk encryption for 10+ years, and Gemini which already had the transparent caching discussed built in.",
+    "id": 46017678,
+    "by": "toddmorey",
+    "timeISO": "2025-11-22T19:51:28.000Z",
+    "textPlain": "In some ways, the fact that the technology will shift is the problem as model behavior keeps changing. It's rather maddening unstable ground to build on. Really hard to gauge the impact to customer experience from a new model.",
     "parent": 46014987,
     "depth": 2
   },
@@ -284,6 +292,22 @@
     "by": "an0malous",
     "timeISO": "2025-11-22T14:56:20.000Z",
     "textPlain": "> These are not going to be problems tomorrow because the technology will shift. As it happened many time in the span of the last 2 years.What technology shifts have happened for LLMs in the last 2 years?",
+    "parent": 46014987,
+    "depth": 2
+  },
+  {
+    "id": 46017419,
+    "by": "verdverm",
+    "timeISO": "2025-11-22T19:15:53.000Z",
+    "textPlain": "Vendor choice matters.You could use the like of Amazon / Anthropic, or use Google who has had transparent disk encryption for 10+ years, and Gemini which already had the transparent caching discussed built in.",
+    "parent": 46014987,
+    "depth": 2
+  },
+  {
+    "id": 46017986,
+    "by": "jFriedensreich",
+    "timeISO": "2025-11-22T20:30:28.000Z",
+    "textPlain": "exactly what my experience is too. we focus all our energy on the parts that will not be solved by someone else in a few months.",
     "parent": 46014987,
     "depth": 2
   },
@@ -372,30 +396,6 @@
     "by": "sathish316",
     "timeISO": "2025-11-22T14:39:19.000Z",
     "textPlain": "I agree with your analysis of building your own Agent framework to have some level of control and fewer abstractions. Agents at their core are about programmatically talking to an LLM and performing these basic operations:\n1. Structured Input and String Interpolation in prompts\n2. Structured Output and Unmarshalling String response to Structured output (This is getting easier now with LLMs supporting Structured output)\n3. Tool registry/discovery (of MCP and Function tools), Tool calls and response looping\n4. Composability of Tools\n5. Some form of Agent to Agent delegationI’ve had good luck with using PydanticAI which does these core operations well (due to the underlying Pydantic library), but still struggles with too many MCP servers/Tools and composability.I’ve built an open-source Agent framework called OpusAgents, that makes the process of creating Agents, Subagents, Tools that are simpler than MCP servers without overloading the context. Check it out here and tutorials/demos to see how it’s more reliable than generic Agents with MCP servers in Cursor/ClaudeDesktop - https://github.com/sathish316/opus_agentsIt’s built on top of PydanticAI and FastMCP, so that all non-core operations of Agents are accessible when I need them later.",
-    "parent": 46014707,
-    "depth": 2
-  },
-  {
-    "id": 46014739,
-    "by": "the_mitsuhiko",
-    "timeISO": "2025-11-22T13:43:12.000Z",
-    "textPlain": "Author here. I’m with you on the abstractions part. I dumped a lot of my though so this into a follow up post: https://lucumr.pocoo.org/2025/11/22/llm-apis/",
-    "parent": 46014707,
-    "depth": 2
-  },
-  {
-    "id": 46014861,
-    "by": "NitpickLawyer",
-    "timeISO": "2025-11-22T13:59:34.000Z",
-    "textPlain": "Yes, this is great advice. It also applies to interfaces. When we designed a support \"chat bot\", we went with a diferent architecture than what's out there already. We designed the system with \"chat rooms\" instead, and the frontend just dumps messages to a chatroom (with a session id). Then on the backend we can do lots of things, incrementally adding functionality, while the front end doesn't have to keep up. We can also do things like group messages, have \"system\" messages that other services can read, etc. It also feels more natural, as the client can type additional info while the server is working, etc.If you have to use some of the client side SDKs, another good idea is to have a proxy where you can also add functionality without having to change the frontend.",
-    "parent": 46014707,
-    "depth": 2
-  },
-  {
-    "id": 46014896,
-    "by": "_pdp_",
-    "timeISO": "2025-11-22T14:05:41.000Z",
-    "textPlain": "This is a huge undertaking though. Yes it is quite simple to build some basic abstraction on top of openai.complete or similar but this like 1% of an agent need to do.My bet is that agent frameworks and platform will become more like game engines. You can spin your own engine for sure and it is fun and rewarding. But AAA studios will most likely decide to use a ready to go platform with all the batteries included.",
     "parent": 46014707,
     "depth": 2
   }
