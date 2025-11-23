@@ -1,5 +1,37 @@
 [
   {
+    "id": 46026396,
+    "by": "cube2222",
+    "timeISO": "2025-11-23T19:16:45.000Z",
+    "textPlain": "Does anybody know if there is something similar for gpg keys? E.g. for commit signing?That is, natively with the Secure Enclave, not exportable.",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
+    "id": 46026158,
+    "by": "jedberg",
+    "timeISO": "2025-11-23T18:45:16.000Z",
+    "textPlain": "If I understand correctly, this means you can't back up the private key, correct?  It's in the Secure Enclave, so if you lose your laptop, you also lose the key?  Since it looks like export only really exports the public key not the private one?Probably not the worst thing, you most likely have another way to get into the remote machine, or an admin who can reset you, but still feels like a hole.Or am I missing something?ps. It amuses me that my Mac won't let me type Secure Enclave without automatically capitalizing it.",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
+    "id": 46026359,
+    "by": "wahern",
+    "timeISO": "2025-11-23T19:11:16.000Z",
+    "textPlain": "Time to up my game and finish adding new features to KeyMux, which supports enclave keys for SSH, SSL, and PGP, including in mixed-use scenarios, such as secure enclave-backed SSL peer authentication to a Vault server containing a non-exportable secret for SSH auth: https://keymux.com/ (https://apps.apple.com/us/app/keymux/id6448807557)",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
+    "id": 46026043,
+    "by": "cedws",
+    "timeISO": "2025-11-23T18:31:51.000Z",
+    "textPlain": "Secretive is a bit friendlier to set up but I'll probably switch to this anyway so I have one less app on my computer.Plugging my blog post for how to achieve this on Windows 11:https://cedwards.xyz/tpm-backed-ssh-keys-on-windows-11/",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
     "id": 46025938,
     "by": "epistasis",
     "timeISO": "2025-11-23T18:20:10.000Z",
@@ -8,10 +40,18 @@
     "depth": 1
   },
   {
-    "id": 46025945,
-    "by": "redrove",
-    "timeISO": "2025-11-23T18:20:31.000Z",
-    "textPlain": "Secretive has been around for a while, I don't see why it's coming up now through this gist.I myself found it kind of a pain to live with on multiple machines (and sshing to multiple machines); git commit signing was also painful from multiple macs.I switched to 1Password managed keys.",
+    "id": 46026280,
+    "by": "procaryote",
+    "timeISO": "2025-11-23T19:00:10.000Z",
+    "textPlain": "Oh, this is neat! I wonder if apple just added support for the secure enclave as a provider or if this might help fix the bad experience of yubikeys on the mac. Last time I tried it, the distributed ssh and ssh-agent didn't play well with security keys",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
+    "id": 46026133,
+    "by": "adastra22",
+    "timeISO": "2025-11-23T18:42:22.000Z",
+    "textPlain": "I’m a bit confused as to why you can export the keys. Can someone explain this?",
     "parent": 46025721,
     "depth": 1
   },
@@ -32,11 +72,91 @@
     "depth": 1
   },
   {
-    "id": 46026020,
+    "id": 46025945,
+    "by": "redrove",
+    "timeISO": "2025-11-23T18:20:31.000Z",
+    "textPlain": "Secretive has been around for a while, I don't see why it's coming up now through this gist.I myself found it kind of a pain to live with on multiple machines (and sshing to multiple machines); git commit signing was also painful from multiple macs.I switched to 1Password managed keys.",
+    "parent": 46025721,
+    "depth": 1
+  },
+  {
+    "id": 46026241,
+    "by": "arianvanp",
+    "timeISO": "2025-11-23T18:54:33.000Z",
+    "textPlain": "Check out `man sc_auth`. There's also an exportable variant where the private key is encrypted using the secure enclave as opposed to generated on the secure enclave:    % sc_auth create-ctk-identity -l ssh-exportable -k p-256 -t bio\n    % sc_auth list-ctk-identities\n    p-256 A581E5404ED157C4C73FFDBDFC1339E0D873FCAE bio  ssh-exportable ssh-exportable               23.11.26, 19:50 YES  \n    % sc_auth export-ctk-identity -h A581E5404ED157C4C73FFDBDFC1339E0D873FCAE -f ssh-exportable.pem\n    Enter a password which will be used to protect the exported items:\n    Verify password:\n\nYou can then re-import it on another device    % sc_auth import-ctk-identities -f ssh-exportable.pem.p12 -t bio\n    Enter PKCS12 file password:\n\nI'll add this to the guide",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026399,
+    "by": "hylaride",
+    "timeISO": "2025-11-23T19:17:09.000Z",
+    "textPlain": "Strictly speaking people should be using multiple keys so if a device is lost/stolen, you're not left high and dry.  Ideally one per device, especially if they don't support some kind of secure enclave.I keep one in a yubikey protected by a PIN that sits in a safety deposit box, too.  This way if I have my laptop, phone, and day-to-day yubikey is a house that suddenly burns down, I'm still ok.",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026327,
+    "by": "cedws",
+    "timeISO": "2025-11-23T19:07:37.000Z",
+    "textPlain": "You're not really supposed to 'export' keys. Any time you move a key you risk exposing it. The idea of PKI is that only public keys move, the private key stays in one place, ideally never seen.",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026403,
+    "by": "morshu9001",
+    "timeISO": "2025-11-23T19:17:26.000Z",
+    "textPlain": "If you set this up on two devices, you can put both their public keys into authorized_keys at least.",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026177,
+    "by": "justincormack",
+    "timeISO": "2025-11-23T18:46:52.000Z",
+    "textPlain": "Correct. Set up multiple keys as backups. Thats also a positive, as nothing can leak the key.",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026188,
+    "by": "comprev",
+    "timeISO": "2025-11-23T18:48:35.000Z",
+    "textPlain": "Inability to export the private key is no different from using an YubiKey? You can't \"backup\" the private key they generate either.",
+    "parent": 46026158,
+    "depth": 2
+  },
+  {
+    "id": 46026160,
+    "by": "lloeki",
+    "timeISO": "2025-11-23T18:45:37.000Z",
+    "textPlain": "TFA:> Note that the \"private\" key here is just a reference to the FIDO credential. It does not contain any secret key material.",
+    "parent": 46026133,
+    "depth": 2
+  },
+  {
+    "id": 46026045,
     "by": "traceroute66",
-    "timeISO": "2025-11-23T18:29:06.000Z",
-    "textPlain": "> Secretive has been around for a while, I don't see why it's coming up now through this gist.Because this is different !Secretive required installation, which is both friction and security-sensitive tool written by a third party.This is native, written by Apple, available out-of-the-box in Tahoe.",
-    "parent": 46025945,
+    "timeISO": "2025-11-23T18:32:11.000Z",
+    "textPlain": "> It's a total pain in the ass to try to have password encrypted gpg or ssh keys in mac.Who uses password encrypted keys anyway ?  No exfiltration protection, and a sitting duck for unlimited automated password guessing attempts.Pre-Tahoe people used Yubikeys or Secretive.  But now this native tool is a better option than Secretive, even if Yubikeys still have their uses for the power-users.",
+    "parent": 46025932,
+    "depth": 2
+  },
+  {
+    "id": 46026082,
+    "by": "manuelabeledo",
+    "timeISO": "2025-11-23T18:35:12.000Z",
+    "textPlain": "This looks like the complete opposite, though? It’s easy and provides a convenient way to integrate SSH and TouchID.",
+    "parent": 46025932,
+    "depth": 2
+  },
+  {
+    "id": 46026171,
+    "by": "newsoftheday",
+    "timeISO": "2025-11-23T18:46:24.000Z",
+    "textPlain": "> It's a total pain in the ass to try to have password encrypted gpg or ssh keys in macI'm anti-Mac but for the year recently that I had to use one at work, no choice...I had no issues, none, using gpg or using a passphrase on my ssh keys.",
+    "parent": 46025932,
     "depth": 2
   },
   {
@@ -44,6 +164,14 @@
     "by": "simonw",
     "timeISO": "2025-11-23T18:27:01.000Z",
     "textPlain": "This Gist is about not needing to use Secretive any more.",
+    "parent": 46025945,
+    "depth": 2
+  },
+  {
+    "id": 46026020,
+    "by": "traceroute66",
+    "timeISO": "2025-11-23T18:29:06.000Z",
+    "textPlain": "> Secretive has been around for a while, I don't see why it's coming up now through this gist.Because this is different !Secretive required installation, which is both friction and security-sensitive tool written by a third party.This is native, written by Apple, available out-of-the-box in Tahoe.",
     "parent": 46025945,
     "depth": 2
   }
