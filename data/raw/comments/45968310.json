@@ -1,17 +1,17 @@
 [
   {
-    "id": 46022841,
-    "by": "prmph",
-    "timeISO": "2025-11-23T11:54:43.000Z",
-    "textPlain": "Yeah, the satisfies operator is powerful. One thing it allows you to do is to check that one expression is assignable to a type, without actually declaring or coercing the expression to be of that type.In my experience, here is summary of when you might want to use the various type features:- Using the \"as\" keyword tries to coerce/cast an expression to be of some type. This is the least safe, since it overrides proper type checking, at least to some extent. However, in many cases it still does some level of type checking, and it is sometimes necessary if you know something the type checker is unable to prove.- Declaring an expression to be of some type before initializing it. This is the strictest, and thus most safe, but sometimes it is inconvenient. You might want types to be inferred, which is a really useful  thing sometimes, e.g., in a fluent interface when each step constrains types in additional ways.- The satisfies keyword that bridge the gap between the above two: you want to assert/check that the expression is assignable to a certain type (which can be as loose or strict as you want it), whilst still retaining the original type that is inferred for the expression. Unlike \"as\", you are not (partially) overriding the type system. And unlike type declaration, you are also not actually declaring a type for the expression. I have found this very useful on numerous occasions.Having said that, there is weird (new?) behavior of the satisfies keyword where appending it to an expressions can cause the the expression itself to fail type-cheking internally, where it would otherwise be fine.This is strange, the basic premise of satisfies is to check if an expression satisfied a type. If there is a type violation at all, it should be at the expression/type boundary, not inside the expression.It's making it less useful for me.",
-    "parent": 45968310,
-    "depth": 1
-  },
-  {
     "id": 46019613,
     "by": "amake",
     "timeISO": "2025-11-23T00:31:00.000Z",
     "textPlain": "99% of my use of `satisfies` is to type-check exhaustivity in `switch` statements:    type Foo = 'foo' | 'bar';\n    \n    const myFoo: Foo = 'foo';\n    switch (myFoo) {\n      case 'foo':\n        // do stuff\n        break;\n      default:\n        myFoo satisfies never; // Error here because 'bar' not handled\n    }",
+    "parent": 45968310,
+    "depth": 1
+  },
+  {
+    "id": 46022841,
+    "by": "prmph",
+    "timeISO": "2025-11-23T11:54:43.000Z",
+    "textPlain": "Yeah, the satisfies operator is powerful. One thing it allows you to do is to check that one expression is assignable to a type, without actually declaring or coercing the expression to be of that type.In my experience, here is summary of when you might want to use the various type features:- Using the \"as\" keyword tries to coerce/cast an expression to be of some type. This is the least safe, since it overrides proper type checking, at least to some extent. However, in many cases it still does some level of type checking, and it is sometimes necessary if you know something the type checker is unable to prove.- Declaring an expression to be of some type before initializing it. This is the strictest, and thus most safe, but sometimes it is inconvenient. You might want types to be inferred, which is a really useful  thing sometimes, e.g., in a fluent interface when each step constrains types in additional ways.- The satisfies keyword bridges the gap between the above two: you want to assert/check that the expression is assignable to a certain type (which can be as loose or strict as you want it), whilst still retaining the original type that is inferred for the expression. Unlike \"as\", you are not overriding the type system. And you are also not actually declaring a type for the expression. I have found this very useful on numerous occasions.Having said that, there is weird (new?) behavior of the satisfies keyword where appending it to an expressions can cause the the expression itself to fail type-checking internally, where it would otherwise be fine.This is strange, the basic premise of satisfies is to check if an expression satisfies a type. If there is a type violation at all, it should be at the expression/type boundary, not inside the expression.It's making it less useful for me.",
     "parent": 45968310,
     "depth": 1
   },
@@ -28,6 +28,14 @@
     "by": "mcintyre1994",
     "timeISO": "2025-11-23T09:52:37.000Z",
     "textPlain": "Satisfies is very useful as a library author for testing your types. You can write `typetest` files that don't become part of the bundle but are compiled.One example is that we have a TS library for a JSON-RPC server that is horribly complex on the server side, returning different shapes of output based on input params. I don't think it can be typed with OpenAPI etc, but it can be with Typescript method overloads.But then instead of writing unit tests that either coerce or mock the server into returning each shape, we can write typetests like this to make sure our type juggling provides the exact right types to developers:    const rpc = null as unknown as Rpc<SomeApi>\n    const result = await rpc.someApi(input).send()\n    result satisfies {\n        value: {\n            nestedFieldForThisInput: number\n        }\n    }\n```The tradeoff is slightly longer compile times for the library since all this is checked at build time, but it provides a lot of flexibility for testing overloads and utility types in isolation.",
+    "parent": 45968310,
+    "depth": 1
+  },
+  {
+    "id": 46023230,
+    "by": "benced",
+    "timeISO": "2025-11-23T13:01:45.000Z",
+    "textPlain": "Meanwhile, Python can sometimes verify if something is an int or a string.",
     "parent": 45968310,
     "depth": 1
   },
@@ -152,6 +160,14 @@
     "depth": 2
   },
   {
+    "id": 46023129,
+    "by": "Normal_gaussian",
+    "timeISO": "2025-11-23T12:42:32.000Z",
+    "textPlain": "This is what I do:   class AbsurdError extends Error {\n     constructor(public value: unknown, message: string) {\n       super(message);\n       this.name = 'AbsurdError';\n     }\n   }\n   \n   function absurd(value: never, message: string) {\n     throw new AbsurdError(value, message);\n   }\n\nIncluding an error message and an error type helps if one does slip through to runtime. Additionally, the AbsurdError can be caught and escalated appropriately. And finally the absurd function can be used in an inline ternary etc. where alternatives like throw cannot.",
+    "parent": 46019613,
+    "depth": 2
+  },
+  {
     "id": 46021671,
     "by": "your_fin",
     "timeISO": "2025-11-23T08:06:59.000Z",
@@ -248,14 +264,6 @@
     "depth": 2
   },
   {
-    "id": 46021630,
-    "by": "locknitpicker",
-    "timeISO": "2025-11-23T07:53:07.000Z",
-    "textPlain": "> The average multi-year TypeScript developer I meet can barely write a basic utility type, let alone has any general (non TypeScript related) notion of cardinality or sub typing. Hell, ask someone to write a signature for array flat, you'd be surprised how many would fail.I think you're both exaggerating your blanket accusations of incompetence and confusing learning curve with mastering extremely niche techniques akin to language gotchas.",
-    "parent": 46018479,
-    "depth": 2
-  },
-  {
     "id": 46019464,
     "by": "stefan_",
     "timeISO": "2025-11-22T23:59:22.000Z",
@@ -264,10 +272,10 @@
     "depth": 2
   },
   {
-    "id": 46021043,
-    "by": "mohas",
-    "timeISO": "2025-11-23T05:32:45.000Z",
-    "textPlain": "to our defense, we want to build stuff not become ts wizards. also I've worked with libraries with heavy heavy typing that it was a nightmare if you wanted to use their lib in any other way than what they have imagined.",
+    "id": 46021630,
+    "by": "locknitpicker",
+    "timeISO": "2025-11-23T07:53:07.000Z",
+    "textPlain": "> The average multi-year TypeScript developer I meet can barely write a basic utility type, let alone has any general (non TypeScript related) notion of cardinality or sub typing. Hell, ask someone to write a signature for array flat, you'd be surprised how many would fail.I think you're both exaggerating your blanket accusations of incompetence and confusing learning curve with mastering extremely niche techniques akin to language gotchas.",
     "parent": 46018479,
     "depth": 2
   },
@@ -276,6 +284,14 @@
     "by": "undeveloper",
     "timeISO": "2025-11-22T21:50:24.000Z",
     "textPlain": "these are things most developers don't know how to do in most language's type systems. I think only rust with its focus on functional roots has seen similar focus on utilizing its type system to its fullest extent.",
+    "parent": 46018479,
+    "depth": 2
+  },
+  {
+    "id": 46021043,
+    "by": "mohas",
+    "timeISO": "2025-11-23T05:32:45.000Z",
+    "textPlain": "to our defense, we want to build stuff not become ts wizards. also I've worked with libraries with heavy heavy typing that it was a nightmare if you wanted to use their lib in any other way than what they have imagined.",
     "parent": 46018479,
     "depth": 2
   },
@@ -328,6 +344,14 @@
     "depth": 2
   },
   {
+    "id": 46023166,
+    "by": "Normal_gaussian",
+    "timeISO": "2025-11-23T12:50:26.000Z",
+    "textPlain": "You can use multiple tsconfig files to remove the compile time issue; this is quite common for test files anyway. Its not unusual to see one for CI & IDE and one for compilation, the compilation one having a much more limited scope of files.",
+    "parent": 46022129,
+    "depth": 2
+  },
+  {
     "id": 46021657,
     "by": "MrJohz",
     "timeISO": "2025-11-23T08:01:29.000Z",
@@ -373,30 +397,6 @@
     "timeISO": "2025-11-22T22:20:25.000Z",
     "textPlain": "With as const you can’t verify against another interface",
     "parent": 46018575,
-    "depth": 2
-  },
-  {
-    "id": 46021660,
-    "by": "another_twist",
-    "timeISO": "2025-11-23T08:02:12.000Z",
-    "textPlain": "I disagree. The speed with which Typescript replaced JS as the default is testament to its strength. I remember back is the good old JS only days you had to assume that all the form values we passed and read were strings and not an integer account number for example. Typescript solves these challenges and that alone eliminates a large class of frankly nonsensical bugs.The reason it is being rewritten in Go is so the compiler can be run at native speeds which is a good thing. Otherwise the only runtime we have available is NodeJS which has its fair share of problems. You can go far with TS with just interface definitions and some generics peppered in for common utilities. The places where all the type gymnastics is necessary are cases I frankly havent encountered in the usual course of development.",
-    "parent": 46020549,
-    "depth": 2
-  },
-  {
-    "id": 46021565,
-    "by": "knallfrosch",
-    "timeISO": "2025-11-23T07:38:26.000Z",
-    "textPlain": "Tell me when Go is browser ready",
-    "parent": 46020549,
-    "depth": 2
-  },
-  {
-    "id": 46019916,
-    "by": "int_19h",
-    "timeISO": "2025-11-23T01:29:51.000Z",
-    "textPlain": "It prevents you from mutating via the reference that you obtain from `satisfies` without casting its type, yes (or rather more precisely, you can mutate it, but only to the one allowed value).However, the object can still be mutated via other references to it. TypeScript is full of holes like this in the type system - the problem is that they are trying to bolt types and immutability onto a hot mess that is JS data model while preserving backwards compatibility.",
-    "parent": 46019523,
     "depth": 2
   }
 ]
