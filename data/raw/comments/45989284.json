@@ -16,11 +16,67 @@
     "depth": 1
   },
   {
+    "id": 46036883,
+    "by": "kouteiheika",
+    "timeISO": "2025-11-24T17:51:17.000Z",
+    "textPlain": "> Poisoning: Panic Safety in MutexesThis is one of the biggest design flaws in Rust's std, in my opinion.Poisoning mutexes can have its use, but it's very rare in practice. Usually it's a huge misfeature that only introduces problems. More often than not panicking in a critical section is fine[1], but on the other hand poisoning a Mutex is a very convenient avenue for a denial-of-service attack, since a poisoned Mutex will just completely brick a given critical section.I'm not saying such a project doesn't exist, but I don't think I've ever seen a project which does anything sensible with Mutex's `Poisoned` error besides ignoring it. It's always either an `unwrap` (and we know how well that can go [2]), or do the sensible thing and do this ridiculous song-and-dance:    let guard = match mutex {\n        Ok(guard) => guard,\n        Err(poisoned) => poisoned.into_inner()\n    };\n\nSuffice to say, it's a pain.So in a lot of projects when I need a mutex I just add `parking_lot`, because its performance is stellar, and it doesn't have the poisoning insanity to deal with.[1] -- obviously it depends on a case-by-case basis, but if you're using such a low level primitive you should know what you're doing[2] -- https://blog.cloudflare.com/18-november-2025-outage/#memory-...",
+    "parent": 45989284,
+    "depth": 1
+  },
+  {
     "id": 46036214,
     "by": "adzm",
     "timeISO": "2025-11-24T16:59:53.000Z",
     "textPlain": "The original webkit blog post about parking lot mutex implementation is a great read https://webkit.org/blog/6161/locking-in-webkit/",
     "parent": 45989284,
     "depth": 1
+  },
+  {
+    "id": 46037220,
+    "by": "Shelby-Thomas",
+    "timeISO": "2025-11-24T18:22:21.000Z",
+    "textPlain": "[dead]",
+    "parent": 45989284,
+    "depth": 1
+  },
+  {
+    "id": 46036573,
+    "by": "wahern",
+    "timeISO": "2025-11-24T17:27:59.000Z",
+    "textPlain": "> Prior to that issue Rust was using something much worse, pthread_mutex_tPresumably you're referring to this description, from the Github Issue:> > On most platforms, these structures are currently wrappers around their pthread equivalent, such as pthread_mutex_t. These types are not movable, however, forcing us to wrap them in a Box, resulting in an allocation and indirection for our lock types. This also gets in the way of a const constructor for these types, which makes static locks more complicated than necessary.pthread mutexes are const-constructible in a literal sense, just not in the sense Rust requires. In C you can initialize a pthread_mutex_t with the PTHREAD_MUTEX_INITIALIZER initializer list instead of pthread_mutex_init, and at least with glibc there's no subsequent allocation when using the lock. But Rust can't do in-place construction[1] (i.e. placement new in C++ parlance), which is why Rust needs to be able to \"move\" the mutex. Moving a mutex is otherwise non-sensical once the mutex is visible--it's the address of the mutex that the locking is built around.The only thing you gain by not using pthread_mutex_t is a possible smaller lock--pthread_mutex_t has to contain additional members to support robust, recursive, and error checking mutexes, though altogether that's only 2 or 3 additional words because some are union'd. I guess you also gain the ability to implement locking, including condition variables, barriers, etc, however you want, though now you can't share those through FFI.[1] At least not without unsafe and some extra work, which presumably is a non-starter for a library type where you want to keep it all transparent.",
+    "parent": 46036132,
+    "depth": 2
+  },
+  {
+    "id": 46036636,
+    "by": "strbean",
+    "timeISO": "2025-11-24T17:32:10.000Z",
+    "textPlain": "Seems like the simple solution to this problem would be to have both, no?A simple native lock in the standard library along with a nicer implementation (also in the standard library) that depends on the simple lock?",
+    "parent": 46036132,
+    "depth": 2
+  },
+  {
+    "id": 46036769,
+    "by": "scottlamb",
+    "timeISO": "2025-11-24T17:41:36.000Z",
+    "textPlain": "> The main benefit of parking lot is that it makes locks very small, which then encourages the use of fine grained locking. For example, in JavaScriptCore (ParkingLot’s first customer), we stuff a 2-bit lock into every object header - so if there is ever a need to do some locking for internal VM reasons on any object we can do that without increasing the size of the objectIMHO that's a very cool feature which is essentially wasted when using it as a `Mutex<InnerBlah>` because the mutex's size will get rounded up to the alignment of `InnerBlah`. And even when not doing that, afaict `parking_lot` doesn't expose a way to use the remaining six bits in `parking_lot::RawMutex`. I think the new std mutexes made the right choice to use a different design.> I’m surprised that this only compared to std on one platform (Linux).Can't speak for the author, but I suspect a lot of people really only care about performance under Linux. I write software that I often develop from a Mac but almost entirely deploy on Linux. (But speaking of Macs: std::mutex doesn't yet use futexes on macOS. Might happen soon. https://github.com/rust-lang/rust/pull/122408)",
+    "parent": 46035698,
+    "depth": 2
+  },
+  {
+    "id": 46036632,
+    "by": "nextaccountic",
+    "timeISO": "2025-11-24T17:31:53.000Z",
+    "textPlain": "How can a parking_lot lock be less than 1 byte? does this uses unsafe?Rust in general doesn't support bit-level objects unless you cast things to [u8] and do some shifts and masking manually (that is, like C), which of course is wildly unsafe for data structures with safety invariants",
+    "parent": 46035698,
+    "depth": 2
+  },
+  {
+    "id": 46037187,
+    "by": "thayne",
+    "timeISO": "2025-11-24T18:19:17.000Z",
+    "textPlain": "There are cases where it is useful.I had a case where if the mutex was poisened it was possible to reset the lock to a safe state (by writing a new value to the locked content).Or you may want to drop some resource or restart some operation instead of panicing if it is poisoned.But I agree that the default behavior should be that the user doesn't have to worry about it.",
+    "parent": 46036883,
+    "depth": 2
   }
 ]
