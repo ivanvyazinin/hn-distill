@@ -8,18 +8,18 @@
     "depth": 1
   },
   {
-    "id": 46031054,
-    "by": "justinmayer",
-    "timeISO": "2025-11-24T06:41:29.000Z",
-    "textPlain": "Interesting to see two similar projects with the same \"cmux\" name, at least until this one was renamed two weeks ago to \"mux\". Naming is hard.I have not yet tried either one, but here is the other project for those who want to compare and contrast them:https://github.com/manaflow-ai/cmux",
-    "parent": 46027947,
-    "depth": 1
-  },
-  {
     "id": 46029122,
     "by": "nojs",
     "timeISO": "2025-11-24T01:02:34.000Z",
     "textPlain": "This looks very useful.I would love something similar that lets me plug in actual Claude Code/Codex with their original agent loop, prompting etc, and just handles the multiplexing, worktrees, isolation, etc automatically (it looks like this tool doesn’t support that). Because I think a lot of the power of eg CC comes from the engineering they’ve done to the tool rather than the underlying model.How are people doing this at the moment?",
+    "parent": 46027947,
+    "depth": 1
+  },
+  {
+    "id": 46031054,
+    "by": "justinmayer",
+    "timeISO": "2025-11-24T06:41:29.000Z",
+    "textPlain": "Interesting to see two similar projects with the same \"cmux\" name, at least until this one was renamed two weeks ago to \"mux\". Naming is hard.I have not yet tried either one, but here is the other project for those who want to compare and contrast them:https://github.com/manaflow-ai/cmux",
     "parent": 46027947,
     "depth": 1
   },
@@ -38,6 +38,14 @@
     "textPlain": "The issue I run into is with integration tests that rely on docker. If two agents try to run tests at the same time it doesn't work. I need to manually do air traffic control on the agents use of higher level tests suites.",
     "parent": 46027947,
     "depth": 1
+  },
+  {
+    "id": 46031327,
+    "by": "videlov",
+    "timeISO": "2025-11-24T07:32:48.000Z",
+    "textPlain": "(co-founder of GitButler here)We chose not to use separate git worktrees under the hood for this functionality. Let me try to break down why, maybe there's an opportunity for me to learn more here.In my head I separate between use cases of 1) \"different tasks\" and 2) \"best of n, same task\".The app that we built already had the ability to separate changes into branches while in the worktree (on disk) it renders the integration of the branches. Our canonical use case back in the days was \"A developer works on a feature branch and wishes to commit & publish a bugfix from separate branch\". When we learned that people were using this for running multiple parallel agents we added some additional tooling for it.So in practice what happens when you have multiple agents coding in parallel with GitButler is that the system captures information after an agent completes an edit (via the agent hooks) and uses that to 1) stage the particular edit to a branch dedicated to the agent and 2) perform a commit into that branch (GB can have multiple staging areas, one per applied branch).The system will not allow multiple agents to edit the same file at the same time (via a locking mechanism in the pre-edit hook), but agents do see each others changes.In the context of the \"different tasks for different agents\" use case, we have found that them seeing edits by others to have a positive effect on the outcomes. The first one that comes to mind is - no merge conflicts. But beyond merge conflicts, we have found that there is a lower likelihood of reaching a state where code diverges semantically.In my own usage, I have found it helpful when I am hands on programming on something and wish to have an agent do some auxiliary task, for us to share a workspace (so that I can nudge it one way or another).Is there something I am missing here? Of course for best-of-n of the same task this doesn't exactly make sense, but with regards to different tasks, what are some additional reasons to require fu",
+    "parent": 46028424,
+    "depth": 2
   },
   {
     "id": 46030065,
@@ -60,14 +68,6 @@
     "by": "CGamesPlay",
     "timeISO": "2025-11-24T03:42:36.000Z",
     "textPlain": "> While it can be super powerful, I wish there was a quicker \"in memory\" agent solution where each agent keeps in its own RAM the list of files modifications (\"patch\") it recommends to apply to solve current issue. Then we could apply that patch depending on what we're doing, if we have others patches to apply before etc.Then the changes can't be tested to even verify that they pass the compiler/linter, much less tested to confirm they actually work. The only way to fix this is to \"modify local files\", where \"local files\" is either a separate worktree (that you don't manage or need to know the location of, possibly even on a separate machine); or a hacky, vibe-coded, in-memory VFS; or somewhere in between.",
-    "parent": 46028424,
-    "depth": 2
-  },
-  {
-    "id": 46031115,
-    "by": "undeveloper",
-    "timeISO": "2025-11-24T06:54:56.000Z",
-    "textPlain": "gitbutler is neat, but doesn't separate out files -- the changes are still visible to other sessions",
     "parent": 46028424,
     "depth": 2
   },
@@ -100,6 +100,22 @@
     "by": "Jhsto",
     "timeISO": "2025-11-24T00:24:51.000Z",
     "textPlain": "What about using CoW file system snapshots and then mounting it on overlayfs as the lowerdir while having the agent's working directory be the upper directory? I wonder how the agent reacts to finding some files being immutable.",
+    "parent": 46028424,
+    "depth": 2
+  },
+  {
+    "id": 46031297,
+    "by": "brainless",
+    "timeISO": "2025-11-24T07:29:36.000Z",
+    "textPlain": "In my coding agent, nocodo (1), I am thinking about using copy on write filesystems for cheaper multi-agent operations. But to be honest git worktree may be good enough for most use cases. nocodo checks existing worktree in the local repo and I will add creation and merge support too.1. https://github.com/brainless/nocodo",
+    "parent": 46028424,
+    "depth": 2
+  },
+  {
+    "id": 46031115,
+    "by": "undeveloper",
+    "timeISO": "2025-11-24T06:54:56.000Z",
+    "textPlain": "gitbutler is neat, but doesn't separate out files -- the changes are still visible to other sessions",
     "parent": 46028424,
     "depth": 2
   },
@@ -149,6 +165,14 @@
     "timeISO": "2025-11-24T02:57:56.000Z",
     "textPlain": "Since CC is a terminal app you can spin up a container with your project, dependencies and CC already installed easily via docker, then just ssh in and run claude remotely. Tmux if desired. Save work by doing pull requests.",
     "parent": 46029122,
+    "depth": 2
+  },
+  {
+    "id": 46031651,
+    "by": "adastra22",
+    "timeISO": "2025-11-24T08:28:25.000Z",
+    "textPlain": "I don't understand. Why is docker an issue?",
+    "parent": 46029873,
     "depth": 2
   }
 ]
