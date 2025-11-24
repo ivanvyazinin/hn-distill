@@ -16,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 46037880,
-    "by": "kccqzy",
-    "timeISO": "2025-11-24T19:10:44.000Z",
-    "textPlain": "I will personally recommend that unless you are writing performance sensitive code*, don’t use mutexes at all because they are too low-level an abstraction. Use MPSC queues for example, or something like RCU. I find these abstractions much more developer friendly.",
+    "id": 46036214,
+    "by": "adzm",
+    "timeISO": "2025-11-24T16:59:53.000Z",
+    "textPlain": "The original webkit blog post about parking lot mutex implementation is a great read https://webkit.org/blog/6161/locking-in-webkit/",
     "parent": 45989284,
     "depth": 1
   },
@@ -32,10 +32,18 @@
     "depth": 1
   },
   {
-    "id": 46036214,
-    "by": "adzm",
-    "timeISO": "2025-11-24T16:59:53.000Z",
-    "textPlain": "The original webkit blog post about parking lot mutex implementation is a great read https://webkit.org/blog/6161/locking-in-webkit/",
+    "id": 46037880,
+    "by": "kccqzy",
+    "timeISO": "2025-11-24T19:10:44.000Z",
+    "textPlain": "I will personally recommend that unless you are writing performance sensitive code*, don’t use mutexes at all because they are too low-level an abstraction. Use MPSC queues for example, or something like RCU. I find these abstractions much more developer friendly.*: You may be, since you are using Rust.",
+    "parent": 45989284,
+    "depth": 1
+  },
+  {
+    "id": 46038754,
+    "by": "mgaunard",
+    "timeISO": "2025-11-24T20:20:08.000Z",
+    "textPlain": "tl;dr: the implementation that is designed for fairness has lower standard deviation under contention, but otherwise performs slightly worse.Nothing too surprising.",
     "parent": 45989284,
     "depth": 1
   },
@@ -46,6 +54,22 @@
     "textPlain": "[dead]",
     "parent": 45989284,
     "depth": 1
+  },
+  {
+    "id": 46038195,
+    "by": "Barry-Perkins",
+    "timeISO": "2025-11-24T19:32:57.000Z",
+    "textPlain": "[dead]",
+    "parent": 45989284,
+    "depth": 1
+  },
+  {
+    "id": 46038328,
+    "by": "tialaramex",
+    "timeISO": "2025-11-24T19:43:59.000Z",
+    "textPlain": "> This means SRW locks on Windows, and futex-based locks on Linux, some BSDs, and Wasm.Note that the SRW Locks are gone, except if you're on a very old Windows. So today the Rust built-in std mutex for your platform is almost certainly basically a futex though if it is on Windows it is not called a futex and from some angles is better - the same core ideas of the futex apply, we only ask the OS to do any work when we're contended, there is no OS limited resource (other than memory) and our uncontended operations are as fast as they could ever be.SRW Locks were problematic because they're bulkier than a futex (though mostly when contended) and they have a subtle bug and for a long time it was unclear when Microsoft would get around to fixing that which isn't a huge plus sign for an important intrinsic used in all the high performance software on a $$$ commercial OS...Mara's work (which you linked) is probably more work, and more important, but it's not actually the most recent large reworking of Rust's Mutex implementation.",
+    "parent": 46036132,
+    "depth": 2
   },
   {
     "id": 46036573,
@@ -96,11 +120,27 @@
     "depth": 2
   },
   {
+    "id": 46038090,
+    "by": "JoshTriplett",
+    "timeISO": "2025-11-24T19:24:50.000Z",
+    "textPlain": "We're currently working on separating poison from mutexes, such that the default mutexes won't have poisoning (no more `.lock().unwrap()`), and if you want poisoning you can use something like `Mutex<Poison<T>>`.",
+    "parent": 46036883,
+    "depth": 2
+  },
+  {
     "id": 46037187,
     "by": "thayne",
     "timeISO": "2025-11-24T18:19:17.000Z",
     "textPlain": "There are cases where it is useful.I had a case where if the mutex was poisened it was possible to reset the lock to a safe state (by writing a new value to the locked content).Or you may want to drop some resource or restart some operation instead of panicing if it is poisoned.But I agree that the default behavior should be that the user doesn't have to worry about it.",
     "parent": 46036883,
+    "depth": 2
+  },
+  {
+    "id": 46038810,
+    "by": "jltsiren",
+    "timeISO": "2025-11-24T20:24:56.000Z",
+    "textPlain": "A mutex is a natural abstraction when there is exactly one of them. You have a bunch of tasks doing their own stuff, with shared mutable state behind the mutex. When you start thinking about using two mutexes, other abstractions often become more convenient.",
+    "parent": 46037880,
     "depth": 2
   }
 ]

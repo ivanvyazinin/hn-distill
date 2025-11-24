@@ -8,10 +8,26 @@
     "depth": 1
   },
   {
+    "id": 46038742,
+    "by": "ThinkBeat",
+    "timeISO": "2025-11-24T20:19:17.000Z",
+    "textPlain": "I find it a bit odd that they seem to have gone from having OpenBSD\nas the standard and are not moving to FreeBSD and Ubuntu.I an not sure what role these computers that may transition to Ubuntu\ndo, there are probably good reasons, I wish he had expanded on it.",
+    "parent": 45980474,
+    "depth": 1
+  },
+  {
     "id": 46037429,
     "by": "SoftTalker",
     "timeISO": "2025-11-24T18:38:41.000Z",
     "textPlain": "As noted, recent changes to OpenBSD TCP handling[1] may improve performance.On a 4 core machine I see between 12% to 22% improvement with 10\nparallel TCP streams.  When testing only with a single TCP stream,\nthroughput increases between 38% to 100%.I'm not sure that directly translates to better pf performance, and four cores is hardly remarkable these days but might be typical on a small low-power router?Would be interesting if someone had a recent benchmark comparison of OpenBSD 7.8 PF vs. FreeBSD's latest.[1] https://undeadly.org/cgi?action=article;sid=20250508122430",
+    "parent": 45980474,
+    "depth": 1
+  },
+  {
+    "id": 46038190,
+    "by": "Y_Y",
+    "timeISO": "2025-11-24T19:32:44.000Z",
+    "textPlain": "So you don't like OpenBSD, but you do like Ubuntu?This person seems like they know wht they are talking about and given it serious thought, but I cannot fathom how you could make such a conclusion today.",
     "parent": 45980474,
     "depth": 1
   },
@@ -56,14 +72,6 @@
     "depth": 1
   },
   {
-    "id": 46037651,
-    "by": "theideaofcoffee",
-    "timeISO": "2025-11-24T18:53:58.000Z",
-    "textPlain": "Just more navel-gazing from UTCC. I still don't understand why all of these submissions get upvoted so often. 10G performance just really isn't that interesting anymore, maybe around 2005 when it was the new kid on the block. If they were talking about squeezing firewall performance out of a box with a couple of 200g or 400g adapters and on run-of-the-mill CPUs and no offloading or something like Netflix publishes with their BSD work, I'd be more interested.",
-    "parent": 45980474,
-    "depth": 1
-  },
-  {
     "id": 46037376,
     "by": "wslh",
     "timeISO": "2025-11-24T18:34:59.000Z",
@@ -72,11 +80,27 @@
     "depth": 1
   },
   {
-    "id": 46037963,
-    "by": "guerby",
-    "timeISO": "2025-11-24T19:16:17.000Z",
-    "textPlain": "We migrated to a linux nftables based firewall.I never liked iptables, but nftables is pretty nice to write and use.And with one \"flowtable\" line added to your nftables.conf you can even in theory have faster routing when conntrack is activehttps://thermalcircle.de/doku.php?id=blog:linux:flowtables_1...",
-    "parent": 46037601,
+    "id": 46037651,
+    "by": "theideaofcoffee",
+    "timeISO": "2025-11-24T18:53:58.000Z",
+    "textPlain": "Just more navel-gazing from UTCC. I still don't understand why all of these submissions get upvoted so often. 10G performance just really isn't that interesting anymore, maybe around 2005 when it was the new kid on the block. If they were talking about squeezing firewall performance out of a box with a couple of 200g or 400g adapters and on run-of-the-mill CPUs and no offloading or something like Netflix publishes with their BSD work, I'd be more interested.",
+    "parent": 45980474,
+    "depth": 1
+  },
+  {
+    "id": 46038277,
+    "by": "wahern",
+    "timeISO": "2025-11-24T19:38:43.000Z",
+    "textPlain": "That particular change improves throughput received locally. Though over the past few years there's been a ton of work on unlocking the network layer generally to support more parallelism.For a firewall I guess the critical question is the degree of parallelism supported by OpenBSD's PF stack, especially as it relates to common features like connection statefulness, NAT, etc.",
+    "parent": 46037429,
+    "depth": 2
+  },
+  {
+    "id": 46038566,
+    "by": "toast0",
+    "timeISO": "2025-11-24T20:05:41.000Z",
+    "textPlain": "If they're concerned about performance, yeah. OpenBSD doesn't do the basics that you need to get the most out of your SMP hardware; there's no way to set cpu affinity at least from userland, and clear that this sort of work is not a priority for OpenBSD; it's not easy work, but FreeBSD has done it. Beyond CPU affinity, you also need your network structures setup to reduce lock contention, things like fine grained locks, hashed subtables and/or \"lockless\" tables, configuring the NICs as close as possible to one queue per core and keeping flows on the same queue which is pinned to a single core so that the per flow locks never contend and don't bounce between cores.Ubuntu/Linux do have reasonable performance, but I think they prefer PF firewalls, so that makes Linux a non-option for firewalls.Personally, I don't really care for PF, but it offers pfsync, which I do care for, so I use it and ipfw... but I need to check in, I think FreeBSD PF may have added the hooks I use ipfw for (bandwidth limits/shaping/queue discipline).",
+    "parent": 46038190,
     "depth": 2
   },
   {
@@ -88,10 +112,26 @@
     "depth": 2
   },
   {
-    "id": 46037899,
-    "by": "rfmoz",
-    "timeISO": "2025-11-24T19:11:36.000Z",
-    "textPlain": "Let me extend the question to what’s wrong with NFTables on Linux? It’s a different way to manage Netfilter, out of IPTables",
+    "id": 46038578,
+    "by": "wasting_time",
+    "timeISO": "2025-11-24T20:06:47.000Z",
+    "textPlain": "Compared to working with iptables, PF is like this haiku:\n\n  A breath of fresh air,\n  floating on white rose petals,\n  eating strawberries.\n\n  Now I'm getting carried away:\n\n  Hartmeier codes now,\n  Henning knows not why it fails,\n  fails only for n00b.\n\n  Tables load my lists,\n  tarpit for the asshole spammer,\n  death to his mail store.\n\n  CARP due to Cisco,\n  redundant blessed packets,\n  licensed free for me.\n\n(From https://marc.info/?l=openbsd-pf&m=108507584013046&w=2 )Nftables has improved the situation on Linux somewhat, but PF is incredibly intuitive and powerful. A league of its own when it comes to firewalling.",
+    "parent": 46037601,
+    "depth": 2
+  },
+  {
+    "id": 46037963,
+    "by": "guerby",
+    "timeISO": "2025-11-24T19:16:17.000Z",
+    "textPlain": "We migrated to a linux nftables based firewall.I never liked iptables, but nftables is pretty nice to write and use.And with one \"flowtable\" line added to your nftables.conf you can even in theory have faster routing when conntrack is activehttps://thermalcircle.de/doku.php?id=blog:linux:flowtables_1...",
+    "parent": 46037601,
+    "depth": 2
+  },
+  {
+    "id": 46038119,
+    "by": "mikey_p",
+    "timeISO": "2025-11-24T19:27:16.000Z",
+    "textPlain": "Because of PF or Packet Filter (the PF in pfSense FWIW): https://en.wikipedia.org/wiki/PF_(firewall)",
     "parent": 46037601,
     "depth": 2
   },
@@ -100,6 +140,14 @@
     "by": "nesarkvechnep",
     "timeISO": "2025-11-24T19:08:02.000Z",
     "textPlain": "What's wrong with using any BSD? Can't people use whatever suits their needs?",
+    "parent": 46037601,
+    "depth": 2
+  },
+  {
+    "id": 46037899,
+    "by": "rfmoz",
+    "timeISO": "2025-11-24T19:11:36.000Z",
+    "textPlain": "Let me extend the question to what’s wrong with NFTables on Linux? It’s a different way to manage Netfilter, out of IPTables",
     "parent": 46037601,
     "depth": 2
   },
@@ -120,18 +168,18 @@
     "depth": 2
   },
   {
-    "id": 46037593,
-    "by": "SoftTalker",
-    "timeISO": "2025-11-24T18:49:58.000Z",
-    "textPlain": "Yet companies insist on enabling unattended upgrades at least for \"security\" patches, which have introduced breakage or even their own vulnerabilities in the past (Crowdstrike was a recent dramatic example).OpenBSD will just tell you that maintaining an LTS release is not one of their goals and if that's what you need you'll be better served by running another OS.",
-    "parent": 46037379,
-    "depth": 2
-  },
-  {
     "id": 46037578,
     "by": "rootnod3",
     "timeISO": "2025-11-24T18:48:44.000Z",
     "textPlain": "On the other hand though, updates on OpenBSD are the most painless updates I have ever done. I am more concerned about it's usage of UFS instead of something more robust for drives.",
+    "parent": 46037379,
+    "depth": 2
+  },
+  {
+    "id": 46037593,
+    "by": "SoftTalker",
+    "timeISO": "2025-11-24T18:49:58.000Z",
+    "textPlain": "Yet companies insist on enabling unattended upgrades at least for \"security\" patches, which have introduced breakage or even their own vulnerabilities in the past (Crowdstrike was a recent dramatic example).OpenBSD will just tell you that maintaining an LTS release is not one of their goals and if that's what you need you'll be better served by running another OS.",
     "parent": 46037379,
     "depth": 2
   },
@@ -144,10 +192,10 @@
     "depth": 2
   },
   {
-    "id": 46037654,
-    "by": "zokier",
-    "timeISO": "2025-11-24T18:54:07.000Z",
-    "textPlain": "You mean like DPDK?",
+    "id": 46038226,
+    "by": "miladyincontrol",
+    "timeISO": "2025-11-24T19:34:59.000Z",
+    "textPlain": "Sorta, but only with ancient windows XP drivers. It was a useful stopgap of it's era but linux networking drivers have more than caught up in the meantime.",
     "parent": 46037376,
     "depth": 2
   },
@@ -156,6 +204,14 @@
     "by": "awesome_dude",
     "timeISO": "2025-11-24T18:45:09.000Z",
     "textPlain": "Microsoft started out with BSD's TCP/IP stack, but dropped it for their own (back in Windows 3.5 apparently - https://news.ycombinator.com/item?id=41495551)",
+    "parent": 46037376,
+    "depth": 2
+  },
+  {
+    "id": 46037654,
+    "by": "zokier",
+    "timeISO": "2025-11-24T18:54:07.000Z",
+    "textPlain": "You mean like DPDK?",
     "parent": 46037376,
     "depth": 2
   }
