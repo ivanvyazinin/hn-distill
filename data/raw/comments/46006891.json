@@ -1,9 +1,9 @@
 [
   {
-    "id": 46035013,
-    "by": "sandGorgon",
-    "timeISO": "2025-11-24T15:18:06.000Z",
-    "textPlain": "does anyone know the size at openai ? it used to run a 7500 node cluster back in 2021 https://openai.com/index/scaling-kubernetes-to-7500-nodes/",
+    "id": 46035644,
+    "by": "__turbobrew__",
+    "timeISO": "2025-11-24T16:13:20.000Z",
+    "textPlain": "It makes me sad that to get these scalability numbers requires some secret sauce on top of spanner, which no body else in the k8s community can benefit from. Etcd is the main bottleneck in upstream k8s and it seems like there is no real steam to build an upstream replacement for etcd/boltdb.I did poke around a while ago to see what interfaces that etcd has calling into boltdb, but the interface doesn’t seem super clean right now, so the first step in getting off boltdb would be creating a clean interface that could be implemented by another db.",
     "parent": 46006891,
     "depth": 1
   },
@@ -16,10 +16,26 @@
     "depth": 1
   },
   {
+    "id": 46035239,
+    "by": "Nextgrid",
+    "timeISO": "2025-11-24T15:37:49.000Z",
+    "textPlain": "K8S clusters on VMs strike me as odd.I see the appeal of K8s in dividing raw, stateful hardware to run multiple parallel workloads, but if you're dealing with stateless cloud VMs, why would you need K8S and its overhead when the VM hypervisor already gives you all that functionality?And if you insist anyway, run a few big VMs rather than many small ones, since K8s overhead is per-node.",
+    "parent": 46006891,
+    "depth": 1
+  },
+  {
     "id": 46033079,
     "by": "yanhangyhy",
     "timeISO": "2025-11-24T11:50:45.000Z",
     "textPlain": "there is a doc about how to do with 1M nodes: https://bchess.github.io/k8s-1m/#_whyso i guess the title is not true?",
+    "parent": 46006891,
+    "depth": 1
+  },
+  {
+    "id": 46035013,
+    "by": "sandGorgon",
+    "timeISO": "2025-11-24T15:18:06.000Z",
+    "textPlain": "does anyone know the size at openai ? it used to run a 7500 node cluster back in 2021 https://openai.com/index/scaling-kubernetes-to-7500-nodes/",
     "parent": 46006891,
     "depth": 1
   },
@@ -40,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 46032383,
-    "by": "rvz",
-    "timeISO": "2025-11-24T10:18:49.000Z",
-    "textPlain": "> While we don’t yet officially support 130K nodes, we're very encouraged by these findings. If your workloads require this level of scale, reach out to us to discuss your specific needsObviously this is a typical experiment at Google on running a K8s cluster at 130K nodes but if there is a company out their that \"requires\" this scale, I must question their architecture and their infrastructure costs.But of course someone will always request that they somehow need this sort of scale to run their enterprise app. But once again, let's remind the pre-revenue startups talking about scale before they hit PMF:Unless you are ready to donate tens of billions of dollars yearly, you do not need this.You are not Google.",
+    "id": 46035219,
+    "by": "blamestross",
+    "timeISO": "2025-11-24T15:36:21.000Z",
+    "textPlain": "I worked in DHTs in grad school. I still double take that Google and other companies \"computers dedicated to a task\" numbers are missing 2 digits from what I expected. We have a lot of room left for expansion, we just have to relax centralized management expectations.",
     "parent": 46006891,
     "depth": 1
   },
@@ -52,6 +68,22 @@
     "by": "jakupovic",
     "timeISO": "2025-11-24T12:04:44.000Z",
     "textPlain": "Doing this at anything > 1k nodes is a pain in the butt. We decided to run many <100 nodes clusters rather than a few big ones.",
+    "parent": 46006891,
+    "depth": 1
+  },
+  {
+    "id": 46035427,
+    "by": "supportengineer",
+    "timeISO": "2025-11-24T15:53:14.000Z",
+    "textPlain": "Imagine a Beowulf cluster of these",
+    "parent": 46006891,
+    "depth": 1
+  },
+  {
+    "id": 46032383,
+    "by": "rvz",
+    "timeISO": "2025-11-24T10:18:49.000Z",
+    "textPlain": "> While we don’t yet officially support 130K nodes, we're very encouraged by these findings. If your workloads require this level of scale, reach out to us to discuss your specific needsObviously this is a typical experiment at Google on running a K8s cluster at 130K nodes but if there is a company out their that \"requires\" this scale, I must question their architecture and their infrastructure costs.But of course someone will always request that they somehow need this sort of scale to run their enterprise app. But once again, let's remind the pre-revenue startups talking about scale before they hit PMF:Unless you are ready to donate tens of billions of dollars yearly, you do not need this.You are not Google.",
     "parent": 46006891,
     "depth": 1
   },
@@ -104,6 +136,46 @@
     "depth": 2
   },
   {
+    "id": 46035326,
+    "by": "nonameiguess",
+    "timeISO": "2025-11-24T15:43:53.000Z",
+    "textPlain": "It says in the blog that they require 13,000 queries per second to update lease objects, not that 13,000 is the total for all queries. I don't know why they cite that instead of total, but etcd's normal performance testing indicates it can handle at least 50,000 writes per second and 180,000 reads: https://etcd.io/docs/v3.6/op-guide/performance/. So, without them saying what the real number is, I'm going to guess their reads and writes outside of lease updates are at least much larger than those numbers.",
+    "parent": 46032386,
+    "depth": 2
+  },
+  {
+    "id": 46035484,
+    "by": "locknitpicker",
+    "timeISO": "2025-11-24T15:59:00.000Z",
+    "textPlain": "> I see the appeal of K8s in dividing raw, stateful hardware to run multiple parallel workloads, but if you're dealing with stateless cloud VMs, why would you need K8S and its overhead when the VM hypervisor already gives you all that functionality?I think you're not familiar with Kubernetes and what features it provides.For example, kubernetes supports blue-green deployments and rollbacks, software-defined networks, DNS, node-specific purges and taints, etc. Those are not hypervisor features.Also, VMs are the primitives of some cloud providers.It sounds like you heard about how Borg/Kubernetes was used to simplify the task of putting together clusters with COTS hardware and you didn't bothered to learn more about Kubernetes.",
+    "parent": 46035239,
+    "depth": 2
+  },
+  {
+    "id": 46035448,
+    "by": "victorbjorklund",
+    "timeISO": "2025-11-24T15:55:48.000Z",
+    "textPlain": "Because k8s gives you lots of other things out of the box like easy scaling of apps etc. Harder to do on VM:s where you would either have to dedicate one VM per app (might be a waste of resources) or you have to try and deploy and run multiple apps on multiple VM:s etc.(For the record I’m not a k8s fanatic. Most of the time a regular VM is better. But a VM isn’t = a kubernetes cluster).",
+    "parent": 46035239,
+    "depth": 2
+  },
+  {
+    "id": 46035528,
+    "by": "acedTrex",
+    "timeISO": "2025-11-24T16:03:09.000Z",
+    "textPlain": "because if you just do a few huge VMs you still have all the problems that k8s solves out of the box. Except now you have to solve them yourself, which will likely end up being a crappier less robust version of kubernetes.",
+    "parent": 46035239,
+    "depth": 2
+  },
+  {
+    "id": 46035466,
+    "by": "GauntletWizard",
+    "timeISO": "2025-11-24T15:57:20.000Z",
+    "textPlain": "The reason to target k8s on cloud vms is that cloud VMs don't subdivide as easily or as cleanly. Managing them is a pain. K8s is an abstraction layer for that - Rather than building whole machine images for each product, you create lighter weight docker images (how light weight is a point of some contention), and you only have to install your logging, monitoring, and etc once.Your advice about bigger machines is spot on - K8s biggest problem is how relatively heavyweight the kublet is, with memory requirements of roughly half a gig. On a modern 128g server node that's a reasonable overhead, for small companies running a few workloads on 16g nodes it's a cost of doing business, but if you're running 8 or 4g nodes, it looks pretty grim for your utilization.",
+    "parent": 46035239,
+    "depth": 2
+  },
+  {
     "id": 46033946,
     "by": "arccy",
     "timeISO": "2025-11-24T13:37:31.000Z",
@@ -136,6 +208,30 @@
     "depth": 2
   },
   {
+    "id": 46033436,
+    "by": "kvrty",
+    "timeISO": "2025-11-24T12:35:33.000Z",
+    "textPlain": "Same here. Non Kubernetes project originated control plane components start failing beyond a certain limit - your ingress controllers, service meshes etc. So I don't usually take node numbers from these benchmarks seriously for our kind of workloads. We run a bunch of sub-1k node clusters.",
+    "parent": 46033184,
+    "depth": 2
+  },
+  {
+    "id": 46034038,
+    "by": "liveoneggs",
+    "timeISO": "2025-11-24T13:46:12.000Z",
+    "textPlain": "Same. The control plane and various controllers just aren't up to the task.",
+    "parent": 46033184,
+    "depth": 2
+  },
+  {
+    "id": 46035174,
+    "by": "preisschild",
+    "timeISO": "2025-11-24T15:32:38.000Z",
+    "textPlain": "Meh, I've had had clusters with close to 1k nodes (w/ cilium as CNI) and didnt have major issues",
+    "parent": 46033184,
+    "depth": 2
+  },
+  {
     "id": 46034598,
     "by": "game_the0ry",
     "timeISO": "2025-11-24T14:38:47.000Z",
@@ -157,22 +253,6 @@
     "timeISO": "2025-11-24T12:03:13.000Z",
     "textPlain": ">You are not Google.It's literally Google coming out with this capability and how is the criticism still \"You are not Google\"",
     "parent": 46032383,
-    "depth": 2
-  },
-  {
-    "id": 46033436,
-    "by": "kvrty",
-    "timeISO": "2025-11-24T12:35:33.000Z",
-    "textPlain": "Same here. Non Kubernetes project originated control plane components start failing beyond a certain limit - your ingress controllers, service meshes etc. So I don't usually take node numbers from these benchmarks seriously for our kind of workloads. We run a bunch of sub-1k node clusters.",
-    "parent": 46033184,
-    "depth": 2
-  },
-  {
-    "id": 46034038,
-    "by": "liveoneggs",
-    "timeISO": "2025-11-24T13:46:12.000Z",
-    "textPlain": "Same. The control plane and various controllers just aren't up to the task.",
-    "parent": 46033184,
     "depth": 2
   },
   {
