@@ -144,6 +144,14 @@
     "depth": 2
   },
   {
+    "id": 46044793,
+    "by": "exDM69",
+    "timeISO": "2025-11-25T11:29:24.000Z",
+    "textPlain": "I disagree, lock poisoning is a good way of improving correctness of concurrent code in case of fatal errors. As demonstrated by the benchmarks in this article, it's not very expensive for typical use cases.In 99% of the cases where one thread has panic'd while holding a lock, you want to panic the thread that attempts to grab the lock. The contents of anything inside the lock is very much undefined and continuing will lead to unpredictable results. So most of the time you just want:    let guard = mutex.lock().expect(\"poisoned\");\n\nThe last 1% is when you want to clean up something even if a panic has occured. This is usually in a impl Drop situation. It's not much more verbose either, just:    let guard = mutex.lock().unwrap_or_else(|poison| poison.into_inner());\n\nWhat is painful is trying to propagate the poison value as an error using `?`. In that case you're probably better off using a match expression because the usual `.into()` will not play nice with common error handling crates (thiserror, anyhow) or need to implement `From` manually for the error types and drop the contents of the poison error before propagating.This might be the case for long running server processes where you have n:m threading with long running threads and want to keep processing other requests even if one request fails. Although in that case you probably want (or your framework provides) some kind of robustness with `catch_unwind` that will log the errors, respond with HTTP 500 or whatever and then resume. Because that's needed to catch panics from non-mutex related code.",
+    "parent": 46036883,
+    "depth": 2
+  },
+  {
     "id": 46037570,
     "by": "sunshowers",
     "timeISO": "2025-11-24T18:47:58.000Z",
