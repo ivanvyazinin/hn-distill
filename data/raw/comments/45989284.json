@@ -16,18 +16,18 @@
     "depth": 1
   },
   {
-    "id": 46036214,
-    "by": "adzm",
-    "timeISO": "2025-11-24T16:59:53.000Z",
-    "textPlain": "The original webkit blog post about parking lot mutex implementation is a great read https://webkit.org/blog/6161/locking-in-webkit/",
-    "parent": 45989284,
-    "depth": 1
-  },
-  {
     "id": 46036883,
     "by": "kouteiheika",
     "timeISO": "2025-11-24T17:51:17.000Z",
     "textPlain": "> Poisoning: Panic Safety in MutexesThis is one of the biggest design flaws in Rust's std, in my opinion.Poisoning mutexes can have its use, but it's very rare in practice. Usually it's a huge misfeature that only introduces problems. More often than not panicking in a critical section is fine[1], but on the other hand poisoning a Mutex is a very convenient avenue for a denial-of-service attack, since a poisoned Mutex will just completely brick a given critical section.I'm not saying such a project doesn't exist, but I don't think I've ever seen a project which does anything sensible with Mutex's `Poisoned` error besides ignoring it. It's always either an `unwrap` (and we know how well that can go [2]), or do the sensible thing and do this ridiculous song-and-dance:    let guard = match mutex {\n        Ok(guard) => guard,\n        Err(poisoned) => poisoned.into_inner()\n    };\n\nSuffice to say, it's a pain.So in a lot of projects when I need a mutex I just add `parking_lot`, because its performance is stellar, and it doesn't have the poisoning insanity to deal with.[1] -- obviously it depends on a case-by-case basis, but if you're using such a low level primitive you should know what you're doing[2] -- https://blog.cloudflare.com/18-november-2025-outage/#memory-...",
+    "parent": 45989284,
+    "depth": 1
+  },
+  {
+    "id": 46036214,
+    "by": "adzm",
+    "timeISO": "2025-11-24T16:59:53.000Z",
+    "textPlain": "The original webkit blog post about parking lot mutex implementation is a great read https://webkit.org/blog/6161/locking-in-webkit/",
     "parent": 45989284,
     "depth": 1
   },
@@ -164,6 +164,14 @@
     "by": "lmm",
     "timeISO": "2025-11-25T02:37:35.000Z",
     "textPlain": "> poisoning a Mutex is a very convenient avenue for a denial-of-service attack, since a poisoned Mutex will just completely brick a given critical section.There's a tension between making DoS hard and avoiding RCE vulnerabilities, since the way to avoid an unplanned/bad code state becoming an RCE vulnerability is to crash as quickly and thoroughly as possible when you get into that state.",
+    "parent": 46036883,
+    "depth": 2
+  },
+  {
+    "id": 46044471,
+    "by": "juliangmp",
+    "timeISO": "2025-11-25T10:30:18.000Z",
+    "textPlain": "I've dug into this topic in the past and my takeaway for this entire thing was “cool idea, but don't use it practice ”.\nI.e. just unrwap the lock call's result. If a worker thread panics you should assume your applications done for. Some people even recommend setting panic=abort for release builds, in which case you won't even be able to catch those panics to begin with.I mean, think about the actual use cases here. On of my threads just panicked. Does it make sense to continue running the application? \nAnd if you answer yes, this is an error condition that can occur, then it shouldn't panick to begin with and instead handle errors gracefully, leaving the mutex unpoisoned.",
     "parent": 46036883,
     "depth": 2
   },
