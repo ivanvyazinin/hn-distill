@@ -32,18 +32,18 @@
     "depth": 1
   },
   {
-    "id": 46049395,
-    "by": "perdomon",
-    "timeISO": "2025-11-25T19:02:57.000Z",
-    "textPlain": "I would not have considered artificially-working the SOC to maintain a steady temp! When the wattage is that low, however, it makes sense to burn a few extra bucks a  year versus some kind of overengineered cooling system.",
-    "parent": 46042946,
-    "depth": 1
-  },
-  {
     "id": 46043813,
     "by": "avidiax",
     "timeISO": "2025-11-25T08:56:50.000Z",
     "textPlain": "Why not put a resistor (for heating) and a bit of foam insulation on the crystal?This is way more direct than spacebar heating.You could also add a transistor attached to the resistor and a GPIO and use the clock drift as a proxy for temperature. PID is probably enough but since you have a 24 hour cycle you could calculate a baseline heating schedule.",
+    "parent": 46042946,
+    "depth": 1
+  },
+  {
+    "id": 46043142,
+    "by": "geerlingguy",
+    "timeISO": "2025-11-25T07:13:22.000Z",
+    "textPlain": "It's an SBC-scale OXCO. I half wonder if adding a larger heatsink, or even putting thermal mass around the existing oscillator could also help, or if the heating is more localized in the PCB itself.Always fun new things to learn when doing something \"simple\" like setting up an NTP server!",
     "parent": 46042946,
     "depth": 1
   },
@@ -56,10 +56,10 @@
     "depth": 1
   },
   {
-    "id": 46043142,
-    "by": "geerlingguy",
-    "timeISO": "2025-11-25T07:13:22.000Z",
-    "textPlain": "It's an SBC-scale OXCO. I half wonder if adding a larger heatsink, or even putting thermal mass around the existing oscillator could also help, or if the heating is more localized in the PCB itself.Always fun new things to learn when doing something \"simple\" like setting up an NTP server!",
+    "id": 46049395,
+    "by": "perdomon",
+    "timeISO": "2025-11-25T19:02:57.000Z",
+    "textPlain": "I would not have considered artificially-working the SOC to maintain a steady temp! When the wattage is that low, however, it makes sense to burn a few extra bucks a  year versus some kind of overengineered cooling system.",
     "parent": 46042946,
     "depth": 1
   },
@@ -80,18 +80,18 @@
     "depth": 1
   },
   {
-    "id": 46049653,
-    "by": "conroydave",
-    "timeISO": "2025-11-25T19:25:34.000Z",
-    "textPlain": "love this line FTA:\n\"Is It Worth It?\nFor 99.999% of use cases: absolutely not.\"",
-    "parent": 46042946,
-    "depth": 1
-  },
-  {
     "id": 46043469,
     "by": "hnchm",
     "timeISO": "2025-11-25T08:08:00.000Z",
     "textPlain": "There was a paper on this in 2022. Not sure if it's used in production or not.https://www.usenix.org/conference/nsdi22/presentation/najafi",
+    "parent": 46042946,
+    "depth": 1
+  },
+  {
+    "id": 46049653,
+    "by": "conroydave",
+    "timeISO": "2025-11-25T19:25:34.000Z",
+    "textPlain": "love this line FTA:\n\"Is It Worth It?\nFor 99.999% of use cases: absolutely not.\"",
     "parent": 46042946,
     "depth": 1
   },
@@ -264,6 +264,14 @@
     "depth": 2
   },
   {
+    "id": 46051991,
+    "by": "harshbutfair",
+    "timeISO": "2025-11-25T23:15:13.000Z",
+    "textPlain": "Thanks for writing this up! I have a similar setup, largely based on your earlier post. I'm looking forward to trying out some of these ideas.Do 16Hz pulses make much difference? I found conflicting information and haven't yet tried it myself.What do you use to get the data into influxdb? I'm using collectd but it doesn't gather a lot of useful info.",
+    "parent": 46046092,
+    "depth": 2
+  },
+  {
     "id": 46049715,
     "by": "auspiv",
     "timeISO": "2025-11-25T19:32:04.000Z",
@@ -285,22 +293,6 @@
     "timeISO": "2025-11-25T14:35:48.000Z",
     "textPlain": "I did this at one point, putting the pi directly on some packing foam. It for sure dampened the ambient effects but really I just need to stick the whole Pi in a temperature controlled chamber.",
     "parent": 46043813,
-    "depth": 2
-  },
-  {
-    "id": 46046108,
-    "by": "auspiv",
-    "timeISO": "2025-11-25T14:35:06.000Z",
-    "textPlain": "I do have that as well, but haven't done a write up on it yet. It was a $70 GPSDO from eBay (BH3SAP variant running Fredzo firmware with some changes to enable flywheel (generating pulse in absence of GPS PPS)). I have verified it can feed the Pi for NTP. Believe the STM32 driving the GPSDO can as well but it has no ethernet capability as-is",
-    "parent": 46045380,
-    "depth": 2
-  },
-  {
-    "id": 46045591,
-    "by": "Joel_Mckay",
-    "timeISO": "2025-11-25T13:28:56.000Z",
-    "textPlain": "In general, NTP is a time sensitive process, and application processor/SoC are indeed going to have far greater rates of clock slips than an MCU running off an XTAL or TCXO.RTLinux has a module feature to sync the scheduler to an external pin state. It is an obscure feature...Adding more processors creates a well-known named-problem with metastability:https://en.wikipedia.org/wiki/Clock_domain_crossingReal-time is not guaranteed latency, and the Pi is not like Zynq fpga. =3",
-    "parent": 46045380,
     "depth": 2
   },
   {
@@ -333,6 +325,22 @@
     "timeISO": "2025-11-25T07:31:07.000Z",
     "textPlain": "> I half wonder if adding a larger heatsink, or even putting thermal mass around the existing oscillator could also help, or if the heating is more localized in the PCB itself.That would likely make it worse. The trick here is that the other cores are running at essentially their maximum temperature and and will dynamically reduce their clockspeed if required to keep from going above that limit. In essence, the environment becomes actively temperature controlled. If the ambient heat goes higher, the cores clock lower, if it gets colder the cores clock higher (up to a point).If you add too much heat dissipation, the total power used by those cores might not be enough to keep well above ambient.",
     "parent": 46043142,
+    "depth": 2
+  },
+  {
+    "id": 46046108,
+    "by": "auspiv",
+    "timeISO": "2025-11-25T14:35:06.000Z",
+    "textPlain": "I do have that as well, but haven't done a write up on it yet. It was a $70 GPSDO from eBay (BH3SAP variant running Fredzo firmware with some changes to enable flywheel (generating pulse in absence of GPS PPS)). I have verified it can feed the Pi for NTP. Believe the STM32 driving the GPSDO can as well but it has no ethernet capability as-is",
+    "parent": 46045380,
+    "depth": 2
+  },
+  {
+    "id": 46045591,
+    "by": "Joel_Mckay",
+    "timeISO": "2025-11-25T13:28:56.000Z",
+    "textPlain": "In general, NTP is a time sensitive process, and application processor/SoC are indeed going to have far greater rates of clock slips than an MCU running off an XTAL or TCXO.RTLinux has a module feature to sync the scheduler to an external pin state. It is an obscure feature...Adding more processors creates a well-known named-problem with metastability:https://en.wikipedia.org/wiki/Clock_domain_crossingReal-time is not guaranteed latency, and the Pi is not like Zynq fpga. =3",
+    "parent": 46045380,
     "depth": 2
   },
   {
@@ -388,14 +396,6 @@
     "by": "speedgoose",
     "timeISO": "2025-11-25T10:26:18.000Z",
     "textPlain": "How much is it in eagle wingspans ?",
-    "parent": 46044388,
-    "depth": 2
-  },
-  {
-    "id": 46047811,
-    "by": "adgjlsfhk1",
-    "timeISO": "2025-11-25T16:56:19.000Z",
-    "textPlain": "When doing GPS stuff, you don't use local time.",
     "parent": 46044388,
     "depth": 2
   }
