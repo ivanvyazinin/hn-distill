@@ -8,6 +8,14 @@
     "depth": 1
   },
   {
+    "id": 46060775,
+    "by": "hodgesrm",
+    "timeISO": "2025-11-26T18:29:48.000Z",
+    "textPlain": "> I base my paragraph on their choice of abandoning PostgreSQL and adopting ClickHouse(Bocharov 2018). The whole post is a great overview on trying to process data fast, without a single line on how to garantee its logical correctness/consistency in the face of changes.I'm completely mystified how the author concludes that the switch from PostgreSQL to ClickHouse shows the root of this problem.1. If the point is that PostgreSQL is somehow more less prone to error, it's not in this case. You can make the same mistake if you leave off the schema_name in information_schema.columns queries.2. If the point is that Cloudflare should have somehow discovered this error through normalization and/or formal methods, perhaps he could demonstrate exactly how this would have (a) worked, (b) been less costly than finding and fixing the query through a better review process, and (c) avoided generating other errors as a side effect.I'm particularly mystified how lack of normalization is at fault. ClickHouse system.columns is normalized. And if you normalized the query result to remove duplicates that would just result in other kinds of bugs as in 2c above.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
     "id": 46059705,
     "by": "locknitpicker",
     "timeISO": "2025-11-26T17:10:17.000Z",
@@ -16,18 +24,10 @@
     "depth": 1
   },
   {
-    "id": 46059875,
-    "by": "kjuulh",
-    "timeISO": "2025-11-26T17:21:05.000Z",
-    "textPlain": "It did happen, and cloudflare should learn from it, but not just the technical reasons.Instead of focusing on the technical reasons why, they should answer how such a change bubbled out to cause such a massive impact instead.Why: Proxy fails requestsWhy: Handlers crashed because of OOMWhy: Clickhouse returns too much dataWhy: A change was introduced causing double the amount of dataWhy: A central change was rolled out immediately to all cluster (single point of failure)Why: There are exemptions or standard operating procedure (gate) for releasing changes to the hot path for cloudflares network infra.While the Clickhouse change is important, I personally think it is crucial that Cloudflare tackles the processes, and possibly gates / controls rollout for hot path system, no matter what kind of change they are when they're at that scale it should be possible. But that is probably enough co-driving. It to me seems like a process issue more than a technical one.",
-    "parent": 46059227,
-    "depth": 1
-  },
-  {
-    "id": 46059837,
-    "by": "tptacek",
-    "timeISO": "2025-11-26T17:18:35.000Z",
-    "textPlain": "Cloudflare doesn't seem to have called it a \"Root Cause Analysis\" and, in fact, the term \"root cause\" doesn't appear to occur in Prince's report. I bring this up because there's a school of thought that says \"root cause analysis\" is counterproductive: complex systems are always balanced on the precipice of multicausal failure.",
+    "id": 46060780,
+    "by": "linsomniac",
+    "timeISO": "2025-11-26T18:30:11.000Z",
+    "textPlain": "I'd be wanting to have some sort of a \"dry run\" on the produced artifact by the rust code consuming it, or a deploy to some sort of a test environment before letting it roll out to production.  I've been surprised that no mention of that sort of thing in the Cloudflare after-action or here.",
     "parent": 46059227,
     "depth": 1
   },
@@ -48,10 +48,130 @@
     "depth": 1
   },
   {
+    "id": 46059837,
+    "by": "tptacek",
+    "timeISO": "2025-11-26T17:18:35.000Z",
+    "textPlain": "Cloudflare doesn't seem to have called it a \"Root Cause Analysis\" and, in fact, the term \"root cause\" doesn't appear to occur in Prince's report. I bring this up because there's a school of thought that says \"root cause analysis\" is counterproductive: complex systems are always balanced on the precipice of multicausal failure.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060738,
+    "by": "yakovsi",
+    "timeISO": "2025-11-26T18:26:18.000Z",
+    "textPlain": "Adding distinct or group by to a query is not some advanced technic comments are suggesting. It does not slow down development one bit, if you expect distinct result you put explicit distinct in the query, it's not a \"safety measure for insulin pumps\". Scratching my head what I've missed here, please enlighten me.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060269,
+    "by": "this_user",
+    "timeISO": "2025-11-26T17:50:28.000Z",
+    "textPlain": "Of course it shouldn't have happened. But if you run infrastructure as complex as this on the scale that they do, and with the agility that they need, then it was bound to happen eventually. No matter how good you are, there is always some extremely unlikely chain of events that will lead to a catastrophic out. Given enough time, that chain will eventually happen.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
     "id": 46059780,
     "by": "hvb2",
     "timeISO": "2025-11-26T17:14:38.000Z",
     "textPlain": "> A central database query didn’t have the right constraints to express business rules. Not only it missed the database name, but it clearly needs a distinct and a limit, since these seem to be crucial business rules.In a database, you wouldn't solve this with a distinct or a limit? You would make the schema guarantee uniqueness?And yes, that wouldn't deal with cross database queries. But the solution here is just the filter by db name, the rest is table design.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060535,
+    "by": "jmull",
+    "timeISO": "2025-11-26T18:10:25.000Z",
+    "textPlain": "I think the author is trying to apply a preconceived cause on to the cloudflare outage, but there’s not a fit.E.g., they should try to work through how their own suggested fix would actually ensure the problem couldn’t happen. I don’t believe it would… lack of nullable fields and normalization typically simplify relational logic, but hardly prevent logical errors. Formal verification can prove your code satisfies a certain formal specification, but doesn’t prove your specification solves your business problem (or makes sense at all, in fact).",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060075,
+    "by": "jrm4",
+    "timeISO": "2025-11-26T17:35:47.000Z",
+    "textPlain": "Nothing in this thread about \"this should not have happened because Cloudflare is too centralized?\"We have far better ideas and working prototypes in terms of how to prevent this from happening again to be up here trying to \"fix Cloudflare.\"Think bigger, y'all.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46059875,
+    "by": "kjuulh",
+    "timeISO": "2025-11-26T17:21:05.000Z",
+    "textPlain": "It did happen, and cloudflare should learn from it, but not just the technical reasons.Instead of focusing on the technical reasons why, they should answer how such a change bubbled out to cause such a massive impact instead.Why: Proxy fails requestsWhy: Handlers crashed because of OOMWhy: Clickhouse returns too much dataWhy: A change was introduced causing double the amount of dataWhy: A central change was rolled out immediately to all cluster (single point of failure)Why: There are exemptions or standard operating procedure (gate) for releasing changes to the hot path for cloudflares network infra.While the Clickhouse change is important, I personally think it is crucial that Cloudflare tackles the processes, and possibly gates / controls rollout for hot path system, no matter what kind of change they are when they're at that scale it should be possible. But that is probably enough co-driving. It to me seems like a process issue more than a technical one.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060607,
+    "by": "block_dagger",
+    "timeISO": "2025-11-26T18:15:28.000Z",
+    "textPlain": "I initially read the title as \"Cloudflare outrage..\" and I was thinking how nice someone is thinking of the poor engineers who crashed the Internet.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060364,
+    "by": "pizlonator",
+    "timeISO": "2025-11-26T17:57:45.000Z",
+    "textPlain": "> No nullable fiels.If you take away nullability, you eventually get something like a special state that denotes absence and either:- Assertions that the absence never happens.- Untested half-baked code paths that try (and fail) to handle absence.> formally verifiedYeah, this does prevent most bugs.But it's horrendously expensive. Probably more expensive than the occasional Cloudflare incident",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060105,
+    "by": "PunchyHamster",
+    "timeISO": "2025-11-26T17:39:12.000Z",
+    "textPlain": "> but it clearly needs a distinct and a limit, since these seem to be crucial business rules.Isn't that just... wrong ? Throwing arbitrary limit (vs maybe having some alert when the table is too long) would just silently truncate the listAnybody can be backseat engineer by throwing out industry's best practices like they were gospel but you have to look at entire system, not just the database part",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46059884,
+    "by": "juujian",
+    "timeISO": "2025-11-26T17:21:50.000Z",
+    "textPlain": "They are not going as far as to blame PostgreSQL, but their switch to ClickHouse seems to suggest that they see PostgreSQL as part of the equation. Would ClickHouse really prevent this type of error from occurring? PostgreSQL already has so many options for setting up solid constrains for data entry. Or do they not have anyone on the team anymore (or never had) who could set up a robust PostgreSQL database? Or are they just piggybacking on the latest trend?",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060475,
+    "by": "k3vinw",
+    "timeISO": "2025-11-26T18:05:31.000Z",
+    "textPlain": "I was expecting a critique on the centralized nature of the infrastructure and the fragility that comes with it.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060241,
+    "by": "ruuda",
+    "timeISO": "2025-11-26T17:48:45.000Z",
+    "textPlain": "Sure, a different database schema may have helped, but there are going to be bugs either way. In my view a more productive approach is to think about how to limit the blast radius when things inevitably do go wrong.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060103,
+    "by": "nyrikki",
+    "timeISO": "2025-11-26T17:39:06.000Z",
+    "textPlain": "Hindsight bias is always easier but:> FAANG-style companies are unlikely to adopt formal methods or relational rigor wholesale. But for their most critical systems, they should. It’s the only way to make failures like this impossible by design, rather than just less likely.That relational rigor imposes what one chooses to be true, it isn’t a universal truth.The frame problem and the qualification problem apply here.The open domain frame problem == HALT.When you can for a problem into the relational model things are nice but not everything can be reduced to a trivial property.That is why Codd had to as nulls etc..You can choose to decide that the queen is rich OR pigs can fly; but a poor queen doesn’t result in flying pigs.Choice over finite sets == finite indexes over sets == PEMIf you can restrict your problems to where the Entscheidungsproblem is solvable you can gain many benefitsBut it is horses for courses and sub TC.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060243,
+    "by": "aforwardslash",
+    "timeISO": "2025-11-26T17:48:53.000Z",
+    "textPlain": "rolls eyesNo, their error was that they shouldn't be querying system tables to perform field discovery; the same method in postgresql (pg_class or whatever its called) would have had the same result. The simple alternative is to use \"describe table <table_name>\".On top of that, they shouldn't be writing ad-hoc code to query system tables, but having a separate library instead to perform those kind of task mixed with business logic (crappy application design).Also, this should never have passed code review in the first place, but lets assume it did because errors happen, and this kind of atrocious code and flaky design is not uncommon.As an example, they could be reading this data from CSV files *and* have made the same mistake. Conflating this with \"database design errors\" is just stupid - this is not a schema design error, this is a programmer error.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060107,
+    "by": "RenThraysk",
+    "timeISO": "2025-11-26T17:39:17.000Z",
+    "textPlain": "Would be interesting to see the DDL of the table, to see if it had unique constraints.The query not utilising an unique constraint/index should have raised a red flag.",
     "parent": 46059227,
     "depth": 1
   },
@@ -64,6 +184,22 @@
     "depth": 1
   },
   {
+    "id": 46060455,
+    "by": "renewiltord",
+    "timeISO": "2025-11-26T18:04:19.000Z",
+    "textPlain": "One of the things I recommend most engineers do when they write a bug is to first take a look and see if the bug is required. Very often, I see that the codebase doesn't need the bug added. Then I can just rewrite that code without the bug.",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
+    "id": 46060375,
+    "by": "wat10000",
+    "timeISO": "2025-11-26T17:58:35.000Z",
+    "textPlain": "Are there outages that should have happened?",
+    "parent": 46059227,
+    "depth": 1
+  },
+  {
     "id": 46059756,
     "by": "etchalon",
     "timeISO": "2025-11-26T17:12:58.000Z",
@@ -72,11 +208,195 @@
     "depth": 1
   },
   {
+    "id": 46060016,
+    "by": "dfabulich",
+    "timeISO": "2025-11-26T17:31:34.000Z",
+    "textPlain": "That's entirely right. Products have to transition from fast-moving exploratory products to boring infrastructure. We have different goals and expectations for an ecommerce web app vs. a database, or a database vs. the software controlling an insulin pump.Having said that, at this point, Cloudflare's core DDOS-protection proxy should now be built more like an insulin pump than like a web app. This thing needs to never go down worldwide, much more than it needs to ship a new feature fast.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060453,
+    "by": "necovek",
+    "timeISO": "2025-11-26T18:03:57.000Z",
+    "textPlain": "This bug might not have, but others would. Formal verification methods still rely on humans to input the formal specification, which is where problems happen.As others point out, if they didn't really ship fast, they certainly would not have become profitable, and they would definitely not have captured the market to the extent they have.But really, if the market was more distributed, and Cloudflare commanded 5% of the web as the biggest player, any single outage would have been limited in impact. So it's also about market behaviour: yet \"nobody is fired for choosing IBM\" as it used to go 40 years ago.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060295,
+    "by": "bambax",
+    "timeISO": "2025-11-26T17:53:00.000Z",
+    "textPlain": "But does \"formally verified code\" really go in the same bag as \"normalized database\" and ensuring data integrity at the database level? The former is immensely complex and difficult; the other two are more like sound engineering principles?",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060723,
+    "by": "swiftcoder",
+    "timeISO": "2025-11-26T18:25:18.000Z",
+    "textPlain": "> It limits, radically, the percent of engineers you can hire (to those who understand this and are willing to work this way), and it slows deployment radically.We could also invest in tooling to make this kind of thing easier. Unclear why humans need to hand-normalise the database schema - isn't this exactly the kind of thing compilers are good at?",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060292,
+    "by": "mosura",
+    "timeISO": "2025-11-26T17:52:47.000Z",
+    "textPlain": "Software people, especially coming through Rust, are falling into the old trap of believing if code is bug free it is reliable: it isn’t because there is a world of faults outside, including but not limited to the developer intentions.This inverts everything because structuring to be fault tolerant, of the right things, changes what is a good idea almost entirely.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060722,
+    "by": "no_wizard",
+    "timeISO": "2025-11-26T18:25:16.000Z",
+    "textPlain": "Why is this inherently slower?There’s for example, languages or features of languages that work entirely on not allowing these things.I ask because I feel like I’m missing something",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060518,
+    "by": "FloorEgg",
+    "timeISO": "2025-11-26T18:08:42.000Z",
+    "textPlain": "I agree with you.I would just add that I've noticed organizations tend to calcify as they get bigger and older. Kind of like trees, they start out as flexible saplings, and over time develop hard trunks and branches. The rigidity gives them stability.You're right that there's no way they could have gotten to where they are if they had prioritized data integrity and formal verification in all their practices. Now that they have so much market share, they might collapse under their own weight if their trunk isn't solid. Maybe investing in data integrity and strongly typed, functional programming that's formally verifiable is what will help them keep their market share.Cultures are hard to change and I'm not suggesting an expectation for them to change beyond what is feasible or practical. I don't lead an engineering organization like it so I'm definitely armchairing here. I just see some of the logic of the argument that them adopting some of these methods would probably benefit everyone using their services.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060031,
+    "by": "jacquesm",
+    "timeISO": "2025-11-26T17:32:14.000Z",
+    "textPlain": "When you're powering this large a fraction of the internet is it even an option not to work like that? You'd think that with that kind of market cap resource constraints should no longer be holding you back from doing things properly.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060203,
+    "by": "ihaveajob",
+    "timeISO": "2025-11-26T17:46:18.000Z",
+    "textPlain": "Thank you for putting this in such clear terms. It really is a Catch-22 problem for startups. Most of the time, you can't reach scale unless you cut some corners along the way, and when you reach scale, you benefit from NOT cutting those corners.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46059969,
+    "by": "SoftTalker",
+    "timeISO": "2025-11-26T17:28:20.000Z",
+    "textPlain": "Why is being able to \"capture the market\" something we want to encourage? This leads to monopolies or oligopolies and makes possible various types of abuse that a free competitive market would normally correct.If you're going to step into the role of managing a large percentage of public internet traffic, maybe you need to be held to a different standard and set of rules than a startup trying to get a foothold among dozens or hundreds of other competitors. Something more like a public utility than a private enterprise.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060119,
+    "by": "PunchyHamster",
+    "timeISO": "2025-11-26T17:40:12.000Z",
+    "textPlain": "I'd not be surprised if root of the issue was some engineer who didn't add DB selector because in other SQL engines SELECT like that would select from currently connected database vs all of them",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060635,
+    "by": "yearolinuxdsktp",
+    "timeISO": "2025-11-26T18:18:14.000Z",
+    "textPlain": "Not to mention that perfectly normalizing a database always incurs join overhead that limits horizontal scalability. In fact, denormalization is required to achieve scale (with a trade-off).I’m not sure how formal verification would’ve prevented this issue from happening. In my experience, it’s unusual to have to specify a database name in the query. How could have formal verification covered this outcome?The recommendations don’t make sense saying that the query needed DISTINCT and LIMIT. Don’t forget that the incoming data was different (r0 and default did not return the same exact data, this is why the config files more than doubled in size), so using DISTINCT would have led to uncertain blending of data, producing neither result and hiding the double-database read altogether. Secondly, LIMIT only makes sense to use in conjunction with a failure circuit breaker (if LIMIT items is returned, fail the query). When does it make business-logic sense to LIMIT the query-in-question’s result? And do you think the authors would have known how to set the LIMIT to not exceed the configuration file consumers’ limitations?The article says:\n> “You can’t reliably catch that with more tests or rollouts or flags. You prevent it by construction—through analytical design.”That’s the big design up front fallacy. Of course you can catch it reliably with more tests, and limit the damage with flags and rollouts. There’s zero guarantee that the analytical design would’ve caught this up front.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46059997,
+    "by": "aishsh",
+    "timeISO": "2025-11-26T17:30:31.000Z",
+    "textPlain": "I’d be with you except that cloudflare prioritizes profit over doing a good job (layoffs, offshoring, etc). You don’t get to make excuses when you willingly reduced quality to keep your profits high.",
+    "parent": 46059729,
+    "depth": 2
+  },
+  {
+    "id": 46060734,
+    "by": "udev4096",
+    "timeISO": "2025-11-26T18:26:07.000Z",
+    "textPlain": "Backdooring the internet is certainly a productive venture!",
+    "parent": 46059705,
+    "depth": 2
+  },
+  {
     "id": 46059732,
     "by": "nmoura",
     "timeISO": "2025-11-26T17:11:38.000Z",
     "textPlain": "I disagree. I learnt good stuff from this article and it’s enough.",
     "parent": 46059705,
+    "depth": 2
+  },
+  {
+    "id": 46060170,
+    "by": "echelon",
+    "timeISO": "2025-11-26T17:44:08.000Z",
+    "textPlain": "Like your comment? j/k :)I'm using this incident to draw attention to Rust's panic behavior.Rust could use additional language features to help us write mostly panic-free* code and statically catch even transitive dependencies that might subject us to unnecessary panics.We've been talking about it on our team and to other Rust folks, and I think it's worth building a proposal around. Rust should have a way to statically guarantee this never happens. Opt-in at first, but eventually the default.* with the exception of malloc failures, etc.",
+    "parent": 46059705,
+    "depth": 2
+  },
+  {
+    "id": 46060053,
+    "by": "btown",
+    "timeISO": "2025-11-26T17:33:47.000Z",
+    "textPlain": "One of the things I find fascinating about this is that we don't blink twice about the idea that an update to a \"hot\" cache entry that's \"just data\" should propagate rapidly across caches... but we do have change management and gradual deployments for code updates and meaningful configuration changes.Machine learning feature updates live somewhere in the middle. Large amounts of data, a need for unsupervised deployment that can react in seconds, somewhat opaque. But incredibly impactful if something bad rolls out.I do agree with the OP that the remediation steps in https://blog.cloudflare.com/18-november-2025-outage/#remedia... seem undercooked. But I'd focus on something entirely different than trying to verify the creation of configuration files. There should be real attention to: \"how can we take blue/green approaches to allowing our system to revert to old ML feature data and other autogenerated local caches, self-healing the same way we would when rolling out code updates?\"Of course, this has some risk in Cloudflare's context, because attackers may very well be overjoyed by a slower rollout of ML features that are used to detect their DDoS attacks (or a rollout that they can trigger to rollback by crafting DDoS attacks).But I very much hope they find a happy medium. This won't be the last time that a behavior-modifying configuration file gets corrupted. And formal verification, as espoused by the OP, doesn't help if the problem is due to a bad business assumption, encoded in a verified way.",
+    "parent": 46059683,
+    "depth": 2
+  },
+  {
+    "id": 46059995,
+    "by": "yodon",
+    "timeISO": "2025-11-26T17:30:29.000Z",
+    "textPlain": ">Gradual deployments are a more reliable defense against bugs than careful programmingThe challenge, as I understand it, is that the feature in question had an explicit requirement of fast, wide deployment because of the need to react in real time to changing external attacker behaviors.",
+    "parent": 46059683,
+    "depth": 2
+  },
+  {
+    "id": 46060015,
+    "by": "wnevets",
+    "timeISO": "2025-11-26T17:31:34.000Z",
+    "textPlain": "> Gradual deployments are a more reliable defense against bugs than careful programming.Wasn't this one of the key takeaways from the crowdstrike outage?",
+    "parent": 46059683,
+    "depth": 2
+  },
+  {
+    "id": 46060554,
+    "by": "kalkin",
+    "timeISO": "2025-11-26T18:11:24.000Z",
+    "textPlain": "Unless you work at Cloudflare it seems very unlikely that you have enough information about systems and tradeoffs there to make these flat assertions about what \"should have\" happened. Systems can do worse things than crashing in response to unexpected states. Blue/green deployment isn't always possible (eg due to constrained compute resources) or practical (perhaps requiring greatly increased complexity), and is by no means the only approach to reducing deploy risk. We don't know that any of the related code was shipped with a \"move fast, break things\" mindset; the most careful developers still write bugs.Actually learning from incidents and making systems more reliable requires curiosity and a willingness to start with questions rather than mechanically applying patterns. This is standard systems-safety stuff. The sort of false confidence involved in making prescriptions from afar suggests a mindset I don't want anywhere near the operation of anything critical.",
+    "parent": 46059819,
+    "depth": 2
+  },
+  {
+    "id": 46060420,
+    "by": "hnthrowaway0328",
+    "timeISO": "2025-11-26T18:02:03.000Z",
+    "textPlain": "I wish they do burn a lot of trust to show up in their financial reports. Otherwise it is like \"we do not like it but gonna use it anyway\".",
+    "parent": 46059819,
+    "depth": 2
+  },
+  {
+    "id": 46060130,
+    "by": "whazor",
+    "timeISO": "2025-11-26T17:40:45.000Z",
+    "textPlain": "The scale of the outage was so big and global, that the biggest failure was indeed the blast radius.",
+    "parent": 46059819,
+    "depth": 2
+  },
+  {
+    "id": 46060429,
+    "by": "zahlman",
+    "timeISO": "2025-11-26T18:02:40.000Z",
+    "textPlain": "> the blue/green pattern?",
+    "parent": 46059819,
+    "depth": 2
+  },
+  {
+    "id": 46060136,
+    "by": "echelon",
+    "timeISO": "2025-11-26T17:41:24.000Z",
+    "textPlain": "unwrap() and the family of methods like it are a Rust anti-pattern from the early days of Rust. It dates back to before many of the modern error-handling and safety-conscious features of the language and type system.Rust is being pulled in so many different directions from new users that the language perhaps never originally intended. Some engineers will be fine with panicky behavior, but a lot of others want to be able to statically guarantee most panics (outside of perhaps memory allocation failures) cannot occur.We need more than just a linter on this. A new language feature that poisons, marks, or annotates methods that can potentially panic (for reasons other than allocation) would be amazing. If you then call a method that can panic, you'll have to mark your own method as potentially panicky. The ideal future would be that in time, as more standard library and 3rd party library code adopts this, we can then statically assert our code cannot possibly panic.As it stands, I'm pretty mortified that some transitive dependency might use unwrap() deep in its internals.",
+    "parent": 46059819,
     "depth": 2
   }
 ]
