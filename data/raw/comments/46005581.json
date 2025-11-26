@@ -1,25 +1,17 @@
 [
   {
-    "id": 46057574,
-    "by": "mgerdts",
-    "timeISO": "2025-11-26T14:13:48.000Z",
-    "textPlain": "This article misses several important points.- Consumer drives like Samsung 980 Pro and WD SN 850 Black use TLC as SLC when about 30+% of the drive is erased. At this time you a burst write a bit less than 10% of the drive capacity at 5 GB/s. After that, it slows remarkably. If the filesystem doesn’t automatically trim free space, the drive will eventually be stuck in slow mode all the time.- Write amplification factor (WAF) is not discussed. Random small writes and partial block deletions will trigger garbage collection, which ends up rewriting data to reclaim freed space in a NAND block.- A drive with a lot of erased blocks can endure more TBW than one that has all user blocks with data. This is because garbage collection can be more efficient. Again, enable TRIM on your fs.- Overprovisioning can be used to increase a drive’s TBW. If before you write to your 0.3 DWPD 1024 GB drive, you partition it so you use only 960 GB, you now have a 1 DWPD drive.- per the NVMe spec there are indicators of drive health in the SMART log page.- Almost all current datacenter or enterprise drives support an OCP SMART log page. This allows you to observe things like the write amplification factor (WAF), rereads due to ECC errors, etc.",
-    "parent": 46005581,
-    "depth": 1
-  },
-  {
-    "id": 46058137,
-    "by": "markhahn",
-    "timeISO": "2025-11-26T15:13:11.000Z",
-    "textPlain": "Text is wrong about CRCs: everyone uses pretty heavy ECC, so it's not just a re-read.  This also provides a somewhat graduated measure of the block's actual health, so the housekeeping firmware can decide whether to stop using the block (ie, move the content elsewhere).I'm also not a fan of buy bigger storage concept, or the conspiracy-theory on 480 v 512.It sure would be nice if when considering a product, you could just look at some claimed stats from the vendor about time-related degradation, firmware sparing policy, etc.  we shouldn't have to guess!",
-    "parent": 46005581,
-    "depth": 1
-  },
-  {
     "id": 46057340,
     "by": "mdtancsa",
     "timeISO": "2025-11-26T13:45:47.000Z",
     "textPlain": "dropping off the bus is the best case fail really. Its more annoying when writes become slower than the other disks often causing confusing performance profiles of the overall array. Having good metrics for each disk (we use telegraf) will help flag it early. On my zfs pools, monitoring disk io for each disk, smartmon metrics help tease that out. \nFor SSDs probably the worst is when there is some firmware bug that triggers on all disks at the same time. e.g. the infamous HP SSD Failure at 32,768 Hours of Use.  Yikes!",
+    "parent": 46005581,
+    "depth": 1
+  },
+  {
+    "id": 46057574,
+    "by": "mgerdts",
+    "timeISO": "2025-11-26T14:13:48.000Z",
+    "textPlain": "This article misses several important points.- Consumer drives like Samsung 980 Pro and WD SN 850 Black use TLC as SLC when about 30+% of the drive is erased. At this time you a burst write a bit less than 10% of the drive capacity at 5 GB/s. After that, it slows remarkably. If the filesystem doesn’t automatically trim free space, the drive will eventually be stuck in slow mode all the time.- Write amplification factor (WAF) is not discussed. Random small writes and partial block deletions will trigger garbage collection, which ends up rewriting data to reclaim freed space in a NAND block.- A drive with a lot of erased blocks can endure more TBW than one that has all user blocks with data. This is because garbage collection can be more efficient. Again, enable TRIM on your fs.- Overprovisioning can be used to increase a drive’s TBW. If before you write to your 0.3 DWPD 1024 GB drive, you partition it so you use only 960 GB, you now have a 1 DWPD drive.- per the NVMe spec there are indicators of drive health in the SMART log page.- Almost all current datacenter or enterprise drives support an OCP SMART log page. This allows you to observe things like the write amplification factor (WAF), rereads due to ECC errors, etc.",
     "parent": 46005581,
     "depth": 1
   },
@@ -32,6 +24,14 @@
     "depth": 1
   },
   {
+    "id": 46058137,
+    "by": "markhahn",
+    "timeISO": "2025-11-26T15:13:11.000Z",
+    "textPlain": "Text is wrong about CRCs: everyone uses pretty heavy ECC, so it's not just a re-read.  This also provides a somewhat graduated measure of the block's actual health, so the housekeeping firmware can decide whether to stop using the block (ie, move the content elsewhere).I'm also not a fan of buy bigger storage concept, or the conspiracy-theory on 480 v 512.It sure would be nice if when considering a product, you could just look at some claimed stats from the vendor about time-related degradation, firmware sparing policy, etc.  we shouldn't have to guess!",
+    "parent": 46005581,
+    "depth": 1
+  },
+  {
     "id": 46057033,
     "by": "igtztorrero",
     "timeISO": "2025-11-26T13:10:00.000Z",
@@ -40,11 +40,27 @@
     "depth": 1
   },
   {
+    "id": 46059073,
+    "by": "PunchyHamster",
+    "timeISO": "2025-11-26T16:24:59.000Z",
+    "textPlain": "we had ones that turned into that failure mode at like 80% life left. Zero negative SMART metrics, just slowed down.My hunch is that they don't expose anything because that makes it harder to refund on warranty",
+    "parent": 46057340,
+    "depth": 2
+  },
+  {
     "id": 46057824,
     "by": "Aurornis",
     "timeISO": "2025-11-26T14:43:24.000Z",
     "textPlain": "You’re also missing an important factor: Many drives now reserve some space that cannot be used by the consumer so they have extra space to work with. This is called factory overprovisioning.> - Consumer drives like Samsung 980 Pro and WD SN 850 Black use TLC as SLC when about 30+% of the drive is erased. At this time you a burst write a bit less than 10% of the drive capacity at 5 GB/s. After that, it slows remarkably. If the filesystem doesn’t automatically trim free space, the drive will eventually be stuck in slow mode all the time.This is true, but despite all of the controversy about this feature it’s hard to encounter this in practical consumer use patterns.With the 980 Pro 1TB you can write 113GB before it slows down. (Source https://www.techpowerup.com/review/samsung-980-pro-1-tb-ssd/... ) So you need to be able to source that much data from another high speed SSD and then fill nearly 1/8th of the drive to encounter the slowdown. Even when it slows down you’re still writing at 1.5GB/sec. Also remember that the drive is factory overprovisioned so there is always some amount of space left to handle some of this burst writing.For as much as this fact gets brought up, I doubt most consumers ever encounter this condition. Someone who is copying very large video files from one drive to another might encounter it on certain operations, but even in slow mode you’re filling the entire drive capacity in under 10 minutes.",
     "parent": 46057574,
+    "depth": 2
+  },
+  {
+    "id": 46058355,
+    "by": "saurik",
+    "timeISO": "2025-11-26T15:31:05.000Z",
+    "textPlain": "> I'm also not a fan of buy bigger storage concept, or the conspiracy-theory on 480 v 512.I don't understand why this is being called a \"conspiracy theory\"; but, if you want some very concrete evidence that this is how they work, a paper was recently published that analyzed the behavior and endurance of various SSDs, and the data would be very difficult to describe using any other theory than that, comparing apples-to-apples on drives that have better write endurance, they are merely overprovisioned to allow the wear-level algorithm to not cause as much write amplification while reorganizing.https://news.ycombinator.com/item?id=44985619> OP on write-intensive SSD. SSD vendors often offer two versions of SSDs with similar hardware specifications, where the lower-capacity model is typically marketed as “write-optimized” or “mixed-use”. One might expect that such write-optimized SSDs would demonstrate improved WAF characteristics due to specialized internal designs. To investigate this, we compared two Micron SSD models: the Micron 7450 PRO, designed for “read-intensive” workloads with a capacity of 960 GB, and the Micron 7450 MAX, intended for “mixed-use” workloads with a capacity of 800 GB. Both SSDs were tested under identical workloads and dataset sizes, as shown in Figure 7b. The WAF results for both models were identical and closely matched the results from the simulator. This suggests that these Micron SSDs, despite being marketed for different workloads, are essentially identical in performance, with the only difference being a larger OP on the “mixed-use” model. For these SSD models, there appear to be no other hardware or algorithmic improvements. As a result, users can achieve similar performance by manually reserving free space on the “read-intensive” SSD, offering a practical alternative to purchasing the “mixed-use” model.",
+    "parent": 46058137,
     "depth": 2
   },
   {
