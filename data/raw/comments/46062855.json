@@ -16,26 +16,10 @@
     "depth": 1
   },
   {
-    "id": 46073713,
-    "by": "jeffbee",
-    "timeISO": "2025-11-27T22:21:36.000Z",
-    "textPlain": "The argument seems to rely on the point that the replicas are only valuable if you can send reads to them, which I don't think is true. Eventually-consistent replicated databases are valuable on their own terms even if you can only send traffic to the leader.",
-    "parent": 46062855,
-    "depth": 1
-  },
-  {
     "id": 46073524,
     "by": "rakoo",
     "timeISO": "2025-11-27T21:47:46.000Z",
     "textPlain": "I don't understand this article and It's like the author doesn't really know what they're talking about. They don't want eventual consistency, they want read-your-writes, a consistency level that's stronger than EC yet still not strong.https://jepsen.io/consistency/models/read-your-writesRead-your-writes is indeed useful because it makes code easier to write: every process can behave as if it was the only one in the world, devs can write synchronous code, that's great ! But you don't need strong consistency.I hope developers learn a little bit more about the domain before going to strong consistency.",
-    "parent": 46062855,
-    "depth": 1
-  },
-  {
-    "id": 46073203,
-    "by": "mrkeen",
-    "timeISO": "2025-11-27T21:01:41.000Z",
-    "textPlain": "It's wishful thinking.  It's like choosing Newtonian physics over relativity because it's simpler or the equations are neater.If you have strong consistency, then you have at best availability xor partition tolerance.\"Eventual\" consistency is the best tradeoff we have for an AP system.Computation happens at a time and a place.  Your frontend is not the same computer as your backend service, or your database, or your cloud providers, or your partners.So you can insist on full-ACID on your DB (which it probably isn't running btw - search \"READ COMMITTED\".) but your DB will only be consistent with itself.We always talk about multiple bank accounts in these consistency modelling exercises.  Do yourself a favour and start thinking about multiple banks.",
     "parent": 46062855,
     "depth": 1
   },
@@ -48,10 +32,10 @@
     "depth": 1
   },
   {
-    "id": 46073630,
-    "by": "jiggawatts",
-    "timeISO": "2025-11-27T22:08:55.000Z",
-    "textPlain": "Blogs like this make me go on the same rant for the n-th time:Consistency for distributed systems is impossible without APIs returning cookies containing vector clocks.The idea is simple: every database has a logical sequence number (LSN), which the replicas try to catch up to -- but may be a little bit behind. Every time an API talks to a set of databases (or their replicas) to produce a JSON response (or whatever), it ought to return the LSNs of each database that produced the query in a cookie. Something like \"db1:591284;db2:10697438\".Client software must then union this with their existing cookie, and return the result of that to the next API call.That way if they've just inserted some value into db1 and the read-after-write query ends up going to a read replica that's slightly behind the write master (LSN 591280 instead of 591284) then the replica can either wait until it sees LSN >= 591284, or it can proxy the query back to the write master. A simple \"expected latency of waiting vs proxying\" heuristic can be used for this decision.That's (almost entirely) all you need for read-after-write transactional consistency at every layer, even through Redis caches and stateless APIs layers!",
+    "id": 46073203,
+    "by": "mrkeen",
+    "timeISO": "2025-11-27T21:01:41.000Z",
+    "textPlain": "It's wishful thinking.  It's like choosing Newtonian physics over relativity because it's simpler or the equations are neater.If you have strong consistency, then you have at best availability xor partition tolerance.\"Eventual\" consistency is the best tradeoff we have for an AP system.Computation happens at a time and a place.  Your frontend is not the same computer as your backend service, or your database, or your cloud providers, or your partners.So you can insist on full-ACID on your DB (which it probably isn't running btw - search \"READ COMMITTED\".) but your DB will only be consistent with itself.We always talk about multiple bank accounts in these consistency modelling exercises.  Do yourself a favour and start thinking about multiple banks.",
     "parent": 46062855,
     "depth": 1
   },
@@ -64,10 +48,26 @@
     "depth": 1
   },
   {
+    "id": 46073713,
+    "by": "jeffbee",
+    "timeISO": "2025-11-27T22:21:36.000Z",
+    "textPlain": "The argument seems to rely on the point that the replicas are only valuable if you can send reads to them, which I don't think is true. Eventually-consistent replicated databases are valuable on their own terms even if you can only send traffic to the leader.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
     "id": 46072664,
     "by": "generalzod",
     "timeISO": "2025-11-27T19:50:36.000Z",
     "textPlain": "in the read after write scenario, why not use something like consistency tokens ? and redirect to primary if the secondary detects it has not caught up ?",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46073630,
+    "by": "jiggawatts",
+    "timeISO": "2025-11-27T22:08:55.000Z",
+    "textPlain": "Blogs like this make me go on the same rant for the n-th time:Consistency for distributed systems is impossible without APIs returning cookies containing vector clocks.The idea is simple: every database has a logical sequence number (LSN), which the replicas try to catch up to -- but may be a little bit behind. Every time an API talks to a set of databases (or their replicas) to produce a JSON response (or whatever), it ought to return the LSNs of each database that produced the query in a cookie. Something like \"db1:591284;db2:10697438\".Client software must then union this with their existing cookie, and return the result of that to the next API call.That way if they've just inserted some value into db1 and the read-after-write query ends up going to a read replica that's slightly behind the write master (LSN 591280 instead of 591284) then the replica can either wait until it sees LSN >= 591284, or it can proxy the query back to the write master. A simple \"expected latency of waiting vs proxying\" heuristic can be used for this decision.That's (almost entirely) all you need for read-after-write transactional consistency at every layer, even through Redis caches and stateless APIs layers!",
     "parent": 46062855,
     "depth": 1
   },
@@ -88,18 +88,18 @@
     "depth": 1
   },
   {
-    "id": 46073142,
-    "by": "jasonwatkinspdx",
-    "timeISO": "2025-11-27T20:52:48.000Z",
-    "textPlain": "Back in the day there were some P2P RTS games that just sent duplicates. Like each UDP packet would have a new game state and then 1 or more repetitions of previous ones. For lockstep P2P engines, the state that needs to be transferred tends towards just being the client's input, so it's tiny, just a handful of bytes. Makes more sense to just duplicate ahead of time vs ack/nack and resend.",
-    "parent": 46072783,
-    "depth": 2
-  },
-  {
     "id": 46072823,
     "by": "vlovich123",
     "timeISO": "2025-11-27T20:08:54.000Z",
     "textPlain": "If you’re live streaming video, you can make sure every frame is a P-frame which brings your bandwidth costs to a minimum, but then a lost packet completely permanently disables the stream. Or you periodically refresh the stream with I-frames sent over a reliable channel so that lost packets corrupt the video going forward only momentarily.Sure, if performance characteristics were the same, people would go for strong consistency. The reason many different consistency models are defined is that there’s different tradeoffs that are preferable to a given problem domain with specific business requirements.",
+    "parent": 46072783,
+    "depth": 2
+  },
+  {
+    "id": 46073142,
+    "by": "jasonwatkinspdx",
+    "timeISO": "2025-11-27T20:52:48.000Z",
+    "textPlain": "Back in the day there were some P2P RTS games that just sent duplicates. Like each UDP packet would have a new game state and then 1 or more repetitions of previous ones. For lockstep P2P engines, the state that needs to be transferred tends towards just being the client's input, so it's tiny, just a handful of bytes. Makes more sense to just duplicate ahead of time vs ack/nack and resend.",
     "parent": 46072783,
     "depth": 2
   },
@@ -120,6 +120,14 @@
     "depth": 2
   },
   {
+    "id": 46073908,
+    "by": "sethev",
+    "timeISO": "2025-11-27T22:57:19.000Z",
+    "textPlain": "Changing terminology is hard once a name sticks. But yeah, \"eventual propagation\" is probably more accurate. I do get the impression that \"eventual consistency\" often just means \"does not have a well-defined consistency model\".",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
     "id": 46072486,
     "by": "dangoodmanUT",
     "timeISO": "2025-11-27T19:30:23.000Z",
@@ -128,18 +136,18 @@
     "depth": 2
   },
   {
-    "id": 46073275,
-    "by": "mrkeen",
-    "timeISO": "2025-11-27T21:12:58.000Z",
-    "textPlain": "Just like Git.  Why bother with all these branches, commits and merges?Just make it so everyone's revision steps forward in perfect lockstep.",
-    "parent": 46072174,
-    "depth": 2
-  },
-  {
     "id": 46072637,
     "by": "mystifyingpoi",
     "timeISO": "2025-11-27T19:47:11.000Z",
     "textPlain": "> They are actually never consistentI don't see it this way. Let's take a simple example - banks. Your employer sends you the salary from another bank. The transfer is (I'd say) eventually consistent - at some point, you WILL get the money. So how it can be \"never consistent\"?",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46073275,
+    "by": "mrkeen",
+    "timeISO": "2025-11-27T21:12:58.000Z",
+    "textPlain": "Just like Git.  Why bother with all these branches, commits and merges?Just make it so everyone's revision steps forward in perfect lockstep.",
     "parent": 46072174,
     "depth": 2
   },
@@ -157,6 +165,14 @@
     "timeISO": "2025-11-27T22:17:40.000Z",
     "textPlain": "I am not an expert, but from the examples in the article I think the author is looking for a bit more than read-your-writes.E.g. They mention reading a list of attachements and want to ensure they get all currently created attachements, which includes the ones created by other processes.So they want to have \"read-all-writes\" or something like that.",
     "parent": 46073524,
+    "depth": 2
+  },
+  {
+    "id": 46073905,
+    "by": "daigoba66",
+    "timeISO": "2025-11-27T22:57:00.000Z",
+    "textPlain": "FWIW, I think that’s essentially how Aurora DSQL works, and sort of explained at the end of the article.",
+    "parent": 46073630,
     "depth": 2
   },
   {
