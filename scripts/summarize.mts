@@ -719,28 +719,43 @@ export async function generateValidatedPostSummary(
 
       let guardResult: SummaryGuardResult | undefined;
       if (env.POST_GUARD_ENABLE) {
-        try {
-          guardResult = await runSummaryGuard(services.openrouter, {
-            summary: summaryContent.summary,
-            articleSlice,
-            envLike: {
-              SUMMARY_LANG: lang,
-              POST_GUARD_MODEL: env.POST_GUARD_MODEL,
-              POST_GUARD_MAX_TOKENS: env.POST_GUARD_MAX_TOKENS,
-              POST_GUARD_MIN_CONFIDENCE: env.POST_GUARD_MIN_CONFIDENCE,
-              POST_GUARD_ARTICLE_MAX_CHARS: env.POST_GUARD_ARTICLE_MAX_CHARS,
-            },
-          });
-        } catch (error) {
-          log.error(LOG_NAMESPACE_GUARD, "Guard call failed", {
-            id: story.id,
-            attempt: attempt.label,
-            error: String(error),
-          });
-          continue;
+        const guardModels = [env.POST_GUARD_MODEL, env.POST_GUARD_FALLBACK_MODEL].filter(
+          (model, idx, arr) => model && arr.indexOf(model) === idx
+        );
+
+        for (const guardModel of guardModels) {
+          try {
+            guardResult = await runSummaryGuard(services.openrouter, {
+              summary: summaryContent.summary,
+              articleSlice,
+              envLike: {
+                SUMMARY_LANG: lang,
+                POST_GUARD_MODEL: guardModel,
+                POST_GUARD_MAX_TOKENS: env.POST_GUARD_MAX_TOKENS,
+                POST_GUARD_MIN_CONFIDENCE: env.POST_GUARD_MIN_CONFIDENCE,
+                POST_GUARD_ARTICLE_MAX_CHARS: env.POST_GUARD_ARTICLE_MAX_CHARS,
+              },
+            });
+            break;
+          } catch (error) {
+            log.error(LOG_NAMESPACE_GUARD, "Guard call failed", {
+              id: story.id,
+              attempt: attempt.label,
+              guardModel,
+              error: String(error),
+            });
+          }
         }
 
-        if (!guardResult.ok) {
+        if (guardResult === undefined) {
+          log.warn(LOG_NAMESPACE_GUARD, "Guard unavailable; accepting heuristics-only summary", {
+            id: story.id,
+            attempt: attempt.label,
+            guardModels,
+          });
+        }
+
+        if (guardResult !== undefined && !guardResult.ok) {
           log.warn(LOG_NAMESPACE_GUARD, "Guard rejected summary", {
             id: story.id,
             attempt: attempt.label,
