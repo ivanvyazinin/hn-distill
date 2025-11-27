@@ -1,13 +1,5 @@
 [
   {
-    "id": 46072174,
-    "by": "kukkeliskuu",
-    "timeISO": "2025-11-27T18:54:53.000Z",
-    "textPlain": "I think we should stop calling these systems eventually consistent. They are actually never consistent. If the system is complex enough and there are always incoming changes, there is never a point in time in these \"eventually consistent systems\" that they are in consistent state. The problem of inconsistency is pushed to the users of the data.",
-    "parent": 46062855,
-    "depth": 1
-  },
-  {
     "id": 46072783,
     "by": "Kinrany",
     "timeISO": "2025-11-27T20:03:20.000Z",
@@ -16,10 +8,26 @@
     "depth": 1
   },
   {
-    "id": 46072490,
-    "by": "sgarland",
-    "timeISO": "2025-11-27T19:30:39.000Z",
-    "textPlain": "For the love of all that’s holy, please stop doing read-after-write. In nearly all cases, it isn’t needed. The only cases I can think of are if you need a DB-generated value (so, DATETIME or UUIDv1) from MySQL, or you did a multi-row INSERT in a concurrent environment.For MySQL, you can get the first auto-incrementing integer created from your INSERT from the cursor. If you only inserted one row, congratulations, there’s your PK. If you inserted multiple rows, you could also get the number of rows inserted and add that to get the range, but there’s no guarantee that it wasn’t interleaved with other statements. Anything else you wrote, you should already have, because you wrote it.For MariaDB, SQLite, and Postgres, you can just use the RETURNING clause and get back the entire row with your INSERT, or specific columns.",
+    "id": 46072174,
+    "by": "kukkeliskuu",
+    "timeISO": "2025-11-27T18:54:53.000Z",
+    "textPlain": "I think we should stop calling these systems eventually consistent. They are actually never consistent. If the system is complex enough and there are always incoming changes, there is never a point in time in these \"eventually consistent systems\" that they are in consistent state. The problem of inconsistency is pushed to the users of the data.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46073203,
+    "by": "mrkeen",
+    "timeISO": "2025-11-27T21:01:41.000Z",
+    "textPlain": "It's wishful thinking.  It's like choosing Newtonian physics over relativity because it's simpler or the equations are neater.If you have strong consistency, then you have at best availability xor partition tolerance.\"Eventual\" consistency is the best tradeoff we have for an AP system.Computation happens at a time and a place.  Your frontend is not the same computer as your backend service, or your database, or your cloud providers, or your partners.So you can insist on full-ACID on your DB (which it probably isn't running btw - search \"READ COMMITTED\".) but your DB will only be consistent with itself.We always talk about multiple bank accounts in these consistency modelling exercises.  Do yourself a favour and start thinking about multiple banks.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46072969,
+    "by": "nullorempty",
+    "timeISO": "2025-11-27T20:27:31.000Z",
+    "textPlain": "I keep wondering how the recent 15h outage have affected these eventually consistent systems.I really hope to see a paper on the effects of it.",
     "parent": 46062855,
     "depth": 1
   },
@@ -32,6 +40,14 @@
     "depth": 1
   },
   {
+    "id": 46072490,
+    "by": "sgarland",
+    "timeISO": "2025-11-27T19:30:39.000Z",
+    "textPlain": "For the love of all that’s holy, please stop doing read-after-write. In nearly all cases, it isn’t needed. The only cases I can think of are if you need a DB-generated value (so, DATETIME or UUIDv1) from MySQL, or you did a multi-row INSERT in a concurrent environment.For MySQL, you can get the first auto-incrementing integer created from your INSERT from the cursor. If you only inserted one row, congratulations, there’s your PK. If you inserted multiple rows, you could also get the number of rows inserted and add that to get the range, but there’s no guarantee that it wasn’t interleaved with other statements. Anything else you wrote, you should already have, because you wrote it.For MariaDB, SQLite, and Postgres, you can just use the RETURNING clause and get back the entire row with your INSERT, or specific columns.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
     "id": 46072267,
     "by": "Animats",
     "timeISO": "2025-11-27T19:03:20.000Z",
@@ -40,10 +56,42 @@
     "depth": 1
   },
   {
+    "id": 46073142,
+    "by": "jasonwatkinspdx",
+    "timeISO": "2025-11-27T20:52:48.000Z",
+    "textPlain": "Back in the day there were some P2P RTS games that just sent duplicates. Like each UDP packet would have a new game state and then 1 or more repetitions of previous ones. For lockstep P2P engines, the state that needs to be transferred tends towards just being the client's input, so it's tiny, just a handful of bytes. Makes more sense to just duplicate ahead of time vs ack/nack and resend.",
+    "parent": 46072783,
+    "depth": 2
+  },
+  {
+    "id": 46072823,
+    "by": "vlovich123",
+    "timeISO": "2025-11-27T20:08:54.000Z",
+    "textPlain": "If you’re live streaming video, you can make sure every frame is a P-frame which brings your bandwidth costs to a minimum, but then a lost packet completely permanently disables the stream. Or you periodically refresh the stream with I-frames sent over a reliable channel so that lost packets corrupt the video going forward only momentarily.Sure, if performance characteristics were the same, people would go for strong consistency. The reason many different consistency models are defined is that there’s different tradeoffs that are preferable to a given problem domain with specific business requirements.",
+    "parent": 46072783,
+    "depth": 2
+  },
+  {
     "id": 46072833,
     "by": "vlovich123",
     "timeISO": "2025-11-27T20:11:04.000Z",
     "textPlain": "Someone else stated this implicitly, but with your reasoning no complex system is ever consistent with ongoing changes. From the perspective of one of many concurrent writers outside of the database there’s no consistency they observe. Within the database there could be pending writes in flight that haven’t been persisted yet.That’s why these consistency models are defined from the perspective of “if you did no more writes after write X, what happens”.",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46073275,
+    "by": "mrkeen",
+    "timeISO": "2025-11-27T21:12:58.000Z",
+    "textPlain": "Just like Git.  Why bother with all these branches, commits and merges?Just make it so everyone's revision steps forward in perfect lockstep.",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46073315,
+    "by": "ryandv",
+    "timeISO": "2025-11-27T21:19:41.000Z",
+    "textPlain": "> If the system is complex enough and there are always incoming changesYou literally don't understand the definition of eventual consistency. The \"weakest\" form of eventual consistency, \"quiescent consistency,\" requires [0]:    that in any execution where the updates stop at\n    some point (i.e. where there are only finitely many updates), there\n    must exist some state, such that each session converges to that state\n    (i.e. all but finitely many operations e in each session [f ] see that state).\n\nEmphasis on the \"updates stop[ping] at some point,\" or there being only \"finitely many updates.\" By positing that there are always incoming changes you already fail to satisfy the hypothesis of the definition.In this model all other forms of eventual consistency exhibit at least this property of quiescent consistency (and possibly others).[0] https://www.microsoft.com/en-us/research/wp-content/uploads/...",
     "parent": 46072174,
     "depth": 2
   },
@@ -61,14 +109,6 @@
     "timeISO": "2025-11-27T19:47:11.000Z",
     "textPlain": "> They are actually never consistentI don't see it this way. Let's take a simple example - banks. Your employer sends you the salary from another bank. The transfer is (I'd say) eventually consistent - at some point, you WILL get the money. So how it can be \"never consistent\"?",
     "parent": 46072174,
-    "depth": 2
-  },
-  {
-    "id": 46072823,
-    "by": "vlovich123",
-    "timeISO": "2025-11-27T20:08:54.000Z",
-    "textPlain": "If you’re live streaming video, you can make sure every frame is a P-frame which brings your bandwidth costs to a minimum, but then a lost packet completely permanently disables the stream. Or you periodically refresh the stream with I-frames sent over a reliable channel so that lost packets corrupt the video going forward only momentarily.Sure, if performance characteristics were the same, people would go for strong consistency. The reason many different consistency models are defined is that there’s different tradeoffs that are preferable to a given problem domain with specific business requirements.",
-    "parent": 46072783,
     "depth": 2
   },
   {
