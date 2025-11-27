@@ -8,11 +8,75 @@
     "depth": 1
   },
   {
+    "id": 46072783,
+    "by": "Kinrany",
+    "timeISO": "2025-11-27T20:03:20.000Z",
+    "textPlain": "I continue to be surprised that in these discussions correctness is treated as some optional highest possible level of quality, not the only reasonable state.Suppose we're talking about multiplayer game networking, where the central store receives torrents of UDP packets and it is assumed that like half of them will never arrive. It doesn't make sense to view this as \"we don't care about the player's actual position\". We do. The system just has tolerances for how often the updates must be communicated successfully. Lost packets do not make the system incorrect.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46072490,
+    "by": "sgarland",
+    "timeISO": "2025-11-27T19:30:39.000Z",
+    "textPlain": "For the love of all that’s holy, please stop doing read-after-write. In nearly all cases, it isn’t needed. The only cases I can think of are if you need a DB-generated value (so, DATETIME or UUIDv1) from MySQL, or you did a multi-row INSERT in a concurrent environment.For MySQL, you can get the first auto-incrementing integer created from your INSERT from the cursor. If you only inserted one row, congratulations, there’s your PK. If you inserted multiple rows, you could also get the number of rows inserted and add that to get the range, but there’s no guarantee that it wasn’t interleaved with other statements. Anything else you wrote, you should already have, because you wrote it.For MariaDB, SQLite, and Postgres, you can just use the RETURNING clause and get back the entire row with your INSERT, or specific columns.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46072664,
+    "by": "generalzod",
+    "timeISO": "2025-11-27T19:50:36.000Z",
+    "textPlain": "in the read after write scenario, why not use something like consistency tokens ? and redirect to primary if the secondary detects it has not caught up ?",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
     "id": 46072267,
     "by": "Animats",
     "timeISO": "2025-11-27T19:03:20.000Z",
     "textPlain": "So why isn't the section that needs consistency enclosed in a transaction, with all operations between BEGIN TRANSACTION and COMMIT TRANSACTION? That's the standard way to get strong consistency in SQL. It's fully supported in MySQL, at least for InnoDB. You have to talk to the master, not a read slave, when updating, but that's normal.",
     "parent": 46062855,
     "depth": 1
+  },
+  {
+    "id": 46072833,
+    "by": "vlovich123",
+    "timeISO": "2025-11-27T20:11:04.000Z",
+    "textPlain": "Someone else stated this implicitly, but with your reasoning no complex system is ever consistent with ongoing changes. From the perspective of one of many concurrent writers outside of the database there’s no consistency they observe. Within the database there could be pending writes in flight that haven’t been persisted yet.That’s why these consistency models are defined from the perspective of “if you did no more writes after write X, what happens”.",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46072486,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-11-27T19:30:23.000Z",
+    "textPlain": "They eventually become consistent from the frame of a single write. They would become consistent if you stopped writes, so they will eventually get there",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46072637,
+    "by": "mystifyingpoi",
+    "timeISO": "2025-11-27T19:47:11.000Z",
+    "textPlain": "> They are actually never consistentI don't see it this way. Let's take a simple example - banks. Your employer sends you the salary from another bank. The transfer is (I'd say) eventually consistent - at some point, you WILL get the money. So how it can be \"never consistent\"?",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46072823,
+    "by": "vlovich123",
+    "timeISO": "2025-11-27T20:08:54.000Z",
+    "textPlain": "If you’re live streaming video, you can make sure every frame is a P-frame which brings your bandwidth costs to a minimum, but then a lost packet completely permanently disables the stream. Or you periodically refresh the stream with I-frames sent over a reliable channel so that lost packets corrupt the video going forward only momentarily.Sure, if performance characteristics were the same, people would go for strong consistency. The reason many different consistency models are defined is that there’s different tradeoffs that are preferable to a given problem domain with specific business requirements.",
+    "parent": 46072783,
+    "depth": 2
+  },
+  {
+    "id": 46072659,
+    "by": "mystifyingpoi",
+    "timeISO": "2025-11-27T19:50:07.000Z",
+    "textPlain": "> please stop doing read-after-writeBut that could be applied only in context of a single function. What if I save a resource and then mash F5 in the browser to see what was saved? I could hit a read replica that wasn't fast enough and the consistency promise breaks. I don't know how to solve it.",
+    "parent": 46072490,
+    "depth": 2
   }
 ]
