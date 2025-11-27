@@ -16,10 +16,42 @@
     "depth": 1
   },
   {
+    "id": 46073713,
+    "by": "jeffbee",
+    "timeISO": "2025-11-27T22:21:36.000Z",
+    "textPlain": "The argument seems to rely on the point that the replicas are only valuable if you can send reads to them, which I don't think is true. Eventually-consistent replicated databases are valuable on their own terms even if you can only send traffic to the leader.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46073524,
+    "by": "rakoo",
+    "timeISO": "2025-11-27T21:47:46.000Z",
+    "textPlain": "I don't understand this article and It's like the author doesn't really know what they're talking about. They don't want eventual consistency, they want read-your-writes, a consistency level that's stronger than EC yet still not strong.https://jepsen.io/consistency/models/read-your-writesRead-your-writes is indeed useful because it makes code easier to write: every process can behave as if it was the only one in the world, devs can write synchronous code, that's great ! But you don't need strong consistency.I hope developers learn a little bit more about the domain before going to strong consistency.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
     "id": 46073203,
     "by": "mrkeen",
     "timeISO": "2025-11-27T21:01:41.000Z",
     "textPlain": "It's wishful thinking.  It's like choosing Newtonian physics over relativity because it's simpler or the equations are neater.If you have strong consistency, then you have at best availability xor partition tolerance.\"Eventual\" consistency is the best tradeoff we have for an AP system.Computation happens at a time and a place.  Your frontend is not the same computer as your backend service, or your database, or your cloud providers, or your partners.So you can insist on full-ACID on your DB (which it probably isn't running btw - search \"READ COMMITTED\".) but your DB will only be consistent with itself.We always talk about multiple bank accounts in these consistency modelling exercises.  Do yourself a favour and start thinking about multiple banks.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46073548,
+    "by": "Tractor8626",
+    "timeISO": "2025-11-27T21:52:22.000Z",
+    "textPlain": "> read-modify-write is the canonical transactional workload. That applies to explicit transactions (anything that does an UPDATE or SELECT followed by a write in a transaction), but also things that do implicit transactions (like the example above)Your \"implicit transaction\" would not be consistent even if there was no replication involved at all. Explicit db transactions exist for a reason - use them.",
+    "parent": 46062855,
+    "depth": 1
+  },
+  {
+    "id": 46073630,
+    "by": "jiggawatts",
+    "timeISO": "2025-11-27T22:08:55.000Z",
+    "textPlain": "Blogs like this make me go on the same rant for the n-th time:Consistency for distributed systems is impossible without APIs returning cookies containing vector clocks.The idea is simple: every database has a logical sequence number (LSN), which the replicas try to catch up to -- but may be a little bit behind. Every time an API talks to a set of databases (or their replicas) to produce a JSON response (or whatever), it ought to return the LSNs of each database that produced the query in a cookie. Something like \"db1:591284;db2:10697438\".Client software must then union this with their existing cookie, and return the result of that to the next API call.That way if they've just inserted some value into db1 and the read-after-write query ends up going to a read replica that's slightly behind the write master (LSN 591280 instead of 591284) then the replica can either wait until it sees LSN >= 591284, or it can proxy the query back to the write master. A simple \"expected latency of waiting vs proxying\" heuristic can be used for this decision.That's (almost entirely) all you need for read-after-write transactional consistency at every layer, even through Redis caches and stateless APIs layers!",
     "parent": 46062855,
     "depth": 1
   },
@@ -72,26 +104,18 @@
     "depth": 2
   },
   {
+    "id": 46073542,
+    "by": "anyonecancode",
+    "timeISO": "2025-11-27T21:50:50.000Z",
+    "textPlain": "The way you're defining \"eventually consistent\" seems to imply it means \"the current state of the system is eventually consistent,\" which is not what I think that means. Rather, it means \"for any given previous state of the system, the current state will eventually reflect that.\"\"Eventually consistent,\" as I understand it, always implies a lag, whereas the way you're using it seems to imply that at some point there is no lag.",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
     "id": 46072833,
     "by": "vlovich123",
     "timeISO": "2025-11-27T20:11:04.000Z",
     "textPlain": "Someone else stated this implicitly, but with your reasoning no complex system is ever consistent with ongoing changes. From the perspective of one of many concurrent writers outside of the database there’s no consistency they observe. Within the database there could be pending writes in flight that haven’t been persisted yet.That’s why these consistency models are defined from the perspective of “if you did no more writes after write X, what happens”.",
-    "parent": 46072174,
-    "depth": 2
-  },
-  {
-    "id": 46073275,
-    "by": "mrkeen",
-    "timeISO": "2025-11-27T21:12:58.000Z",
-    "textPlain": "Just like Git.  Why bother with all these branches, commits and merges?Just make it so everyone's revision steps forward in perfect lockstep.",
-    "parent": 46072174,
-    "depth": 2
-  },
-  {
-    "id": 46073315,
-    "by": "ryandv",
-    "timeISO": "2025-11-27T21:19:41.000Z",
-    "textPlain": "> If the system is complex enough and there are always incoming changesYou literally don't understand the definition of eventual consistency. The \"weakest\" form of eventual consistency, \"quiescent consistency,\" requires [0]:    that in any execution where the updates stop at\n    some point (i.e. where there are only finitely many updates), there\n    must exist some state, such that each session converges to that state\n    (i.e. all but finitely many operations e in each session [f ] see that state).\n\nEmphasis on the \"updates stop[ping] at some point,\" or there being only \"finitely many updates.\" By positing that there are always incoming changes you already fail to satisfy the hypothesis of the definition.In this model all other forms of eventual consistency exhibit at least this property of quiescent consistency (and possibly others).[0] https://www.microsoft.com/en-us/research/wp-content/uploads/...",
     "parent": 46072174,
     "depth": 2
   },
@@ -104,11 +128,35 @@
     "depth": 2
   },
   {
+    "id": 46073275,
+    "by": "mrkeen",
+    "timeISO": "2025-11-27T21:12:58.000Z",
+    "textPlain": "Just like Git.  Why bother with all these branches, commits and merges?Just make it so everyone's revision steps forward in perfect lockstep.",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
     "id": 46072637,
     "by": "mystifyingpoi",
     "timeISO": "2025-11-27T19:47:11.000Z",
     "textPlain": "> They are actually never consistentI don't see it this way. Let's take a simple example - banks. Your employer sends you the salary from another bank. The transfer is (I'd say) eventually consistent - at some point, you WILL get the money. So how it can be \"never consistent\"?",
     "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46073315,
+    "by": "ryandv",
+    "timeISO": "2025-11-27T21:19:41.000Z",
+    "textPlain": "> If the system is complex enough and there are always incoming changesYou literally don't understand the definition of eventual consistency. The weakest form of eventual consistency, quiescent consistency, requires [0]:    that in any execution where the updates stop at\n    some point (i.e. where there are only finitely many updates), there\n    must exist some state, such that each session converges to that state\n    (i.e. all but finitely many operations e in each session [f] see that state).\n\nEmphasis on the \"updates stop[ping] at some point,\" or there being only \"finitely many updates.\" By positing that there are always incoming changes you already fail to satisfy the hypothesis of the definition.In this model all other forms of eventual consistency exhibit at least this property of quiescent consistency (and possibly more).[0] https://www.microsoft.com/en-us/research/wp-content/uploads/...",
+    "parent": 46072174,
+    "depth": 2
+  },
+  {
+    "id": 46073696,
+    "by": "ewidar",
+    "timeISO": "2025-11-27T22:17:40.000Z",
+    "textPlain": "I am not an expert, but from the examples in the article I think the author is looking for a bit more than read-your-writes.E.g. They mention reading a list of attachements and want to ensure they get all currently created attachements, which includes the ones created by other processes.So they want to have \"read-all-writes\" or something like that.",
+    "parent": 46073524,
     "depth": 2
   },
   {
