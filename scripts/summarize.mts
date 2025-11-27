@@ -929,6 +929,11 @@ async function processTags(
   postSummary?: string,
   commentsSummary?: string
 ): Promise<void> {
+  // Allow disabling tags to conserve LLM quota (e.g., during catch-up runs)
+  if (env.TAGS_MAX_PER_STORY <= 0) {
+    log.debug(TAGS_DEBUG_MESSAGE, "tags disabled via TAGS_MAX_PER_STORY=0", { id: story.id });
+    return;
+  }
   const p = pathFor.tagsSummary(story.id);
   const prompt = buildTagsPrompt(story, postSummary, commentsSummary);
   const inputHash = hashString(`tags|${prompt}|${env.TAGS_MODEL}`);

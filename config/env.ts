@@ -23,7 +23,7 @@ const EnvironmentSchema = z.object({
   TAGS_MODEL: z.string().default("mistralai/mistral-small-3.1-24b-instruct:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
-  TAGS_MAX_PER_STORY: z.coerce.number().int().min(3).max(20).default(10),
+  TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
 
   POST_GUARD_ENABLE: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
