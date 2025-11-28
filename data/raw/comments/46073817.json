@@ -1,5 +1,13 @@
 [
   {
+    "id": 46075081,
+    "by": "ayuhito",
+    "timeISO": "2025-11-28T02:47:43.000Z",
+    "textPlain": "Also worth checking out libxev[1] by Mitchell Hashimoto. It’s a Zig based event loop (similar to libuv) inspired by Tigerbeetle’s implementation.[1] https://github.com/mitchellh/libxev",
+    "parent": 46073817,
+    "depth": 1
+  },
+  {
     "id": 46075188,
     "by": "adzm",
     "timeISO": "2025-11-28T03:10:57.000Z",
@@ -8,10 +16,10 @@
     "depth": 1
   },
   {
-    "id": 46075081,
-    "by": "ayuhito",
-    "timeISO": "2025-11-28T02:47:43.000Z",
-    "textPlain": "Also worth checking out libxev[1] by Mitchell Hashimoto. It’s a Zig based event loop (similar to libuv) inspired by Tigerbeetle’s implementation.[1] https://github.com/mitchellh/libxev",
+    "id": 46075337,
+    "by": "RantyDave",
+    "timeISO": "2025-11-28T03:49:04.000Z",
+    "textPlain": "There was a brief fascination with user mode TCP over DPDK (or similar). What happened with that? Can you get similar performance with QUIC? Does io_uring make it all a moot point?",
     "parent": 46073817,
     "depth": 1
   },
@@ -32,11 +40,43 @@
     "depth": 1
   },
   {
+    "id": 46075388,
+    "by": "Zambyte",
+    "timeISO": "2025-11-28T04:00:47.000Z",
+    "textPlain": "Also, the Zig 0.16.0 preview nightly builds includes a new Io library[0]. I have not used libxev or Tigerbeetles event loop, but I believe the standard Zig implementation is likely largely influenced by those two.[0] https://ziglang.org/documentation/master/std/#std.Io, or https://ziglang.org/documentation/0.16.0/std/#std.Io after the release",
+    "parent": 46075081,
+    "depth": 2
+  },
+  {
+    "id": 46075467,
+    "by": "saghm",
+    "timeISO": "2025-11-28T04:16:30.000Z",
+    "textPlain": "At least to me, one of the most compelling parts of QUIC is that you establish a connection with TLS without needing extra round trips compared to TCP, where there are separate handshakes for the connection and then the TLS initialization. Even if it was no faster than TCP from that point forward, that seems like enough to make the protocol worthwhile in today's world where TLS is the basically the rule with relatively few exceptions rather than an occasion use case.It's also something I just find fascinating because it's one of the few practical cases where I feel like the compositional approach has what seems to be an insurmountable disadvantage compared to making a single thing more complex. Maybe there are a lot more of them that just aren't obvious to me because the \"larger\" thing is already so well-established that I wouldn't consider breaking it into smaller pieces because of the inherent advantage from having them combined, but even then it still seems surprising that that gold standard for so long arguably because of how well it worked with things that came after eventually run into change in expectations that it can't adapt to as well as something with intentionally larger scope to include one of those compositional layers.",
+    "parent": 46075337,
+    "depth": 2
+  },
+  {
+    "id": 46075400,
+    "by": "toast0",
+    "timeISO": "2025-11-28T04:02:57.000Z",
+    "textPlain": "I've only done a little prototyping with it, but io_uring addresses the same issue as DPDK, but in a totally different way. If you want high perf, you want to avoid context switches between userland and kernelland; you have DPDK which brings the NIC buffers into userland and bypasses the kernel, you have things like sendfile and kTLS which lets the kernel do most of the work and bypasses userland; and you have io_uring which lets you do the same syscalls as you're doing now, but a) in a batch format, b) also in a continuous form with a submission queue thing. I think it's easier to reach for io_uring than DPDK, but it might not get you as far as DPDK; you're still communicating between kernel and userland, but it's better than normal syscalls.> Can you get similar performance with QUIC?I don't know that I've seen benchmarks, but I'd be surprised if you can get similar performance with QUIC. TCP has decades of optimization that you can lean on, UDP for bulk transfer really doesn't. For a lot of applications, server performance from QUIC vs TCP+TLS isn't a big deal, because you'll spend much more server performance on computing what to send than on sending it... For static file serving, I'd be surprised if QUIC is actually competitive, but it still might not be a big deal if your server is overpowered and can hit the NIC limits with either.",
+    "parent": 46075337,
+    "depth": 2
+  },
+  {
     "id": 46074501,
     "by": "catlifeonmars",
     "timeISO": "2025-11-28T00:39:46.000Z",
     "textPlain": "Is that true for all file abstractions? What happens with NFS?",
     "parent": 46074209,
+    "depth": 2
+  },
+  {
+    "id": 46075412,
+    "by": "toast0",
+    "timeISO": "2025-11-28T04:06:38.000Z",
+    "textPlain": "Some people would rather have an abstraction over io_uring and kqueue rather than choosing a single API that works everywhere they want to run, choosing to only run on the OS that provides the API they prefer, or writing their loop (and anything else) for all the APIs they want to support.But I agree with you; I'd rather use the thing without excess abstraction, and the standard apis work well enough for most applications. Some things do make sense to do the work to increase performance though.",
+    "parent": 46074800,
     "depth": 2
   }
 ]
