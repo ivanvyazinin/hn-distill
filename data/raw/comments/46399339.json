@@ -1,0 +1,26 @@
+[
+  {
+    "id": 46409259,
+    "by": "gethly",
+    "timeISO": "2025-12-28T07:47:51.000Z",
+    "textPlain": "Not a bug but rather an engineering oversight. Also not hard and it did not affect me, I caught it soon, but it was one of those surprising moments worth mentioning.I have a write-online table in MariaDB and ordering of records is important. I have realised that the database has no such thing as append-only table that stores records in the order they are submitted into the database. Every record has one or more indices, and it is these indices that dictate the ordering and only for the data they index. What I have overlooked is when a transaction A starts, then transaction B starts, the transaction A might have records with smaller keys, as it started sooner, but transaction B commits first with higher keys, which means I end up with out-of-order entries. This is not too bad, actually, it depends on the context and in my case the context was that there were readers constantly waiting for new records. And so if a reader reads records after transaction B commits but not before transaction A commits, the reader will never see new records from transaction A. I have solved it by blocking the readers based on number of active transactions with ordering being considered.I have wrote about it in this blog post, in the \"Event Log and proper ordering of events\" section https://gethly.com/blog/how-of-gethly/event-sourcing-right-w...",
+    "parent": 46399339,
+    "depth": 1
+  },
+  {
+    "id": 46405061,
+    "by": "guntis_dev",
+    "timeISO": "2025-12-27T20:42:36.000Z",
+    "textPlain": "Not exactly a bug, but I was given a company written video player that receives a video stream, decodes it via the browser WebCodecs API, and renders via WebGL. Users complained that video was laggy and often froze on their iPhones. My task was to make it perform better - using the browser's built-in player wasn't an option.After profiling, I found two bottlenecks: converting frames to RGB was happening on the CPU and was quite costly, so I rendered the decoded YUV frames directly on the GPU without conversion. Second, I moved all logic off the main thread since our heavy UI was competing for the same resources.The main thread thing was that I was iterating through the frame buffer multiple times per second to select the appropriate frame for rendering. When heavy UI animations occurred, the main thread would block, causing the iteration to complete late - by then, the target frame's timestamp had passed, so it would get skipped and only the next frame would be drawn, creating visible stuttering.",
+    "parent": 46399339,
+    "depth": 1
+  },
+  {
+    "id": 46399439,
+    "by": "Agent_Builder",
+    "timeISO": "2025-12-27T05:38:56.000Z",
+    "textPlain": "While building GTWY, we realized stack traces stop being useful once workflows go async. So we designed things around step-level visibility and shared context instead.",
+    "parent": 46399339,
+    "depth": 1
+  }
+]

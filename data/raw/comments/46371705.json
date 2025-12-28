@@ -1,0 +1,138 @@
+[
+  {
+    "id": 46372653,
+    "by": "Lvl999Noob",
+    "timeISO": "2025-12-24T05:07:23.000Z",
+    "textPlain": "Personally, I would prefer that the package managers keep their own lockfiles with all their metadata. A CI process (using the package managers itself) can create the SBOM for every commit in a standardized environment. We get all the same benefits without losing anything (the package managers can keep their own formats and metadata and remove anything unneeded for the SBOM from it).",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46372489,
+    "by": "endorphine",
+    "timeISO": "2025-12-24T04:32:48.000Z",
+    "textPlain": "From https://en.wikipedia.org/wiki/Software_supply_chain:> A software bill of materials (SBOM) declares the inventory of components used to build a software artifact, including any open source and proprietary software components. It is the software analogue to the traditional manufacturing BOM, which is used as part of supply chain management.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46374173,
+    "by": "matharmin",
+    "timeISO": "2025-12-24T10:01:11.000Z",
+    "textPlain": "SBOM may contain similar info to lockfiles, but the purposes are entirely different.Lockfiles tells the package manager what to install. SBOM tells the user what your _built_ project contains. In some cases it could be the same, but in most cases it's not.It's more complicated than just annotating which dependencies are development versus production dependencies. You may be installing dependencies, but not actually use them in the build (for example optional transitive dependencies). Some build tools can detect this and omit them from the SBOM, but you can't omit these from your lockfile.Fundamentally, lockfiles are an input to your developement setup process, while SBOM is an output of the build process.Now, there is still an argument that you can use the same _format_ for both. But there are no significant advantages to that: The SBOM is more verbose, does not diff will, will result in worse performance.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373148,
+    "by": "Ferret7446",
+    "timeISO": "2025-12-24T06:56:21.000Z",
+    "textPlain": "No because SBOMs are a hot mess and not standardized at all.  They're  \"standardized\" in the same sense as HL7 (ask someone in the healthcare industry, make sure to have some sedatives on hand first).  A comprehensive SBOM for something like Chromium is many dozens of MBs compressed  (I forget exactly, but it's patently ridiculous). Also SBOMs should be build artifacts, so them (also) being build inputs is problematic.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46372211,
+    "by": "woodruffw",
+    "timeISO": "2025-12-24T03:45:02.000Z",
+    "textPlain": "This is a great summary, although I think I'm more bearish on SBOMs than Andrew is: my experience integrating them so far (in both pip-audit and uv) has been that there's much more malleability at the representation level than the presence of a standard might imply, and that consumers have adapted (a la Postel) to this reality by being very permissive with the kinds of broken stuff they permit when ingesting third-party SBOMs.(Case in point: pip-audit's CycloneDX emission was subtly incorrect for years, and nobody noticed[1].)[1]: https://github.com/pypa/pip-audit/pull/981",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46374187,
+    "by": "brookman64k",
+    "timeISO": "2025-12-24T10:04:26.000Z",
+    "textPlain": "In some ecosystems like Rust/Cargo the lock file can list a superset of the dependencies that actually make it into the final executable. Crates may conditionally include or exclude dependencies based on enabled features selected by the parent crate, or on the compilation target itself. As a result, the SBOM is effectively a build artifact, and its contents can legitimately vary across platforms.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373153,
+    "by": "notepad0x90",
+    "timeISO": "2025-12-24T06:56:28.000Z",
+    "textPlain": "Wouldn't lock files require running the thing? People need to be able to verify SBOM without doing that. It's the kind of thing you check against a large fleet of devices. If someone has software installed on their laptop but hasn't run it in a year, you need to be able to measure SBOM for that.SBOM is too similar to things like authenticode and package signing for it to be some unique solution. We're too used to how things have always been done. Too stuck in the \"monkey see, monkey do\" mindset. How about any piece of software, under any execution environment should not only have an SBOM declaration, but cyptographic authentication of all of its components, including any static data files.This should be a standardized mechanism. Everyone is doing their own thing and it's creating lots of insecurity and chaos. Why can't I answer all security-related questions about the software I'm running on any device or OS using the same protocol?Everyone would consider it absurd if we used a different TLS when talking to an Apache server or a Windows server than alternatives.SBOM, code signing (originator of the code), capability declarations, access requirements (camera, mic, etc...) are not things that are unique to an OS or platform. And for the details that are, those are data values that should be different, not the entire method of verification.I wonder what it would take to enact this, I'd imagine some sort of regulatory push? But we don't even have a good cross-platform and standardized way of doing this for anyone to enforce it to begin with.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46381396,
+    "by": "pornel",
+    "timeISO": "2025-12-25T01:57:00.000Z",
+    "textPlain": "Cargo.lock contains unused dependencies that aren't in the final product.That's because it's a:• union of all deps for all possible target platforms,\n • for all libraries and all binaries in the whole workspace,\n • and includes all optional deps for all optional features, regardless whether these features are currently enabled or not.This means that Cargo.lock truly locks everything, and works for all platforms and configurations of a project. It's stable enough to commit into source control, as it won't get invalidated/mutated just because somebody used it on another OS or built the project with an extra flag.But it doesn't represent what actually goes into each binary.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46374300,
+    "by": "pjmlp",
+    "timeISO": "2025-12-24T10:28:36.000Z",
+    "textPlain": "> Every package manager has its own lockfile format. Gemfile.lock, package-lock.json, yarn.lock, Cargo.lock, poetry.lock, composer.lock, go.sum. They all record roughly the same information: which packages were installed, at what versions, with what checksums, from where.Nope, Java and .NET ecosystem don't use them.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373363,
+    "by": "onion2k",
+    "timeISO": "2025-12-24T07:39:24.000Z",
+    "textPlain": "Isn't one fairly major problem with using lockfiles that there could be packages in the lockfile that aren't used in the application? If I run \"npm i package\" that doesn't tell you whether or not 'package' is actually used in the app.For most things that unused dependency is just annoying but if your government has mandated that you use a specific package for something (e.g. cryptography) the lockfile isn't enough to give you confidence that the app is actually doing that. You'll still need to audit the application code.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373225,
+    "by": "perbu",
+    "timeISO": "2025-12-24T07:10:52.000Z",
+    "textPlain": "Software I built will have the following ingredients.source from git\n~30 go packages\n~150 npm packages\n~A three layered docker image",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46374517,
+    "by": "stuaxo",
+    "timeISO": "2025-12-24T11:07:53.000Z",
+    "textPlain": "There's a great rule for UK Gov websites that an acronyms must be defined on first use.What on earth is an SBOM?",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373423,
+    "by": "ozim",
+    "timeISO": "2025-12-24T07:51:44.000Z",
+    "textPlain": "Typical software developer fallacy - well it looks the same so we can abstract and merge concept.Well NO lock file and SBOM formats are used for different purposes and are to be consumed by different audiences. They will evolve in different speeds and ways. Ideally SBOM should not evolve and package lock should be able to change on a whim by package manager developers.SBOMs are meant to be shared by 3’rd parties while lock files not - just because some tooling accidentally started using lock files for ingestion is just because people didn’t knew better or couldn’t explain to their customers why they should do SBOM so they did first easiest thing.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46372096,
+    "by": "zingar",
+    "timeISO": "2025-12-24T03:25:03.000Z",
+    "textPlain": "In hearing the SBOM term for the first time from that article and the linked Wikipedia page. For the ignorant like me: what is it that SBOM is used for that lockfiles aren’t? Everything in the article is something that I’m used to seeing automated scanners using lockfiles for.Is it just that the two are used by different communities? What is the SBOM community?",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46372543,
+    "by": "phendrenad2",
+    "timeISO": "2025-12-24T04:45:28.000Z",
+    "textPlain": "> the security world has been pushing CycloneDX and SPDX> CycloneDX supports JSON, XML, and YAMLAnd SPDX is JSON.Are there any other examples of government-mandated non-human-readable file formats? I feel like bureaucracies have a natural tendency to water down requirements such as this and instead focuses on getting wet signatures on pen-and-paper.",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46371986,
+    "by": "firloop",
+    "timeISO": "2025-12-24T03:05:25.000Z",
+    "textPlain": "Another drawback could be that package manager lockfile schemas are optimized for performance[0]. I wouldn't appreciate seeing slower install times by default - especially if the lockfile could be converted with other tooling.[0]: https://bun.com/blog/behind-the-scenes-of-bun-install#optimi...",
+    "parent": 46371705,
+    "depth": 1
+  },
+  {
+    "id": 46373655,
+    "by": "voidUpdate",
+    "timeISO": "2025-12-24T08:34:39.000Z",
+    "textPlain": "https://xkcd.com/927/",
+    "parent": 46371705,
+    "depth": 1
+  }
+]

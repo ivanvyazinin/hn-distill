@@ -1,0 +1,346 @@
+[
+  {
+    "id": 46412967,
+    "by": "jwr",
+    "timeISO": "2025-12-28T17:55:20.000Z",
+    "textPlain": "It has become fashionable to s*t on GnuPG. I just wish all the crypto experts doing that would point me to an alternative that is functionally equivalent.Something that will encrypt using AES-256 with a passphrase, but also using asymmetric crypto. Oh, and I want my secret keys printable if needed. And I want to store them securely on YubiKeys once generated (https://github.com/drduh/YubiKey-Guide). I want to be able to encrypt my backups to multiple recipients. And I want the same keys (stored on Yubikeys, remember?) to be usable for SSH authentication, too.And by the way, if your fancy tool is written using the latest language du jour with a runtime that changes every couple of years or so, or requires huge piles of dependencies that break if you even as much as sneeze (python, anyone?), it won't do.BTW, in case someone says \"age\", I actually followed that advice and set it up just to be there on my systems (managed by ansible). Apart from the fact that it really slowed down my deployments, the thing broke within a year. And I didn't even use it. I just wanted to see how reliable it will be in the most minimal of ways: by having it auto-installed on my systems.If your fancy tool has less than 5 years of proven maintenance record, it won't do. Encryption is for the long term. I want to be able to read my stuff in 15-30 years.So before you go all criticizing GnuPG, please understand that there are reasons why people still use it, and are actually OK with the flaws described.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404107,
+    "by": "oefrha",
+    "timeISO": "2025-12-27T18:45:31.000Z",
+    "textPlain": "Okay, since there’s so much stuff to digest here and apparently there are issues designated as wontfix by GnuPG maintainers, can someone more in the loop tell us whether using gpg signatures on git commits/tags is vulnerable? And is there any better alternative going forward? Like is signing with SSH keys considered more secure now? I certainly want to get rid of gpg from my life if I can, but I also need to make sure commits/tags bearing my name actually come from me.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46409249,
+    "by": "Valodim",
+    "timeISO": "2025-12-28T07:45:52.000Z",
+    "textPlain": "For anyone relatedly wondering about the \"schism\", i.e. GnuPG abandoning the OpenPGP standard and doing their own self-governed thing, I found this email particularly insightful on the matter:\n https://lists.gnupg.org/pipermail/gnupg-devel/2025-September...> As others have pointed out, GnuPG is a C codebase with a long history (going on 28 years). On top of that, it's a codebase that is mostly uncovered by tests, and has no automated CI. If GnuPG were my project, I \nwould also be anxious about each change I make. I believe that because of this the LibrePGP draft errs on the side of making minimal changes, with the unspoken goal of limiting risks of breakage in a brittle codebase with practically no tests. (Maybe the new formats in RFC 9580 are indeed \"too radical\" of an evolutionary step to safely implement in GnuPG. But that's surely not a failing of RFC 9580.)",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403322,
+    "by": "rurban",
+    "timeISO": "2025-12-27T17:19:21.000Z",
+    "textPlain": "Zero-days from the CCC talk https://fahrplan.events.ccc.de/congress/2025/fahrplan/event/...But trust in Werner Koch is gone. Wontfix??",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403734,
+    "by": "derleyici",
+    "timeISO": "2025-12-27T18:02:45.000Z",
+    "textPlain": "Werner Koch from GnuPG recently (2025-12-26) posted this on their blog: https://www.gnupg.org/blog/20251226-cleartext-signatures.htm...Archive link: https://web.archive.org/web/20251227174414/https://www.gnupg...",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403446,
+    "by": "smallerize",
+    "timeISO": "2025-12-27T17:31:36.000Z",
+    "textPlain": "Seems to be down? Here's a thread with a summary of exploits presented in the talk: https://bsky.app/profile/filippo.abyssdomain.expert/post/3ma...",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46407402,
+    "by": "ekjhgkejhgk",
+    "timeISO": "2025-12-28T01:17:52.000Z",
+    "textPlain": "Is anyone else worried that a lot of people coming from the Rust world contribute to free software and mindlessly slap on it MIT license because it's \"the default license\"? (Yes, I've had someone say this to me, no joke)GnuPG for all its flaws has a copyleft license (GPL3) making it difficult to \"embrace extend extinguish\". If you replace it with a project that becomes more successful but has a less protective (for users) license, \"we the people\" might lose control of it.Not everything in software is about features.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404142,
+    "by": "SSLy",
+    "timeISO": "2025-12-27T18:50:07.000Z",
+    "textPlain": "https://media.ccc.de/v/39c3-to-sign-or-not-to-sign-practical...",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404339,
+    "by": "tptacek",
+    "timeISO": "2025-12-27T19:19:27.000Z",
+    "textPlain": "A thru-line of some of the gnarliest vulnerabilities here is PGP's insane packet system, where a PGP message is a practically arbitrary stream of packets, some control and some data, with totally incoherent cryptographic bindings. It's like something in between XMLDSIG (which pulls cryptographic control data out of random places in XML messages according to attacker-controlled tags) and SSL2 (with no coherent authentication of the complete handshake).The attack on detached signatures (attack #1) happens because GnuPG needs to run a complicated state machine that can put processing into multiple different modes, among them three different styles of message signature. In GPG, that whole state machine apparently collapses down to a binary check of \"did we see any data so that we'd need to verify a signature?\", and you can selectively flip that predicate back and forth by shoving different packets into message stream, even if you've already sent data that needs to be verified.The malleability bug (attack #4) is particularly slick. Again, it's an incoherent state machine issue. GPG can \"fail\" to process a packet because it's cryptographically invalid. But it can also fail because the message framing itself is corrupted. Those latter non-cryptographic failures are handled by aborting the processing of the message, putting GPG into an unexpected state where it's handling an error and \"forgetting\" to check the message authenticator. You can CBC-bitflip known headers to force GPG into processing DEFLATE compression, and mangle the message such that handling the message prints the plaintext in its output.The formfeed bug (#3) is downright weird. GnuPG has special handling for `\\f`; if it occurs at the end of a line, you can inject arbitrary unsigned data, because of GnuPG's handling of line truncation. Why is this even a feature?Some of these attacks look situational, but that's deceptive, because PGP is (especially in older jankier systems) used as an encryption backend for ",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404073,
+    "by": "somethrowa123",
+    "timeISO": "2025-12-27T18:41:54.000Z",
+    "textPlain": "the writeup is now available and the recording lives at https://media.ccc.de/v/39c3-to-sign-or-not-to-sign-practical...",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46407856,
+    "by": "sorz",
+    "timeISO": "2025-12-28T02:36:04.000Z",
+    "textPlain": "Lots of issues follow the pattern \"ANSI escape code inside untrusted text\". It feels like XSS but for terminal.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403630,
+    "by": "elric",
+    "timeISO": "2025-12-27T17:51:05.000Z",
+    "textPlain": "This is depressing.From what I can piece together while the site is down, it seems like they've uncovered 14 exploitable vulnerabilities in GnuPG, of which most remain unpatched. Some of those are apparently met by refusal to patch by the maintainer. Maybe there are good reasons for this refusal, maybe someone else can chime in on that?Is this another case of XKCD-2347? Or is there something else going on? Pretty much every Linux distro depends on PGP being pretty secure. Surely IBM & co have a couple of spare developers or spare cash to contribute?",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403700,
+    "by": "singpolyma3",
+    "timeISO": "2025-12-27T17:58:18.000Z",
+    "textPlain": "AFAICT this is GnuPG specific and not OpenPGP related? Since GnuPG has pulled out of standards compliance anyway there are many better options. Sequoia chameleon even has drop in tooling for most workflows.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46409494,
+    "by": "raphinou",
+    "timeISO": "2025-12-28T08:44:24.000Z",
+    "textPlain": "I'm working on a multi sig file authentication solution based on minisign. Anyone knows the response of the dev regarding minisign's listed vulnerability? If I'm not mistaken, the response of the authors are not included in the vulnerabilities' descriptions.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46405157,
+    "by": "wkat4242",
+    "timeISO": "2025-12-27T20:58:17.000Z",
+    "textPlain": "I don't mind gpg. I still use it a lot especially with the private keys on openpgp smartcards or yubikeys.It's a pretty great ecosystem, most hardware smartcards are surrounded by a lot of black magic and secret handshakes and stuff like pkcs#11 and opensc/openct are much much harder to configure.I use it for many things but not for email. Encrypted backups, password manager, ssh keys. For some there are other hardware options like fido2 but not for all usecases and not the same one for each usecase. So I expect to be using gpg for a long time to come.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46405702,
+    "by": "acoustics",
+    "timeISO": "2025-12-27T21:57:40.000Z",
+    "textPlain": "I don't understand the disappointment expressed here in the maintainers deciding to WONTFIX these security bugs.Isn't this what ffmpeg did recently? They seemed to get a ton of community support in their decision not to fix a vulnerability",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404056,
+    "by": "selfbottle",
+    "timeISO": "2025-12-27T18:40:06.000Z",
+    "textPlain": "writeups are online :))",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404842,
+    "by": "IAmLiterallyAB",
+    "timeISO": "2025-12-27T20:14:29.000Z",
+    "textPlain": "Another related writeup https://www.latacora.com/blog/2019/07/16/the-pgp-problem/",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403406,
+    "by": "GaryBluto",
+    "timeISO": "2025-12-27T17:28:01.000Z",
+    "textPlain": "> brb, were on it!!!!",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403425,
+    "by": "_haxx0rz",
+    "timeISO": "2025-12-27T17:29:43.000Z",
+    "textPlain": "hug of death?",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404018,
+    "by": "clacker-o-matic",
+    "timeISO": "2025-12-27T18:35:06.000Z",
+    "textPlain": "its back up!",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46403411,
+    "by": "WesolyKubeczek",
+    "timeISO": "2025-12-27T17:28:10.000Z",
+    "textPlain": "gpg.fail fail: \"brb, we're on it!\"",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46405015,
+    "by": "1317",
+    "timeISO": "2025-12-27T20:36:24.000Z",
+    "textPlain": "[video]",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46410965,
+    "by": "user3939382",
+    "timeISO": "2025-12-28T13:31:04.000Z",
+    "textPlain": "If mass use of GPG benefited Microsoft, Amazon, Google and all the other assholes it would be polished, slick, and part of 9th grade curriculum. They call it “Face ID” that’s the Orwellian shit that makes money so that’s what we get instead. These things take resources, don’t blame the projects.",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46411112,
+    "by": "manuchojose76",
+    "timeISO": "2025-12-28T13:58:13.000Z",
+    "textPlain": "[dead]",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404585,
+    "by": "cindyllm",
+    "timeISO": "2025-12-27T19:44:04.000Z",
+    "textPlain": "[dead]",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46404393,
+    "by": "ekjhgkejhgk",
+    "timeISO": "2025-12-27T19:26:01.000Z",
+    "textPlain": "[flagged]",
+    "parent": 46403200,
+    "depth": 1
+  },
+  {
+    "id": 46407888,
+    "by": "rockskon",
+    "timeISO": "2025-12-28T02:42:07.000Z",
+    "textPlain": "Well then the software needs to have its bugs fixed if it wants to have a chance at longer term survival.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46407571,
+    "by": "loop22",
+    "timeISO": "2025-12-28T01:43:26.000Z",
+    "textPlain": "I think that's a feature not a bug for upstream projects encouraging these rewrites.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46407922,
+    "by": "amluto",
+    "timeISO": "2025-12-28T02:50:11.000Z",
+    "textPlain": "GnuPG should be extended (incrementally rewritten into something much better and turned into a library) and the original GnuPG should be extinguished.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46407891,
+    "by": "rendaw",
+    "timeISO": "2025-12-28T02:42:32.000Z",
+    "textPlain": "How would MIT make anyone lose control of it?",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46407858,
+    "by": "brians",
+    "timeISO": "2025-12-28T02:36:48.000Z",
+    "textPlain": "No. You can always take the MIT-licensed source. And GnuPG got used through a CLI “API” anyway.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46411190,
+    "by": "LtWorf",
+    "timeISO": "2025-12-28T14:13:03.000Z",
+    "textPlain": "I'm not worried it might be the case. I'm certain that ubuntu and everyone else replacing gnu stuff with rust MIT stuff is done with the sole purpose of getting rid of copyleft components.If the new components were GPL licensed there would be less opposition, but we just get called names and our opinions discarded. After all such companies have more effective marketing departments.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46408563,
+    "by": "grayhatter",
+    "timeISO": "2025-12-28T04:50:27.000Z",
+    "textPlain": "> Is anyone else worried that [...] the Rust world [...] slap on it MIT license because it's [reason you don't like]?No... I don't think that's how software works. Do you have an example of that happening? Has any foss project lost control of the \"best\" version of some software?> Not everything in software is about features.I mean, I would happily make the argument that the ability to use code however I want without needing to give you, (the people,) permission to use my work without following my rules a feature. But then, stopping someone from using something in a way you don't like, is just another feature of GPL software too, is it not?",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46409000,
+    "by": "commandersaki",
+    "timeISO": "2025-12-28T06:46:50.000Z",
+    "textPlain": "Not really, gpg isn't something worth losing.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46410481,
+    "by": "sph",
+    "timeISO": "2025-12-28T12:07:38.000Z",
+    "textPlain": "The vast majority of open-source software is written by people whose day job is building empires on top other open-source software, at zero cost and without releasing modifications, which is harder to do with the GPL.",
+    "parent": 46407402,
+    "depth": 2
+  },
+  {
+    "id": 46403661,
+    "by": "collinfunk",
+    "timeISO": "2025-12-27T17:54:51.000Z",
+    "textPlain": "Haven't read it since it is down, but based on other comments, it seems to be an issue with cleartext signatures.I haven't seen those outside of old mailing list archives. Everyone uses detached signatures nowadays, e.g. PGP/MIME for emails.",
+    "parent": 46403630,
+    "depth": 2
+  },
+  {
+    "id": 46403766,
+    "by": "rurban",
+    "timeISO": "2025-12-27T18:06:24.000Z",
+    "textPlain": "They presented critical parser flaws in all major PGP implementations, not just GNU PGP, also sequoia, minisign and age. But gpg made the worst impression to us. wontfix",
+    "parent": 46403700,
+    "depth": 2
+  },
+  {
+    "id": 46405424,
+    "by": "upofadown",
+    "timeISO": "2025-12-27T21:29:49.000Z",
+    "textPlain": "I think it would be more accurate (and more helpful) to say that the two factions in the OpenPGP standards schism[1] have pulled away from the idea of consensus. There is a fundamental philosophical difference here. The LiberePGP faction (GnuPGP) is following the traditional PGP minimalism when it comes to changes and additions to the standard. The RFC-9580 faction (Sequoia) is following a kind of maximalist approach where any potential issue might result in a change/addition.Fortunately, it turned out that there wasn't anything particularly wrong with the current standards so we can just do that for now and avoid the standards war entirely. Then we will have interoperability across the various implementations. If some weakness comes up that actually requires a standards change then I suspect that consensus will be much easier to find.[1] https://articles.59.ca/doku.php?id=pgpfan:schism",
+    "parent": 46403700,
+    "depth": 2
+  },
+  {
+    "id": 46403776,
+    "by": "somethrowa123",
+    "timeISO": "2025-12-27T18:07:51.000Z",
+    "textPlain": "no, some clearsig issues are a problem in openpgp standard itself",
+    "parent": 46403700,
+    "depth": 2
+  },
+  {
+    "id": 46405027,
+    "by": "Analemma_",
+    "timeISO": "2025-12-27T20:37:53.000Z",
+    "textPlain": "The specific bugs are with GPG, but a lot of the reason they can exist to begin with is PGP’s convoluted architecture which, IMO, makes these sorts of issues inevitable. I think they are effectively protocol bugs.",
+    "parent": 46403700,
+    "depth": 2
+  },
+  {
+    "id": 46405720,
+    "by": "some_furry",
+    "timeISO": "2025-12-27T21:59:20.000Z",
+    "textPlain": "ffmpeg doesn't have a cargo-cult of self-proclaimed \"privacy experts\" that tell activists and whistleblowers to use their thing instead of other tools cryptographers actually recommend.",
+    "parent": 46405702,
+    "depth": 2
+  },
+  {
+    "id": 46403724,
+    "by": "rurban",
+    "timeISO": "2025-12-27T18:01:31.000Z",
+    "textPlain": "Nope. Not yet enabled. It was submitted to HN right after the talk where they promised to make it public \"really soon\" after the talk. We all saw the talk live or on the stream",
+    "parent": 46403425,
+    "depth": 2
+  }
+]

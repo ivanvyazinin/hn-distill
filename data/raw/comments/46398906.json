@@ -1,0 +1,234 @@
+[
+  {
+    "id": 46400088,
+    "by": "nrclark",
+    "timeISO": "2025-12-27T08:03:56.000Z",
+    "textPlain": "This was a really interesting read. I'd highly recommend it for anybody who's setting up (or currently maintains) a pre-commit workflow for their developers.I want to add one other note: in any large organization, some developers will use tools in ways nobody can predict. This includes Git. Don't try to force any particular workflow, including mandatory or automatically-enabled hooks.Instead, put what you want in an optional pre-push hook and also put it into an early CI/CD step for your pull request checker. You'll get the same end result but your fussiest developers will be happier.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46404216,
+    "by": "andrewaylett",
+    "timeISO": "2025-12-27T19:02:48.000Z",
+    "textPlain": "You shouldn't be relying on hooks to maintain the integrity of your codebase, and I'm not seeing anything here that makes me want to avoid `pre-commit` (or, more literally, the https://pre-commit.com/ tool).  CI must be the source of truth for whether a commit is acceptable.If you're using `pre-commit` the tool, not merely the hook, you can also use something like https://github.com/andrewaylett/pre-commit-action to run the tool in CI.  It's a really good way to share check definitions between local development and CI, meaning you've shifted your checks to earlier in the pipeline.I use Jujutsu day-to-day, which doesn't even support pre-commit hooks.  But the tooling is still really useful, and making sure we run it in CI means that we're not relying on every developer having the hooks set up.  And I have JJ aliases that help pre-commit be really useful in a JJ workflow: https://github.com/andrewaylett/dotfiles/blob/7a79cf166d1e7b...",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400505,
+    "by": "conradludgate",
+    "timeISO": "2025-12-27T09:37:17.000Z",
+    "textPlain": "I've worked in several projects where running the tests locally automatically install pre-commit hooks and I've wanted to commit warcrimes because of it.Don't do that, just dont.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400428,
+    "by": "lemonlime227",
+    "timeISO": "2025-12-27T09:22:26.000Z",
+    "textPlain": "To bring up jujutsu, `jj fix` (https://docs.jj-vcs.dev/latest/cli-reference/#jj-fix) is a more refined way of ensuring formatting in commits. It runs a formatting command with the diff in stdin and uses the results printed to stdout. It can simplify merges and rebases history to ensure all your commits remain formatted (so if you enable a new formatting option, it can remove the need for a special format/style fix commit in your mutable set). Hard to go back to pre-commit hooks after using jj fix (also hard to use git after using jj ;) ).",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400182,
+    "by": "Simplita",
+    "timeISO": "2025-12-27T08:27:41.000Z",
+    "textPlain": "I’ve seen similar issues once hooks start doing more than fast checks. The moment they become stateful or depend on external context, they stop being guardrails and start being a source of friction. In practice, keeping them boring and deterministic seems to matter more than catching everything early.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46404460,
+    "by": "anttiharju",
+    "timeISO": "2025-12-27T19:32:56.000Z",
+    "textPlain": "I think the examples given in the post are just done poorly.Lefthook with glob+stage_fixed for formatters makes one of the issues raised a complete non-issue.I'll write a in-depth post about it maybe within the next week or so, been diving into these in my hobby projects for a year or so.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46404137,
+    "by": "jghn",
+    "timeISO": "2025-12-27T18:48:49.000Z",
+    "textPlain": "On any project where pre-commit hooks are used, the first thing I do is disable them. What I do when the code is on my side of the line isn't your business.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46409062,
+    "by": "bilbo-b-baggins",
+    "timeISO": "2025-12-28T06:58:25.000Z",
+    "textPlain": "I’ve used pre-commit the tool and now prek for the better part of a decade and never had these issues even using rebase flows exclusively. This seems like an operator error.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400409,
+    "by": "000ooo000",
+    "timeISO": "2025-12-27T09:17:13.000Z",
+    "textPlain": "Your hook can't observe a simple env var, if you are stepping off the happy path of your workflow? E.g. `GIT_HOOK_BYEBYE` = early return in hook script. Article seems a little dramatic. If you write a pre-commit hook that is a pain in your own arse, how does that make them fundamentally broken?",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400399,
+    "by": "thomashabets2",
+    "timeISO": "2025-12-27T09:13:46.000Z",
+    "textPlain": "I feel like I found better git commands for this, that don't have these problems. It's not perfect, sure, but works for me.The pre commit script (https://github.com/ThomasHabets/rustradio/blob/main/extra/pr...) triggers my executor which sets up the pre commit environment like so: https://github.com/ThomasHabets/rustradio/blob/main/tickbox/...I run this on every commit. Sure, I have probably gone overboard, but it has prevented problems, and I may be too picky about not having a broken HEAD. But if you want to contribute, you don't have to run any pre commit. It'll run on every PR too.I don't send myself PRs, so this works for me.Of course I always welcome suggestions and critique on how to improve my workflow.And least nothing is stateful (well, it caches build artefacts), and aside from \"cargo deny\" no external deps.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46408983,
+    "by": "amluto",
+    "timeISO": "2025-12-28T06:42:33.000Z",
+    "textPlain": "Home Assistant takes this one step farther. There is a pre-run hook that goes out its way to make it hard to run an “integration” that doesn’t meet its quality standard. I get that they don’t want to get PRs for integrations that don’t check the checklist, but as someone writing an integration (which I’m currently doing, for better or for worse), I want to run my own incomplete integration, thank you very much.(One very nice thing about AI-assisted programming: Claude is not offended by duplicating the same code over and over and using utterly awful APIs, and Claude feels no particular compulsion to get distracted thinking about how the APIs I’m targeting could be made to be less awful.  Try asking the Home Assistant docs how an integration is supposed to handle a hot-added entity after an integration finishes setup: you will not get an answer. Ask Claude and it will cheerfully copy the ludicrous and obviously inappropriate solution used by other integrations. Sometimes semi-blindly doing something that works is the right solution when writing piles of glue code.)",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46405640,
+    "by": "temporallobe",
+    "timeISO": "2025-12-27T21:51:42.000Z",
+    "textPlain": "I don’t really like pre-commit hooks, but I do think that git-secrets is a very useful one since once a secret is in the commit history, it’s a hassle (though not impossible) to remove it. All other issues can and should be caught early as an optionally blocking step in a CI/CD pipeline build.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400595,
+    "by": "a_t48",
+    "timeISO": "2025-12-27T09:58:33.000Z",
+    "textPlain": "Running on the working tree is mostly okay - just `exit 1` if changes were made and allow the user to stage+commit new changes. It isn't perfect but it doesn't require checking out a new tree.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400236,
+    "by": "badgersnake",
+    "timeISO": "2025-12-27T08:41:36.000Z",
+    "textPlain": "Yep, all that and they’re also annoying. Version control tools are not supposed to argue - do what you’re told. If I messed up, the branch build will tell me.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400799,
+    "by": "odie5533",
+    "timeISO": "2025-12-27T10:44:45.000Z",
+    "textPlain": "They are annoying to setup and maintain and contain footguns. I will still use them with prek though because they save dev cycles back-and-forth with CI more than they hurt. I aim to have the hooks complete in under 1 second total. If it saves even a single CI cycle, I think that's a win time wise.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46405092,
+    "by": "Groxx",
+    "timeISO": "2025-12-27T20:48:09.000Z",
+    "textPlain": "Literally the only pre-commit hook I've ever \"liked\" has been one to look for files over ~1/2MB, and error with a message describing how to bypass the check (env var).  It stops the mistake at the easiest-to-identify point, and helped teach a lot of people about how to set gitignore or git-attributes correctly when it is most relevant and understandable.  Every single other one has been a massive pain at some point...... but even that one took several rounds of fiddling and complexifying to get it to behave correctly (e.g. merging commits with already-committed bypassed binaries should be allowed.  how do you detect that?  did you know to check for that scenario when building the hook?  someone's gonna get bitten by it, and there are dozens of these cases).So yea.  Agreed.  Do not use pre-commit hooks, they're far more trouble than they seem, and the failure modes / surprises are awful and can be quite hard to figure out to laymen who are experiencing it.(much of this is true for all git hooks imo)",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46401163,
+    "by": "burnt-resistor",
+    "timeISO": "2025-12-27T11:52:48.000Z",
+    "textPlain": "A workflow that works well is one that takes the better ideas from Meta's \"hg\"+\"arcanist\"+edenfs+\"phabricator\" diff and land strategy. Git, by itself, is too low-level for shared, mostly single-source-of-truth yet distributed dev.Make test cases all green locally before pushing, but not in a way that interferes with pushing code and they shouldn't be tied to a particular (D)VCS. Allow uploading all of the separate proposed PRs you want in a proposed \"for review\" state. After a PR is signed-off and sent for merging, it goes into a linearizing single source of truth backed by an automated testing/smoke testing process before they land \"auto-fast-forwarded\" in a mostly uncontrolled manner that doesn't allow editing the history directly. Standardization and simplicity are good, and so is requiring peer review of code before it's accepted for existing, production, big systems.Disallow editing trunk/main/master and whenever there's merge conflict between PRs, manual rebasing of one or the other is required. Not a huge deal.Also, have structured OWNERS files that include people and/or distribution list(s) of people who own/support stuff. Furthermore, have a USERS file that keeps lists of people who would be affected by restarting/interrupting/changing a particular codebase/service for notification purposes too. In general, monorepo and allowing submitting code for any area by anyone are roughly good approaches.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400147,
+    "by": "tkzed49",
+    "timeISO": "2025-12-27T08:18:17.000Z",
+    "textPlain": "Thank you. I don't need to \"fix\" a commit before it ends up on a remote branch. Sometimes I expect a commit to pass checks and sometimes I don't. Frankly, don't even run pre-push hooks. Just run the checks in CI when I push. You'd better be doing that anyway before I'm allowed to push to a production branch, so stop breaking my git workflows and save me the time of running duplicate checks locally.Also, if most developers are using one editor, configure that editor to run format and auto-fix lint errors. That probably cleans up the majority of unexpected CI failures.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46403705,
+    "by": "rurban",
+    "timeISO": "2025-12-27T17:59:14.000Z",
+    "textPlain": "Not fundamentally broken, just broken on certain use cases where'd I have to do something like  prek uninstall; g rbc; prek install\n\neg. (using the typical aliases)",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400523,
+    "by": "wolfi1",
+    "timeISO": "2025-12-27T09:43:22.000Z",
+    "textPlain": "why do people rebase so often? shouldn't it be excluded from the usual workflows as you are losing commit history as well?",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46403832,
+    "by": "dboreham",
+    "timeISO": "2025-12-27T18:13:28.000Z",
+    "textPlain": "Good to see this having spent the last 10 years arguing with people who configured pre commit hooks then failed to understand the bad consequences.",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400392,
+    "by": "nine_k",
+    "timeISO": "2025-12-27T09:12:07.000Z",
+    "textPlain": "A bit less enraged: pre-commit hooks should be pure functions. They must not mutate the files being committed. At best, they should generate a report. At worst, they could reject a commit (e.g. if it contains a private key file included by mistake).",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400942,
+    "by": "PunchyHamster",
+    "timeISO": "2025-12-27T11:09:23.000Z",
+    "textPlain": "This article is very much \"you're holding it wrong\"> They tell me I need to have \"proper formatting\" and \"use consistent style\". How rude.> Maybe I can write a pre-commit hook that checks that for me?git filter is made for that. It works. There are still caveats (it will format whole file so you might end up commiting changes that are formatting fixed of not your own code).Pre-commit is not for formatting your code. It's for checking whether commit is correct. Checking whether content has ticket ID, or whether the files pass even basic syntax validation> Only add checks that are fast and reliable. Checks that touch the network should never go in a hook. Checks that are slow and require an update-to-date build cache should never go in a hook. Checks that require credentials or a running local service should never go in a hook.If you can do that, great! If you can't (say it's something like CI/CD repo with a bunch of different language involved and not every dev have setup for everything to be checked locally), having to override it to not run twice a year is still preferable over committing not working code. We run local checks for stuff that make sense (checking YAML correctness, or decoding encrypted YAMLs with user key so they also get checked), but the ones that don't go remote. It's faster. few ms RTT don't matter when you can leverage big server CPU to run the checks fasterBonus points, it makes the pain point - interactive rebases - faster, because you can cache the output for a given file hash globally so existing commits during rebase take miliseconds to check at most> Don't set the hook up automatically. Whatever tool you use that promises to make this reliable is wrong. There is not a way to do this reliably, and the number of times it's broken on me is more than I can count. Please just add docs for how to set it up manually, prominantly featured in your CONTRIBUTING docs. (You do have contributing docs, right?)DO set it up automatically (or as much as po",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400874,
+    "by": "Dunedan",
+    "timeISO": "2025-12-27T10:57:04.000Z",
+    "textPlain": "The pre-commit framework [1] abstracts all these issues away and offers a bunch of other advantages as well.[1]: https://pre-commit.com/",
+    "parent": 46398906,
+    "depth": 1
+  },
+  {
+    "id": 46400573,
+    "by": "nacozarina",
+    "timeISO": "2025-12-27T09:54:01.000Z",
+    "textPlain": "really; keep reading about all the problems ppl have “every time I rebase” and I wonder what tomfoolery they’re really up to",
+    "parent": 46400523,
+    "depth": 2
+  },
+  {
+    "id": 46400962,
+    "by": "PunchyHamster",
+    "timeISO": "2025-12-27T11:11:34.000Z",
+    "textPlain": "If it is something like repo for configuration management I can understand that because its often a lot of very small changes and so every second commit would be a merge, and it's just easier to read that way.... for code, honestly no idea",
+    "parent": 46400523,
+    "depth": 2
+  },
+  {
+    "id": 46400454,
+    "by": "normie3000",
+    "timeISO": "2025-12-27T09:26:07.000Z",
+    "textPlain": "> e.g. if it contains a private key file included by mistakeThanks - this is the first example of a pre-commit hook that I can see value in.",
+    "parent": 46400392,
+    "depth": 2
+  },
+  {
+    "id": 46400520,
+    "by": "Ferret7446",
+    "timeISO": "2025-12-27T09:41:45.000Z",
+    "textPlain": "In my experience pre-commit hooks are most often used to generate a starting commit message.To put it more bluntly, pre-commit hooks are pre-commit hooks, exactly what it says on the tin.  Not linting hooks or checking hooks or content filters.  Depending on what exactly you want to do, they may or may not be the best tool for the job.To put it even more bluntly, if you are trying to enforce proper formatting, pre-commit hooks are absolutely the wrong tool for the job, as hooks are trivially bypassable, and not shared when cloning a repo, by design.",
+    "parent": 46400392,
+    "depth": 2
+  },
+  {
+    "id": 46402013,
+    "by": "seba_dos1",
+    "timeISO": "2025-12-27T14:18:43.000Z",
+    "textPlain": "> they now need to dig out knowledge on how to edit or undo existing commitsThis knowledge is a crucial part of effective use of git every day, so if some junior dev has to learn it quick it's doing them a favor.",
+    "parent": 46400942,
+    "depth": 2
+  }
+]

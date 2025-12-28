@@ -1,0 +1,402 @@
+[
+  {
+    "id": 46397584,
+    "by": "orliesaurus",
+    "timeISO": "2025-12-26T23:40:11.000Z",
+    "textPlain": "The most surprising part of uv's success to me isn't Rust at all, it's how much speed we \"unlocked\" just by finally treating Python packaging as a well-specified systems problem instead of a pile of historical accidents. If uv had been written in Go or even highly optimized CPython, but with the same design decisions (PEP 517/518/621/658 focus, HTTP range tricks, aggressive wheel-first strategy, ignoring obviously defensive upper bounds, etc.), I strongly suspect we'd be debating a 1.3× vs 1.5× speedup instead of a 10× headline — but the conversation here keeps collapsing back to \"Rust rewrite good/bad.\" That feels like cargo-culting the toolchain instead of asking the uncomfortable question: why did it take a greenfield project to give Python the package manager behavior people clearly wanted for the last decade?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395821,
+    "by": "woodruffw",
+    "timeISO": "2025-12-26T20:24:03.000Z",
+    "textPlain": "I think this post does a really good job of covering how multi-pronged performance is: it certainly doesn't hurt uv to be written in Rust, but it benefits immensely from a decade of thoughtful standardization efforts in Python that lifted the ecosystem away from needing `setup.py` on the hot path for most packages.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396087,
+    "by": "epage",
+    "timeISO": "2025-12-26T20:49:25.000Z",
+    "textPlain": "> uv is fast because of what it doesn’t do, not because of what language it’s written in. The standards work of PEP 518, 517, 621, and 658 made fast package management possible. Dropping eggs, pip.conf, and permissive parsing made it achievable. Rust makes it a bit faster still.Isn't assigning out what all made things fast presumptive without benchmarks?  Yes, I imagine a lot is gained by the work of those PEPs.  I'm more questioning how much weight is put on dropping of compatibility compared to the other items. There is also no coverage for decisions influenced by language choice which likely influences \"Optimizations that don’t need Rust\".This also doesn't cover subtle things.  Unsure if rkyv is being used to reduce the number of times that TOML is parsed but TOML parse times do show up in benchmarks in Cargo and Cargo/uv's TOML parser is much faster than Python's (note: Cargo team member, `toml` maintainer).  I wish the TOML comparison page was still up and showed actual numbers to be able to point to.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396092,
+    "by": "pecheny",
+    "timeISO": "2025-12-26T20:50:14.000Z",
+    "textPlain": "The content is nice and insightful! But God I wish people stopped using LLMs to 'improve' their prose... Ironically, some day we might employ LLMs to re-humanize texts that had been already massacred.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395919,
+    "by": "ethin",
+    "timeISO": "2025-12-26T20:32:31.000Z",
+    "textPlain": "> Zero-copy deserialization. uv uses rkyv to deserialize cached data without copying it. The data format is the in-memory format. This is a Rust-specific technique.This (zero-copy deserialization) is not a rust-specific technique, so I'm not entirely sure why the author describes it as one. Any good low level language (C/C++ included) can do this from my experience.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396652,
+    "by": "ofek",
+    "timeISO": "2025-12-26T21:47:25.000Z",
+    "textPlain": "> pip could implement parallel downloads, global caching, and metadata-only resolution tomorrow. It doesn’t, largely because backwards compatibility with fifteen years of edge cases takes precedence.pip is simply difficult to maintain. Backward compatibility concerns surely contribute to that but also there are other factors, like an older project having to satisfy the needs of modern times.For example, my employer (Datadog) allowed me and two other engineers to improve various aspects of Python packaging for nearly an entire quarter. One of the items was to satisfy a few long-standing pip feature requests. I discovered that the cross-platform resolution feature I considered most important is basically incompatible [1] with the current code base. Maintainers would have to decide which path they prefer.[1]: https://github.com/pypa/pip/issues/13111",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397254,
+    "by": "punnerud",
+    "timeISO": "2025-12-26T22:53:48.000Z",
+    "textPlain": "My favorite speed up trick: “ HTTP range requests for metadata. Wheel files are zip archives, and zip archives put their file listing at the end. uv tries PEP 658 metadata first, falls back to HTTP range requests for the zip central directory, then full wheel download, then building from source. Each step is slower and riskier. The design makes the fast path cover 99% of cases. None of this requires Rust.”",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46414345,
+    "by": "ianberdin",
+    "timeISO": "2025-12-28T20:48:11.000Z",
+    "textPlain": "Isn’t it obvious?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396250,
+    "by": "andy99",
+    "timeISO": "2025-12-26T21:05:02.000Z",
+    "textPlain": "I remain baffled about these posts getting excited about uv’s speed. I’d like to see a real poll but I personally can’t imagine people listing speed as one of the their top ten concerns about python package managers. What are the common use cases where the delay due to package installation is at all material?Edit to add: I use python daily",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46400086,
+    "by": "Revisional_Sin",
+    "timeISO": "2025-12-27T08:03:54.000Z",
+    "textPlain": "> Ignoring requires-python upper bounds. When a package says it requires python<4.0, uv ignores the upper bound and only checks the lower. This reduces resolver backtracking dramatically since upper bounds are almost always wrong. Packages declare python<4.0 because they haven’t tested on Python 4, not because they’ll actually break. The constraint is defensive, not predictive.Erm, isn't this a bit bad?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395819,
+    "by": "blintz",
+    "timeISO": "2025-12-26T20:24:02.000Z",
+    "textPlain": "> PEP 658 went live on PyPI in May 2023. uv launched in February 2024. The timing isn’t coincidental. uv could be fast because the ecosystem finally had the infrastructure to support it. A tool like uv couldn’t have shipped in 2020. The standards weren’t there yet.How/why did the package maintainers start using all these improvements? Some of them sound like a bunch of work, and getting a package ecosystem to move is hard. Was there motivation to speed up installs across the ecosystem? If setup.py was working okay for folks, what incentivized them to start using pyproject.toml?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396962,
+    "by": "w10-1",
+    "timeISO": "2025-12-26T22:21:00.000Z",
+    "textPlain": "I like the implication that we can have an alternative to uv speed-wise, but I think reliability and understandability are more important in this context (so this comment is a bit off-topic).What I want from a package manager is that it just works.That's what I mostly like about uv.Many of the changes that made speed possible were to reduce the complexity and thus the likelihood of things not working.What I don't like about uv (or pip or many other package managers), is that the programmer isn't given a clear mental model of what's happening and thus how to fix the inevitable problems.  Better (pubhub) error messages are good, but it's rare that they can provide specific fixes.  So even if you get 99% speed, you end up with 1% perplexity and diagnostic black boxes.To me the time that matters most is time to fix problems that arise.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396483,
+    "by": "didibus",
+    "timeISO": "2025-12-26T21:30:01.000Z",
+    "textPlain": "There's an interesting psychology at play here as well, if you are a programmer that chooses a \"fast language\" it's indicative of your priorities already, it's often not much the language, but that the programmer has decided to optimize for performance from the get go.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395737,
+    "by": "yjftsjthsd-h",
+    "timeISO": "2025-12-26T20:14:58.000Z",
+    "textPlain": "> No bytecode compilation by default. pip compiles .py files to .pyc during installation. uv skips this step, shaving time off every install. You can opt in if you want it.Are we losing out on performance of the actual installed thing, then? (I'm not 100% clear on .pyc files TBH; I'm guessing they speed up start time?)",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396537,
+    "by": "bastawhiz",
+    "timeISO": "2025-12-26T21:36:13.000Z",
+    "textPlain": "> When a package says it requires python<4.0, uv ignores the upper bound and only checks the lower. This reduces resolver backtracking dramatically since upper bounds are almost always wrong. Packages declare python<4.0 because they haven’t tested on Python 4, not because they’ll actually break. The constraint is defensive, not predictive.This is kind of fascinating. I've never considered runtime upper bound requirements. I can think of compelling reasons for lower bounds (dropping version support) or exact runtime version requirements (each version works for exact, specific CPython versions). But now that I think about it, it seems like upper bounds solve a hypothetical problem that you'd never run into in practice.If PSF announced v4 and declared a set of specific changes, I think this would be reasonable. In the 2/3 era it was definitely reasonable (even necessary). Today though, it doesn't actually save you any trouble.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46405150,
+    "by": "ldng",
+    "timeISO": "2025-12-27T20:57:13.000Z",
+    "textPlain": "That might be how uv got fast but that is not why it got popular.PyPA has been a mess for a very long time for in-fighting, astroturfing, gatekeeping and so on with pip being the battlefield. The uv team just did one thing that PyPA & co stopped doing a long time ago (if they ever did ...) : actually solving pain point of their user and never saying \"it's not possible because [insert bullshit]\" or reply \"it's OSS, do it yourself\" to then reject the work with attitude and baseless argument.They listened to their user's issues and solved their pain points without denying them. period.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46398449,
+    "by": "est",
+    "timeISO": "2025-12-27T02:10:04.000Z",
+    "textPlain": "> Virtual environments requiredThis bothers me more than once when building a base docker image. Why would I want a venv inside a docker with root?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46411261,
+    "by": "Unissued2003",
+    "timeISO": "2025-12-28T14:23:19.000Z",
+    "textPlain": "I think one thing that gets lost in the uv noise is that recent versions of pip are significantly faster. It would be much better to just make pip faster and add features to it instead of introducing a completely new package manager. Hopefully uv will do what yarn did to JavaScript - turbocharge some improvements in the core tooling through competitive pressure.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395881,
+    "by": "nurettin",
+    "timeISO": "2025-12-26T20:28:25.000Z",
+    "textPlain": "> When a package says it requires python<4.0, uv ignores the upper bound and only checks the lower.I will bring popcorn on python 4 release date.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396957,
+    "by": "robertclaus",
+    "timeISO": "2025-12-26T22:20:28.000Z",
+    "textPlain": "At Plotly we did a decent amount of benchmarking to see how much the different defaults `uv` uses lead to its performance. This was necessary so we could advise our enterprise customers on the transition. We found you lost almost all of the speed gains if you configured uv behave as much like pip as you could. A trivial example is the precompile flag, which can easily be 50% of pips install time for a typical data science venv.https://plotly.com/blog/uv-python-package-manager-quirks/",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396210,
+    "by": "VerifiedReports",
+    "timeISO": "2025-12-26T21:01:10.000Z",
+    "textPlain": "So... will uv make Python a viable cross-platform utility solution?I was going to learn Python for just that (file-conversion utilities and the like), but everybody was so down on the messy ecosystem that I never bothered.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46410026,
+    "by": "Woodi",
+    "timeISO": "2025-12-28T10:24:14.000Z",
+    "textPlain": "LOLAll that years (decades?) Python had build-in code executed on install ??? That's functionally adequate to MS autoexec.bat viruses spreading mechanism!Just LOL...",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46402940,
+    "by": "trashburger",
+    "timeISO": "2025-12-27T16:33:26.000Z",
+    "textPlain": "> Ignoring requires-python upper bounds. When a package says it requires python<4.0, uv ignores the upper bound and only checks the lower. This reduces resolver backtracking dramatically since upper bounds are almost always wrong. Packages declare python<4.0 because they haven’t tested on Python 4, not because they’ll actually break. The constraint is defensive, not predictive.This is clearly LLM-generated and the other bullet points have the same smell. Please use your own words.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46403576,
+    "by": "quantbagel",
+    "timeISO": "2025-12-27T17:44:20.000Z",
+    "textPlain": "When I made a swift package manager as Rust rewrite I realized that the language wasn't the issue, design is a lot more important. Rust just gave a boost to everything else. you can try Gust here https://github.com/quantbagel/gust a lot better than using SwiftPM but there's room for improvement! Make issues with your ideas",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46399435,
+    "by": "annexrichmond",
+    "timeISO": "2025-12-27T05:37:46.000Z",
+    "textPlain": "> This reduces resolver backtracking dramatically since upper bounds are almost always wrong.I am surprised by this because Python minor versions break backwards compatibility all the time.  Our company for example is doing a painful upgrade from py39 to py311",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46401738,
+    "by": "sghaz",
+    "timeISO": "2025-12-27T13:33:08.000Z",
+    "textPlain": "Liked the focus on standards and ecosystem decisions rather than just “it’s fast because Rust.”One small timeline nit: the article mentions PEP 517 as being from 2017, but the PEP itself was created in 2015. From the PEP header:Created: 30-Sep-2015 [1]It did see important revisions and wider adoption around 2017, so I assume that’s what was meant.[1] https://peps.python.org/pep-0517/",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397428,
+    "by": "didip",
+    "timeISO": "2025-12-26T23:17:17.000Z",
+    "textPlain": "If UV team has a spare time, they should rewrite Python in Rust without any of the legacy baggage.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397356,
+    "by": "simonw",
+    "timeISO": "2025-12-26T23:06:28.000Z",
+    "textPlain": "This post is excellent. I really like reading deep dives like this that take a complex system like uv and highlight the unique design decisions that make it work so well.I also appreciate how much credit this gives the many previous years of Python standards processes that enabled it.Update: I blogged more about it here, including Python recreations of the HTTP range header trick it uses and the version comparison via u64 integers: https://simonwillison.net/2025/Dec/26/how-uv-got-so-fast/",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396842,
+    "by": "ggm",
+    "timeISO": "2025-12-26T22:08:47.000Z",
+    "textPlain": "Some of these speed ups looked viable to backport into pip including parallel download, delayed .pyc, ignore egg, version checks.Not that I'd bother since uv does venv so well. But, \"it's not all rust runtime speed\" implies pip could be faster too.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396725,
+    "by": "eviks",
+    "timeISO": "2025-12-26T21:54:28.000Z",
+    "textPlain": "> Every code path you don’t have is a code path you don’t wait for.No, every code path you don't execute is that. Like> No .egg support.How does that explain anything if the egg format is obsolete and not used?Similar with spec strictness fallback logic - it's only slow if the packages you're installing are malformed, otherwise the logic will not run and not slow you down.And in general, instead of a list of irrelevant and potentially relevant things would be great to understand some actual time savings per item (at least those that deliver the most speedup)!But otherwise great and seemingly comprehensive list!",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46405557,
+    "by": "markkitti",
+    "timeISO": "2025-12-27T21:44:19.000Z",
+    "textPlain": "Summary: They fixed Python packaging by not having to run Python to resolve dependencies. Also, they used Rust.Moral of the story: Use less Python. Use declarative configuration and other langauges instead.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397950,
+    "by": "dangoodmanUT",
+    "timeISO": "2025-12-27T00:37:40.000Z",
+    "textPlain": "> Zero-copy deserializationJust a nit on this section: zero-copy deserialization is not Rust specific (see flatbuffers). rkyv as a crate for doing so in Rust is though",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46400850,
+    "by": "vjay15",
+    "timeISO": "2025-12-27T10:54:11.000Z",
+    "textPlain": "Amazing that how much python's pip was so bottlenecked, it was basic design problem damn",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46399197,
+    "by": "rao-v",
+    "timeISO": "2025-12-27T04:41:43.000Z",
+    "textPlain": "I have to say it's just lovely seeing such a nicely crafted and written technical  essay. It's so obvious that this is crafted by hand, and reading it just reemphasises how much we've lost because technical bloggers are too ready to hand the keys over to LLMs.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46408801,
+    "by": "srikanthdotch",
+    "timeISO": "2025-12-28T05:50:46.000Z",
+    "textPlain": "I am glad uv exists, I came back to using python regularly because of that. The company behind it \"astral\" is interesting and they seem to care about developer experience.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396124,
+    "by": "ec109685",
+    "timeISO": "2025-12-26T20:53:51.000Z",
+    "textPlain": "The article info is great, but why do people put up with LLM ticks and slop in their writing? These sentences add no value and treats the reader as stupid.> This is concurrency, not language magic.> This is filesystem ops, not language-dependent.Duh, you literally told me that the previous sentence and 50 million other times.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396462,
+    "by": "zahlman",
+    "timeISO": "2025-12-26T21:27:48.000Z",
+    "textPlain": "I've talked about this many times on HN this year but got beaten to the punch on blogging it seems. Curses.... Okay, after a brief look, there's still lots of room for me to comment. In particular:> pip’s slowness isn’t a failure of implementation. For years, Python packaging required executing code to find out what a package needed.This is largely refuted by the fact that pip is still slow, even when installing from wheels (and getting PEP 600 metadata for them). Pip is actually still slow even when doing nothing. (And when you create a venv and allow pip to be bootstrapped in it, that bootstrap process takes in the high 90s percent of the total time used.)",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397433,
+    "by": "hk1337",
+    "timeISO": "2025-12-26T23:17:52.000Z",
+    "textPlain": "It’s fast because it sucks the life force from bad developers  to make them into something good.Jokes aside…I really like uv but also really like mise and I cannot seem to get them to work well together.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396234,
+    "by": "pwdisswordfishy",
+    "timeISO": "2025-12-26T21:03:37.000Z",
+    "textPlain": "> Some of uv’s speed comes from Rust. But not as much as you’d think. Several key optimizations could be implemented in pip today: […] Python-free resolutionUmm…",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46402112,
+    "by": "pritambarhate",
+    "timeISO": "2025-12-27T14:32:07.000Z",
+    "textPlain": "Does anyone know how does Astral.sh plan to make money?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46398712,
+    "by": "shevy-java",
+    "timeISO": "2025-12-27T03:08:52.000Z",
+    "textPlain": "Soon uv will deliver results without you even thinking about them beforehand!",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397451,
+    "by": "zzzeek",
+    "timeISO": "2025-12-26T23:19:35.000Z",
+    "textPlain": "> pip could implement parallel downloads, global caching, and metadata-only resolution tomorrow. It doesn’t, largely because backwards compatibility with fifteen years of edge cases takes precedence. But it means pip will always be slower than a tool that starts fresh with modern assumptions.what does backwards compatibility have to do with parallel downloads? or global caching?   The metadata-only resolution is the only backwards compatible issue in there and pip can run without a setup.py file being present if pyproject.toml is there.Short answer is most, or at least a whole lot, of the improvements in uv could be integrated into pip as well (especially parallelizing downloads).  But they're not, because there is uv instead, which is also maintained by a for-profit startup.  so pip is the loser",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46397383,
+    "by": "BiteCode_dev",
+    "timeISO": "2025-12-26T23:10:08.000Z",
+    "textPlain": "Other design decisions that made uv fast:- uncompressing packages while they are still being downloaded, in memory, so that you only have to write to disk once- design of its own locking format for speedBut yes, rust is actually making it faster because:- real threads, no need for multi-processing- no python VM startup overhead- the dep resolution algo is exactly the type of workload that is faster in a compiled languageSource, this interview with Charlie Marsh: https://www.bitecode.dev/p/charlie-marsh-on-astral-uv-and-th...The guy has a lot of interesting things to say.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396188,
+    "by": "looneysquash",
+    "timeISO": "2025-12-26T20:59:24.000Z",
+    "textPlain": "I don't have any real disagreement with any of the details the author said.But still, I'm skeptical.If it is doable, the best way to prove it is to actually do it.If no one implements it, was it ever really doable?Even if there is no technical reason, perhaps there is a social one?",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46399097,
+    "by": "dmarwicke",
+    "timeISO": "2025-12-27T04:19:34.000Z",
+    "textPlain": "wait, zero-copy deserialization isn't rust-specific. you can mmap structs in C. done it before, works fine",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46398882,
+    "by": "PrettyPastry",
+    "timeISO": "2025-12-27T03:40:20.000Z",
+    "textPlain": "I wish this were enough to get the flake8 devs to accept pyproject support PRs.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46395971,
+    "by": "agumonkey",
+    "timeISO": "2025-12-26T20:37:21.000Z",
+    "textPlain": "very nice article, always good to get a review of what a \"simple\" looking tool does behind the scenseabout rust thoughsome say a nicer language helps finding the right architecture (heard that about cpp veteran dropping it for ocaml, any attempted idea would take weeks in cpp, was a few days in ocaml, they could explore more)also the parallelism might be a benefit the language orientationenough semi fanboyism",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46400672,
+    "by": "TrayKnots",
+    "timeISO": "2025-12-27T10:17:47.000Z",
+    "textPlain": "I usually don't see the importance of speed in one-time costs...\nBut hey, same discussion with npm, yarn, pnpm...",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396814,
+    "by": "IshKebab",
+    "timeISO": "2025-12-26T22:05:16.000Z",
+    "textPlain": "Mmm I don't buy it. Not many projects use setup.py now anyway and pip is still super slow.> Plenty of tools are written in Rust without being notably fast.This also hasn't been my experience. Most tools written in Rust are notably fast.",
+    "parent": 46393992,
+    "depth": 1
+  },
+  {
+    "id": 46396160,
+    "by": "hallvard",
+    "timeISO": "2025-12-26T20:56:45.000Z",
+    "textPlain": "Great post, but the blatant chatgpt-esque feel hits hard… Don’t get me wrong, I love astral! and the content, but…",
+    "parent": 46393992,
+    "depth": 1
+  }
+]

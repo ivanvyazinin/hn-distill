@@ -1,0 +1,314 @@
+[
+  {
+    "id": 46407397,
+    "by": "dmazin",
+    "timeISO": "2025-12-28T01:16:59.000Z",
+    "textPlain": "I highly recommend anyone to look up how PTP works and how it compares to NTP. Clock sync is very interesting. When I joined an HFT company, first thing I did was understand this stuff. We care about it a lot[1].If you want a specific question to answer, answer this: why does PTP need hardware timestamping to achieve high precision (where the network card itself assigns timestamps to packets, rather than having the kernel do it as part of TCP/IP processing)? If we use software timestamps, why can we do microsecond precision at best? If you understand this, it goes a very long way to understanding the core ideas behind precise clock sync.Once you have a solid understanding of PTP, look into White Rabbit. They’re able to sync two clocks with sub-ns precision. In case that isn’t obvious, that is absolutely insane.[1] So do a lot of people. For example audio engineers. Once, an audio engineer absolutely talked my ear off about ptp. I had no idea that audio people understood clock sync so well but they do!",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46406303,
+    "by": "josephg",
+    "timeISO": "2025-12-27T22:57:55.000Z",
+    "textPlain": "> When two transactions happen at nearly the same time on different nodes, the database must determine which happened first. If clocks are out of sync, the database might order them incorrectly, violating consistency guarantees.This is only true if you use wall clock time as part of your database’s consistency algorithm. Generally I think this is a huge mistake. It’s almost always much easier to swap to a logical clock - which doesn’t care about wall time. And then you don’t have to worry about ntp.The basic idea is this: event A happened before event B iff A (or something that happened after A) was observed by the node that generated B before B was generated. As a result, you end up with a dag of events - kind of like git. Some events aren’t ordered relative to one another. (We say, they happened concurrently). If you ever need a global order for all events, you can deterministically pick an arbitrary order for concurrent events by comparing ids or something. And this will give you a total order that will be the same on all peers.If you make database events work like this, time is a little more complex. (It’s a graph traversal rather than simple numbers). But as a result the system clock doesn’t matter. No need to worry about atomic clocks, skew, drift, monotonicity, and all of that junk. It massively simplifies your system design.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46405890,
+    "by": "NelsonMinar",
+    "timeISO": "2025-12-27T22:17:55.000Z",
+    "textPlain": "On the flipside, clock sync for civilians has never been easier. Thanks to NTP any device with an Internet connection can pretty easily get time accurate to 1 second, often as little as 10 ms. All major consumer computers are preconfigured to sync time to one of several reliable NTP pools.This post is about more complicated synchronization for more demanding applications. And it's very good. I'm just marveling at how in my lifetime I from \"no clock is ever set right\" to assuming most anything was within a second of true time.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46409178,
+    "by": "simonebrunozzi",
+    "timeISO": "2025-12-28T07:30:04.000Z",
+    "textPlain": "Back when I was studying computer science, I was taking the OS exam and the part about Lamport timestamp [0] was optional, but I had studied it because I loved it. When I mentioned it to my professor, he was so happy to hear something new that day that he asked me to describe it in details. This was the year 2001.Many years later, in 2020, I ended up living in San Francisco, and I had the fortune to meet Leslie Lamport after I sent him a cold email. Lovely and smart guy. This is the text of the first part of that email, just for your curiosity:Hey Leslie!You have accompanied me for more than 20 years. I first met your name when studying Lamport timestamps.And then on, and on, and on, up to a few minutes ago, when I realized that you are also behind the paper and the title of \"Byzantine Generals problem\", renamed after the \"Albanian\" generals to the suggestion of Jack Goldberg. Who is he? [1][0]: https://en.wikipedia.org/wiki/Lamport_timestamp[1]: Jack Goldberg (now retired) was a computer scientist and Lamport's manager at SRI.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46413182,
+    "by": "danzheng",
+    "timeISO": "2025-12-28T18:19:12.000Z",
+    "textPlain": "One thing missing in the blogpost is in practice you see many large orgs, especially in finance, living with multiple time domains. For example, on-prem trading systems almost always use PTP or PPS for sub-microsecond timestamping, often on dedicated networks to reduce jitter (for meeting regulatory requirements like MiFID II and CAT) while the rest of their infra (in on-prem and cloud) just runs NTP for millisecond-class sync. Both protocols are fundamentally sensitive to network conditions — the mean offset may look fine, but outliers due to congestion/jitter can be very poor.The consequence of having multiple time domains is pretty painful when you need to reconcile logs or transaction histories across systems with different sync accuracy. Millisecond NTP logs and sub-microsecond PTP logs don’t line up cleanly, so correlating events end-to-end can become guesswork rather than deterministic ordering.If you want reliable cross-system telemetry and audit trails, you'll need a single, high-accuracy time sync approach across your whole stack.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46408922,
+    "by": "b112",
+    "timeISO": "2025-12-28T06:23:02.000Z",
+    "textPlain": "The article doesn't cover the inane stupid that is:* NTP pool server usage requires using DNS* people have DNSSEC setup, which requires accurate time or it failsSo if your clock is off, you cannot lookup NTP pool servers via DNS, and therefore cannot set your clock.This sheer stupid has been discussed with package maintainers of major distros, with ntpsec, and the result is a mere shrug.  Often, the answer is \"but doesn't your device have a battery backed clock?\", which is quite unhelpful.  Many devices (routers, IOT devices, small boards, or older machines, etc) don't have a battery backed clock, or alternatively the battery may just have died.Beyond that, the ntpsec codebase has a horrible bug where if DNS is not available when ntpsec starts, pool server addresses are never, ever retried.  So if you have a complete power-fail in a datacentre rack, and your firewalls take a little longer to boot than your machines, you'll have to manually restart ntpsec to even get it to ever sync.When discussing this bug the ntpsec lads were confused that DNS might not exist at times.Long story short, make sure you aren't using DNS in any capacity, in NTP configs, and most especially in ntpsec configs.One good source is just using the IPs provided by NIST.  Pool servers may seem fine, but I'd trust IPs assigned to NIST to exist longer than any DNS anyhow.  EG, for decades.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404901,
+    "by": "j_seigh",
+    "timeISO": "2025-12-27T20:21:57.000Z",
+    "textPlain": "Ok,so people use NTP to \"synchronize\" their clocks and then write applications that assume the clocks are in exact sync and can use timestamps for synchronization, even though NTP can see the clocks aren't always in sync.  Do I have that right?",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404572,
+    "by": "georgelyon",
+    "timeISO": "2025-12-27T19:42:30.000Z",
+    "textPlain": "Unfortunate that the author doesn’t bring up FoundationDB version stamps, which to me feel like the right solution to the problem. Essentially, you can write a value you can’t read until after the transaction is committed and the synchronization infrastructure guarantees that value ends up being monotonically increasing per transaction. They use similar “write only” operations for atomic operations like increment.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46412748,
+    "by": "layer8",
+    "timeISO": "2025-12-28T17:34:39.000Z",
+    "textPlain": "> The good news is that the International Bureau of Weights and Measures has decided to stop adding leap seconds by 2035.This is not entirely correct. What has been agreed is to allow deviations of more than one second after 2035, so that clocks have to be adjusted less frequently (on the order of every 50-100 years is the intention). However, the allowable deviation, and how to adjust clocks when it is exceeded, has yet to be decided.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46409222,
+    "by": "eatsome",
+    "timeISO": "2025-12-28T07:40:08.000Z",
+    "textPlain": "For an article written about time, I would have thought there'd be a timestamp on the blog post. Just something to think about if someone stumbles upon this in a few years.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404526,
+    "by": "kobieps",
+    "timeISO": "2025-12-27T19:38:30.000Z",
+    "textPlain": "Even just a single accurate clock is a nightmare... https://www.npr.org/2025/12/21/nx-s1-5651317/colorado-us-off...",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46407824,
+    "by": "pdeva1",
+    "timeISO": "2025-12-28T02:27:29.000Z",
+    "textPlain": "AWS has the Google TrueTime equivalent precision clock available for public use[1] which makes this problem much easier to solve now. Auora DSQL uses it. Even third party db's like YugabyteDb make use of it.[1] https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/set-time...",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46409296,
+    "by": "amiune",
+    "timeISO": "2025-12-28T07:55:19.000Z",
+    "textPlain": "Related: https://632nm.com/episodes/why-syncing-atomic-clocks-is-virt...As a teacher I love the way Judah Levine explains",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404512,
+    "by": "mgaunard",
+    "timeISO": "2025-12-27T19:37:43.000Z",
+    "textPlain": "Another protocol that's not mentioned is PPS and its variants, such as WhiteRabbit.A regular pulse is emitted from a specialized high-precision device, possibly over a specialized high-precision network.Enables picosecond accuracy (or at least sub-nano).",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46407845,
+    "by": "gdcohen",
+    "timeISO": "2025-12-28T02:33:59.000Z",
+    "textPlain": "Take a look at Exploiting a Natural Network Effect for Scalable, Fine-grained Clock Synchronization - https://www.usenix.org/conference/nsdi18/presentation/geng (commercial version by the same authors - clockwork.io).",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404501,
+    "by": "maximinus_thrax",
+    "timeISO": "2025-12-27T19:37:00.000Z",
+    "textPlain": "I wouldn't say it's a 'nightmare'. It's just more complicated than what regular folk think computers work when it comes to time sync. There's nothing nightmareish or scary about this, it's just using the best solution for your scenario, understanding limitations and adjusting expectations/requirements accordingly, perhaps relaxing consistency requirements.I worked on the NTP infra for a very large organization some time ago and the starriest thing I found was just how bad some of the clocks were on 'commodity hardware' but this just added a new parameter for triaging hardware for manufacturer replacement.This is an ok article but it's just so very superficial. It goes too wide for such a deep subject matter.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46405573,
+    "by": "Asmod4n",
+    "timeISO": "2025-12-27T21:45:29.000Z",
+    "textPlain": "Does wall clock time matter for anything but logging? For everything else one could just create any form „time“ to keep stuff in sync, no?",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46405248,
+    "by": "a_t48",
+    "timeISO": "2025-12-27T21:08:11.000Z",
+    "textPlain": "Clock sync is such a nightmare in robotics. Most OSes happily will skew/jump to get the time correct. Time jumps (especially backwards) will crash most robotics stacks. You might decide to ensure that you have synced time before starting the stack. Great, now your timestamps are mostly accurate, except what happens when you've used GPS as your time source, and you start indoors? Robot hangs forever.Hot take: I've seen this and enough other badly configured time sync settings that I want to ban system time from robotics systems - time from startup only! If you want to know what the real world time was for a piece of data after, write what your epoch is once you have a time sync, and add epoch+start time.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46407708,
+    "by": "didgetmaster",
+    "timeISO": "2025-12-28T02:03:18.000Z",
+    "textPlain": "Reminds me of the old saying: 'If you have just one watch/clock, then you always know what time it is; but if you have two of them, then you are never sure!'",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404046,
+    "by": "koudelka",
+    "timeISO": "2025-12-27T18:38:56.000Z",
+    "textPlain": "the Huygens algorithm is also worth a lookhttps://www.usenix.org/system/files/conference/nsdi18/nsdi18...",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404244,
+    "by": "emptybits",
+    "timeISO": "2025-12-27T19:06:23.000Z",
+    "textPlain": "Normally I would nod at the title. Having lived it.But I just watched/listened to a Richard Feynmann talk on the nature of time and clocks and the futility of \"synchronizing\" clocks. So I'm chuckling a bit. In the general sense, I mean. Yes yes, for practical purposes in the same reference frame on earth, it's difficult but there's hope. Now, in general ... synchronizing two clocks is ... meaningless?https://www.youtube.com/watch?v=zUHtlXA1f-w",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404647,
+    "by": "hinkley",
+    "timeISO": "2025-12-27T19:51:35.000Z",
+    "textPlain": "Vector clocks are one of the other things Barbara Liskov is known for.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46406059,
+    "by": "shomp",
+    "timeISO": "2025-12-27T22:33:31.000Z",
+    "textPlain": "Absolute synchronization impossible??  Challenge accepted.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46410976,
+    "by": "user3939382",
+    "timeISO": "2025-12-28T13:33:25.000Z",
+    "textPlain": "That’s because neither discrete time nor synchronous network comms exist.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46408865,
+    "by": "sreekanth850",
+    "timeISO": "2025-12-28T06:08:20.000Z",
+    "textPlain": "In physics, time is local and relative,  independent events don’t need a global ordering. Distributed databases shouldn’t require one either. The idea of a single global time comes from 1980s single-node database semantics, where serializability implied one universal execution order. When that model was lifted into distributed systems, researchers introduced global clocks and timestamp coordination to preserve those guarantees,  not because distributed systems fundamentally need it. It’s time we rethink this., Only operations that touch the same piece of data require ordering. Everything else should follow causality like the physical universe, independent events don’t need to agree on sequence, only dependent ones do. Global clocks exist because some databases forced serializable cross-object transactions onto distributed systems, not because nature requires it.\nEdit: I welcome for a discussion with people who disagree and downvote.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46405048,
+    "by": "forrestthewoods",
+    "timeISO": "2025-12-27T20:40:34.000Z",
+    "textPlain": "Timesync isn’t a nightmare at all. But it is a deep rabbit hole.The best approach, imho, is to abandon the concept of a global time. All timestamps are wrt a specific clock. That clock will skew at a rate that varies with time. You can, hopefully, rely on any particular clock being monotonous!My mental model is that you form a connected graph of clocks and this allows you to convert arbitrary timestamps from any clock to any clock. This is a lossy conversion that has jitter and can change with time. The fewer stops the better.I kinda don’t like PTP. Too complicated and requires specialized hardware.This article only touches on one class of timesync. An entirely separate class is timesync within a device. Your phone is a highly distributed compute system with many chips each of which has their own independent clock source. It’s a pain in the ass.You also have local timesync across devices such as wearables or robotics. Connecting to a PTP system with GPS and atomic clocks is not ideal (or necessary).TicSync is cool and useful. https://sci-hub.se/10.1109/icra.2011.5980112",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404389,
+    "by": "yapyap",
+    "timeISO": "2025-12-27T19:25:23.000Z",
+    "textPlain": "Love learning new things. This also explains why my casio clock sync starts skewing over time",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404143,
+    "by": "jeffbee",
+    "timeISO": "2025-12-27T18:50:23.000Z",
+    "textPlain": "PTP requires support not only on your network, but also on your peripheral bus and inside your CPU. It can't achieve better-than-NTP results without disabling PCI power saving features and deep CPU sleep states.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46404830,
+    "by": "hinkley",
+    "timeISO": "2025-12-27T20:12:55.000Z",
+    "textPlain": "> Google faced the clock synchronization problem at an unprecedented scale with Spanner, its globally distributed database. They needed strong consistency guarantees across data centers spanning continents, which requires knowing the order of transactions.> Here’s a video of me explaining this.Do you need a video? Do we need a 42 minute video to explain this?I generally agree with Feynman on this stuff. We let explanations be far more complex than they need to be for most things, and it makes the hunt for accidental complexity harder because everything looks almost as complex as the problems that need more study to divine what is actually going on there.For Spanner to be useful they needed a high transaction rate and in a distributed system that requires very tight grace periods for First Writer Wins. Tighter than you can achieve with NTP or system clocks. That’s it. That’s why they invented a new clock.Google puts it this way:Under external consistency, the system behaves as if all transactions run sequentially, even though Spanner actually runs them across multiple servers (and possibly in multiple datacenters) for higher performance and availability.But that’s a bit thick for people who don’t spend weeks or years thinking about distributed systems.",
+    "parent": 46368177,
+    "depth": 1
+  },
+  {
+    "id": 46410873,
+    "by": "varjag",
+    "timeISO": "2025-12-28T13:18:20.000Z",
+    "textPlain": "Feynman was not entirely sincere. The implosion of nuclear device requires precise synchronization of multiple detonations. Basically the more precisely you can trigger the less fissile material you need for the sphere. To the day high accuracy bridgewire/foil bridge designs remain on ITAR.",
+    "parent": 46404244,
+    "depth": 2
+  },
+  {
+    "id": 46404533,
+    "by": "hinkley",
+    "timeISO": "2025-12-27T19:39:00.000Z",
+    "textPlain": "Einstein was worried about whether people in two different relativistic frames would see cause and effect reversed.",
+    "parent": 46404244,
+    "depth": 2
+  },
+  {
+    "id": 46411409,
+    "by": "glopesdev",
+    "timeISO": "2025-12-28T14:44:41.000Z",
+    "textPlain": "> But I just watched/listened to a Richard Feynmann talk on the nature of timeI hate to break it to you, but you were fooled by an AI dupe. Also took me a while to realise this. It’s sad we live in this tiring world where we have to fact check every single piece of content for authenticity. It’s just tiring. I’m sure many will reply it doesn’t matter, which of course will be funny to consider given someone went to the work of vocal cloning Feynman to make a channel of content (copyrighted of course) while claiming “no disrespect intended”.",
+    "parent": 46404244,
+    "depth": 2
+  },
+  {
+    "id": 46404594,
+    "by": "m463",
+    "timeISO": "2025-12-27T19:45:04.000Z",
+    "textPlain": "it might be meaningless, but in practical terms just don't check util.c from the gravity well into the git repo in orbit.",
+    "parent": 46404244,
+    "depth": 2
+  },
+  {
+    "id": 46406857,
+    "by": "nuccy",
+    "timeISO": "2025-12-28T00:01:25.000Z",
+    "textPlain": "Nature (laws of physics) is agains you on this: it is in fact impossible for everyone. What is in sync for some observers can be out of sync for others (depends on where they are, i.e. gravity, and how they relatively move). See general and special relativity principle of simultaneity [1].1. https://en.wikipedia.org/wiki/Relativity_of_simultaneity",
+    "parent": 46406059,
+    "depth": 2
+  },
+  {
+    "id": 46408039,
+    "by": "RossBencina",
+    "timeISO": "2025-12-28T03:14:52.000Z",
+    "textPlain": "> I kinda don’t like PTP. Too complicated and requires specialized hardware.In my view the specialised hardware is just a way to get more accurate transmission and arrival timestamps. That's useful whether or not you use PTP.> My mental model is that you form a connected graph of clocks and this allows you to convert arbitrary timestamps from any clock to any clock. This is a lossy conversion that has jitter and can change with time.This sounds like the \"peer to peer\" equivalent to PTP. It would require every node to maintain state about it's estimate (skew, slew, variance) of every other clock. I like the concept, but obviously it adds complexity to end-stations beyond what PTP requires (i.e. increases the hardware cost of embedded implementations). Such a system would also need to model the network topology, or control routing (as PTP does), because packets traversing different routes to the same host will experience different delay and jitter statistics.> TicSync is coolI hadn't seen this before, but I have implemented similar convex-hull based methods for clock recovery. I agree this is obviously a good approach. Thanks for sharing.",
+    "parent": 46405048,
+    "depth": 2
+  },
+  {
+    "id": 46407819,
+    "by": "DannyBee",
+    "timeISO": "2025-12-28T02:26:29.000Z",
+    "textPlain": "\"I kinda don’t like PTP. Too complicated and requires specialized hardware.\"?????I run PTP on everything from RPI's to you name it, over fiber, ethernet, etc.The main thing hardware gives is filtration of PTP packets or hardware timestamping.Neither is actually required, though some software has decided to require it.Additionally, something like 99% of sold gigabit or better chipsets since 2012 support it (I210 et al)",
+    "parent": 46405048,
+    "depth": 2
+  },
+  {
+    "id": 46404203,
+    "by": "pclmulqdq",
+    "timeISO": "2025-12-27T19:01:27.000Z",
+    "textPlain": "You can if you just run PTP (almost) entirely on your NIC. The best PTP implementations take their packet timestamps at the MAC on the NIC and keep time based on that. Nothing about CPU processing is time-critical in that case.",
+    "parent": 46404143,
+    "depth": 2
+  },
+  {
+    "id": 46404220,
+    "by": "rcxdude",
+    "timeISO": "2025-12-27T19:03:06.000Z",
+    "textPlain": "How so? If the NIC is processing the timestamps as it arrives/leaves on the wire, the latency and jitter in the rest of the system shouldn't matter.",
+    "parent": 46404143,
+    "depth": 2
+  },
+  {
+    "id": 46407854,
+    "by": "DannyBee",
+    "timeISO": "2025-12-28T02:35:39.000Z",
+    "textPlain": "PTP does not require support on your network beyond standard ethernet packet forwarding when used in ethernet mode.In multicast IP mode, with multiple switches, it requires what anything running multicast between switches/etc would require (IE some form of IGMP snopping or multicast routing or .....)In unicast IP mode, it requires nothing from your network.Therefore, i have no idea what it means to \"require support on the network\".I have used both ethernet and multicast PTP across a complete mishmash of brands and types and medias of switches, computers, etc, with no issues.The only thing that \"support\" might improve is more accurate path delay data through transparent clocks. If both master and slave do accurate hardware timestamping already, and the path between them is constant, it is easily possible to get +-50 nanoseconds without any transparent clock support.Here is the stats from a random embedded device running PTP i just accessed a second ago:  Reference ID    : 50545030 (PTP0)\n  Stratum         : 1\n  Ref time (UTC)  : Sun Dec 28 02:47:25 2025\n  System time     : 0.000000029 seconds slow of NTP time\n  Last offset     : -0.000000042 seconds\n  RMS offset      : 0.000000034 seconds\n  Frequency       : 8.110 ppm slow\n  Residual freq   : -0.000 ppm\n  Skew            : 0.003 ppm\n\nSo this embedded ARM device, which is not special in any way, is maintaining time +-35ns of the grandmaster, and currently 30ns of GPS time.The card does not have an embedded hardware PTP clock, but it does do hardware timestamp and filtering.This grandmaster is an RPI with an intel chipset on it and the PPS input pin being used to discipline the chipset's clock. It stays within +-2ns (usually +-1ns) of GPS time.Obviously, holdover sucks, but not the point :)This qualifies as better-than-NTP for sure, and this setup has no network support. No transparent clocks, etc.  These machines have multiple media transitions involved (fiber->ethernet), etc.The main thing transparent clock support p",
+    "parent": 46404143,
+    "depth": 2
+  }
+]

@@ -1,0 +1,146 @@
+[
+  {
+    "id": 46400151,
+    "by": "netcoyote",
+    "timeISO": "2025-12-27T08:19:17.000Z",
+    "textPlain": "I use a Mac, and wanted to be able to run MacOS programs like Xcode and iOS simulator, so I wrote a couple of different sandbox projects:- SandVault (https://github.com/webcoyote/sandvault) runs the AI agent in a low-privilege account- ClodPod (https://github.com/webcoyote/clodpod) runs the AI agent inside a MacOS VMIn both cases I map my code directories using shares/mounts.I find that I use the low-privilege account solution more because it's easier to setup and doesn't require the overhead of a full VM",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46400574,
+    "by": "sixhobbits",
+    "timeISO": "2025-12-27T09:54:02.000Z",
+    "textPlain": "I have time machine and just let them fly with --dangerously-skip-permissions on my Mac. Worst thing it's done is back up a database, delete the database, and then run git clean locally which also wiped out the backup, so I'm not saying there are no dangers but honestly I've made worse mistakes and probably more frequently so I generally trust Claude with about the same level of access as me now.Most common is deleting files etc but if you're using git and have backups it's barely noticeable",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46405580,
+    "by": "jq-r",
+    "timeISO": "2025-12-27T21:45:59.000Z",
+    "textPlain": "Claude Code in yolo mode with Docker Sandboxes https://docs.docker.com/ai/sandboxes/",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46402650,
+    "by": "languid-photic",
+    "timeISO": "2025-12-27T15:47:11.000Z",
+    "textPlain": "> Have you had any \"learned the hard way\" moments?A big lesson for us is that you still need to be careful even in a sandbox.We've been running Claude/Codex/Gemini in sandboxed YOLO mode and have seen some interesting bypass attempts. [1]A few examples:- created fake npm tarballs and forged SHA‑512s in our package‑lock.json- masked failures with `|| true`, making blocked operations look successful- cloned a workspace, edited the clone, then replaced the workspace w the clone to bypass file‑path deny rulesSo, we’ve learned to default to verbose logging, patch bypasses as we see them, and try to keep iteration loops short.[1] https://voratiq.com/blog/yolo-in-the-sandbox/",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46403925,
+    "by": "scuff3d",
+    "timeISO": "2025-12-27T18:23:43.000Z",
+    "textPlain": "I feel like a crazy person reading these comments, \"oh it tries to bypass limitations, delete files, and generally nuke my system... But it's cool, I trust it\"",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46401224,
+    "by": "foreigner",
+    "timeISO": "2025-12-27T12:01:46.000Z",
+    "textPlain": "I'm using Catnip (https://github.com/wandb/catnip). It runs Claude Code in YOLO mode inside a Docker container, and also manages multiple Claude instances running in Git worktrees. I'm pretty happy with it but would be happier if it addressed limiting network access to guard against exfiltration.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46401603,
+    "by": "solresol",
+    "timeISO": "2025-12-27T13:11:03.000Z",
+    "textPlain": "I create a separate Linux user (which doesn't have sudo rights) for each project. I have to log each user in to Claude code or codex, but then I can use ordinary Unix permissions to keep the bots under control and isolated.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46407507,
+    "by": "jacob019",
+    "timeISO": "2025-12-28T01:34:34.000Z",
+    "textPlain": "Funny you should mention this, I just added a simple filesystem sandbox to my coding agent.Check it out:\nhttps://github.com/jacobsparts/agentlib/blob/main/src/agentl...The framework is all python, but I used C for this helper.  It uses unprivileged user namespaces to mount an overlay and run an arbitrary command, then when the command finishes, it writes a tarball of edits, which I use to create a unified diff.  The framework orchestrates it all transparently, but the helper itself could be used standalone.  Here's a short document about the sandbox in the context of it's use in my project:https://github.com/jacobsparts/agentlib/blob/main/docs/sandb...I also have a version that uses SUID instead of unprivileged user namespaces, available by request.I often use claude code with --dangerously-skip-permissions but every once in a while it bites me.  I've learned to use git for everything and put instructions to always commit BEFORE writes in CLAUDE.md.  Claude can go off the rails on harder bug fixes, especially if there are multiple rounds of context compacting, it can really screw things up.  It usually honors guidance not to modify outside of the project, but a simple sandbox adds so much, after the session is over you can see what changed and decide what to do with it.  It really helps with the problem where it makes unexpected changes to the codebase, which you might not even notice otherwise, which can introduce serious bugs.  The permission models of all the coding agents are rough--either you can't get anything done, or you throw caution to the wind.  Full sandboxes are quite restrictive, which is why I rolled by own.  Honestly your best option right now is just to have good version control and run coding agents in dedicated environments.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46405792,
+    "by": "___timor___",
+    "timeISO": "2025-12-27T22:07:07.000Z",
+    "textPlain": "Containers work quite well and fast.\nhttps://gagor.pro/2025/10/running-gemini-cli-in-a-docker-con...",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46407392,
+    "by": "throwayaw84330",
+    "timeISO": "2025-12-28T01:16:00.000Z",
+    "textPlain": "I use https://github.com/longregen/claude-sandboxIt uses bubblewrap (no root needed) and only exposes ~/.cache stuff and the current folder (no git credentials, no ssh credentials, and as few permissions as it's feasible).bubblewrap is a little bit more lightweight than docker (afaiu no overlayfs, launches way faster), but has the same underlying mechanisms for security (cgroups)",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46400692,
+    "by": "jomcgi",
+    "timeISO": "2025-12-27T10:22:42.000Z",
+    "textPlain": "I have a web ui for managing / interacting with opencode sessions.\nEverything runs as a pod in my homelab cluster so I can let them \"bypass\" permissions and just restrict the pods.I wanted something like Claude code web with access to more models / local LLMs / my monorepo tooling, so far it's been great.The output is a PR so it's hard for it to break anything.The biggest benefit is probably that it makes it easier to start stuff when I'm out - feels like a much better use of downtime like I'm not waiting to get home to start a session after I have an idea.The monorepo tooling is a bit win too, for a bunch of things I just have 1 way to do it and clear instructions for them to use the binaries that get bundled into new sessions so it gets things \"right\" more often.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46401117,
+    "by": "yomismoaqui",
+    "timeISO": "2025-12-27T11:44:39.000Z",
+    "textPlain": "Using Claude Code and Amp (free mode) with no sandbox.I don't run Claude Code in YOLO mode, I just approve commands the first time I'm asked about them.Using them since July I haven't found any problem with data loss and the clanker have not tried to delete my $HOME.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46400676,
+    "by": "stavros",
+    "timeISO": "2025-12-27T10:20:13.000Z",
+    "textPlain": "I wrote a small utility that wraps commands in Docker: https://github.com/skorokithakis/dox",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46401450,
+    "by": "Havoc",
+    "timeISO": "2025-12-27T12:42:46.000Z",
+    "textPlain": "For CC - unprivileged LXC on a proxmox server. That's enough to catch mishaps like deleting all your sht while still being a reasonable transparent isolation layer. Plus my entire homesetup is geared towards LXC anyway.Keen to give firecracker another go though. Last I explored that it still felt pretty rough. (on UX not tech quality)",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46400609,
+    "by": "gl-prod",
+    "timeISO": "2025-12-27T10:02:17.000Z",
+    "textPlain": "I spin a Firecracker VM with a custom image that has all the things I need.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46400839,
+    "by": "aussieguy1234",
+    "timeISO": "2025-12-27T10:51:56.000Z",
+    "textPlain": "I run vscode based agents in Linux, mostly Kilo CodeAfter a bit of tinkering I was able to get it to all run fine in Firejail, I wrote a guide here https://softwareengineeringstandard.com/2025/12/15/ai-agents...Fairly basic, limits the agents write access to my projects, all of which are backed up in git.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46402342,
+    "by": "zmj",
+    "timeISO": "2025-12-27T15:05:24.000Z",
+    "textPlain": "devcontainers, without credentials to the git remote.",
+    "parent": 46400129,
+    "depth": 1
+  },
+  {
+    "id": 46403807,
+    "by": "gverrilla",
+    "timeISO": "2025-12-27T18:10:52.000Z",
+    "textPlain": "is firejail safe to use for this purpose? any tips?",
+    "parent": 46400129,
+    "depth": 1
+  }
+]
