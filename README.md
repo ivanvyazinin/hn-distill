@@ -6,5 +6,6 @@
 - Generate data: `bun install` then `bun run data:all` (or `make run`).
 - Develop: `bunx astro dev` (or `make dev`).
 - Build/preview: `bunx astro build && bunx astro preview` (or `make build`/`make preview`).
+- Self-hosted hourly job (VPS/macOS): see `docs/self-hosted.md`.
 
 Data outputs land in `data/`; the site reads `data/aggregated.json`.
