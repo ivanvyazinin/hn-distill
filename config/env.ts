@@ -14,13 +14,13 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
+  OPENROUTER_MODEL: z.string().default("z-ai/glm-4.5-air:free"),
   // When primary model fails for summaries, try this model next (priority order)
   OPENROUTER_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("tngtech/deepseek-r1t2-chimera:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
-  TAGS_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"), // try structured outputs, fallback to JSON
+  TAGS_MODEL: z.string().default("z-ai/glm-4.5-air:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
@@ -29,7 +29,7 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
-  POST_GUARD_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
+  POST_GUARD_MODEL: z.string().default("z-ai/glm-4.5-air:free"),
   POST_GUARD_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
   POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
