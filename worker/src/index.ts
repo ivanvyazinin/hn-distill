@@ -1,0 +1,379 @@
+import { applyEnv, parseEnv, type Env } from "@config/env";
+import { pathFor } from "@config/paths";
+import { type AggregatedFile, type NormalizedStory } from "@config/schemas";
+import { HttpClient } from "@utils/http-client";
+import { log } from "@utils/log";
+import { Telegram, buildTelegramMessage, parseTelegramError, type TelegramDigestItem } from "@utils/telegram";
+
+import { main as aggregateMain } from "../../pipeline/aggregate";
+import { main as fetchMain, makeServices as makeFetchServices } from "../../pipeline/fetch-hn";
+import { makeServices as makeSummarizeServices, processSingleStory } from "../../pipeline/summarize";
+
+import type { QueueBatch, WorkerEnv } from "./bindings";
+import {
+  acquireRunLock,
+  getAggregateState,
+  getProcessingUpdatedMax,
+  getTelegramSentIds,
+  listPendingStoryIds,
+  markTelegramSent,
+  setAggregateState,
+  upsertProcessingState,
+  upsertStory,
+} from "./d1";
+import { createWorkerStore } from "./store";
+import type { TaskMessage } from "./types";
+
+const LOCK_KEY = "cron";
+const AGG_KEY = "aggregate";
+const LOCK_TTL_MS = 55 * 60 * 1000;
+type ScheduledEvent = { scheduledTime?: number };
+const TIMEOUT_BUFFER_MS = 2_000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+function extractEnvBindings(env: WorkerEnv): Record<string, string | undefined> {
+  const out: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === "string") {
+      out[key] = value;
+    }
+  }
+  return out;
+}
+
+function initEnv(env: WorkerEnv): Env {
+  const parsed = parseEnv(extractEnvBindings(env));
+  applyEnv(parsed);
+  return parsed;
+}
+
+async function upsertStoriesFromStore(
+  db: WorkerEnv["DB"],
+  store: ReturnType<typeof createWorkerStore>,
+  storyIds: number[],
+  fetchedISO: string
+): Promise<void> {
+  for (const [index, id] of storyIds.entries()) {
+    const story = await store.getJson<NormalizedStory>(pathFor.rawItem(id));
+    if (!story) {
+      continue;
+    }
+    await upsertStory(db, story, index, fetchedISO);
+  }
+}
+
+async function enqueueSummaries(queue: NonNullable<WorkerEnv["TASKS"]>, ids: number[]): Promise<void> {
+  for (const id of ids) {
+    await queue.send({ kind: "summarize", id } satisfies TaskMessage);
+  }
+}
+
+async function collectTelegramItems(
+  env: WorkerEnv,
+  aggregated: AggregatedFile | undefined,
+  parsedEnv: Env
+): Promise<TelegramDigestItem[]> {
+  if (!parsedEnv.TELEGRAM_ENABLE || !parsedEnv.TELEGRAM_BOT_TOKEN || !parsedEnv.TELEGRAM_CHAT_ID) {
+    log.info("worker/telegram", "Telegram disabled or missing config");
+    return [];
+  }
+  if (!aggregated || aggregated.items.length === 0) {
+    log.info("worker/telegram", "No aggregated items for Telegram");
+    return [];
+  }
+
+  const candidates = aggregated.items.filter((item) => (item.postSummary ?? "").trim().length > 0);
+  const limited = candidates.slice(0, Math.max(1, parsedEnv.TELEGRAM_MAX_ITEMS));
+  const sent = await getTelegramSentIds(env.DB, limited.map((item) => item.id));
+
+  const items: TelegramDigestItem[] = [];
+  for (const item of limited) {
+    if (sent.has(item.id)) {
+      continue;
+    }
+    const payload: TelegramDigestItem = {
+      id: item.id,
+      title: item.title,
+      domain: item.domain,
+      url: item.url,
+      hnUrl: item.hnUrl,
+      postSummary: item.postSummary,
+      commentsSummary: item.commentsSummary,
+      timeISO: item.timeISO,
+    };
+    items.push(payload);
+  }
+  return items;
+}
+
+async function enqueueTelegramTasks(
+  env: WorkerEnv,
+  aggregated: AggregatedFile | undefined,
+  parsedEnv: Env
+): Promise<void> {
+  if (!env.TASKS) {
+    return;
+  }
+  const items = await collectTelegramItems(env, aggregated, parsedEnv);
+  for (const item of items) {
+    await env.TASKS.send({ kind: "telegram", item } satisfies TaskMessage);
+  }
+}
+
+async function processInlineSummaries(
+  env: WorkerEnv,
+  parsedEnv: Env,
+  store: ReturnType<typeof createWorkerStore>,
+  startedAt: number,
+  cronTimeout: number,
+  fetchedISO: string
+): Promise<void> {
+  const maxPerCron = Math.max(1, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON);
+  const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
+  const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
+  const ids = await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO);
+  if (ids.length === 0) {
+    log.info("worker/cron", "No pending summaries");
+    return;
+  }
+
+  const taskTimeoutBase = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+  for (const id of ids) {
+    const elapsed = Date.now() - startedAt;
+    const remaining = cronTimeout - elapsed - TIMEOUT_BUFFER_MS;
+    if (remaining <= 1000) {
+      log.warn("worker/cron", "Stopping inline summarize due to cron budget", { elapsed, cronTimeout });
+      break;
+    }
+    const taskTimeout = Math.min(taskTimeoutBase, remaining);
+    try {
+      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id), taskTimeout, `summarize:${id}`);
+    } catch (error) {
+      log.error("worker/cron", "Inline summarize failed", { id, error: String(error) });
+    }
+  }
+}
+
+async function processInlineTelegram(
+  env: WorkerEnv,
+  parsedEnv: Env,
+  aggregated: AggregatedFile | undefined,
+  startedAt: number,
+  cronTimeout: number
+): Promise<void> {
+  const items = await collectTelegramItems(env, aggregated, parsedEnv);
+  if (items.length === 0) {
+    return;
+  }
+
+  const taskTimeoutBase = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+  for (const item of items) {
+    const elapsed = Date.now() - startedAt;
+    const remaining = cronTimeout - elapsed - TIMEOUT_BUFFER_MS;
+    if (remaining <= 1000) {
+      log.warn("worker/cron", "Stopping inline Telegram due to cron budget", { elapsed, cronTimeout });
+      break;
+    }
+    const taskTimeout = Math.min(taskTimeoutBase, remaining);
+    try {
+      await withTimeout(handleTelegramTask(env, parsedEnv, item), taskTimeout, `telegram:${item.id}`);
+    } catch (error) {
+      const err = error instanceof Error ? error.message : String(error);
+      log.error("worker/cron", "Inline Telegram failed", { id: item.id, error: err });
+      if (err.includes("429") || err.includes("Too Many Requests")) {
+        break;
+      }
+    }
+
+    if (parsedEnv.TELEGRAM_MESSAGE_DELAY_MS > 0) {
+      const delay = parsedEnv.TELEGRAM_MESSAGE_DELAY_MS;
+      const remainingAfter = cronTimeout - (Date.now() - startedAt) - TIMEOUT_BUFFER_MS;
+      if (remainingAfter <= delay) {
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+}
+
+async function handleSummarizeTask(
+  env: WorkerEnv,
+  parsedEnv: Env,
+  store: ReturnType<typeof createWorkerStore>,
+  storyId: number
+): Promise<void> {
+  if (!parsedEnv.OPENROUTER_API_KEY) {
+    log.warn("worker/summarize", "OPENROUTER_API_KEY missing; skipping", { id: storyId });
+    return;
+  }
+  const services = makeSummarizeServices(parsedEnv);
+  try {
+    await processSingleStory(services, storyId, store);
+    const post = await store.getJson(pathFor.postSummary(storyId));
+    const comments = await store.getJson(pathFor.commentsSummary(storyId));
+    const tags = await store.getJson(pathFor.tagsSummary(storyId));
+    await upsertProcessingState(env.DB, storyId, {
+      postStatus: post ? "ok" : "missing",
+      commentsStatus: comments ? "ok" : "missing",
+      tagsStatus: tags ? "ok" : "missing",
+      updatedAt: new Date().toISOString(),
+      error: null,
+    });
+  } catch (error) {
+    await upsertProcessingState(env.DB, storyId, {
+      postStatus: "error",
+      commentsStatus: "error",
+      tagsStatus: "error",
+      updatedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : String(error),
+    });
+    log.error("worker/summarize", "Summarize task failed", { id: storyId, error: String(error) });
+  }
+}
+
+async function handleTelegramTask(env: WorkerEnv, parsedEnv: Env, item: TelegramDigestItem): Promise<void> {
+  if (!parsedEnv.TELEGRAM_ENABLE || !parsedEnv.TELEGRAM_BOT_TOKEN || !parsedEnv.TELEGRAM_CHAT_ID) {
+    return;
+  }
+  const sent = await getTelegramSentIds(env.DB, [item.id]);
+  if (sent.has(item.id)) {
+    return;
+  }
+
+  const http = new HttpClient({
+    retries: parsedEnv.HTTP_RETRIES,
+    baseBackoffMs: parsedEnv.HTTP_BACKOFF_MS,
+    timeoutMs: parsedEnv.HTTP_TIMEOUT_MS,
+    retryOnStatuses: [408, 425, 429, 500, 502, 503, 504, 522],
+  });
+  const telegram = new Telegram(http, parsedEnv.TELEGRAM_BOT_TOKEN);
+
+  let message = buildTelegramMessage(item, parsedEnv.SITE);
+  const TELEGRAM_LIMIT = 4096;
+  if (message.length > TELEGRAM_LIMIT) {
+    message = `${message.slice(0, TELEGRAM_LIMIT - 3)}...`;
+  }
+
+  try {
+    const messageId = await telegram.sendMessage({
+      chatId: parsedEnv.TELEGRAM_CHAT_ID,
+      text: message,
+      parseMode: "HTML",
+      disableWebPagePreview: true,
+      disableNotification: parsedEnv.TELEGRAM_DISABLE_NOTIFICATIONS,
+      ...(parsedEnv.TELEGRAM_MESSAGE_THREAD_ID && { messageThreadId: parsedEnv.TELEGRAM_MESSAGE_THREAD_ID }),
+    });
+    await markTelegramSent(env.DB, item.id, messageId, new Date().toISOString());
+  } catch (error) {
+    const err = error instanceof Error ? error.message : String(error);
+    if (err.includes("429") || err.includes("Too Many Requests")) {
+      const parsed = parseTelegramError(err);
+      log.warn("worker/telegram", "Telegram rate limit", { id: item.id, retryAfter: parsed.retryAfter });
+      throw error;
+    }
+    log.error("worker/telegram", "Failed to send Telegram message", { id: item.id, error: err });
+  }
+}
+
+export default {
+  async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+    initEnv(env);
+    const url = new URL(request.url);
+    if (url.pathname === "/health") {
+      return new Response("ok", { status: 200 });
+    }
+    return new Response("hn-distill worker", { status: 200 });
+  },
+
+  async scheduled(event: ScheduledEvent, env: WorkerEnv): Promise<void> {
+    const parsedEnv = initEnv(env);
+    const nowISO = new Date().toISOString();
+    const cryptoObj = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
+    const owner = typeof cryptoObj?.randomUUID === "function" ? cryptoObj.randomUUID() : `run-${Date.now()}`;
+    const hasLock = await acquireRunLock(env.DB, LOCK_KEY, nowISO, LOCK_TTL_MS, owner);
+    if (!hasLock) {
+      log.warn("worker/cron", "Run skipped: lock held", { owner });
+      return;
+    }
+
+    const store = createWorkerStore(env.DATA_BUCKET);
+    const fetchServices = makeFetchServices(parsedEnv);
+    const cronTimeout = Math.max(1_000, parsedEnv.WORKER_CRON_TIMEOUT_MS);
+    const queue = env.TASKS;
+
+    const startedAt = Date.now();
+    const index = await withTimeout(fetchMain(fetchServices, store), cronTimeout - TIMEOUT_BUFFER_MS, "fetch-main");
+    await upsertStoriesFromStore(env.DB, store, index.storyIds, nowISO);
+    if (queue) {
+      const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
+      const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
+      const pendingIds = await listPendingStoryIds(env.DB, index.storyIds.length, cutoffISO, nowISO);
+      await enqueueSummaries(queue, pendingIds);
+    } else {
+      await processInlineSummaries(env, parsedEnv, store, startedAt, cronTimeout, nowISO);
+    }
+
+    const elapsed = Date.now() - startedAt;
+    if (elapsed + TIMEOUT_BUFFER_MS >= cronTimeout) {
+      log.warn("worker/cron", "Skipping aggregate due to cron budget", { elapsed, cronTimeout });
+      return;
+    }
+
+    const processingUpdatedISO = await getProcessingUpdatedMax(env.DB);
+    const aggregateState = await getAggregateState(env.DB, AGG_KEY);
+    const prevIndexISO = aggregateState?.indexUpdatedISO ?? null;
+    const prevProcessingISO = aggregateState?.processingUpdatedISO ?? null;
+    const nextProcessingISO = processingUpdatedISO ?? null;
+
+    const shouldAggregate = prevIndexISO !== index.updatedISO || prevProcessingISO !== nextProcessingISO;
+    let aggregated: AggregatedFile | undefined;
+
+    if (shouldAggregate) {
+      aggregated = await withTimeout(aggregateMain(store), cronTimeout - elapsed, "aggregate");
+      await setAggregateState(env.DB, AGG_KEY, index.updatedISO, nextProcessingISO, new Date().toISOString());
+    } else {
+      aggregated = await store.getJson<AggregatedFile>(pathFor.aggregated);
+      log.info("worker/cron", "Aggregate unchanged; skipping recompute", {
+        indexUpdatedISO: index.updatedISO,
+        processingUpdatedISO: nextProcessingISO,
+      });
+    }
+
+    if (queue) {
+      await enqueueTelegramTasks(env, aggregated, parsedEnv);
+    } else {
+      await processInlineTelegram(env, parsedEnv, aggregated, startedAt, cronTimeout);
+    }
+  },
+
+  async queue(batch: QueueBatch<TaskMessage>, env: WorkerEnv): Promise<void> {
+    const parsedEnv = initEnv(env);
+    const store = createWorkerStore(env.DATA_BUCKET);
+    const taskTimeout = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+
+    for (const message of batch.messages) {
+      const body = message.body;
+      if (!body || typeof body !== "object") {
+        continue;
+      }
+      if (body.kind === "summarize") {
+        await withTimeout(handleSummarizeTask(env, parsedEnv, store, body.id), taskTimeout, `summarize:${body.id}`);
+      } else if (body.kind === "telegram") {
+        await withTimeout(handleTelegramTask(env, parsedEnv, body.item), taskTimeout, `telegram:${body.item.id}`);
+      }
+    }
+  },
+};

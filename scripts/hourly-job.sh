@@ -36,15 +36,27 @@ if [ "${GIT_PULL_BEFORE:-false}" = "true" ]; then
   git pull --rebase "${GIT_REMOTE:-origin}" "${GIT_BRANCH:-main}"
 fi
 
-make run
+USE_R2="${USE_R2:-false}"
+if [ -n "${R2_ACCOUNT_ID:-}" ] || [ -n "${R2_ACCESS_KEY_ID:-}" ]; then
+  USE_R2="true"
+fi
 
-if [ "${TELEGRAM_ENABLE:-true}" = "true" ]; then
+if [ "${USE_R2}" = "true" ]; then
+  echo "pulling data from R2"
+  make pull-r2
+else
+  make run
+fi
+
+if [ "${USE_R2}" = "true" ]; then
+  echo "telegram handled by workers, skipping local publish"
+elif [ "${TELEGRAM_ENABLE:-true}" = "true" ]; then
   make publish-telegram
 else
   echo "telegram disabled, skipping"
 fi
 
-if [ "${GIT_ENABLE:-true}" = "true" ]; then
+if [ "${GIT_ENABLE:-false}" = "true" ]; then
   git config user.email "${GIT_USER_EMAIL:-bot@example.com}"
   git config user.name "${GIT_USER_NAME:-bot}"
   if [ -n "$(git status --porcelain data)" ]; then
@@ -57,6 +69,8 @@ if [ "${GIT_ENABLE:-true}" = "true" ]; then
   else
     echo "no data changes"
   fi
+else
+  echo "git disabled, skipping data commit"
 fi
 
 make build

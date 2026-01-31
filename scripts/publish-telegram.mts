@@ -7,9 +7,9 @@ import { loadAggregated } from "@utils/load-aggregated";
 import { log } from "@utils/log";
 import {
   Telegram,
+  buildTelegramMessages,
   deleteProgress,
   digestHash,
-  escapeHtml,
   parseTelegramError,
   readProgress,
   readSeenCache,
@@ -161,7 +161,14 @@ async function main(): Promise<void> {
     retryOnStatuses: [429],
   });
 
-  const telegram = new Telegram(http, env.TELEGRAM_BOT_TOKEN);
+  const chatId = env.TELEGRAM_CHAT_ID?.trim();
+  const botToken = env.TELEGRAM_BOT_TOKEN?.trim();
+  if (!chatId || !botToken) {
+    log.info("telegram", "Telegram publishing disabled or not configured");
+    process.exit(0);
+  }
+
+  const telegram = new Telegram(http, botToken);
 
   // Initialize or restore progress
   if (progress === undefined) {
@@ -174,7 +181,7 @@ async function main(): Promise<void> {
   }
 
   // Build individual messages for items to send
-  const messages = buildMessages(itemsToSend);
+  const messages = buildTelegramMessages(itemsToSend, env.SITE);
   const allMessageIds: number[] = progress.sentItems.map((item) => item.messageId);
 
   for (let i = 0; i < messages.length; i++) {
@@ -211,7 +218,7 @@ async function main(): Promise<void> {
     while (!sent && retryCount < MAX_RATE_LIMIT_RETRIES) {
       try {
         const messageId = await telegram.sendMessage({
-          chatId: env.TELEGRAM_CHAT_ID,
+          chatId,
           text: message,
           parseMode: "HTML",
           disableWebPagePreview: true,
@@ -342,48 +349,6 @@ function pickTop(
     commentsSummary?: string;
     timeISO: string;
   }>;
-}
-
-function buildMessages(
-  items: Array<{
-    id: number;
-    title: string;
-    domain?: string;
-    url?: string | null;
-    hnUrl?: string;
-    postSummary?: string;
-    commentsSummary?: string;
-    timeISO: string;
-  }>
-): string[] {
-  return items.map((item) => {
-    // Use the article summary only (items without one were filtered earlier)
-    const summary = item.postSummary?.trim() ?? "";
-
-    // Build links section
-    const links: string[] = [];
-
-    // Original source link
-    if (item.url) {
-      links.push(`<a href="${item.url}">источник</a>`);
-    }
-
-    // Link to our site
-    const siteLink = `https://hckr.top/item/${item.id}`;
-    links.push(`<a href="${siteLink}">читать на hckr.top</a>`);
-
-    // HN comments
-    if (item.hnUrl) {
-      links.push(`<a href="${item.hnUrl}">комментарии на HN</a>`);
-    }
-
-    const linksLine = links.length > 0 ? `\n\n${links.join(" | ")}` : "";
-
-    const titleLine = `<b>${escapeHtml(item.title)}</b>`;
-    const summaryLine = summary ? `\n\n${escapeHtml(summary)}` : "";
-
-    return `${titleLine}${summaryLine}${linksLine}`;
-  });
 }
 
 // Run main function and handle errors

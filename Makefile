@@ -31,6 +31,10 @@ build:
 	cp data/search.json public/data/search.json 2>/dev/null || true
 	bunx astro build
 
+.PHONY: pull-r2
+pull-r2:
+	bun run tsx scripts/pull-r2-data.mts
+
 .PHONY: dev
 dev:
 	bunx astro dev

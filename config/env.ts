@@ -14,13 +14,13 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("z-ai/glm-4.5-air:free"),
+  OPENROUTER_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
   // When primary model fails for summaries, try this model next (priority order)
   OPENROUTER_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("tngtech/deepseek-r1t2-chimera:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
-  TAGS_MODEL: z.string().default("z-ai/glm-4.5-air:free"), // try structured outputs, fallback to JSON
+  TAGS_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
@@ -29,7 +29,7 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
-  POST_GUARD_MODEL: z.string().default("z-ai/glm-4.5-air:free"),
+  POST_GUARD_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
   POST_GUARD_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
   POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
@@ -91,11 +91,30 @@ const EnvironmentSchema = z.object({
   TELEGRAM_MAX_ITEMS: z.coerce.number().int().min(1).max(100).default(10),
   TELEGRAM_MESSAGE_DELAY_MS: z.coerce.number().int().min(500).max(10_000).default(2000),
   TELEGRAM_MAX_RATE_LIMIT_RETRIES: z.coerce.number().int().min(1).max(10).default(5),
+  TELEGRAM_STREAM: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
   TELEGRAM_ENABLE: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
+
+  // Worker safety guards (serverless limits)
+  WORKER_QUEUE_TASK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(25_000),
+  WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(55_000),
+  WORKER_SUMMARIZE_MAX_PER_CRON: z.coerce.number().int().min(1).max(50).default(3),
+  WORKER_RETRY_COOLDOWN_SECONDS: z.coerce.number().int().min(60).max(24 * 60 * 60).default(600),
 });
 
-export const env = EnvironmentSchema.parse(process.env);
-export type Env = typeof env;
+export type Env = z.infer<typeof EnvironmentSchema>;
+
+export function parseEnv(source: Record<string, string | undefined>): Env {
+  return EnvironmentSchema.parse(source);
+}
+
+export const env: Env = parseEnv(process.env);
+
+export function applyEnv(next: Env): void {
+  Object.assign(env, next);
+}

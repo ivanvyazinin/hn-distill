@@ -101,6 +101,46 @@ export type TelegramDigestItem = {
   timeISO: string;
 };
 
+function normalizeSiteBase(siteBase?: string): { base: string; label: string } {
+  const fallback = "https://hckr.top";
+  const trimmed = siteBase?.trim();
+  const base = trimmed && trimmed.length > 0 ? trimmed : fallback;
+  const normalized = base.endsWith("/") ? base.slice(0, -1) : base;
+  try {
+    const url = new URL(normalized);
+    return { base: normalized, label: url.host };
+  } catch {
+    return { base: normalized, label: "сайте" };
+  }
+}
+
+export function buildTelegramMessage(item: TelegramDigestItem, siteBase?: string): string {
+  const summary = item.postSummary?.trim() ?? "";
+
+  const links: string[] = [];
+  if (item.url) {
+    links.push(`<a href="${item.url}">источник</a>`);
+  }
+
+  const { base, label } = normalizeSiteBase(siteBase);
+  const siteLink = `${base}/item/${item.id}`;
+  links.push(`<a href="${siteLink}">читать на ${escapeHtml(label)}</a>`);
+
+  const hnUrl = item.hnUrl ?? `https://news.ycombinator.com/item?id=${item.id}`;
+  links.push(`<a href="${hnUrl}">комментарии на HN</a>`);
+
+  const linksLine = links.length > 0 ? `\n\n${links.join(" | ")}` : "";
+
+  const titleLine = `<b>${escapeHtml(item.title)}</b>`;
+  const summaryLine = summary ? `\n\n${escapeHtml(summary)}` : "";
+
+  return `${titleLine}${summaryLine}${linksLine}`;
+}
+
+export function buildTelegramMessages(items: TelegramDigestItem[], siteBase?: string): string[] {
+  return items.map((item) => buildTelegramMessage(item, siteBase));
+}
+
 export type SeenCache = {
   telegram?: {
     lastHash?: string;
@@ -111,13 +151,13 @@ export type SeenCache = {
 };
 
 export async function digestHash(items: TelegramDigestItem[]): Promise<string> {
-  const { createHash } = await import("node:crypto");
+  const { sha256Hex } = await import("@utils/hash");
   const payload = {
     ids: items.map((i: TelegramDigestItem) => i.id),
     titles: items.map((i: TelegramDigestItem) => i.title),
     summaries: items.map((i: TelegramDigestItem) => i.postSummary?.trim() ?? ""),
   };
-  return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+  return await sha256Hex(JSON.stringify(payload));
 }
 
 export async function readSeenCache(cachePath: string): Promise<SeenCache> {

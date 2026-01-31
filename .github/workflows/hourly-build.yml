@@ -22,56 +22,14 @@ jobs:
       - name: Setup Bun and Install Dependencies
         uses: ./.github/actions/setup-bun
 
-      - name: Generate data
-        timeout-minutes: 45
+      - name: Pull data from R2
         env:
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
-          TOP_N: ${{ vars.TOP_N || 30 }}
-          MAX_COMMENTS_PER_STORY: ${{ vars.MAX_COMMENTS_PER_STORY || 50 }}
-          MAX_DEPTH: ${{ vars.MAX_DEPTH || 2 }}
-          CONCURRENCY: ${{ vars.CONCURRENCY || 8 }}
-        run: make run
-
-      - name: Publish Telegram digest
-        if: ${{ env.TELEGRAM_ENABLE == 'true' && env.TELEGRAM_BOT_TOKEN != '' && env.TELEGRAM_CHAT_ID != '' }}
-        env:
-          TELEGRAM_ENABLE: ${{ vars.TELEGRAM_ENABLE || 'true' }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID || vars.TELEGRAM_CHAT_ID }}
-          TELEGRAM_MESSAGE_THREAD_ID: ${{ vars.TELEGRAM_MESSAGE_THREAD_ID }}
-          TELEGRAM_DISABLE_NOTIFICATIONS: ${{ vars.TELEGRAM_DISABLE_NOTIFICATIONS || 'true' }}
-          TELEGRAM_MAX_ITEMS: ${{ vars.TELEGRAM_MAX_ITEMS || 10 }}
-          HTTP_TIMEOUT_MS: ${{ vars.HTTP_TIMEOUT_MS || 15000 }}
-          HTTP_RETRIES: ${{ vars.HTTP_RETRIES || 3 }}
-          HTTP_BACKOFF_MS: ${{ vars.HTTP_BACKOFF_MS || 600 }}
-        run: make publish-telegram
-
-      - name: Commit data
-        run: |
-          set -e
-          git config user.email "bot@example.com"
-          git config user.name "bot"
-          STATUS=$(git status --short data)
-          if [ -z "$STATUS" ]; then
-            echo "no data changes"
-            exit 0
-          fi
-
-          git add data
-
-          MSG="hourly data"
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "no changes"
-            exit 0
-          fi
-
-          # Always create a new commit; never amend/force-push
-          git commit -m "$MSG"
-
-          # Rebase on top of the latest remote and retry the push if needed
-          git pull --rebase origin main
-          git push
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_BUCKET: ${{ secrets.R2_BUCKET }}
+          R2_PREFIXES: ${{ vars.R2_PREFIXES || 'data/,summaries/' }}
+        run: make pull-r2
 
       - name: Build
         env:

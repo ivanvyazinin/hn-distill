@@ -138,15 +138,20 @@ launchctl load ~/Library/LaunchAgents/com.hn-distill.hourly.plist
 ## Script behavior and knobs
 
 `scripts/hourly-job.sh`:
-- runs `make run`, then `make publish-telegram`, then commits data to Git
+- pulls data from R2 via `make pull-r2` when `USE_R2=true` (or when R2 creds are set); otherwise runs `make run`
+- skips local Telegram publish when `USE_R2=true`
 - builds the site (`make build`)
 - deploys `dist/` if `DEPLOY_DIR` or `DEPLOY_COMMAND` is set
 
 Optional env vars:
-- `GIT_ENABLE=true|false` (default `true`)
+- `USE_R2=true|false` (default `false`; auto-enabled if R2 creds set)
+- `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
+- `R2_PREFIXES=data/,summaries/`
+- `GIT_ENABLE=true|false` (default `false`)
 - `GIT_REMOTE=origin`, `GIT_BRANCH=main`
 - `GIT_USER_NAME`, `GIT_USER_EMAIL`
 - `DEPLOY_DIR=/var/www/hn-distill`
 - `DEPLOY_COMMAND=...`
 - `LOG_DIR=/path/to/logs`
 - `GIT_PULL_BEFORE=true` (if you want to rebase before running)
+- `TELEGRAM_STREAM=true` to post each story right after its summary is ready
