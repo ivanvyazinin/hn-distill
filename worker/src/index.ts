@@ -14,18 +14,22 @@ import {
   acquireRunLock,
   getAggregateState,
   getProcessingUpdatedMax,
+  getPagesDeployState,
   getTelegramSentIds,
   listPendingStoryIds,
   markTelegramSent,
+  setPagesDeployState,
   setAggregateState,
   upsertProcessingState,
   upsertStory,
 } from "./d1";
+import { buildScheduleForDate, shouldTriggerSlot } from "./pages-schedule";
 import { createWorkerStore } from "./store";
 import type { TaskMessage } from "./types";
 
 const LOCK_KEY = "cron";
 const AGG_KEY = "aggregate";
+const PAGES_KEY = "pages";
 const LOCK_TTL_MS = 55 * 60 * 1000;
 type ScheduledEvent = { scheduledTime?: number };
 const TIMEOUT_BUFFER_MS = 2_000;
@@ -288,6 +292,59 @@ async function handleTelegramTask(env: WorkerEnv, parsedEnv: Env, item: Telegram
   }
 }
 
+function slotKeyUTC(d: Date): string {
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  const hour = String(d.getUTCHours()).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${day}-${hour}`;
+}
+
+async function maybeTriggerPagesDeploy(env: WorkerEnv, parsedEnv: Env): Promise<void> {
+  if (!parsedEnv.PAGES_DEPLOY_ENABLE) {
+    return;
+  }
+  const hook = parsedEnv.PAGES_DEPLOY_HOOK_URL?.trim();
+  if (!hook) {
+    return;
+  }
+
+  const now = new Date();
+  const target = Math.max(1, parsedEnv.PAGES_DEPLOY_TARGET_PER_MONTH);
+  if (!shouldTriggerSlot(now, target)) {
+    return;
+  }
+
+  const schedule = buildScheduleForDate(now, target);
+  const slot = slotKeyUTC(now);
+  const state = await getPagesDeployState(env.DB, PAGES_KEY);
+  const sameMonth = state?.monthKey === schedule.monthKey;
+  const used = sameMonth ? Math.max(0, state?.usedCount ?? 0) : 0;
+  const lastSlot = sameMonth ? state?.lastSlot ?? undefined : undefined;
+
+  if (lastSlot === slot) {
+    return;
+  }
+  if (used >= target) {
+    log.warn("worker/pages", "Monthly deploy cap reached", { used, target, month: schedule.monthKey });
+    return;
+  }
+
+  const response = await fetch(hook, { method: "POST" });
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    log.warn("worker/pages", "Deploy hook failed", { status: response.status, body: body.slice(0, 200) });
+    return;
+  }
+
+  await setPagesDeployState(env.DB, PAGES_KEY, schedule.monthKey, used + 1, slot, new Date().toISOString());
+  log.info("worker/pages", "Triggered Pages deploy", {
+    month: schedule.monthKey,
+    used: used + 1,
+    target,
+    dayQuota: schedule.dayQuota,
+    dayIndex: schedule.dayIndex + 1,
+  });
+}
+
 export default {
   async fetch(request: Request, env: WorkerEnv): Promise<Response> {
     initEnv(env);
@@ -356,6 +413,13 @@ export default {
       await enqueueTelegramTasks(env, aggregated, parsedEnv);
     } else {
       await processInlineTelegram(env, parsedEnv, aggregated, startedAt, cronTimeout);
+    }
+
+    const remaining = cronTimeout - (Date.now() - startedAt) - TIMEOUT_BUFFER_MS;
+    if (remaining > 1000) {
+      await maybeTriggerPagesDeploy(env, parsedEnv);
+    } else {
+      log.warn("worker/cron", "Skipping Pages deploy due to cron budget", { remaining });
     }
   },
 

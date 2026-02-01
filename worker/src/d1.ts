@@ -180,3 +180,38 @@ export async function setAggregateState(
     .bind(key, indexUpdatedISO, processingUpdatedISO, updatedAtISO)
     .run();
 }
+
+export async function getPagesDeployState(
+  db: D1DatabaseLike,
+  key: string
+): Promise<{ monthKey?: string | null; usedCount?: number | null; lastSlot?: string | null } | undefined> {
+  const row = await db
+    .prepare("SELECT month_key, used_count, last_slot FROM pages_deploy_state WHERE key = ?")
+    .bind(key)
+    .first<{ month_key?: string | null; used_count?: number | null; last_slot?: string | null }>();
+  if (!row) {
+    return undefined;
+  }
+  return {
+    monthKey: row.month_key ?? null,
+    usedCount: typeof row.used_count === "number" ? row.used_count : null,
+    lastSlot: row.last_slot ?? null,
+  };
+}
+
+export async function setPagesDeployState(
+  db: D1DatabaseLike,
+  key: string,
+  monthKey: string,
+  usedCount: number,
+  lastSlot: string,
+  updatedAtISO: string
+): Promise<void> {
+  await db
+    .prepare(
+      "INSERT INTO pages_deploy_state (key, month_key, used_count, last_slot, updated_at) VALUES (?, ?, ?, ?, ?) " +
+        "ON CONFLICT(key) DO UPDATE SET month_key=excluded.month_key, used_count=excluded.used_count, last_slot=excluded.last_slot, updated_at=excluded.updated_at"
+    )
+    .bind(key, monthKey, usedCount, lastSlot, updatedAtISO)
+    .run();
+}

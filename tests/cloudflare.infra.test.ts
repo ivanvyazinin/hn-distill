@@ -6,6 +6,7 @@ import { Miniflare } from "miniflare";
 import { pathFor } from "@config/paths";
 import type { NormalizedStory } from "@config/schemas";
 
+import { buildScheduleForDate } from "../worker/src/pages-schedule";
 import { createWorkerStore } from "../worker/src/store";
 import { getTelegramSentIds, listPendingStoryIds, markTelegramSent, upsertProcessingState, upsertStory } from "../worker/src/d1";
 import worker from "../worker/src/index";
@@ -161,6 +162,24 @@ describe("cloudflare infra", () => {
     } finally {
       await mf.dispose();
     }
+  });
+
+  test("pages schedule spreads 500 monthly across days", () => {
+    const d1 = new Date(Date.UTC(2026, 1, 1, 0, 0, 0));
+    const d2 = new Date(Date.UTC(2026, 1, 24, 0, 0, 0));
+    const d3 = new Date(Date.UTC(2026, 1, 28, 0, 0, 0));
+
+    const s1 = buildScheduleForDate(d1, 500);
+    const s2 = buildScheduleForDate(d2, 500);
+    const s3 = buildScheduleForDate(d3, 500);
+
+    expect(s1.dayCount).toBe(28);
+    expect(s1.dayQuota).toBe(18);
+    expect(s2.dayQuota).toBe(18);
+    expect(s3.dayQuota).toBe(17);
+
+    expect(s1.hours.length).toBe(18);
+    expect(s3.hours.length).toBe(17);
   });
 
   test("worker scheduled enqueues summaries and writes aggregates", async () => {

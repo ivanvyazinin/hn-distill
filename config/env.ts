@@ -105,6 +105,14 @@ const EnvironmentSchema = z.object({
   WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(55_000),
   WORKER_SUMMARIZE_MAX_PER_CRON: z.coerce.number().int().min(1).max(50).default(3),
   WORKER_RETRY_COOLDOWN_SECONDS: z.coerce.number().int().min(60).max(24 * 60 * 60).default(600),
+
+  // Cloudflare Pages deploy scheduling (optional)
+  PAGES_DEPLOY_HOOK_URL: z.string().optional(),
+  PAGES_DEPLOY_TARGET_PER_MONTH: z.coerce.number().int().min(1).max(2000).default(500),
+  PAGES_DEPLOY_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
 });
 
 export type Env = z.infer<typeof EnvironmentSchema>;

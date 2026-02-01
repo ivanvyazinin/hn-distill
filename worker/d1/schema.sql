@@ -39,3 +39,11 @@ CREATE TABLE IF NOT EXISTS aggregate_state (
   processing_updated_iso TEXT,
   updated_at TEXT
 );
+
+CREATE TABLE IF NOT EXISTS pages_deploy_state (
+  key TEXT PRIMARY KEY,
+  month_key TEXT,
+  used_count INTEGER,
+  last_slot TEXT,
+  updated_at TEXT
+);
