@@ -7,7 +7,6 @@ import { formatDateHuman } from "@utils/date";
 import { loadAggregated } from "@utils/load-aggregated";
 import { mdToHtml } from "@utils/md-to-html";
 import type { GetStaticPaths } from "astro";
-import { existsSync, readFileSync } from "node:fs";
 import "../../styles/global.css";
 import { TAG_MIN_COUNT } from "@config/constants";
 import { countTags } from "@utils/tag-counts";
@@ -33,18 +32,8 @@ function tagHref(tag: string): string {
   return c >= TAG_MIN_COUNT ? `/tag/${tag}/` : `/search/?tags=${encodeURIComponent(tag)}`;
 }
 
-function loadSummary(kind: "post" | "comments"): string | undefined {
-  const p = new URL(`../../../data/summaries/${id}.${kind}.json`, import.meta.url).pathname;
-  if (!existsSync(p)) return undefined;
-  try {
-    return (JSON.parse(readFileSync(p, "utf8")).summary as string) || undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-const postMd = loadSummary("post") ?? item.postSummary ?? "";
-const commentsMd = loadSummary("comments") ?? item.commentsSummary ?? "";
+const postMd = item.postSummary ?? "";
+const commentsMd = item.commentsSummary ?? "";
 const postHtml = postMd ? mdToHtml(postMd) : "";
 const commentsHtml = commentsMd ? mdToHtml(commentsMd) : "";
 const datePretty = formatDateHuman(item.timeISO);

@@ -1,4 +1,6 @@
+import { env } from "@config/env";
 import { createFsStore } from "@utils/fs-store";
+import { openLocalMetaStore } from "@utils/meta-runtime";
 
 import {
   buildAggregatedItem,
@@ -19,7 +21,9 @@ export async function readAggregates(storyIds: number[]) {
 
 export async function main(): Promise<void> {
   const store = createFsStore();
-  await coreMain(store);
+  const meta = await openLocalMetaStore();
+  const fromDb = env.AGGREGATE_FROM_DB === true && meta !== undefined;
+  await coreMain(store, meta ?? undefined, fromDb ? { fromDb: true } : undefined);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
