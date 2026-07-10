@@ -1,8 +1,0 @@
-{
-  "id": 45115557,
-  "lang": "ru",
-  "summary": "В Rust-реализации Django-шаблонов нужно передать изменяемый контекст в Python-функцию тега.  \n\n`Context` — структура с `HashMap<String, Py<PyAny>>`, метод `render` получает `&mut Context`.  \nPyO3 требует владение объектом, а не ссылку, поэтому `PyContext { context }` не компилирует.\n\nРешение:  \n```rust\n#[derive(Default)]\npub struct Context { … }\n\nimpl Render for CustomTag {\n    fn render(&self, py: Python<'_>, ctx: &mut Context) -> RenderResult {\n        if self.takes_context {\n            let owned = std::mem::take(ctx); // вытягиваем владение\n            let py_ctx = PyContext { context: owned };\n            …\n        }\n    }\n}\n```\n\n`std::mem::take` заменяет содержимое `ctx` на `Default::default()` и возвращает владение исходным значением, позволяя безопасно передать его в Python.",
-  "inputHash": "354a48e0845518748961aa91e5e6edf2af6dd48b66716e1710f53470adef8582",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-03T14:24:18.014Z"
-}

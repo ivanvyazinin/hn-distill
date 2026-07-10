@@ -1,8 +1,0 @@
-{
-  "id": 45137097,
-  "lang": "ru",
-  "summary": "```markdown\n**CVE-2025-53149** – переполнение кучи в драйвере `ksthunk.sys`  \nКомпонент: Kernel Streaming WOW Thunk Service Driver  \nПатч: 12 авг 2025 (Microsoft)\n\nУязвимая функция  \n`CKSAutomationThunk::HandleArrayProperty()` не проверяет, что количество элементов массива, пришедшего из user-mode, умещается в выделенный kernel-буфер.  \nПолучив большое значение в `SystemOutputBuffer[0]`, драйвер копирует данные за пределы выделенной non-paged памяти → переполнение кучи.\n\nТриггер  \n32-битное WOW64-приложение посылает `KSPROPERTY_TYPE_SET`/`GET` с `KSPROPSETID_VPConfig` и индексом `0xE` (`KSPROPERTY_VPCONFIG_DDRAWSURFACEHANDLE`), передавая в IRP массив, первый элемент которого содержит заведомо больший размер.\n\nЭксплуатация  \nLPE: перезапись служебных структур кучи ядра → контроль RIP.  \nДля надёжного запуска требуется загрузить собственный KS-фильтр (например, «AVStream Simulated Capture»), но это не требует привилегий.\n\nПатч  \nMicrosoft добавила проверку:  \n`if (count * sizeof(ULONG) > OutputBufferLength) return STATUS_INVALID_PARAMETER;`\n\nTL;DR  \nНедостаточная валидация размера массива в `ksthunk.sys` позволяет обычному процессу переполнить kernel-heap и получить права SYSTEM. Исправлено в августовском обновлении Windows.\n```",
-  "inputHash": "33e776f37b2969c8be0ffbda41b5bd24b3bef886e5efe9cfd34ccb98e5385725",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-05T13:37:19.506Z"
-}

@@ -1,8 +1,0 @@
-{
-  "id": 44934476,
-  "lang": "ru",
-  "summary": "Добавьте в БД отладочные представления.\n\nПолучили баг: «Sophie ошибка при просмотре diff в её вкладе в @unison/cloud».  \nНужно найти вклад, но приходится писать:\n\n```sql\nSELECT ...\nFROM contributions c\nJOIN projects p ON ...\nJOIN users u ON ...\n...\nWHERE u.username='sophie' AND p.name='cloud'\nORDER BY ...;\n```\n\nДлинно, скучно, в CLI неудобно.\n\nРешение — создать **один раз** представление:\n\n```sql\nCREATE VIEW debug_contributions AS\nSELECT\n  c.id AS contribution_id,\n  c.title,\n  c.status,\n  sb.name AS source_branch,\n  tb.name AS target_branch,\n  a.username AS author,\n  '@'||po.username||'/'||p.name AS project_shorthand,\n  ...\nFROM contributions c\nJOIN projects p ON ...\nJOIN users a ON ...\nJOIN users po ON ...\nJOIN branches sb ON ...\nJOIN branches tb ON ...\n```\n\nТеперь:\n\n```sql\nSELECT * FROM debug_contributions\nWHERE author='sophie' AND project_shorthand='@unison/cloud'\nORDER BY source_branch_updated_at DESC;\n```\n\nПишем один раз, пользуемся всегда. Вид лёгкий, не занимает место.  \nИндексы не используются, но для разовых запросов не критично.\n\nСделайте такие представления для всех часто-отлаживаемых таблиц и сэкономьте время.",
-  "inputHash": "0a38359da5c8fe423ffb2e051fcb8f1dc07860de0178cdb3d44d3000bc76784a",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-21T15:28:13.929Z"
-}

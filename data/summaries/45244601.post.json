@@ -1,8 +1,0 @@
-{
-  "id": 45244601,
-  "lang": "ru",
-  "summary": "**RTT без J-Link: семихостинг для всех**\n\n- **Проблема**: UART-лог требует вывода, адаптера, кода. RTT SEGGER — быстр, но дорог и закрыт.  \n- **Решение**: ARM-семихостинг — `printf`/`scanf` по SWD без доп.пинов и буферов.\n\n**Как работает**  \nОтладчик ловит специальный `bkpt 0xAB`; в `r0` — номер syscall, в `r1` — указатель на аргументы.  \nЧтение/запись идёт по тем же SWDIO/SWCLK, ЦП не стопится.\n\n**Минимальный код**  \n```c\nextern void *_sys_write(char *p, int len);\nint _write(int fd, const char *p, int len){\n    (void)fd;\n    _sys_write((char*)p, len);\n    return len;\n}\n\n__attribute__((naked))\nvoid *_sys_write(char *p, int len){\n    __asm__(\n        \"mov r0, #1 \\n\"   // SYS_WRITE\n        \"mov r1, %0 \\n\"\n        \"bkpt 0xAB   \\n\"\n        \"bx lr       \\n\" :: \"r\"(p));\n}\n```\nЛинкуем `--specs=rdimon.specs`, запускаем `arm-none-eabi-gdb` или `openocd`:\n```\n(gdb) target extended-remote :3333\n(gdb) load\n(gdb) monitor arm semihosting enable\n(gdb) continue\n```\nВсё — терминал сразу выводит строки и принимает ввод.  \nЗанято 200 байт флеша, 0 байт ОЗУ, лицензия — любая.",
-  "inputHash": "456d6d7956ca02ca231f243c0297190589c3efd3e05ce20145ca59e3c1bd3bc6",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-15T01:54:35.221Z"
-}

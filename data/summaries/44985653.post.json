@@ -1,8 +1,0 @@
-{
-  "id": 44985653,
-  "lang": "ru",
-  "summary": "**Стек для Python-статики: uv + Caddy + Docker**\n\nЯ почти полностью перешёл на [uv](https://docs.astral.sh/uv/) — он быстрый, удобен и сам ставит нужный Python. Статические сайты собираю Python-скриптами, а раздаю через [Caddy](https://caddyserver.com/) в многоступенчевом Docker-контейнере.\n\n### Пример на sus\n\n**Dockerfile** (сжато):\n\n```dockerfile\nFROM ghcr.io/astral-sh/uv:debian AS build\nWORKDIR /src\nCOPY . .\nRUN uv python install 3.13\nRUN uv run --no-dev sus\n\nFROM caddy:alpine\nCOPY Caddyfile /etc/caddy/Caddyfile\nCOPY --from=build /src/output /srv/\n```\n\n1. Берём образ с uv, копируем код.\n2. uv ставит Python 3.13 и зависимости, запускает `sus`, который кладёт сайт в `/output`.\n3. Вторая стадия — лёгкий Caddy. Копируем конфиг и готовые статические файлы в `/srv`.\n\n**Caddyfile** минимален:\n\n```\n:80\nroot * /srv\nfile_server\n```\n\nЗапуск:\n\n```bash\ndocker build -t sus .\ndocker run -p 80:80 sus\n```\n\nИтог: быстрая сборка, маленький образ, автоматический HTTPS при нужном домене.",
-  "inputHash": "29d92415177a769ba4c32de5ddbf5d50fc2aa62fc2904e39219189d44da977e4",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-23T20:23:32.232Z"
-}

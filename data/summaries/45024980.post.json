@@ -1,8 +1,0 @@
-{
-  "id": 45024980,
-  "lang": "ru",
-  "summary": "### Быстрая перезагрузка классов и длина общей границы\n\n**Перезагрузка классов при отладке**  \nПри правке кода в функциях удобно использовать `importlib.reload`:\n\n```python\nfrom importlib import reload\nimport crimepy as cpy\n# правим исходник\nreload(cpy)\ntest = cpy.func1(...)\n```\n\nДля тяжёлых объектов (5-минутный расчёт в `PatrolDistricts`) сохраняем объект в `pickle`, перезагружаем модуль и подгружаем сохранённый объект — методы возьмутся из новой версии модуля:\n\n```python\nimport pickle, importlib, crimepy.pmed as pmed\n# сохраняем\nwith open('pmed12.pkl', 'wb') as f:\n    pickle.dump(pmed12, f)\n# правим код\nimportlib.reload(pmed)\n# восстанавливаем\nwith open('pmed12.pkl', 'rb') as f:\n    pmed12 = pickle.load(f)\npmed12.map_plot()\n```\n\n**Длина общей границы двух полигонов**  \nВместо сложных точных вычислений используем приближение: делаем крошечный буфер у более простого полигона и делим длину пересечения на 2.\n\n```python\ndef intersection_length(poly1, poly2, smb=1e-15):\n    \"\"\"Оценка длины общей границы двух shapely-полигонов.\"\"\"\n    if poly1.length < poly2.length:\n        buf = poly1.buffer(smb)\n    else:\n        buf = poly2.buffer(smb)\n    return buf.intersection(poly1).length / 2\n```\n\nПогрешность пренебрежимо мала, код короток и быстр.",
-  "inputHash": "28813e551cc358c338be86328f049f87897e054ab25278f52ab7e69f50d9e4d2",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-30T01:44:01.718Z"
-}

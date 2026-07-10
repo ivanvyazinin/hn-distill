@@ -1,8 +1,0 @@
-{
-  "id": 44999194,
-  "lang": "ru",
-  "summary": "**Материализованные представления очевидно полезны**\n\nРазработчики постоянно перетасовывают данные между системами и форматами.  \nВозьмём таск-трекер: нужно показывать количество задач в каждом проекте. Сначала всё просто:\n\n```ts\nconst getTaskCountForProject = (id) =>\n  db.query('select count(1) from tasks where project_id = $1', [id]);\n```\n\nСкорость не устраивает → добавляем Redis-кеш:\n\n```ts\nconst getTaskCountForProject = async (id) => {\n  const key = `project:${id}:task-count`;\n  let cnt = await redis.get(key);\n  if (cnt !== null) return +cnt;\n  cnt = await db.query('select count(1) ...', [id]);\n  await redis.set(key, cnt, { ex: 3600 });\n  return cnt;\n};\n```\n\nПользователи жалуются: счётчик устаревает. Приходится чистить кеш при каждом `insert/delete`.  \nДелаем инкрементальные обновления:\n\n```ts\nawait redis.incr(`project:${id}:task-count`);\n```\n\nНо если сервер упадёт между записью в БД и Redis, счётчик сломается навсегда.  \nПереносим счётчик в ту же БД и обновляем в транзакции, либо пишем триггер — логика в БД снова в моде.\n\nИтог: из одной строки кода выросла куча кода, который нужно поддерживать и синхронизировать.  \nТаких «побочных» вычислений в приложениях тысячи; они скрывают суть и мешают рефакторингу.",
-  "inputHash": "96b3f0ecd1caec93e5abfacca14f0de6874ed33d36a0c34aa9f04917fadffadc",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-24T18:33:23.072Z"
-}

@@ -1,8 +1,0 @@
-{
-  "id": 45143347,
-  "lang": "ru",
-  "summary": "**musl-аллокатор тормозит в 7 раз**  \nДобавь в `main.rs`:\n\n```rust\n#[cfg(target_env = \"musl\")]\n#[global_allocator]\nstatic GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;\n```\n\nи в `Cargo.toml`:\n\n```toml\n[target.'cfg(target_env = \"musl\")'.dependencies]\nmimalloc = \"0.1\"\n```\n\nПроблема — конкуренция потоков за `malloc`. Чем больше потоков, тем хуже.  \nЗамена аллокатора нужна даже для однопоточных программ: забудешь — потом дорого.\n\nПочему musl? Статика + 2 МБ distroless-контейнер = старые RH и быстрый cold-start.\n\nКейс: сервер обрабатывал данные в 7 раз медленнее хоста.  \nВиноват 200 000 контекст-переключений/сек vs 1 200 у glibc.  \n`strace` показал 6,7 с в `futex` у musl против 0,5 с у glibc.",
-  "inputHash": "9f999e70f51835b701f472d8d7f2c7f5c4f607c70f09290377985f22a9ae3544",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-08T03:14:03.796Z"
-}

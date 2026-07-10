@@ -1,8 +1,0 @@
-{
-  "id": 45221023,
-  "lang": "ru",
-  "summary": "**PythonBPF** – пишем eBPF-программы на чистом Python  \n(в 2 раза короче)\n\n---\n\n**Что это**  \nБиблиотека `pip install pythonbpf` компилирует Python-код в объектные `.o`-файлы и загружает их в ядро как обычные eBPF-программы. Репо: [GitHub](https://github.com/varun-r-mallya/python-bpf).\n\n---\n\n**Было**  \nВстраивали C в многострочные строки, теряя линтеры и подсветку:\n\n```python\nfrom bcc import BPF\nprog = \"\"\"\nint hello(void *ctx) {\n    bpf_trace_printk(\"Hello\\\\n\");\n    return 0;\n}\n\"\"\"\nb = BPF(text=prog)\nb.attach_kprobe(event=\"sys_clone\", fn_name=\"hello\")\n```\n\n---\n\n**Стало**  \nТот же функционал — на Python:\n\n```python\nfrom pythonbpf import bpf, section, compile\nfrom pythonbpf.maps import HashMap\nfrom pythonbpf.helpers import ktime\nfrom ctypes import *\n\n@bpf\ndef last() -> HashMap:          # глобальная BPF-мапа\n    return HashMap(c_uint64, c_uint64, 1)\n\n@bpf\n@section(\"tracepoint/syscalls/sys_enter_execve\")\ndef hello(_: c_void_p) -> c_int32:\n    print(\"entered\")\n    return 0\n\n@bpf\n@section(\"tracepoint/syscalls/sys_exit_execve\")\ndef bye(_: c_void_p) -> c_int64:\n    print(\"exited\")\n    last().update(0, ktime())\n    return 0\n\n@bpf\ndef LICENSE() -> str:           # лицензия ядра\n    return \"GPL\"\n\ncompile()                       # → .o и загрузка\n```\n\n---\n\n**Как работает**  \n1. `ast` → дерево  \n2. `llvmlite` → LLVM IR  \n3. `llc` → BPF-объект  \n4. `libbpf` → загрузка в ядро",
-  "inputHash": "cc242b2adf9b695590effdaed6a15c2928755366af50ffe3621292d9dda59e8d",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-15T07:24:13.566Z"
-}

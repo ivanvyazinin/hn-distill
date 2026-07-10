@@ -1,8 +1,0 @@
-{
-  "id": 45093590,
-  "lang": "ru",
-  "summary": "`@isolated(any)` — атрибут, который одновременно важен и игнорируем, нужен и не требуется, всегда принимает аргумент, но тот не может меняться.\n\n### Почему он появился\n\nАсинхронные функции благодаря `await` могут менять изоляцию:  \n```swift\nlet sendAmbulance: @MainActor () -> Void = { … }\nlet respond: () async -> Void = sendAmbulance\nawait respond()   // OK, переключились на MainActor\n```\n\n### Потеря информации\n\nФункция `dispatchResponder` принимает замыкание, но не знает, к какому актору оно привязано. Это аналогично type erasure.\n\n### Что делает `@isolated(any)`\n\n```swift\nfunc dispatchResponder(_ r: @isolated(any) () async -> Void) async {\n    print(r.isolation)   // (any Actor)?\n    await r()\n}\n```\n\n- Добавляет свойство `isolation`, показывающее, к какому актору привязана функция.  \n- Даже синхронная `@isolated(any)` функция вызывается с `await`, чтобы дать шанс переключиться на нужного актора.\n\n### Где используется\n\nВсе API создания задач (`Task`, `TaskGroup`) уже используют `@isolated(any)`, поэтому вы сталкиваетесь с ним с первых шагов в Swift Concurrency.",
-  "inputHash": "031439c3370e8b85b24faa982d921e3e6752c91d4da86c74e7194f1015b3bdf3",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-01T16:31:08.924Z"
-}
