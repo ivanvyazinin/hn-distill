@@ -423,6 +423,16 @@ function buildPostSystemInstruction(strict?: boolean): string {
   return base.join("\n");
 }
 
+function buildCommentsSystemInstruction(): string {
+  if (env.SUMMARY_LANG === "en") {
+    return "You summarize Hacker News discussions in Markdown, in English. Always write in English.";
+  }
+  return [
+    "Ты кратко пересказываешь обсуждения Hacker News в Markdown на русском языке.",
+    "Пиши только по-русски, даже если все комментарии на английском. Никогда не переходи на английский.",
+  ].join("\n");
+}
+
 function buildCommentsLanguageHeader(): string {
   if (env.SUMMARY_LANG === "en") {
     return (
@@ -676,12 +686,6 @@ async function callOpenRouterWithRetry(
   }
 }
 
-async function callLLM(services: Services, prompt: string): Promise<LlmResult> {
-  const messages: ChatMessage[] = [{ role: "user", content: prompt }];
-  const context: LlmLogContext = { promptChars: prompt.length };
-  return await callOpenRouterWithRetry(services, messages, context);
-}
-
 async function callLLMWithMessages(
   services: Services,
   messages: ChatMessage[],
@@ -817,7 +821,11 @@ export async function summarizeComments(
   prompt: string,
   sampleIds: number[] = []
 ): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
-  const { content, modelUsed } = await callLLM(services, prompt);
+  const messages: ChatMessage[] = [
+    { role: "system", content: buildCommentsSystemInstruction() },
+    { role: "user", content: prompt },
+  ];
+  const { content, modelUsed } = await callLLMWithMessages(services, messages);
   return {
     id: storyId,
     lang: env.SUMMARY_LANG,
