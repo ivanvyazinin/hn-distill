@@ -3,7 +3,7 @@ import { z } from "zod";
 const EnvironmentSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   SUMMARY_LANG: z.enum(["ru", "en"]).default("ru"),
-  TOP_N: z.coerce.number().int().min(1).max(500).default(40),
+  TOP_N: z.coerce.number().int().min(1).max(500).default(10),
   TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),
   TOP_N_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(0),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
