@@ -146,7 +146,7 @@ launchctl load ~/Library/LaunchAgents/com.hn-distill.hourly.plist
 Optional env vars:
 - `USE_R2=true|false` (default `false`; auto-enabled if R2 creds set)
 - `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET`
-- `R2_PREFIXES=data/,summaries/`
+- `R2_PREFIXES=data/aggregated.json,data/search.json,data/by-date/` (published artifacts only; summaries/raw live in D1/R2 blobs)
 - `GIT_ENABLE=true|false` (default `false`)
 - `GIT_REMOTE=origin`, `GIT_BRANCH=main`
 - `GIT_USER_NAME`, `GIT_USER_EMAIL`
