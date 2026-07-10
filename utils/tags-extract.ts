@@ -104,7 +104,9 @@ export async function summarizeTagsStructured(
               description: "Optional category for the tag",
             },
           },
-          required: ["name"],
+          // Groq structured outputs (strict) require every declared property in `required`.
+          // cat stays semantically optional via the zod schema, which tolerates it either way.
+          required: ["name", "cat"],
           additionalProperties: false,
         },
       },

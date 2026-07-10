@@ -72,15 +72,14 @@ export async function runSummaryGuard(openrouter: OpenRouter, input: SummaryGuar
       reasons: {
         type: "array",
         items: { type: "string" },
-        maxItems: 8,
       },
       confidence: {
         type: "number",
-        minimum: 0,
-        maximum: 1,
       },
     },
-    required: ["ok"],
+    // Groq structured outputs (strict) require every declared property in `required` and reject
+    // maxItems/minimum/maximum. The zod schema still enforces those bounds after parsing.
+    required: ["ok", "is_article", "refusal", "verdict", "reasons", "confidence"],
     additionalProperties: false,
   };
 
