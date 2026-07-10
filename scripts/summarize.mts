@@ -1,6 +1,7 @@
 import { env, type Env } from "@config/env";
 import type { NormalizedStory } from "@config/schemas";
 import { createFsStore } from "@utils/fs-store";
+import { openLocalMetaStore } from "@utils/meta-runtime";
 import { pdfToText } from "@utils/pdf";
 
 import {
@@ -47,7 +48,8 @@ export async function processSingleStory(services: Services, id: number): Promis
 
 export async function summarizeWorkflow(services: Services, e: Env = env): Promise<void> {
   const store = createFsStore();
-  await summarizeWorkflowCore(services, e, store);
+  const meta = await openLocalMetaStore();
+  await summarizeWorkflowCore(services, e, store, meta ?? undefined);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

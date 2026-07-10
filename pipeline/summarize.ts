@@ -17,6 +17,7 @@ import { sha256Hex } from "@utils/hash";
 import { htmlToMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
+import type { MetaStore } from "@utils/meta-store";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
@@ -822,7 +823,8 @@ export async function summarizeComments(
 export async function getOrFetchArticleMarkdown(
   services: Services,
   story: NormalizedStory,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<string | undefined> {
   if (!story.url) {
     log.warn(LOG_NAMESPACE_ARTICLE, "Story has no URL; cannot fetch article", { id: story.id });
@@ -843,6 +845,22 @@ export async function getOrFetchArticleMarkdown(
       return undefined;
     }
     await store.putText(path, text, { contentType: "text/markdown" });
+    if (meta) {
+      await meta.upsertRawBlob({
+        storyId: story.id,
+        kind: "article",
+        ref: path,
+        sizeBytes: text.length,
+        fetchedAt: new Date().toISOString(),
+      });
+      await meta.upsertArticleExtract({
+        storyId: story.id,
+        status: "ok",
+        charCount: text.length,
+        rawArticleRef: path,
+        fetchedAt: new Date().toISOString(),
+      });
+    }
     log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", { id: story.id, path });
     return text;
   } catch (error) {
@@ -869,7 +887,8 @@ async function processPostSummary(
   services: Services,
   story: NormalizedStory,
   postPath: string,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<void> {
   const existingPostSummary = await readJsonSafeOrStore(store, postPath, PostSummarySchema);
 
@@ -878,7 +897,7 @@ async function processPostSummary(
     return;
   }
 
-  const articleMd = await getOrFetchArticleMarkdown(services, story, store);
+  const articleMd = await getOrFetchArticleMarkdown(services, story, store, meta);
   const postArticleSlice = await buildPostPrompt(story, articleMd);
   const postInputHash = await hashString(`${env.SUMMARY_LANG}|${postArticleSlice}`);
 
@@ -915,6 +934,16 @@ async function processPostSummary(
       ...(guardPersisted ? { guard: guardPersisted } : {}),
     };
     await store.putJson(postPath, postSummary, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      await meta.upsertSummary({
+        storyId: story.id,
+        kind: "post",
+        lang: postSummary.lang,
+        ...(postSummary.model ? { model: postSummary.model } : {}),
+        summary: postSummary.summary,
+        createdAt: postSummary.createdISO ?? new Date().toISOString(),
+      });
+    }
     log.info(LOG_NAMESPACE_POST, "Post summary written", {
       id: story.id,
       chars: postSummary.summary.length,
@@ -931,7 +960,8 @@ async function processCommentsSummary(
   story: NormalizedStory,
   comments: NormalizedComment[],
   commentsPath: string,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<void> {
   const { prompt: commentsPrompt, sampleIds } = await buildCommentsPrompt(comments);
   const commentsInputHash = await hashString(commentsPrompt);
@@ -952,6 +982,16 @@ async function processCommentsSummary(
       createdISO: new Date().toISOString(),
     };
     await store.putJson(commentsPath, commentsSummary, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      await meta.upsertSummary({
+        storyId: story.id,
+        kind: "comments",
+        lang: commentsSummary.lang,
+        ...(commentsSummary.model ? { model: commentsSummary.model } : {}),
+        summary: commentsSummary.summary,
+        createdAt: commentsSummary.createdISO ?? new Date().toISOString(),
+      });
+    }
     log.info(LOG_NAMESPACE_COMMENTS, "Comments summary written", {
       id: story.id,
       chars: commentsSummary.summary.length,
@@ -984,16 +1024,22 @@ function getTelegramStreamConfig(): { chatId: string; botToken: string } | undef
   return { chatId, botToken };
 }
 
-async function getTelegramLedgerCached(): Promise<TelegramLedger> {
+async function getTelegramLedgerCached(meta?: MetaStore): Promise<TelegramLedger> {
   if (!telegramLedgerCache) {
-    telegramLedgerCache = await readTelegramLedger(PATHS.telegramSent);
+    if (meta) {
+      telegramLedgerCache = await meta.getTelegramLedger();
+    } else {
+      telegramLedgerCache = await readTelegramLedger(PATHS.telegramSent);
+    }
   }
   return telegramLedgerCache;
 }
 
-async function persistTelegramLedgerCached(next: TelegramLedger): Promise<void> {
+async function persistTelegramLedgerCached(next: TelegramLedger, meta?: MetaStore): Promise<void> {
   telegramLedgerCache = next;
-  await writeTelegramLedger(PATHS.telegramSent, next);
+  if (!meta) {
+    await writeTelegramLedger(PATHS.telegramSent, next);
+  }
 }
 
 function buildTelegramItemFromStory(story: NormalizedStory, summary: string): TelegramDigestItem {
@@ -1100,7 +1146,8 @@ async function sendTelegramWithRetries(
 async function publishTelegramAfterSummary(
   services: Services,
   story: NormalizedStory,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<void> {
   const cfg = getTelegramStreamConfig();
   if (!cfg) {
@@ -1113,7 +1160,7 @@ async function publishTelegramAfterSummary(
     return;
   }
 
-  const ledger = await getTelegramLedgerCached();
+  const ledger = await getTelegramLedgerCached(meta);
   if (ledger.sentIds.includes(story.id)) {
     log.debug("telegram", "Story already sent, skipping", { id: story.id });
     return;
@@ -1137,11 +1184,15 @@ async function publishTelegramAfterSummary(
     return;
   }
 
+  const sentAt = new Date().toISOString();
   const nextIds = [...new Set([...(ledger.sentIds ?? []), story.id])];
+  if (meta) {
+    await meta.markTelegramSent(story.id, messageId, sentAt);
+  }
   await persistTelegramLedgerCached({
     sentIds: nextIds,
-    lastUpdatedISO: new Date().toISOString(),
-  });
+    lastUpdatedISO: sentAt,
+  }, meta);
 
   log.info("telegram", "Streamed story to Telegram", {
     id: story.id,
@@ -1158,7 +1209,8 @@ async function processTags(
   story: NormalizedStory,
   postSummary: string | undefined,
   commentsSummary: string | undefined,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<void> {
   // Allow disabling tags to conserve LLM quota (e.g., during catch-up runs)
   if (env.TAGS_MAX_PER_STORY <= 0) {
@@ -1193,6 +1245,9 @@ async function processTags(
       createdISO: new Date().toISOString(),
     };
     await store.putJson(p, payload, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      await meta.replaceTags(story.id, tags);
+    }
     log.info(TAGS_DEBUG_MESSAGE, "tags written", { id: story.id, count: tags.length, model: env.TAGS_MODEL });
   } catch (error) {
     log.error(TAGS_DEBUG_MESSAGE, "Failed to generate structured tags, falling back to heuristics", {
@@ -1219,6 +1274,9 @@ async function processTags(
       createdISO: new Date().toISOString(),
     };
     await store.putJson(p, payload, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      await meta.replaceTags(story.id, tags);
+    }
     log.info(TAGS_DEBUG_MESSAGE, "fallback tags written", { id: story.id, count: tags.length, model: env.TAGS_MODEL });
   }
 }
@@ -1226,7 +1284,8 @@ async function processTags(
 export async function processSingleStory(
   services: Services,
   id: number,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<void> {
   const story = await readJsonSafeOrStore<NormalizedStory>(
     store,
@@ -1249,13 +1308,24 @@ export async function processSingleStory(
   const postPath = pathFor.postSummary(id);
   const commentsPath = pathFor.commentsSummary(id);
 
-  await processPostSummary(services, story, postPath, store);
-  await publishTelegramAfterSummary(services, story, store);
-  await processCommentsSummary(services, story, comments, commentsPath, store);
+  await processPostSummary(services, story, postPath, store, meta);
+  await publishTelegramAfterSummary(services, story, store, meta);
+  await processCommentsSummary(services, story, comments, commentsPath, store, meta);
 
   const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
   const commentsSummary = await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema);
-  await processTags(services, story, post?.summary, commentsSummary?.summary, store);
+  await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
+
+  if (meta) {
+    const now = new Date().toISOString();
+    await meta.upsertProcessingState(story.id, {
+      postStatus: post ? "ok" : "missing",
+      commentsStatus: commentsSummary ? "ok" : "missing",
+      tagsStatus: (await readJsonSafeOrStore(store, pathFor.tagsSummary(story.id), TagsSummarySchema)) ? "ok" : "missing",
+      updatedAt: now,
+      error: null,
+    });
+  }
 }
 
 type Candidate = {
@@ -1378,7 +1448,7 @@ async function collectCandidates(
   return candidates;
 }
 
-export async function summarizeWorkflow(services: Services, e: Env, store: ObjectStore): Promise<void> {
+export async function summarizeWorkflow(services: Services, e: Env, store: ObjectStore, meta?: MetaStore): Promise<void> {
   const index = await readJsonSafeOrStore<{ updatedISO: string; storyIds: number[] }>(store, PATHS.index, IndexSchema, {
     updatedISO: new Date(0).toISOString(),
     storyIds: [],
@@ -1451,7 +1521,7 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
     }
     log.info("summarize", "Processing story", { id });
     try {
-      await processSingleStory(services, id, store);
+      await processSingleStory(services, id, store, meta);
     } catch (error) {
       if (error instanceof RateLimitError) {
         rateLimitAbort = error;
