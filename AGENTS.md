@@ -30,6 +30,18 @@
 - Use helpers: `tests/helpers/tempfs.ts` for isolated FS; `tests/helpers/http.ts` to mock HTTP.
 - Keep tests deterministic; avoid live network calls; add coverage for new logic.
 
+## Large Implementation Plans
+- Before architecture, schema, irreversible API, or multi-component changes, call `advisor` before editing code.
+- Split large plans into independently verifiable phases and maintain a `Done / Verified / Deferred` phase matrix.
+- Implement only one phase at a time. Do not start the next phase until the current phase passes its verification gate.
+- Use an isolated git worktree for changes expected to touch more than 10 files, generated data, or multiple subsystems.
+- Never delete or overwrite local/generated data without explicit user confirmation or a verified backup. Prefer temp directories and fixture copies for clean-run tests.
+- Keep generated-data untracking separate from application logic so it can be reviewed and committed independently.
+- After each phase, run the full test suite, lint changed files, typecheck, `git diff --check`, and a diff stat excluding generated data. Record pre-existing failures separately; do not hide new failures behind them.
+- For suspected module or environment pollution, run affected test files in both orders before declaring the issue fixed.
+- Before expanding scope, summarize what is done, what was verified, and what remains deferred.
+- Keep commits phase-focused. Ask before creating commits unless the user has explicitly authorized them.
+
 ## Commit & Pull Request Guidelines
 - Conventional prefixes encouraged: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`, `ci:`. Present-tense, imperative.
 - CI creates periodic “hourly data” commits—do not rewrite these.
