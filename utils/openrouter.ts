@@ -34,22 +34,25 @@ type StructuredRetryCount = number;
 
 const DEFAULT_STRUCTURED_MAX_RETRIES: StructuredRetryCount = 3;
 
+const DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
 export class OpenRouter {
   private readonly http: HttpClient;
   private readonly apiKey: string;
   private readonly model: string;
+  private readonly url: string;
 
-  constructor(http: HttpClient, apiKey: string, model: string) {
+  constructor(http: HttpClient, apiKey: string, model: string, baseUrl?: string) {
     this.http = http;
     this.apiKey = apiKey;
     this.model = model;
+    this.url = baseUrl !== undefined && baseUrl.length > 0 ? baseUrl : DEFAULT_OPENROUTER_URL;
   }
 
   async chat(
     messages: ChatMessage[],
     options?: { temperature?: number; maxTokens?: number; model?: string }
   ): Promise<string> {
-    const url = "https://openrouter.ai/api/v1/chat/completions";
     type ORResp = {
       choices?: Array<{ message?: { role: string; content?: string } }>;
     };
@@ -58,7 +61,7 @@ export class OpenRouter {
       messages: messages.length,
       hasKey: !!this.apiKey,
     });
-    const json: ORResp = await this.http.json<ORResp>(url, {
+    const json: ORResp = await this.http.json<ORResp>(this.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -138,7 +141,6 @@ export class OpenRouter {
     zodSchema: z.ZodSchema<T>,
     maxRetries: StructuredRetryCount = DEFAULT_STRUCTURED_MAX_RETRIES
   ): Promise<T> {
-    const url = "https://openrouter.ai/api/v1/chat/completions";
     const requestBody = this.buildStructuredRequestBody(messages, options);
 
     log.debug("openrouter", "structured chat request", {
@@ -151,7 +153,7 @@ export class OpenRouter {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await this.makeStructuredRequest(url, requestBody, zodSchema, attempt);
+        return await this.makeStructuredRequest(this.url, requestBody, zodSchema, attempt);
       } catch (error: unknown) {
         const isLastAttempt = attempt === maxRetries;
         log.warn("openrouter", `Structured parsing failed (attempt ${attempt}/${maxRetries})`, {

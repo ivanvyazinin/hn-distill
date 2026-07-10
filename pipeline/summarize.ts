@@ -511,7 +511,7 @@ export function preserveMarkdownWhitespace(content: string): string {
 
 const LLM_ARTIFACT_BEGIN_OF_SENTENCE = "<｜begin▁of▁sentence｜>";
 
-function sanitizeLlmContent(content: string): string {
+export function sanitizeLlmContent(content: string): string {
   const preserved = preserveMarkdownWhitespace(content);
   const withoutArtifacts = preserved.replaceAll(LLM_ARTIFACT_BEGIN_OF_SENTENCE, "");
   return withoutArtifacts.trim();

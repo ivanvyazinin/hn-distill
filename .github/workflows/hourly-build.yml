@@ -1,42 +1,101 @@
 name: hourly-build
+
 on:
+  schedule:
+    - cron: "0 * * * *"
   workflow_dispatch:
-  # Self-hosted scheduler now runs this job. See docs/self-hosted.md
-permissions:
-  contents: write
-  pages: write
-  id-token: write
+
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: hn-distill-hourly
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          persist-credentials: true
+          node-version: "22"
+
+      - name: Show Node.js version
+        run: node --version
 
       - name: Setup Bun and Install Dependencies
         uses: ./.github/actions/setup-bun
 
-      - name: Pull data from R2
+      - name: Configure SSH
         env:
-          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_BUCKET: ${{ secrets.R2_BUCKET }}
-          R2_PREFIXES: ${{ vars.R2_PREFIXES || 'data/aggregated.json,data/search.json,data/by-date/' }}
-        run: make pull-r2
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
 
-      - name: Build
+      - name: Restore state from VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          mkdir -p data
+          rsync -az "$VPS_USER@$VPS_HOST:$VPS_PATH/" data/
+
+      - name: Run data pipeline
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          TOP_N: ${{ vars.TOP_N || '40' }}
+          SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
+          OPENROUTER_MODEL: ${{ vars.OPENROUTER_MODEL || 'nvidia/nemotron-3-nano-30b-a3b:free' }}
+          OPENROUTER_FALLBACK_MODEL: ${{ vars.OPENROUTER_FALLBACK_MODEL || 'qwen/qwen3-next-80b-a3b-instruct:free' }}
+          OPENROUTER_FALLBACK_MODEL_2: ${{ vars.OPENROUTER_FALLBACK_MODEL_2 || 'meta-llama/llama-3.3-70b-instruct:free' }}
+          TAGS_MODEL: ${{ vars.TAGS_MODEL || 'nvidia/nemotron-3-nano-30b-a3b:free' }}
+          POST_GUARD_MODEL: ${{ vars.POST_GUARD_MODEL || 'nvidia/nemotron-3-nano-30b-a3b:free' }}
+          POST_GUARD_FALLBACK_MODEL: ${{ vars.POST_GUARD_FALLBACK_MODEL || 'qwen/qwen3-next-80b-a3b-instruct:free' }}
+        run: make run
+
+      - name: Backup state to VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          if [ -s data/hn.sqlite ]; then
+            rsync -az --delete \
+              --exclude 'bench/' \
+              --exclude '.DS_Store' \
+              --exclude '*.sqlite-shm' \
+              --exclude '*.sqlite-wal' \
+              data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+          else
+            echo "data/hn.sqlite is missing or empty; skipping backup"
+          fi
+
+      - name: Build site
         env:
           SITE: ${{ vars.SITE }}
           BASE: ${{ vars.BASE || '/' }}
         run: make build
 
+      - uses: actions/configure-pages@v5
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
+  deploy:
+    needs: build
+    environment: github-pages
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4

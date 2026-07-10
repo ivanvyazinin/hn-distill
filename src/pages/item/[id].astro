@@ -10,6 +10,7 @@ import type { GetStaticPaths } from "astro";
 import "../../styles/global.css";
 import { TAG_MIN_COUNT } from "@config/constants";
 import { countTags } from "@utils/tag-counts";
+import { withBase } from "../../utils/base";
 
 export const getStaticPaths: GetStaticPaths = async () => {
   const { items } = loadAggregated(PATHS.aggregated);
@@ -29,7 +30,7 @@ const countsMap = countTags(items);
 
 function tagHref(tag: string): string {
   const c = countsMap.get(tag) ?? 0;
-  return c >= TAG_MIN_COUNT ? `/tag/${tag}/` : `/search/?tags=${encodeURIComponent(tag)}`;
+  return c >= TAG_MIN_COUNT ? withBase(`tag/${encodeURIComponent(tag)}/`) : `${withBase("search/")}?tags=${encodeURIComponent(tag)}`;
 }
 
 const postMd = item.postSummary ?? "";
@@ -69,7 +70,7 @@ const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.comment
   </head>
   <body>
     <header>
-      <h1><a href="/">Hacker News Digest</a></h1>
+      <h1><a href={withBase("")}>Hacker News Digest</a></h1>
       <p class="meta">
         {datePretty} • {item.domain ?? "news.ycombinator.com"} • ⭐ {item.score ?? 0} • 💬 {item.commentsCount ?? 0}
       </p>

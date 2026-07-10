@@ -4,6 +4,7 @@ import { LANG } from "@config/lang";
 import type { AggregatedItem } from "@config/schemas";
 import { formatDateHuman } from "@utils/date";
 import { mdToHtml } from "@utils/md-to-html";
+import { withBase } from "../utils/base";
 
 const { item, tagCounts } = Astro.props as {
   item: AggregatedItem;
@@ -13,13 +14,12 @@ const lang = LANG;
 const tags = Array.isArray(item.tags) ? item.tags : [];
 
 function storyHref(id: number): string {
-  const u = new URL(`item/${id}/`, Astro.site ?? "http://localhost/");
-  return u.pathname.endsWith("/") ? u.pathname : `${u.pathname}/`;
+  return withBase(`item/${id}/`);
 }
 
 function tagHref(tag: string): string {
   const c = tagCounts?.[tag] ?? 0;
-  return c >= TAG_MIN_COUNT ? `/tag/${tag}/` : `/search/?tags=${encodeURIComponent(tag)}`;
+  return c >= TAG_MIN_COUNT ? withBase(`tag/${encodeURIComponent(tag)}/`) : `${withBase("search/")}?tags=${encodeURIComponent(tag)}`;
 }
 
 const safeTitle = item.title || "(no title)";
