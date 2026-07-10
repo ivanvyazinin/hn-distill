@@ -1,4 +1,5 @@
 import { createFsStore } from "@utils/fs-store";
+import { openLocalMetaStore } from "@utils/meta-runtime";
 
 import {
   collectComments,
@@ -16,7 +17,8 @@ export { collectComments, fetchItem, makeServices, normalizeStory, readSeenCache
 
 export async function main(servicesOverride?: Services): Promise<{ updatedISO: string; storyIds: number[] }> {
   const store = createFsStore();
-  return await coreMain(servicesOverride, store);
+  const meta = await openLocalMetaStore();
+  return await coreMain(servicesOverride, store, meta ?? undefined);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

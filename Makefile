@@ -2,8 +2,20 @@ SHELL := /bin/bash
 .ONESHELL:
 .SHELLFLAGS := -eo pipefail -c
 
+# Preserve values supplied by the caller: assignments in the optional .env file
+# must not hide BASE or SITE passed to `make` from the environment.
+BASE_FROM_ENV := $(BASE)
+SITE_FROM_ENV := $(SITE)
+
 ifneq (,$(wildcard .env))
 include .env
+endif
+
+ifneq ($(strip $(BASE_FROM_ENV)),)
+BASE := $(BASE_FROM_ENV)
+endif
+ifneq ($(strip $(SITE_FROM_ENV)),)
+SITE := $(SITE_FROM_ENV)
 endif
 
 .PHONY: all
@@ -63,11 +75,11 @@ local-test:
 	# Optionally ensure dist is clean for a fresh site build
 	rm -rf dist .astro
 	# Generate fresh data with smaller scope for local runs
-	TOP_N=5 MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
+	TOP_N=5 TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/fetch-hn.mts
-	TOP_N=5 MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
+	TOP_N=5 OPENROUTER_MODEL=nvidia/nemotron-3-nano-30b-a3b:free TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/summarize.mts
-	TOP_N=5 MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
+	TOP_N=5 TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/aggregate.mts
 	# Copy search data to public directory for static serving
 	mkdir -p public/data

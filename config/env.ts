@@ -4,6 +4,8 @@ const EnvironmentSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   SUMMARY_LANG: z.enum(["ru", "en"]).default("ru"),
   TOP_N: z.coerce.number().int().min(1).max(500).default(40),
+  TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),
+  TOP_N_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(0),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
   MAX_DEPTH: z.coerce.number().int().min(1).max(10).default(2),
   CONCURRENCY: z.coerce.number().int().min(1).max(32).default(8),
@@ -14,13 +16,13 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
+  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"),
   // When primary model fails for summaries, try this model next (priority order)
-  OPENROUTER_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
-  OPENROUTER_FALLBACK_MODEL_2: z.string().default("tngtech/deepseek-r1t2-chimera:free"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct:free"),
+  OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
-  TAGS_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"), // try structured outputs, fallback to JSON
+  TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
@@ -29,8 +31,8 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
-  POST_GUARD_MODEL: z.string().default("xiaomi/mimo-v2-flash:free"),
-  POST_GUARD_FALLBACK_MODEL: z.string().default("mistralai/devstral-2512:free"),
+  POST_GUARD_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"),
+  POST_GUARD_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct:free"),
   POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
   POST_GUARD_ARTICLE_MAX_CHARS: z.coerce
@@ -113,6 +115,40 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
+
+  /** When true and SQLite/D1 meta is available, aggregate reads the DB ledger instead of merging JSON blobs. */
+  AGGREGATE_FROM_DB: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
+
+  // Offline model scoring (eval/score-models.mts) — writes only under data/bench/
+  // Empty by default so a real (paid) run without an explicit judge id fails fast
+  // instead of silently calling a wrong/nonexistent model. Set to your flagship id.
+  JUDGE_MODEL: z.string().default(""),
+  JUDGE_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(700),
+  JUDGE_API_KEY: z.string().optional(),
+  JUDGE_BASE_URL: z.string().optional(),
+  // The judge must see the same article slice the candidate summarized, otherwise
+  // completeness/faithfulness scores are biased. Keep >= ARTICLE_SLICE_CHARS.
+  JUDGE_ARTICLE_MAX_CHARS: z.coerce.number().int().min(1000).max(20_000).default(6000),
+  BENCH_REPEATS: z.coerce.number().int().min(1).max(10).default(1),
+  BENCH_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
+  BENCH_MAX_ARTICLES: z.coerce.number().int().min(1).max(200).default(30),
+  /** OpenRouter summarization on free models can exceed HTTP_TIMEOUT_MS; bench uses max(HTTP_TIMEOUT_MS, this). */
+  BENCH_HTTP_TIMEOUT_MS: z.coerce.number().int().min(15_000).max(600_000).default(180_000),
+  /**
+   * max_tokens for candidate summaries. A ~170-word summary needs ~500 tokens; the production
+   * 8000 is wasteful and, on Groq free tier, requested max_tokens counts toward the per-request
+   * TPM cap (qwen3-32b=6000, gpt-oss=8000) → 413. Keep low enough that input+this < tightest TPM.
+   */
+  BENCH_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(256).max(8000).default(2048),
+  /**
+   * Minimum gap between consecutive candidate calls to the SAME provider (openrouter / groq / xai),
+   * to stay under free-tier rate limits (OpenRouter free = 16 req/min ≈ 3.75s; Groq free per-model).
+   * 0 disables. Quality/completeness over speed → default spaces to ~15 req/min.
+   */
+  BENCH_PROVIDER_THROTTLE_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
 });
 
 export type Env = z.infer<typeof EnvironmentSchema>;

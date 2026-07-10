@@ -1,8 +1,0 @@
-{
-  "id": 45104944,
-  "lang": "ru",
-  "summary": "```markdown\n### Python: REST и gRPC\n\n**REST**  \n- Используем `FastAPI` (быстрее Flask, поддержка аннотаций).  \n- Установка: `pip install fastapi uvicorn`.  \n- Минимальный сервер:\n\n```python\nfrom fastapi import FastAPI\napp = FastAPI()\n\n@app.get(\"/hello/{name}\")\ndef hello(name: str):\n    return {\"msg\": f\"Hi, {name}\"}\n```\n\nЗапуск: `uvicorn main:app --reload`.\n\n**gRPC**  \n- Установка: `pip install grpcio grpcio-tools`.  \n- `.proto` → код: `python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. hello.proto`.  \n- Сервер:\n\n```python\nfrom concurrent import futures\nimport grpc, hello_pb2, hello_pb2_grpc\n\nclass Greeter(hello_pb2_grpc.GreeterServicer):\n    def SayHello(self, req, ctx):\n        return hello_pb2.HelloReply(msg=f\"Hi, {req.name}\")\n\nserver = grpc.server(futures.ThreadPoolExecutor(max_workers=10))\nhello_pb2_grpc.add_GreeterServicer_to_server(Greeter(), server)\nserver.add_insecure_port(\"[::]:50051\")\nserver.start()\n```\n\nКлиент:\n\n```python\nchannel = grpc.insecure_channel(\"localhost:50051\")\nstub = hello_pb2_grpc.GreeterStub(channel)\nprint(stub.SayHello(hello_pb2.HelloRequest(name=\"Py\")))\n```\n\n**Советы**  \n- REST: автодока `/docs` (Swagger).  \n- gRPC: используйте `grpc.aio` для асинхронности.  \n- Ошибки: `grpc.StatusCode.*`.  \n- Тесты: `pytest` + `httpx` (REST) / `grpc_testing` (gRPC).\n```",
-  "inputHash": "232d4bced188be47023008e4c6f9c31bc72ba1c9c609589e1117bc03b0b1faeb",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-02T18:34:17.464Z"
-}

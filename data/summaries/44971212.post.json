@@ -1,8 +1,0 @@
-{
-  "id": 44971212,
-  "lang": "ru",
-  "summary": "Для сборки Docker Compose-проекта без Docker используются **Podman**, **Docker Compose CLI** и **BuildKit**.\n\n### Проблемы\n- Podman предлагает два варианта:  \n  – официальный `docker-compose`, но без BuildKit (нет `additional_contexts`);  \n  – `podman-compose`, но без `!reset`, `configs` и т.д.  \n- Постоянно догонять новые фичи Docker Compose не хочется.\n\n### Решение\n1. **Запускаем официальный `docker-compose` через Podman**  \n   ```bash\n   pacman -S docker-compose docker-buildx\n   systemctl --user start podman.socket\n   docker context create podman --docker host=unix://$XDG_RUNTIME_DIR/podman/podman.sock\n   docker context use podman\n   ```\n   Compose автоматически поднимает контейнер `buildx_buildkit_default`.\n\n2. **Собственный BuildKit-демон (systemd)**  \n   ```bash\n   pacman -S buildkit\n   systemctl --user start buildkit.service\n   docker buildx create --name local unix://$XDG_RUNTIME_DIR/buildkit/rootless\n   docker buildx use local\n   ```\n\n3. **Убираем демон: Bake → Bakah**  \n   - `docker buildx bake --print >bake.json` – экспорт в JSON.  \n   - [Bakah](https://github.com/emersion/bakah) превращает JSON в вызовы Buildah (без демона).  \n   ```bash\n   docker buildx bake --print >bake.json\n   bakah --file bake.json\n   ```\n\nBakah пока без HCL, переменных и прочих продвинутых фич, но достаточно для сложных проектов.",
-  "inputHash": "2ed6132321f7f5225d3d33c6deb8eaf6372a93de603ca48c651571cea386bd83",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-21T12:47:47.433Z"
-}

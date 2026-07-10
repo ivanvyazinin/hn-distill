@@ -16,6 +16,15 @@ export const PATHS = {
     weekly: "data/by-date/weekly.json",
   },
   search: "data/search.json",
+  bench: {
+    root: "bench",
+    articles: "bench/articles",
+    items: "bench/items",
+    manifest: "bench/manifest.json",
+    dataDir: "data/bench",
+    /** Per-run summary markdown: data/bench/summaries/<runId>/<modelDir>/<articleId>.md */
+    summariesDir: "data/bench/summaries",
+  },
 } as const;
 
 export const pathFor = {

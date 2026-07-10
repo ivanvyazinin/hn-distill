@@ -17,7 +17,7 @@ const accountId = requiredEnv("R2_ACCOUNT_ID");
 const accessKeyId = requiredEnv("R2_ACCESS_KEY_ID");
 const secretAccessKey = requiredEnv("R2_SECRET_ACCESS_KEY");
 const bucket = requiredEnv("R2_BUCKET");
-const prefixes = (process.env.R2_PREFIXES ?? "data/,summaries/")
+const prefixes = (process.env["R2_PREFIXES"] ?? "data/aggregated.json,data/search.json,data/by-date/")
   .split(",")
   .map((p) => p.trim())
   .filter(Boolean);

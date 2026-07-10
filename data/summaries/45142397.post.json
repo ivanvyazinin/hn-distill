@@ -1,8 +1,0 @@
-{
-  "id": 45142397,
-  "lang": "ru",
-  "summary": "**Коротко: домашний DNS на BIND**\n\n- **Цель**: локальный DNS для сети `homelab.jhw`, работающий без интернета.  \n- **Сервер**: Raspberry Pi 4 (`inf01.homelab.jhw`, 192.168.1.10) под Fedora 42.  \n- **Сети**: 192.168.1.0/24, 172.16.0.0/16, 10.88.0.0/16 (Podman).  \n- **Форвардер**: Fritz!Box 7490 (192.168.1.254) — чтобы резолвить DHCP-имена.  \n\n**Установка**  \n```bash\ndnf install bind bind-utils\nfirewall-cmd --add-service=dns --permanent\n```\n\n**Конфиги**  \n- `/etc/named.conf` — слушаем 127.0.0.1, 192.168.1.10, 172.16.1.10, 10.88.0.1; форвард на Fritz!Box; отключён DNSSEC.  \n- Зоны:  \n  – `forward.homelab.jhw` → A-записи хостов.  \n  – `reverse.homelab.jhw` → 1.168.192.in-addr.arpa.  \n  – `reverse2.homelab.jhw` → 16.172.in-addr.arpa.  \n\n**Пример forward.homelab.jhw**  \n```\n$TTL 86400\n@   IN SOA  inf01.homelab.jhw. root.homelab.jhw. (\n        2025082901 ; serial\n        3600       ; refresh\n        1800       ; retry\n        604800     ; expire\n        86400 )    ; minimum\n        IN NS   inf01.homelab.jhw.\ninf01   IN A    192.168.1.10\nca      IN A    192.168.1.10\nhl01    IN A    192.168.1.11\nhl02    IN A    192.168.1.12\nhl03    IN A    192.168.1.13\n```\n\n**Проверка**  \n```bash\nnamed-checkconf\nnamed-checkzone homelab.jhw /var/named/forward.homelab.jhw\nsystemctl enable --now named\ndig @192.168.1.10 ca.homelab.jhw\n```\n\nГотово: локальные имена резолвятся даже без интернета.",
-  "inputHash": "0c222e6520ee442845584d63f4f45e3a1e8ef8935706a92c31a1d3416445097b",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-05T21:19:57.219Z"
-}

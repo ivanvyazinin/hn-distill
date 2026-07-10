@@ -1,8 +1,0 @@
-{
-  "id": 45038567,
-  "lang": "ru",
-  "summary": "Мы перенесли Docker-реестр в собственный дата-центр на Harbor, отказавшись от Docker Hub и ECR.  \nПричины: счета за лицензию и трафик, 45-секундные задержки деплоя, риски утечек, лимиты API.\n\nКритерии нового решения: надёжность, скорость, простота, open-source.  \nВыбрали Harbor: богаче функций, чем «голый» distribution, ставится через docker-compose.\n\n**v1-дизайн**  \n- Хранилище: S3-совместимый Pure FlashBlade.  \n- Две независимые копии в Ashburn и Chicago (пока без HA PostgreSQL/Redis).  \n- Политики очистки для экономии места.\n\n**Минимальные права на бакет**  \n`s3:AbortMultipartUpload, DeleteObject, GetBucketLocation, GetObject, ListBucket, ListBucketMultipartUploads, ListMultipartUploadParts, PutObject`\n\n**harbor.yml (фрагмент)**  \n```yaml\nhostname: \"#{node['fqdn']}\"\nhttp: { port: 80 }\ndata_volume: /data\nstorage_service:\n  s3:\n    bucket: docker-registry-bucket\n    accesskey: \"#{bucket_credentials['access_key']}\"\n    secretkey: \"#{bucket_credentials['secret_key']}\"\n    regionendpoint: \"https://purestorage.#{node['domain']}\"\nmetric: { enabled: true, port: 9090, path: /metrics }\n```\n\nКонфиг разворачивается Chef на выделенных нодах, SSL-терминация на F5.",
-  "inputHash": "2d5f75f8a8f5a3f8cbf4ec91f7f5055e40986bc883427a12e13b7e581ad542c2",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-08-31T01:56:07.635Z"
-}

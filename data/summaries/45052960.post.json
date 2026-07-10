@@ -1,8 +1,0 @@
-{
-  "id": 45052960,
-  "lang": "ru",
-  "summary": "**Коротко о «strongly happens-before»**\n\nВ C++20 появилось новое отношение *strongly happens-before* (SHB), потому что старое *happens-before* оказалось недостаточно строгим.\n\n**Пример кода**\n```cpp\nstd::atomic<int> x{0}, y{0};\n\n// thread-1\nx.store(1, seq_cst);\ny.store(1, release);\n\n// thread-2\nint b = y.fetch_add(1, seq_cst); // b = 1\nint c = y.load(relaxed);         // c = 3\n\n// thread-3\ny.store(3, seq_cst);\nint a = x.load(seq_cst);         // a = 0\n```\n\n**Почему нужен SHB**\n\n- Каждый атомарный объект имеет *modification order* — полный порядок всех записей.  \n- Классические правила *coherence* (write-write, read-read, read-write, write-read) связывают *happens-before* с этим порядком.  \n- Но при смешанных `memory_order` (например, `release` + `seq_cst`) между потоками могут образоваться «дыры», где старое *happens-before* не гарантирует ожидаемую последовательность.  \n\n**Отличие SHB от HB**\n\n- SHB добавляет требование: если операция A *strongly happens-before* B, то **все** наблюдатели видят записи A раньше записей B, даже при разных `memory_order`.  \n- Для `seq_cst` SHB совпадает с HB; для `release/acquire` HB может быть, а SHB — нет.  \n\n**Итог**\n\nЕсли пользуетесь только `seq_cst`, можно не заморачиваться. При смешанных порядках SHB — формальный способ не получить «невозможные» значения.",
-  "inputHash": "7dccb8eea28bfe2d4fc3af3f082b45f84dcd1278cb4f0fefea2eaa1cf214cf2a",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-01T09:27:37.282Z"
-}

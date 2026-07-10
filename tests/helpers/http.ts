@@ -1,6 +1,9 @@
 /* eslint-disable security/detect-non-literal-regexp */
 import type { HttpClient } from "@utils/http-client";
 
+type RouteResolver = (url: string) => unknown;
+type RouteValue = RouteResolver | boolean | number | object | string | null | undefined;
+
 /**
  * Simple HTTP mock. Pass routes as a map where keys are strings like "/pattern/flags".
  * Examples:
@@ -24,7 +27,14 @@ function toRegExp(key: string): RegExp {
   return new RegExp(key, "u");
 }
 
-export function makeMockHttp(routes: Record<string, unknown>): { http: HttpClient; readonly calls: number } {
+async function resolveRouteValue(value: RouteValue, url: string): Promise<unknown> {
+  if (typeof value === "function") {
+    return await Promise.resolve(value(url));
+  }
+  return value;
+}
+
+export function makeMockHttp(routes: Record<string, RouteValue>): { http: HttpClient; readonly calls: number } {
   let calls = 0;
 
   const http = {
@@ -33,7 +43,7 @@ export function makeMockHttp(routes: Record<string, unknown>): { http: HttpClien
       for (const [key, val] of Object.entries(routes)) {
         const r = toRegExp(key);
         if (r.test(url)) {
-          return (val as T) ?? null;
+          return ((await resolveRouteValue(val, url)) as T) ?? null;
         }
       }
       return null as unknown as T;
@@ -43,7 +53,7 @@ export function makeMockHttp(routes: Record<string, unknown>): { http: HttpClien
       for (const [key, val] of Object.entries(routes)) {
         const r = toRegExp(key);
         if (r.test(url)) {
-          return String(val);
+          return String(await resolveRouteValue(val, url));
         }
       }
       return "";

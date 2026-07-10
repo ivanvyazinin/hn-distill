@@ -20,6 +20,7 @@ import {
 import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
+import type { MetaStore } from "@utils/meta-store";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics } from "@utils/summary-heuristics";
 
@@ -273,43 +274,53 @@ export function sortItemsDesc(a: AggregatedItem, b: AggregatedItem): number {
   return b.id - a.id; // deterministic for both invalid: by id desc
 }
 
-export async function main(store: ObjectStore): Promise<AggregatedFile> {
-  const index = await readJsonSafeOrStore<{ updatedISO: string; storyIds: number[] }>(store, PATHS.index, IndexSchema, {
-    updatedISO: new Date(0).toISOString(),
-    storyIds: [],
-  });
+export async function main(store: ObjectStore, meta?: MetaStore, options?: { fromDb?: boolean }): Promise<AggregatedFile> {
+  const fromDb = options?.fromDb === true && meta !== undefined;
 
   const previous = await readJsonSafeOrStore<AggregatedFile>(store, PATHS.aggregated, AggregatedFileSchema, {
     updatedISO: new Date(0).toISOString(),
     items: [],
   });
 
-  const latestItems = await readAggregates(index.storyIds, store);
   const aggregatedExists = (await store.getText(PATHS.aggregated)) !== null;
 
-  // merge with previous: previous first, then overwrite with new by id
-  const byId = new Map<number, AggregatedItem>();
-  for (const it of previous.items) {
-    byId.set(it.id, it);
-  }
+  let sorted: AggregatedItem[];
   const changedIds = new Set<number>();
-  for (const it of latestItems) {
-    const prev = byId.get(it.id);
-    if (prev && jsonEqual(prev, it)) {
-      continue;
+
+  if (fromDb && meta) {
+    const storyIds = await meta.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
+    const latestItems = await meta.getAggregatedItems(storyIds);
+    for (const it of latestItems) {
+      const prev = previous.items.find((p) => p.id === it.id);
+      if (!prev || !jsonEqual(prev, it)) {
+        changedIds.add(it.id);
+      }
     }
-    byId.set(it.id, it);
-    changedIds.add(it.id);
+    sorted = latestItems.sort(sortItemsDesc);
+  } else {
+    const index = await readJsonSafeOrStore<{ updatedISO: string; storyIds: number[] }>(store, PATHS.index, IndexSchema, {
+      updatedISO: new Date(0).toISOString(),
+      storyIds: [],
+    });
+    const latestItems = await readAggregates(index.storyIds, store);
+    const byId = new Map<number, AggregatedItem>();
+    for (const it of previous.items) {
+      byId.set(it.id, it);
+    }
+    for (const it of latestItems) {
+      const prev = byId.get(it.id);
+      if (prev && jsonEqual(prev, it)) {
+        continue;
+      }
+      byId.set(it.id, it);
+      changedIds.add(it.id);
+    }
+    const merged = [...byId.values()].filter((it) => {
+      const s = typeof it.score === "number" ? it.score : 0;
+      return s >= SCORE_MIN_AGGREGATE;
+    });
+    sorted = merged.sort(sortItemsDesc);
   }
-
-  // optional purge of low-score items from history to keep it consistent with the rule
-  // simplicity: keep also enforcing score >= SCORE_MIN on merged output
-  const merged = [...byId.values()].filter((it) => {
-    const s = typeof it.score === "number" ? it.score : 0;
-    return s >= SCORE_MIN_AGGREGATE;
-  });
-
-  const sorted = merged.sort(sortItemsDesc);
 
   const safeItems = sorted.filter((it) => {
     try {

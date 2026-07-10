@@ -17,9 +17,26 @@ import {
   writeProgress,
   writeSeenCache,
   writeTelegramLedger,
+  type TelegramLedger,
 } from "@utils/telegram";
+import { openLocalMetaStore } from "@utils/meta-runtime";
 
 import type { AggregatedItem } from "@config/schemas";
+import type { MetaStore } from "@utils/meta-store";
+
+async function persistTelegramLedger(
+  sentIds: number[],
+  lastUpdatedISO: string | undefined,
+  meta: MetaStore | undefined
+): Promise<void> {
+  if (meta) {
+    return;
+  }
+  await writeTelegramLedger(PATHS.telegramSent, {
+    sentIds,
+    ...(lastUpdatedISO ? { lastUpdatedISO } : {}),
+  });
+}
 
 async function main(): Promise<void> {
   // Check if Telegram publishing is enabled and configured
@@ -86,7 +103,10 @@ async function main(): Promise<void> {
   }
 
   // Read persistent ledger of sent IDs
-  const ledger = await readTelegramLedger(PATHS.telegramSent);
+  const meta = await openLocalMetaStore();
+  const ledger: TelegramLedger = meta
+    ? await meta.getTelegramLedger()
+    : await readTelegramLedger(PATHS.telegramSent);
 
   // Check for existing progress from previous run
   const progressPath = join(PATHS.cache, "telegram-progress.json");
@@ -129,7 +149,7 @@ async function main(): Promise<void> {
     const sentIdsThisRun = progress.sentItems.map((si) => si.id);
     // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
     const nextIds = [...new Set([...(ledger.sentIds || []), ...sentIdsThisRun])];
-    await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
+    await persistTelegramLedger(nextIds, aggregated.updatedISO, meta);
     await deleteProgress(progressPath);
     process.exit(0);
   }
@@ -230,11 +250,15 @@ async function main(): Promise<void> {
         sent = true;
 
         // Update progress immediately after successful send
+        const sentAt = new Date().toISOString();
         progress.sentItems.push({
           id: item.id,
           messageId,
-          sentAt: new Date().toISOString(),
+          sentAt,
         });
+        if (meta) {
+          await meta.markTelegramSent(item.id, messageId, sentAt);
+        }
         await writeProgress(progressPath, progress);
 
         log.info("telegram", `Sent item ${i + 1}/${messages.length}`, {
@@ -300,7 +324,7 @@ async function main(): Promise<void> {
   const sentIdsThisRun = progress.sentItems.map((si) => si.id);
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   const nextIds = [...new Set([...(ledger.sentIds || []), ...sentIdsThisRun])];
-  await writeTelegramLedger(PATHS.telegramSent, { sentIds: nextIds, lastUpdatedISO: aggregated.updatedISO });
+  await persistTelegramLedger(nextIds, aggregated.updatedISO, meta);
 
   await deleteProgress(progressPath);
 

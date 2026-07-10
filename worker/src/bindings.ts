@@ -30,6 +30,7 @@ export interface D1PreparedStatement {
 export interface D1DatabaseLike {
   prepare(query: string): D1PreparedStatement;
   exec(query: string): Promise<void>;
+  batch?(statements: D1PreparedStatement[]): Promise<unknown[]>;
 }
 
 export interface WorkerEnv {

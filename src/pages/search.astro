@@ -2,6 +2,9 @@
 import "../styles/global.css";
 import { LANG } from "@config/lang";
 import { TAG_MIN_COUNT } from "@config/constants";
+import { withBase } from "../utils/base";
+
+const base = withBase("");
 
 const lang = LANG;
 const i18n = {
@@ -49,7 +52,7 @@ const t = i18n[lang as "ru" | "en"];
   </head>
   <body>
     <header>
-      <h1><a href="/">Hacker News Digest</a></h1>
+      <h1><a href={withBase("")}>Hacker News Digest</a></h1>
       <p class="meta">{t.title}</p>
     </header>
     <main>
@@ -64,7 +67,7 @@ const t = i18n[lang as "ru" | "en"];
       </form>
       <ul id="results" class="results"></ul>
     </main>
-    <script is:inline type="module" define:vars={{ t, TAG_MIN_COUNT }}>
+    <script is:inline type="module" define:vars={{ t, TAG_MIN_COUNT, base }}>
       // i18n data is now available as 't' variable
 
       const els = {
@@ -78,10 +81,10 @@ const t = i18n[lang as "ru" | "en"];
         count: document.getElementById("count"),
       };
 
-      // Prefer absolute root path (site uses absolute links); swap to base-aware if needed later.
+      // Keep the static data request under the configured site base path.
       let rows = [];
       try {
-        const response = await fetch("/data/search.json");
+        const response = await fetch(`${base}data/search.json`);
         if (response.ok) {
           const payload = await response.json();
           rows = Array.isArray(payload) ? payload : [];
@@ -96,8 +99,8 @@ const t = i18n[lang as "ru" | "en"];
       }
       const tagHref = (tag) =>
         (tagCounts.get(tag) || 0) >= TAG_MIN_COUNT
-          ? `/tag/${encodeURIComponent(tag)}/`
-          : `/search/?tags=${encodeURIComponent(tag)}`;
+          ? `${base}tag/${encodeURIComponent(tag)}/`
+          : `${base}search/?tags=${encodeURIComponent(tag)}`;
 
       const onChange = (() => {
         let t;
@@ -408,7 +411,7 @@ const t = i18n[lang as "ru" | "en"];
               .map((t) => `<a href="${tagHref(String(t))}" class="tag">#${escapeHtml(String(t))}</a>`)
               .join(" ");
             return `<li class="card">
-                    <h2 class="title"><a href="/item/${r.id}/">${escapeHtml(String(r.title || ""))}</a>${
+                    <h2 class="title"><a href="${base}item/${r.id}/">${escapeHtml(String(r.title || ""))}</a>${
                       r.domain
                         ? `<span class="meta" style="font-weight: normal; margin-left: .5rem;">(${escapeHtml(String(r.domain))})</span>`
                         : ""

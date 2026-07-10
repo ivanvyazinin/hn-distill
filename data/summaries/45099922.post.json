@@ -1,8 +1,0 @@
-{
-  "id": 45099922,
-  "lang": "ru",
-  "summary": "**Next.js выводит из себя**\n\nНаконец-то написал пост: злость лучший мотиватор.  \nВ $COMPANY упал сервис на Next.js, а логов в проде нет. Задача — добавить логирование.\n\n**Middleware**  \nДока обещает: «Middleware выполняется до рендера, удобно для логов».  \nПробуем pino + AsyncLocalStorage:\n\n```ts\n// middleware.ts\nexport async function middleware(req: NextRequest) {\n  LoggerStorage.enterWith(requestLogger());\n  logger()?.debug({ url: req.url }, \"start\");\n  return NextResponse.next();\n}\n```\n\nЗапускаем — логи летят в браузер. Почему? Runtime по умолчанию `edge`. Меняем на `nodejs` — в новом проекте работает, в боевом нет.\n\n**Страницы и layouts**  \nПишем в компоненте:\n\n```ts\nlogger()?.info(\"from page\");\n```\n\nТишина. `logger()` возвращает `null`: рендер и middleware живут в разных async-контекстах.\n\n**Решение**  \nПередаём `requestId` через заголовки:\n\n```ts\n// middleware.ts\nconst id = crypto.randomUUID();\nloggerInstance.child({ requestId: id }).debug(\"start\");\nreturn NextResponse.next({ headers: { \"x-request-id\": id } });\n```\n\n```ts\n// page.tsx\nconst id = headers().get(\"x-request-id\");\nloggerInstance.child({ requestId: id }).info(\"from page\");\n```\n\nИтог: чтобы просто логировать, нужно городить костыли через заголовки.",
-  "inputHash": "f7f796f501c5aaf85a93cb958903e4c6ce0ce36829802b2fcadc01b3a7d49777",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-02T11:19:05.881Z"
-}

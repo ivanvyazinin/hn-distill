@@ -23,6 +23,7 @@ import {
   upsertProcessingState,
   upsertStory,
 } from "./d1";
+import { createD1MetaStore } from "./d1-meta-store";
 import { buildScheduleForDate, shouldTriggerSlot } from "./pages-schedule";
 import { createWorkerStore } from "./store";
 import type { TaskMessage } from "./types";
@@ -141,6 +142,7 @@ async function processInlineSummaries(
   env: WorkerEnv,
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
+  meta: ReturnType<typeof createD1MetaStore>,
   startedAt: number,
   cronTimeout: number,
   fetchedISO: string
@@ -164,7 +166,7 @@ async function processInlineSummaries(
     }
     const taskTimeout = Math.min(taskTimeoutBase, remaining);
     try {
-      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id), taskTimeout, `summarize:${id}`);
+      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id, meta), taskTimeout, `summarize:${id}`);
     } catch (error) {
       log.error("worker/cron", "Inline summarize failed", { id, error: String(error) });
     }
@@ -217,7 +219,8 @@ async function handleSummarizeTask(
   env: WorkerEnv,
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
-  storyId: number
+  storyId: number,
+  meta: ReturnType<typeof createD1MetaStore>
 ): Promise<void> {
   if (!parsedEnv.OPENROUTER_API_KEY) {
     log.warn("worker/summarize", "OPENROUTER_API_KEY missing; skipping", { id: storyId });
@@ -225,7 +228,7 @@ async function handleSummarizeTask(
   }
   const services = makeSummarizeServices(parsedEnv);
   try {
-    await processSingleStory(services, storyId, store);
+    await processSingleStory(services, storyId, store, meta);
     const post = await store.getJson(pathFor.postSummary(storyId));
     const comments = await store.getJson(pathFor.commentsSummary(storyId));
     const tags = await store.getJson(pathFor.tagsSummary(storyId));
@@ -367,12 +370,13 @@ export default {
     }
 
     const store = createWorkerStore(env.DATA_BUCKET);
+    const meta = createD1MetaStore(env.DB);
     const fetchServices = makeFetchServices(parsedEnv);
     const cronTimeout = Math.max(1_000, parsedEnv.WORKER_CRON_TIMEOUT_MS);
     const queue = env.TASKS;
 
     const startedAt = Date.now();
-    const index = await withTimeout(fetchMain(fetchServices, store), cronTimeout - TIMEOUT_BUFFER_MS, "fetch-main");
+    const index = await withTimeout(fetchMain(fetchServices, store, meta), cronTimeout - TIMEOUT_BUFFER_MS, "fetch-main");
     await upsertStoriesFromStore(env.DB, store, index.storyIds, nowISO);
     if (queue) {
       const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
@@ -380,7 +384,7 @@ export default {
       const pendingIds = await listPendingStoryIds(env.DB, index.storyIds.length, cutoffISO, nowISO);
       await enqueueSummaries(queue, pendingIds);
     } else {
-      await processInlineSummaries(env, parsedEnv, store, startedAt, cronTimeout, nowISO);
+      await processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, nowISO);
     }
 
     const elapsed = Date.now() - startedAt;
@@ -399,7 +403,12 @@ export default {
     let aggregated: AggregatedFile | undefined;
 
     if (shouldAggregate) {
-      aggregated = await withTimeout(aggregateMain(store), cronTimeout - elapsed, "aggregate");
+      const fromDb = parsedEnv.AGGREGATE_FROM_DB === true;
+      aggregated = await withTimeout(
+        aggregateMain(store, meta, fromDb ? { fromDb: true } : undefined),
+        cronTimeout - elapsed,
+        "aggregate"
+      );
       await setAggregateState(env.DB, AGG_KEY, index.updatedISO, nextProcessingISO, new Date().toISOString());
     } else {
       aggregated = await store.getJson<AggregatedFile>(pathFor.aggregated);
@@ -426,6 +435,7 @@ export default {
   async queue(batch: QueueBatch<TaskMessage>, env: WorkerEnv): Promise<void> {
     const parsedEnv = initEnv(env);
     const store = createWorkerStore(env.DATA_BUCKET);
+    const meta = createD1MetaStore(env.DB);
     const taskTimeout = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
 
     for (const message of batch.messages) {
@@ -434,7 +444,7 @@ export default {
         continue;
       }
       if (body.kind === "summarize") {
-        await withTimeout(handleSummarizeTask(env, parsedEnv, store, body.id), taskTimeout, `summarize:${body.id}`);
+        await withTimeout(handleSummarizeTask(env, parsedEnv, store, body.id, meta), taskTimeout, `summarize:${body.id}`);
       } else if (body.kind === "telegram") {
         await withTimeout(handleTelegramTask(env, parsedEnv, body.item), taskTimeout, `telegram:${body.item.id}`);
       }

@@ -8,6 +8,7 @@ import { PATHS, pathFor } from "@config/paths";
 import { ensureDir, exists } from "@utils/fs";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
+import { openLocalMetaStore } from "@utils/meta-runtime";
 
 async function safeRm(p: string): Promise<void> {
   if (await exists(p)) {
@@ -50,6 +51,12 @@ async function main(): Promise<void> {
     await safeRm(pathFor.postSummary(id));
     await safeRm(pathFor.commentsSummary(id));
     await safeRm(pathFor.tagsSummary(id));
+  }
+
+  const meta = await openLocalMetaStore();
+  if (meta) {
+    const dbDeleted = await meta.deleteStoriesBelowScore(SCORE_MIN_CLEANUP);
+    log.info("cleanup", "meta rows removed for low-score stories", { count: dbDeleted.length });
   }
 
   // Update aggregated.json to remove deleted ids if present (be tolerant of minimal shape)

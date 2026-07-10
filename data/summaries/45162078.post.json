@@ -1,8 +1,0 @@
-{
-  "id": 45162078,
-  "lang": "ru",
-  "summary": "**Сокращённый перевод на русский (в 2 раза короче, markdown)**\n\n---\n\nКак привязать каждый пиксель к 16-цветной палитре PICO-8?  \nПростейший способ — евклидово расстояние в sRGB, но цвета искажаются.  \nВзвешенный sRGB (libimagequant) уже терпим.\n\nПроверили «умные» пространства:  \n- CAM16-UCS — модель восприятия,  \n- Oklab — просто равномерное,  \n- CIELAB+HyAB — с 3× вес яркости.  \n\nНа кадре из *Big Buck Bunny* разница между ними минимальна; CAM16-UCS не лидирует.  \nРезультат CAM16-UCS заметно меняется при переключении условий просмотра («dim» vs «average»), но всё равно не совпадает с Oklab.\n\nВывод: без учёта структуры изображения ни одно пространство не даёт прорыва.  \nВсе три «умных» варианта лучше взвешенного sRGB, но лучший выбирается глазами, а не метрикой.\n\n**Бонус**: если брать только яркость (игнорируя цвет), получается «красно-зелёная» гравюра — эффект Гельмгольца-Кольрауша не учтён.\n\nКод на Python (библиотека `colour`):\n\n```python\npalette = np.array([...], dtype=np.uint8)  # 16 цветов PICO-8\n\ndef map_pixel(px, space='oklab'):\n    px = colour.sRGB_to_XYZ(px/255)\n    if space == 'cam16':\n        px = colour.XYZ_to_CAM16UCS(px, surround=colour.VIEWING_CONDITIONS_CAM16['Average'])\n    elif space == 'oklab':\n        px = colour.XYZ_to_Oklab(px)\n    dist = np.linalg.norm(px - palette, axis=-1)\n    return palette[np.argmin(dist)]\n```\n\nВсе картинки эксперимента: [all_results.png](all_results.png).",
-  "inputHash": "861e1963f95db037b22fbfb61e6fd1ba67a690939fc89867bf9e76dcddb8b659",
-  "model": "moonshotai/kimi-k2:free",
-  "createdISO": "2025-09-11T13:27:42.228Z"
-}
