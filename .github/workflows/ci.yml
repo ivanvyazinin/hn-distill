@@ -8,8 +8,23 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Hard backstop: `bun test` has been wedging on GitHub's runner (a workerd
+    # subprocess from miniflare is not reaped, so the process never exits).
+    # Without this, a wedged run burns the full 6h default. Keep it tight.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-bun
-      - name: Run tests
-        run: make test
+
+      # Core suite: everything except the miniflare/workerd tests. `timeout`
+      # turns any wedge into a fast, clearly-attributed failure (exit 124).
+      - name: Run tests (core)
+        run: |
+          files=$(ls tests/*.test.ts | grep -v 'cloudflare.infra.test.ts')
+          timeout --kill-after=15s 180 bun test --timeout 20000 $files
+
+      # Worker/miniflare suite runs in isolation so a workerd exit-hang can only
+      # wedge this step, not the whole job, and the log names it exactly.
+      # These tests boot native workerd via miniflare and are kernel-sensitive.
+      - name: Run tests (worker / miniflare)
+        run: timeout --kill-after=15s 120 bun test --timeout 20000 tests/cloudflare.infra.test.ts
