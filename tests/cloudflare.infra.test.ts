@@ -7,6 +7,7 @@ import { pathFor } from "@config/paths";
 import type { NormalizedStory } from "@config/schemas";
 
 import { buildScheduleForDate } from "../worker/src/pages-schedule";
+import { createD1MetaStore } from "../worker/src/d1-meta-store";
 import { createWorkerStore } from "../worker/src/store";
 import { getTelegramSentIds, listPendingStoryIds, markTelegramSent, upsertProcessingState, upsertStory } from "../worker/src/d1";
 import worker from "../worker/src/index";
@@ -15,7 +16,7 @@ const MINIFLARE_SCRIPT = "export default { fetch() { return new Response('ok'); 
 
 async function initDb(db: Awaited<ReturnType<Miniflare["getD1Database"]>>): Promise<void> {
   const schema = await readFile("worker/d1/schema.sql", "utf8");
-  const cleaned = schema.replace(/^--.*$/gmu, "");
+  const cleaned = schema.replaceAll(/^--.*$/gmu, "");
   const statements = cleaned
     .split(";")
     .map((stmt) => stmt.trim())
@@ -25,11 +26,11 @@ async function initDb(db: Awaited<ReturnType<Miniflare["getD1Database"]>>): Prom
   }
 }
 
-function mockFetchOnce(handler: (url: string, init?: RequestInit) => Response): () => void {
+function mockFetchOnce(handler: (url: string, init?: RequestInit) => Promise<Response> | Response): () => void {
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.url;
-    return handler(url, init);
+    return await handler(url, init);
   }) as typeof fetch;
   return () => {
     globalThis.fetch = original;
@@ -52,7 +53,7 @@ describe("cloudflare infra", () => {
       const obj = await bucket.get("summaries/1.post.json");
 
       expect(obj).not.toBeNull();
-      const text = await obj!.text();
+      const text = obj === null ? "" : await obj.text();
       expect(text).toContain("hello");
     } finally {
       await mf.dispose();
@@ -97,6 +98,49 @@ describe("cloudflare infra", () => {
 
       expect(sent.has(story.id)).toBe(true);
       expect(sent.has(999)).toBe(false);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  test("D1 meta store chunks aggregate and cleanup beyond 100 ids", async () => {
+    const mf = new Miniflare({ modules: true, script: MINIFLARE_SCRIPT, d1Databases: ["DB"] });
+    try {
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+      const meta = createD1MetaStore(db);
+      const nowISO = new Date().toISOString();
+      const ids = Array.from({ length: 105 }, (_, index) => index + 1);
+      await Promise.all(
+        ids.map(async (id, rank) => {
+          await meta.upsertStory(
+            {
+              id,
+              title: `Story ${id}`,
+              url: `https://example.com/${id}`,
+              by: "test",
+              timeISO: nowISO,
+              commentIds: [],
+              score: id <= 101 ? 1 : 100,
+              descendants: 0,
+            },
+            rank,
+            nowISO
+          );
+          await meta.upsertSummary({
+            storyId: id,
+            kind: "post",
+            lang: "ru",
+            summary: `Summary ${id}`,
+            createdAt: nowISO,
+          });
+          await meta.replaceTags(id, ["test"]);
+        })
+      );
+
+      expect((await meta.getAggregatedItems(ids)).length).toBe(105);
+      expect((await meta.deleteStoriesBelowScore(75)).length).toBe(101);
+      expect((await meta.getAggregatedItems(ids)).length).toBe(4);
     } finally {
       await mf.dispose();
     }
@@ -246,6 +290,82 @@ describe("cloudflare infra", () => {
 
       const aggregatedObj = await bucket.get("data/aggregated.json");
       expect(aggregatedObj).not.toBeNull();
+
+      const row = await db
+        .prepare("SELECT id FROM stories WHERE id = ?")
+        .bind(storyId)
+        .first<{ id: number }>();
+      expect(row?.id).toBe(storyId);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  test("worker scheduled supports daily-top-by-score mode", async () => {
+    const mf = new Miniflare({
+      modules: true,
+      script: MINIFLARE_SCRIPT,
+      r2Buckets: ["DATA_BUCKET"],
+      d1Databases: ["DB"],
+    });
+
+    try {
+      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+
+      const env = {
+        DATA_BUCKET: bucket,
+        DB: db,
+        SUMMARY_LANG: "en",
+        TOP_N: "1",
+        TOP_N_MODE: "daily-top-by-score",
+        MAX_COMMENTS_PER_STORY: "5",
+        MAX_DEPTH: "1",
+        CONCURRENCY: "1",
+        TELEGRAM_ENABLE: "false",
+        TAGS_MAX_PER_STORY: "0",
+      };
+
+      const storyId = 6500;
+      const storyTime = Math.floor(Date.now() / 1000);
+      const dayStart = new Date();
+      dayStart.setUTCHours(0, 0, 0, 0);
+      const dayEndUnix = Math.floor(dayStart.getTime() / 1000) + 24 * 60 * 60;
+      const story = {
+        id: storyId,
+        type: "story",
+        title: "Daily mode story",
+        by: "alice",
+        time: Math.min(storyTime, dayEndUnix - 10),
+        url: "https://example.com/daily",
+        score: 77,
+        descendants: 0,
+        kids: [],
+      };
+
+      const restore = mockFetchOnce((url) => {
+        if (url.includes("hn.algolia.com/api/v1/search_by_date")) {
+          return new Response(
+            JSON.stringify({
+              hits: [{ objectID: String(storyId), created_at_i: story.time }],
+              nbPages: 1,
+              nbHits: 1,
+            }),
+            { status: 200 }
+          );
+        }
+        if (url.includes(`/item/${storyId}.json`)) {
+          return new Response(JSON.stringify(story), { status: 200 });
+        }
+        return new Response("not found", { status: 404 });
+      });
+
+      try {
+        await worker.scheduled({ scheduledTime: Date.now() }, env as never);
+      } finally {
+        restore();
+      }
 
       const row = await db
         .prepare("SELECT id FROM stories WHERE id = ?")
@@ -457,11 +577,12 @@ describe("cloudflare infra", () => {
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
-      const restore = mockFetchOnce(() => {
-        return new Promise<Response>((resolve) => {
-          setTimeout(() => resolve(new Response("slow", { status: 200 })), 1100);
-        });
-      });
+      const restore = mockFetchOnce(
+        async () =>
+          await new Promise<Response>((resolve) => {
+            setTimeout(() => resolve(new Response("slow", { status: 200 })), 1100);
+          })
+      );
 
       const env = {
         DATA_BUCKET: bucket,
