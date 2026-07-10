@@ -40,6 +40,8 @@ import type { z } from "zod";
 export type Services = {
   http: HttpClient;
   openrouter: OpenRouter;
+  /** Client for structured-JSON calls (tags + post-guard). Groq when GROQ_API_KEY is set, else same as openrouter. */
+  guardTagsClient: OpenRouter;
   fetchArticleMarkdown: (url: string) => Promise<string>;
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
 };
@@ -61,6 +63,11 @@ export function makeServices(
     }
   );
   const openrouter = new OpenRouter(http, e.OPENROUTER_API_KEY ?? "", e.OPENROUTER_MODEL);
+  // Route tags + post-guard (structured JSON) to Groq when a key is set; otherwise reuse OpenRouter.
+  const guardTagsClient =
+    e.GROQ_API_KEY !== undefined && e.GROQ_API_KEY.length > 0
+      ? new OpenRouter(http, e.GROQ_API_KEY, e.TAGS_MODEL, e.GROQ_BASE_URL)
+      : openrouter;
 
   async function fetchArticleMarkdown(url: string): Promise<string> {
     const youtubeText = await tryFetchYouTubeContent(url);
@@ -139,7 +146,7 @@ export function makeServices(
     model: e.OPENROUTER_MODEL,
   });
 
-  return { http, openrouter, fetchArticleMarkdown };
+  return { http, openrouter, guardTagsClient, fetchArticleMarkdown };
 }
 
 const TAGS_DEBUG_MESSAGE = "summarize/tags";
@@ -744,7 +751,7 @@ export async function generateValidatedPostSummary(
 
         for (const guardModel of guardModels) {
           try {
-            guardResult = await runSummaryGuard(services.openrouter, {
+            guardResult = await runSummaryGuard(services.guardTagsClient, {
               summary: summaryContent.summary,
               articleSlice,
               envLike: {
@@ -1227,7 +1234,7 @@ async function processTags(
   }
 
   try {
-    const llm = await summarizeTagsStructured(services.openrouter, prompt, env);
+    const llm = await summarizeTagsStructured(services.guardTagsClient, prompt, env);
     const domain = story.url ? new URL(story.url).hostname : undefined;
     const tags = combineAndCanon({
       llm,

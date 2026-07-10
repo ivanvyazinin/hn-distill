@@ -14,6 +14,7 @@ mock.module("../scripts/summarize.mts", async () => {
     makeServices: () => ({
       http: {},
       openrouter: {},
+      guardTagsClient: {},
       fetchArticleMarkdown: async () => "",
     }),
   };

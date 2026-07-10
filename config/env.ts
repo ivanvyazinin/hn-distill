@@ -2,6 +2,11 @@ import { z } from "zod";
 
 const EnvironmentSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
+  // Optional secondary provider for tags + post-guard (structured JSON). When set, those
+  // two calls go to Groq (reliable JSON, non-reasoning llama) instead of OPENROUTER_API_KEY.
+  // TAGS_MODEL / POST_GUARD_MODEL must then be Groq model ids (e.g. llama-3.3-70b-versatile).
+  GROQ_API_KEY: z.string().optional(),
+  GROQ_BASE_URL: z.string().default("https://api.groq.com/openai/v1/chat/completions"),
   SUMMARY_LANG: z.enum(["ru", "en"]).default("ru"),
   TOP_N: z.coerce.number().int().min(1).max(500).default(10),
   TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),

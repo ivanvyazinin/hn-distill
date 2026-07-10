@@ -26,14 +26,16 @@ function makeServices(handlers: Handler[]): { services: Services; calls: CallRec
     return await handler({ model, messages });
   };
 
+  const orMock = {
+    chat,
+    chatStructured: async () => {
+      throw new Error("not implemented");
+    },
+  } as unknown as Services["openrouter"];
   const services: Services = {
     http: {} as Services["http"],
-    openrouter: {
-      chat,
-      chatStructured: async () => {
-        throw new Error("not implemented");
-      },
-    } as unknown as Services["openrouter"],
+    openrouter: orMock,
+    guardTagsClient: orMock,
     fetchArticleMarkdown: async () => "",
   };
 
