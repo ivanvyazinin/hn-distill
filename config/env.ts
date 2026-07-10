@@ -4,6 +4,8 @@ const EnvironmentSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   SUMMARY_LANG: z.enum(["ru", "en"]).default("ru"),
   TOP_N: z.coerce.number().int().min(1).max(500).default(40),
+  TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),
+  TOP_N_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(0),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
   MAX_DEPTH: z.coerce.number().int().min(1).max(10).default(2),
   CONCURRENCY: z.coerce.number().int().min(1).max(32).default(8),
@@ -113,6 +115,12 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
+
+  /** When true and SQLite/D1 meta is available, aggregate reads the DB ledger instead of merging JSON blobs. */
+  AGGREGATE_FROM_DB: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
 });
 
 export type Env = z.infer<typeof EnvironmentSchema>;

@@ -12,7 +12,10 @@ import {
 } from "@config/schemas";
 import { HN } from "@utils/hn";
 import { HttpClient } from "@utils/http-client";
+import { log } from "@utils/log";
+import type { MetaStore } from "@utils/meta-store";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
+import { toDateKeyUTC } from "@utils/date-keys";
 import { clamp, htmlToPlain } from "@utils/text";
 
 export type Services = {
@@ -20,7 +23,7 @@ export type Services = {
 };
 
 function normalizeUrl(url?: string): string | undefined {
-  if (!url) {
+  if (url === undefined || url.length === 0) {
     return undefined;
   }
   try {
@@ -50,7 +53,212 @@ export function makeServices(e: Env): Services {
   return { http };
 }
 
-export async function readTopIds(services: Services, limit: number): Promise<number[]> {
+type ReadTopIdsOptions = {
+  mode?: Env["TOP_N_MODE"];
+  now?: Date;
+  dayOffset?: number;
+  /** Item fetch parallelism for daily-top-by-score (defaults to env.CONCURRENCY). */
+  concurrency?: number;
+};
+
+type DayOffset = NonNullable<ReadTopIdsOptions["dayOffset"]>;
+
+type AlgoliaStoryHit = {
+  objectID?: unknown;
+  created_at_i?: unknown;
+};
+
+type AlgoliaSearchResponse = {
+  hits: AlgoliaStoryHit[];
+  nbHits?: number;
+  nbPages?: number;
+};
+
+type DailyStoryCandidate = {
+  id: number;
+  score: number;
+  time: number;
+};
+
+const ALGOLIA_HITS_PER_PAGE = 1000;
+
+function utcDayWindow(now: Date, dayOffset: DayOffset = 0): { startUnix: number; endUnix: number } {
+  const startMs =
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 0, 0, 0, 0) + dayOffset * 24 * 60 * 60 * 1000;
+  return {
+    startUnix: Math.floor(startMs / 1000),
+    endUnix: Math.floor((startMs + 24 * 60 * 60 * 1000) / 1000),
+  };
+}
+
+function parseFiniteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function parseAlgoliaResponse(raw: unknown): AlgoliaSearchResponse | undefined {
+  if (typeof raw !== "object" || raw === null) {
+    return undefined;
+  }
+
+  const candidate = raw as {
+    hits?: unknown;
+    nbHits?: unknown;
+    nbPages?: unknown;
+  };
+
+  const parsed: AlgoliaSearchResponse = {
+    hits: Array.isArray(candidate.hits) ? (candidate.hits as AlgoliaStoryHit[]) : [],
+  };
+  const nbHits = parseFiniteNumber(candidate.nbHits);
+  const nbPages = parseFiniteNumber(candidate.nbPages);
+  if (nbHits !== undefined) {
+    parsed.nbHits = nbHits;
+  }
+  if (nbPages !== undefined) {
+    parsed.nbPages = nbPages;
+  }
+  return parsed;
+}
+
+function buildAlgoliaDayUrl(startUnix: number, endUnix: number): string {
+  const url = new URL(`${HN.algoliaApi}/search_by_date`);
+  url.searchParams.set("query", "");
+  url.searchParams.set("tags", "story");
+  url.searchParams.set("hitsPerPage", String(ALGOLIA_HITS_PER_PAGE));
+  url.searchParams.set("page", "0");
+  url.searchParams.set("numericFilters", `created_at_i>=${startUnix},created_at_i<${endUnix}`);
+  return url.toString();
+}
+
+function parseAlgoliaHitId(hit: AlgoliaStoryHit): number | undefined {
+  const parsed = Number(hit.objectID);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+function parseAlgoliaHitCreatedAt(hit: AlgoliaStoryHit): number | undefined {
+  return parseFiniteNumber(hit.created_at_i);
+}
+
+async function readDailyCandidateIdsForWindow(
+  services: Services,
+  startUnix: number,
+  endUnix: number
+): Promise<number[]> {
+  if (startUnix >= endUnix) {
+    return [];
+  }
+
+  let raw: unknown;
+  try {
+    raw = await services.http.json<unknown>(buildAlgoliaDayUrl(startUnix, endUnix));
+  } catch {
+    raw = undefined;
+  }
+  const parsed = parseAlgoliaResponse(raw);
+  if (!parsed) {
+    return [];
+  }
+
+  const ids = uniqueNumbers(
+    parsed.hits
+      .map((hit) => {
+        const id = parseAlgoliaHitId(hit);
+        if (id === undefined) {
+          return;
+        }
+
+        const createdAtUnix = parseAlgoliaHitCreatedAt(hit);
+        if (createdAtUnix !== undefined && (createdAtUnix < startUnix || createdAtUnix >= endUnix)) {
+          return;
+        }
+
+        return id;
+      })
+      .filter((id): id is number => id !== undefined)
+  );
+
+  if ((parsed.nbPages ?? 1) <= 1) {
+    return ids;
+  }
+
+  const midpoint = startUnix + Math.floor((endUnix - startUnix) / 2);
+  if (midpoint <= startUnix || midpoint >= endUnix) {
+    log.warn("fetch-hn", "Algolia day window hit page cap at minimum granularity", {
+      startUnix,
+      endUnix,
+      hits: ids.length,
+      nbHits: parsed.nbHits,
+      nbPages: parsed.nbPages,
+    });
+    return ids;
+  }
+
+  const [leftIds, rightIds] = await Promise.all([
+    readDailyCandidateIdsForWindow(services, startUnix, midpoint),
+    readDailyCandidateIdsForWindow(services, midpoint, endUnix),
+  ]);
+  return uniqueNumbers([...leftIds, ...rightIds]);
+}
+
+async function readDailyTopIds(
+  services: Services,
+  limit: number,
+  now: Date,
+  dayOffset: DayOffset = 0,
+  concurrencyOverride?: number
+): Promise<number[]> {
+  const { startUnix, endUnix } = utcDayWindow(now, dayOffset);
+  const candidateIds = await readDailyCandidateIdsForWindow(services, startUnix, endUnix);
+  if (candidateIds.length === 0) {
+    return [];
+  }
+
+  const configuredConcurrency = concurrencyOverride ?? env.CONCURRENCY;
+  const concurrency = Number.isFinite(configuredConcurrency) ? Math.max(1, configuredConcurrency) : 8;
+  const limitConcurrency = pLimit(concurrency);
+  const candidates = (
+    await Promise.all(
+      candidateIds.map(async (id) =>
+        await limitConcurrency(async (): Promise<DailyStoryCandidate | undefined> => {
+          const item = await fetchItem(services, id);
+          if (!item || item.type !== "story") {
+            return;
+          }
+
+          const time = Number.isFinite(item.time) ? item.time : undefined;
+          if (time === undefined || time < startUnix || time >= endUnix) {
+            return;
+          }
+
+          return {
+            id: item.id,
+            score: typeof item.score === "number" ? item.score : 0,
+            time,
+          };
+        })
+      )
+    )
+  ).filter((candidate): candidate is DailyStoryCandidate => candidate !== undefined);
+
+  candidates.sort((a, b) => b.score - a.score || b.time - a.time || b.id - a.id);
+  return candidates.slice(0, Math.max(0, limit)).map((candidate) => candidate.id);
+}
+
+export async function readTopIds(
+  services: Services,
+  limit: number,
+  options: ReadTopIdsOptions = {}
+): Promise<number[]> {
+  if (options.mode === "daily-top-by-score") {
+    return await readDailyTopIds(
+      services,
+      limit,
+      options.now ?? new Date(),
+      options.dayOffset ?? 0,
+      options.concurrency
+    );
+  }
+
   const ids = await services.http.json<number[]>(`${HN.api}/topstories.json`).catch(() => []);
   if (!Array.isArray(ids) || ids.length === 0) {
     return [];
@@ -297,7 +505,8 @@ export async function collectComments(
 
 export async function main(
   servicesOverride: Services | undefined,
-  store: ObjectStore
+  store: ObjectStore,
+  meta?: MetaStore
 ): Promise<{ updatedISO: string; storyIds: number[] }> {
   const services = servicesOverride ?? makeServices(env);
   const runTimestamp = new Date().toISOString();
@@ -309,7 +518,12 @@ export async function main(
   const previousIndex = await readJsonSafeOrStore(store, PATHS.index, IndexSchema);
   const indexExists = (await store.getText(PATHS.index)) !== null;
 
-  const topIds = await readTopIds(services, env.TOP_N);
+  const topIds = await readTopIds(services, env.TOP_N, {
+    mode: env.TOP_N_MODE,
+    now: new Date(runTimestamp),
+    dayOffset: env.TOP_N_DAY_OFFSET,
+    concurrency: env.CONCURRENCY,
+  });
   const idsSet = new Set<number>(topIds);
 
   const concurrency = Math.max(1, env.CONCURRENCY);
@@ -375,6 +589,31 @@ export async function main(
     await store.putJson(pathFor.rawItem(s.id), s, { pretty: true, contentType: "application/json" });
     const comments = commentsByStory[s.id] ?? [];
     await store.putJson(pathFor.rawComments(s.id), comments, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      const rank = topIds.indexOf(s.id);
+      await meta.upsertStory(s, rank >= 0 ? rank : stories.indexOf(s), runTimestamp);
+      await meta.upsertRawBlob({
+        storyId: s.id,
+        kind: "item",
+        ref: pathFor.rawItem(s.id),
+        fetchedAt: runTimestamp,
+      });
+      await meta.upsertRawBlob({
+        storyId: s.id,
+        kind: "comments",
+        ref: pathFor.rawComments(s.id),
+        fetchedAt: runTimestamp,
+      });
+      if (env.TOP_N_MODE === "daily-top-by-score") {
+        await meta.upsertDailyRanking({
+          day: toDateKeyUTC(s.timeISO),
+          storyId: s.id,
+          rank: rank >= 0 ? rank : 0,
+          ...(typeof s.score === "number" ? { score: s.score } : {}),
+          mode: env.TOP_N_MODE,
+        });
+      }
+    }
   }
 
   const storyIds = [...idsSet];
