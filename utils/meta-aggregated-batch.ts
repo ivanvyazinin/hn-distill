@@ -1,7 +1,7 @@
 import { env } from "@config/env";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 
 import type { AggregatedItem } from "@config/schemas";
 
@@ -33,6 +33,8 @@ export function sanitizePostSummaryDb(summary: string | undefined, context: { id
   const heuristics = checkSummaryHeuristics(cleaned, {
     minChars: env.POST_SUMMARY_MIN_CHARS,
     language: env.SUMMARY_LANG,
+    kind: "post",
+    languageGate: languageGateFromEnv(env),
   });
   const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS.has(trigger.reason));
   if (blocking.length > 0) {

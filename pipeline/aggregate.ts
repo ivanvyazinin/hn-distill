@@ -22,7 +22,7 @@ import { HN } from "@utils/hn";
 import { log } from "@utils/log";
 import type { MetaStore } from "@utils/meta-store";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 
 type Services = {
   noop?: true;
@@ -176,6 +176,8 @@ function sanitizePostSummary(
   const heuristics = checkSummaryHeuristics(cleaned, {
     minChars: env.POST_SUMMARY_MIN_CHARS,
     language: env.SUMMARY_LANG,
+    kind: "post",
+    languageGate: languageGateFromEnv(env),
   });
   const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS.has(trigger.reason));
   if (blocking.length > 0) {

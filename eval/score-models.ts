@@ -6,7 +6,7 @@ import { z } from "zod";
 import { PATHS } from "@config/paths";
 import { log } from "@utils/log";
 import { OpenRouter, type JsonSchema } from "@utils/openrouter";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 
 import { buildPostChatMessages, makeServices, sanitizeLlmContent } from "../pipeline/summarize";
 
@@ -239,6 +239,8 @@ export async function scoreOneRun(params: {
   const heuristic = checkSummaryHeuristics(run.content || undefined, {
     minChars: envLike.POST_SUMMARY_MIN_CHARS,
     language: envLike.SUMMARY_LANG,
+    kind: "post",
+    languageGate: languageGateFromEnv(envLike),
   });
 
   const skipJudge = run.error !== undefined || run.content.trim().length === 0;

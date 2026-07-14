@@ -59,6 +59,25 @@ const EnvironmentSchema = z.object({
     .default(4 * 1000),
   POST_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(500).default(120),
 
+  // RU language-purity gate (retry-only: reasons are NOT in aggregator DROP lists).
+  // Master switch for both signals (low_cyrillic_ratio + latin_prose).
+  SUMMARY_LANGUAGE_GATE_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
+  // low_cyrillic_ratio threshold over prose-eligible letters (calibrated 2026-07: see docs/language-gate-calibration.md).
+  SUMMARY_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.8),
+  // latin_prose: weak 2-3-word noun-phrase runs («unified memory») — ~40% precision, opt-in.
+  SUMMARY_LATIN_SOFT_RUNS: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
+  // latin_prose: dictionary singletons («создают precedents») — 100% precision on calibration.
+  SUMMARY_LATIN_SINGLETONS: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
+
   LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
 
   SITE: z.string().optional(),

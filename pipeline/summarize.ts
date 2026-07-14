@@ -22,7 +22,7 @@ import type { MetaStore } from "@utils/meta-store";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 import {
   Telegram,
@@ -438,6 +438,7 @@ function buildPostSystemInstruction(strict?: boolean): string {
 
   const base = [
     "Ты пишешь точные и ёмкие пересказы статей Hacker News в Markdown на русском языке.",
+    "Пиши только по-русски: латиница допустима лишь для имён собственных, названий продуктов, терминов в кавычках и кода — не вставляй английские слова и фразы в связный русский текст.",
     "Стремись к ~170 словам в двух коротких абзацах; третий добавляй только если он действительно помогает.",
     "Выделяй главную идею и пару ярких фактов, цитат или цифр, которые стоит запомнить.",
     "Не называй заголовок, автора, дату публикации и источники.",
@@ -447,6 +448,7 @@ function buildPostSystemInstruction(strict?: boolean): string {
   if (isStrict) {
     base.push(
       "Никаких отказов, извинений или упоминаний политик.",
+      "Никогда не переходи на английский: весь связный текст — на русском.",
       "Если в материале мало деталей, перескажи то, что есть, и укажи ключевые факты.",
       "Не упоминай себя и само задание."
     );
@@ -783,6 +785,8 @@ export async function generateValidatedPostSummary(
       const heuristics = checkSummaryHeuristics(summaryContent.summary, {
         minChars: env.POST_SUMMARY_MIN_CHARS,
         language: lang,
+        kind: "post",
+        languageGate: languageGateFromEnv(env),
       });
 
       if (!heuristics.ok) {

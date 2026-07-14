@@ -1,3 +1,5 @@
+import { analyzeRussianLanguagePurity, DEFAULT_MIN_CYRILLIC_RATIO } from "@utils/language-gate";
+
 export type HeuristicTrigger = {
   reason: string;
   detail?: string;
@@ -8,9 +10,39 @@ export type HeuristicVerdict = {
   triggers: HeuristicTrigger[];
 };
 
-type HeuristicCheckOptions = {
+export type LanguageGateSettings = {
+  enable?: boolean;
+  minCyrillicRatio?: number;
+  flagSoftRuns?: boolean;
+  flagSingletons?: boolean;
+};
+
+type LanguageGateEnvLike = {
+  SUMMARY_LANGUAGE_GATE_ENABLE: boolean;
+  SUMMARY_MIN_CYRILLIC_RATIO: number;
+  SUMMARY_LATIN_SOFT_RUNS: boolean;
+  SUMMARY_LATIN_SINGLETONS: boolean;
+};
+
+export function languageGateFromEnv(envLike: LanguageGateEnvLike): LanguageGateSettings {
+  return {
+    enable: envLike.SUMMARY_LANGUAGE_GATE_ENABLE,
+    minCyrillicRatio: envLike.SUMMARY_MIN_CYRILLIC_RATIO,
+    flagSoftRuns: envLike.SUMMARY_LATIN_SOFT_RUNS,
+    flagSingletons: envLike.SUMMARY_LATIN_SINGLETONS,
+  };
+}
+
+export type HeuristicCheckOptions = {
   minChars?: number;
   language?: "en" | "ru";
+  /**
+   * Content profile. The "comments" profile expects a bullet-list-only summary
+   * (the RU comments prompt demands it), so `bullets_only` is not a defect there.
+   */
+  kind?: "comments" | "post";
+  /** RU language-purity gate thresholds; only applied when language === "ru". */
+  languageGate?: LanguageGateSettings;
 };
 
 const REPETITION_RUN_MIN_WORDS = 20;
@@ -160,7 +192,7 @@ export function checkSummaryHeuristics(
   }
 
   const lines = summary.split(/\r?\n/u);
-  if (lines.length > 0 && lines.every((line) => line.trimStart().startsWith("- "))) {
+  if (options.kind !== "comments" && lines.length > 0 && lines.every((line) => line.trimStart().startsWith("- "))) {
     triggers.push({ reason: "bullets_only" });
   }
 
@@ -247,6 +279,26 @@ export function checkSummaryHeuristics(
       reason: "numeric_headings",
       detail: `ratio=${(numericHeadingLines / contentLines).toFixed(2)}`,
     });
+  }
+
+  if (options.language === "ru" && (options.languageGate?.enable ?? true)) {
+    const gate = options.languageGate ?? {};
+    const purity = analyzeRussianLanguagePurity(summary, {
+      minCyrillicRatio: gate.minCyrillicRatio ?? DEFAULT_MIN_CYRILLIC_RATIO,
+      flagSoftRuns: gate.flagSoftRuns ?? false,
+      flagSingletons: gate.flagSingletons ?? true,
+    });
+    if (purity.lowCyrillicRatio) {
+      triggers.push({ reason: "low_cyrillic_ratio", detail: `ratio=${purity.cyrillicRatio.toFixed(3)}` });
+    }
+    const latinHits = [
+      ...purity.latinRuns.map((run) => run.words.join(" ")),
+      ...purity.softLatinRuns.map((run) => run.words.join(" ")),
+      ...purity.latinSingletons.map((hit) => hit.word),
+    ];
+    if (latinHits.length > 0) {
+      triggers.push({ reason: "latin_prose", detail: latinHits.slice(0, 5).join("; ") });
+    }
   }
 
   const ok = triggers.length === 0;

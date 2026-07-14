@@ -14,7 +14,7 @@ import {
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
 import { runSummaryGuard } from "@utils/summary-guard";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 
 import {
   buildPostPrompt,
@@ -164,9 +164,13 @@ async function auditOnly(
     return { id, status: "missing" };
   }
 
+  // Language-gate thresholds apply here deliberately: manual `audit --fix` is an
+  // opt-in backfill; the automated hourly pipeline never rewrites old summaries.
   const heuristics = checkSummaryHeuristics(existing.summary, {
     minChars: env.POST_SUMMARY_MIN_CHARS,
     language: env.SUMMARY_LANG,
+    kind: "post",
+    languageGate: languageGateFromEnv(env),
   });
 
   if (!heuristics.ok) {
@@ -200,6 +204,8 @@ async function fixStory(
     const heuristics = checkSummaryHeuristics(existing.summary, {
       minChars: env.POST_SUMMARY_MIN_CHARS,
       language: env.SUMMARY_LANG,
+      kind: "post",
+      languageGate: languageGateFromEnv(env),
     });
     if (!heuristics.ok) {
       needsFix = true;
