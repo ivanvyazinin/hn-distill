@@ -15,7 +15,7 @@ mock.module("../scripts/summarize.mts", async () => {
       http: {},
       openrouter: {},
       guardTagsClient: {},
-      fetchArticleMarkdown: async () => "",
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
     }),
   };
 });

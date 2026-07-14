@@ -80,11 +80,55 @@ export function createD1MetaStore(db: D1DatabaseLike): MetaStore {
     async upsertArticleExtract(row: ArticleExtractRow): Promise<void> {
       await db
         .prepare(
-          "INSERT INTO article_extracts (story_id, status, char_count, raw_article_ref, fetched_at) VALUES (?, ?, ?, ?, ?) " +
-            "ON CONFLICT(story_id) DO UPDATE SET status=excluded.status, char_count=excluded.char_count, raw_article_ref=excluded.raw_article_ref, fetched_at=excluded.fetched_at"
+          "INSERT INTO article_extracts (story_id, status, source_kind, char_count, raw_article_ref, fetched_at) VALUES (?, ?, ?, ?, ?, ?) " +
+            "ON CONFLICT(story_id) DO UPDATE SET status=excluded.status, source_kind=excluded.source_kind, char_count=excluded.char_count, raw_article_ref=excluded.raw_article_ref, fetched_at=excluded.fetched_at"
         )
-        .bind(row.storyId, row.status, row.charCount ?? null, row.rawArticleRef ?? null, row.fetchedAt ?? null)
+        .bind(
+          row.storyId,
+          row.status,
+          row.sourceKind ?? null,
+          row.charCount ?? null,
+          row.rawArticleRef ?? null,
+          row.fetchedAt ?? null
+        )
         .run();
+    },
+
+    async getArticleExtract(storyId: number): Promise<ArticleExtractRow | undefined> {
+      const row = await db
+        .prepare(
+          "SELECT story_id, status, source_kind, char_count, raw_article_ref, fetched_at FROM article_extracts WHERE story_id = ?"
+        )
+        .bind(storyId)
+        .first<{
+          story_id: number;
+          status: string;
+          source_kind: string | null;
+          char_count: number | null;
+          raw_article_ref: string | null;
+          fetched_at: string | null;
+        }>();
+      if (!row) {
+        return undefined;
+      }
+      const out: ArticleExtractRow = { storyId: row.story_id, status: row.status };
+      const sourceKind = row.source_kind ?? undefined;
+      if (sourceKind !== undefined) {
+        out.sourceKind = sourceKind;
+      }
+      const charCount = row.char_count ?? undefined;
+      if (charCount !== undefined) {
+        out.charCount = charCount;
+      }
+      const rawArticleRef = row.raw_article_ref ?? undefined;
+      if (rawArticleRef !== undefined) {
+        out.rawArticleRef = rawArticleRef;
+      }
+      const fetchedAt = row.fetched_at ?? undefined;
+      if (fetchedAt !== undefined) {
+        out.fetchedAt = fetchedAt;
+      }
+      return out;
     },
 
     async upsertRawBlob(row: RawBlobRow): Promise<void> {

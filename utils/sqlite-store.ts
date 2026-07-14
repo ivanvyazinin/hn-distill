@@ -39,7 +39,17 @@ export function createSqliteStore(dbPath: string): MetaStore {
         if (applied) {
           continue;
         }
-        db.exec(await readFile(resolve(migrationDir, migration.name), "utf8"));
+        try {
+          db.exec(await readFile(resolve(migrationDir, migration.name), "utf8"));
+        } catch (error) {
+          // A fresh DB gets the latest columns straight from schema.sql, so an
+          // additive `ALTER TABLE ... ADD COLUMN` migration is a no-op here and
+          // SQLite reports a duplicate column. That is the intended end state —
+          // record the migration as applied and continue. Re-throw anything else.
+          if (!/duplicate column name/iu.test(String(error))) {
+            throw error;
+          }
+        }
         db.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (?, datetime('now'))").run(
           version
         );
@@ -99,15 +109,54 @@ export function createSqliteStore(dbPath: string): MetaStore {
 
     async upsertArticleExtract(row: ArticleExtractRow): Promise<void> {
       db.prepare(
-        "INSERT INTO article_extracts (story_id, status, char_count, raw_article_ref, fetched_at) VALUES (?, ?, ?, ?, ?) " +
-          "ON CONFLICT(story_id) DO UPDATE SET status=excluded.status, char_count=excluded.char_count, raw_article_ref=excluded.raw_article_ref, fetched_at=excluded.fetched_at"
+        "INSERT INTO article_extracts (story_id, status, source_kind, char_count, raw_article_ref, fetched_at) VALUES (?, ?, ?, ?, ?, ?) " +
+          "ON CONFLICT(story_id) DO UPDATE SET status=excluded.status, source_kind=excluded.source_kind, char_count=excluded.char_count, raw_article_ref=excluded.raw_article_ref, fetched_at=excluded.fetched_at"
       ).run(
         row.storyId,
         row.status,
+        row.sourceKind ?? null,
         row.charCount ?? null,
         row.rawArticleRef ?? null,
         row.fetchedAt ?? null
       );
+    },
+
+    async getArticleExtract(storyId: number): Promise<ArticleExtractRow | undefined> {
+      const row = db
+        .prepare(
+          "SELECT story_id, status, source_kind, char_count, raw_article_ref, fetched_at FROM article_extracts WHERE story_id = ?"
+        )
+        .get(storyId) as
+        | {
+            story_id: number;
+            status: string;
+            source_kind: string | null;
+            char_count: number | null;
+            raw_article_ref: string | null;
+            fetched_at: string | null;
+          }
+        | undefined;
+      if (row === undefined) {
+        return undefined;
+      }
+      const out: ArticleExtractRow = { storyId: row.story_id, status: row.status };
+      const sourceKind = row.source_kind ?? undefined;
+      if (sourceKind !== undefined) {
+        out.sourceKind = sourceKind;
+      }
+      const charCount = row.char_count ?? undefined;
+      if (charCount !== undefined) {
+        out.charCount = charCount;
+      }
+      const rawArticleRef = row.raw_article_ref ?? undefined;
+      if (rawArticleRef !== undefined) {
+        out.rawArticleRef = rawArticleRef;
+      }
+      const fetchedAt = row.fetched_at ?? undefined;
+      if (fetchedAt !== undefined) {
+        out.fetchedAt = fetchedAt;
+      }
+      return out;
     },
 
     async upsertRawBlob(row: RawBlobRow): Promise<void> {

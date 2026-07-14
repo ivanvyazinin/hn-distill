@@ -23,9 +23,9 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
       const services = {
         http,
         openrouter: {} as Parameters<typeof getOrFetchArticleMarkdown>[0]["openrouter"],
-        fetchArticleMarkdown: async (url: string): Promise<string> => {
+        fetchArticleMarkdown: async (url: string) => {
           const html = await http.text(url);
-          return htmlToMd(html);
+          return { md: htmlToMd(html), sourceKind: "html" as const };
         },
       } as Parameters<typeof getOrFetchArticleMarkdown>[0];
 
@@ -57,9 +57,9 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
       const services = {
         http,
         openrouter: {} as Parameters<typeof getOrFetchArticleMarkdown>[0]["openrouter"],
-        fetchArticleMarkdown: async (url: string): Promise<string> => {
+        fetchArticleMarkdown: async (url: string) => {
           const html = await http.text(url);
-          return htmlToMd(html);
+          return { md: htmlToMd(html), sourceKind: "html" as const };
         },
       } as Parameters<typeof getOrFetchArticleMarkdown>[0];
 
@@ -86,9 +86,9 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
       const services = {
         http,
         openrouter: {} as Parameters<typeof getOrFetchArticleMarkdown>[0]["openrouter"],
-        fetchArticleMarkdown: async (url: string): Promise<string> => {
+        fetchArticleMarkdown: async (url: string) => {
           const html = await http.text(url);
-          return htmlToMd(html);
+          return { md: htmlToMd(html), sourceKind: "html" as const };
         },
       } as Parameters<typeof getOrFetchArticleMarkdown>[0];
 

@@ -1,4 +1,4 @@
-import { env, type Env } from "@config/env";
+import { env, EXTRACT_POLICY_VERSION, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
   CommentsSummarySchema,
@@ -13,8 +13,9 @@ import {
   type PostSummary,
 } from "@config/schemas";
 import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
+import { assessExtractQuality } from "@utils/extract-quality";
 import { sha256Hex } from "@utils/hash";
-import { htmlToMd } from "@utils/html-to-md";
+import { extractArticleMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
 import type { MetaStore } from "@utils/meta-store";
@@ -37,12 +38,17 @@ import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube
 import type { PdfToTextOptions } from "@utils/pdf";
 import type { z } from "zod";
 
+/** How a story's article content was fetched/parsed. Only "html" is subject to the garbage detector. */
+export type ArticleSourceKind = "empty" | "html" | "pdf" | "text" | "youtube";
+
+export type FetchedArticle = { md: string; sourceKind: ArticleSourceKind };
+
 export type Services = {
   http: HttpClient;
   openrouter: OpenRouter;
   /** Client for structured-JSON calls (tags + post-guard). Groq when GROQ_API_KEY is set, else same as openrouter. */
   guardTagsClient: OpenRouter;
-  fetchArticleMarkdown: (url: string) => Promise<string>;
+  fetchArticleMarkdown: (url: string) => Promise<FetchedArticle>;
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
 };
 
@@ -69,10 +75,10 @@ export function makeServices(
       ? new OpenRouter(http, e.GROQ_API_KEY, e.TAGS_MODEL, e.GROQ_BASE_URL)
       : openrouter;
 
-  async function fetchArticleMarkdown(url: string): Promise<string> {
+  async function fetchArticleMarkdown(url: string): Promise<FetchedArticle> {
     const youtubeText = await tryFetchYouTubeContent(url);
     if (youtubeText) {
-      return youtubeText;
+      return { md: youtubeText, sourceKind: "youtube" };
     }
 
     const { data, contentType } = await http.bytes(url);
@@ -106,13 +112,13 @@ export function makeServices(
     return undefined;
   }
 
-  async function parseFetchedContent(url: string, data: Uint8Array, contentType?: string): Promise<string> {
+  async function parseFetchedContent(url: string, data: Uint8Array, contentType?: string): Promise<FetchedArticle> {
     const head = data.subarray(0, 8);
     if (looksLikePdf({ url, contentType, bytesHead: head })) {
       log.info(LOG_NAMESPACE_ARTICLE, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
       if (!options?.pdfToText) {
         log.warn(LOG_NAMESPACE_ARTICLE, "PDF parsing disabled; skipping", { url, contentType });
-        return "";
+        return { md: "", sourceKind: "pdf" };
       }
       try {
         const text = await options.pdfToText(data, {
@@ -120,24 +126,26 @@ export function makeServices(
           softMaxBytes: e.PDF_MAX_BYTES,
         });
         log.debug(LOG_NAMESPACE_ARTICLE, "PDF parsed successfully", { url, textLength: text.length });
-        return text;
+        return { md: text, sourceKind: "pdf" };
       } catch (error) {
         log.error(LOG_NAMESPACE_ARTICLE, "PDF parse failed", { url, error: String(error) });
-        return "";
+        return { md: "", sourceKind: "pdf" };
       }
     }
     if (looksLikeHtml(contentType)) {
       log.debug(LOG_NAMESPACE_ARTICLE, "Processing HTML content", { url, contentType });
       const html = decodeText(data, contentType);
-      return htmlToMd(html);
+      // Readability-extract the article before turndown; the extract-quality
+      // detector (HTML-only, in getOrFetchArticleMarkdown) judges the result.
+      return { md: extractArticleMd(html, url), sourceKind: "html" };
     }
     log.debug(LOG_NAMESPACE_ARTICLE, "Processing as plain text", { url, contentType });
     try {
       const text = decodeText(data, contentType);
-      return text.trim();
+      return { md: text.trim(), sourceKind: "text" };
     } catch (error) {
       log.warn(LOG_NAMESPACE_ARTICLE, "Text decode failed", { url, contentType, error: String(error) });
-      return "";
+      return { md: "", sourceKind: "text" };
     }
   }
 
@@ -384,6 +392,15 @@ async function hashString(s: string): Promise<string> {
   return await sha256Hex(s);
 }
 
+/**
+ * Input hash for a post summary. Includes EXTRACT_POLICY_VERSION so bumping the
+ * extraction/slicing policy invalidates every cached post summary. Must stay
+ * identical between processPostSummary and computePostChanged (reselection).
+ */
+async function postInputHash(lang: string, articleSlice: string): Promise<string> {
+  return await hashString(`${lang}|${EXTRACT_POLICY_VERSION}|${articleSlice}`);
+}
+
 function buildPostSystemInstruction(strict?: boolean): string {
   const isStrict = strict === true;
   if (env.SUMMARY_LANG === "en") {
@@ -459,8 +476,21 @@ export async function buildPostPrompt(story: NormalizedStory, articleMd?: string
     log.warn(LOG_NAMESPACE_POST, "No article content – skipping post prompt", { id: story.id });
     return "";
   }
-  const articleSlice = content.slice(0, env.ARTICLE_SLICE_CHARS);
-  log.debug(LOG_NAMESPACE_POST, "Built post prompt", { id: story.id, promptChars: articleSlice.length });
+  const { ARTICLE_SLICE_CHARS, ARTICLE_HEAD_CHARS } = env;
+  if (content.length <= ARTICLE_SLICE_CHARS) {
+    log.debug(LOG_NAMESPACE_POST, "Built post prompt", { id: story.id, promptChars: content.length });
+    return content;
+  }
+  // Long article: keep the head plus a tail so conclusions survive the slice.
+  const tailChars = Math.max(0, ARTICLE_SLICE_CHARS - ARTICLE_HEAD_CHARS);
+  const head = content.slice(0, ARTICLE_HEAD_CHARS);
+  const articleSlice = tailChars === 0 ? head : `${head}\n\n[…]\n\n${content.slice(content.length - tailChars)}`;
+  log.debug(LOG_NAMESPACE_POST, "Built post prompt (head+tail)", {
+    id: story.id,
+    promptChars: articleSlice.length,
+    headChars: head.length,
+    tailChars,
+  });
   return articleSlice;
 }
 
@@ -835,56 +865,87 @@ export async function summarizeComments(
   };
 }
 
+/**
+ * Extract status persisted on the article_extract record:
+ * - "ok": usable content (or a non-HTML source that bypasses the detector)
+ * - "no-article": HTML extract judged to be nav/boilerplate/link-farm
+ * `undefined` means unknown (no meta store, or a cache hit with no record).
+ */
+export type ArticleFetchResult = { md?: string; extractStatus?: string };
+
 export async function getOrFetchArticleMarkdown(
   services: Services,
   story: NormalizedStory,
   store: ObjectStore,
   meta?: MetaStore
-): Promise<string | undefined> {
+): Promise<ArticleFetchResult> {
   if (!story.url) {
     log.warn(LOG_NAMESPACE_ARTICLE, "Story has no URL; cannot fetch article", { id: story.id });
-    return undefined;
+    return {};
   }
   const path = pathFor.articleMd(story.id);
   const cached = await store.getText(path);
   if (cached?.trim()) {
     log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
-    return cached;
+    // Reuse the persisted verdict; do not re-run the detector on kind-less cached md.
+    const extract = meta ? await meta.getArticleExtract(story.id) : undefined;
+    const extractStatus = extract?.status ?? undefined;
+    return { md: cached, ...(extractStatus === undefined ? {} : { extractStatus }) };
   }
   try {
     log.info(LOG_NAMESPACE_ARTICLE, "Fetching article and processing content", { id: story.id, url: story.url });
-    const md = await services.fetchArticleMarkdown(story.url);
+    const { md, sourceKind } = await services.fetchArticleMarkdown(story.url);
     const text = md.trim();
     if (!text) {
       log.warn(LOG_NAMESPACE_ARTICLE, "Fetched content is empty", { id: story.id, url: story.url });
-      return undefined;
+      return {};
+    }
+    // HTML-only garbage detection. Lists/short lines are legitimate in PDFs,
+    // transcripts, READMEs and plaintext, so those bypass the detector.
+    let extractStatus = "ok";
+    if (sourceKind === "html") {
+      const quality = assessExtractQuality(text, {
+        minProseChars: env.EXTRACT_MIN_PROSE_CHARS,
+        maxLinkDensity: env.EXTRACT_MAX_LINK_DENSITY,
+        maxDupRatio: env.EXTRACT_MAX_DUP_RATIO,
+      });
+      if (quality.verdict === "no-article") {
+        extractStatus = "no-article";
+        log.warn(LOG_NAMESPACE_ARTICLE, "Extract flagged as no-article", {
+          id: story.id,
+          url: story.url,
+          ...quality.metrics,
+        });
+      }
     }
     await store.putText(path, text, { contentType: "text/markdown" });
     if (meta) {
+      const fetchedAt = new Date().toISOString();
       await meta.upsertRawBlob({
         storyId: story.id,
         kind: "article",
         ref: path,
         sizeBytes: text.length,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt,
       });
       await meta.upsertArticleExtract({
         storyId: story.id,
-        status: "ok",
+        status: extractStatus,
+        sourceKind,
         charCount: text.length,
         rawArticleRef: path,
-        fetchedAt: new Date().toISOString(),
+        fetchedAt,
       });
     }
-    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", { id: story.id, path });
-    return text;
+    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", { id: story.id, path, extractStatus });
+    return { md: text, extractStatus };
   } catch (error) {
     log.error(LOG_NAMESPACE_ARTICLE, "Failed to fetch content", {
       id: story.id,
       url: story.url,
       error: String(error),
     });
-    return undefined;
+    return {};
   }
 }
 
@@ -912,12 +973,39 @@ async function processPostSummary(
     return;
   }
 
-  const articleMd = await getOrFetchArticleMarkdown(services, story, store, meta);
+  const { md: articleMd, extractStatus } = await getOrFetchArticleMarkdown(services, story, store, meta);
   const postArticleSlice = await buildPostPrompt(story, articleMd);
-  const postInputHash = await hashString(`${env.SUMMARY_LANG}|${postArticleSlice}`);
+  const inputHash = await postInputHash(env.SUMMARY_LANG, postArticleSlice);
 
-  if (existingPostSummary?.inputHash === postInputHash) {
+  if (existingPostSummary?.inputHash === inputHash) {
     log.debug(LOG_NAMESPACE_POST, "Post summary up-to-date; skipping", { id: story.id });
+    return;
+  }
+
+  if (extractStatus === "no-article") {
+    // Garbage extract (nav/boilerplate/link farm). Do not burn LLM quota on the
+    // multi-attempt + fallback-model chain; retire any stale published summary
+    // (both aggregators drop empty post summaries) and keep only the comments summary.
+    const now = new Date().toISOString();
+    const stub: PostSummary = {
+      id: story.id,
+      lang: env.SUMMARY_LANG,
+      summary: "",
+      degraded: "no-article",
+      inputHash,
+      createdISO: now,
+    };
+    await store.putJson(postPath, stub, { pretty: true, contentType: "application/json" });
+    if (meta) {
+      await meta.upsertSummary({
+        storyId: story.id,
+        kind: "post",
+        lang: stub.lang,
+        summary: "",
+        createdAt: now,
+      });
+    }
+    log.warn(LOG_NAMESPACE_POST, "Post degraded (no-article); skipped LLM", { id: story.id });
     return;
   }
 
@@ -943,7 +1031,7 @@ async function processPostSummary(
       id: story.id,
       lang: env.SUMMARY_LANG,
       summary: validated.summary,
-      inputHash: postInputHash,
+      inputHash,
       model: validated.modelUsed,
       createdISO: new Date().toISOString(),
       ...(guardPersisted ? { guard: guardPersisted } : {}),
@@ -1384,7 +1472,7 @@ async function computePostChanged(
     return false;
   }
   const slice = await buildPostPrompt(story, cachedMd);
-  const hash = await hashString(`${config.summaryLang}|${slice}`);
+  const hash = await postInputHash(config.summaryLang, slice);
   return existingPost.inputHash !== hash;
 }
 

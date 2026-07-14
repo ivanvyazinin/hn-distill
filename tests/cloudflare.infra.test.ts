@@ -208,6 +208,45 @@ describe("cloudflare infra", () => {
     }
   });
 
+  test("worker reselects a story after the backfill resets post_status", async () => {
+    const mf = new Miniflare({ modules: true, script: MINIFLARE_SCRIPT, d1Databases: ["DB"] });
+    try {
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+
+      const nowISO = new Date().toISOString();
+      const olderISO = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const cutoffISO = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const story: NormalizedStory = {
+        id: 2001,
+        title: "Degraded story",
+        url: "https://example.com/degraded",
+        by: "carol",
+        timeISO: nowISO,
+        commentIds: [],
+        score: 20,
+        descendants: 0,
+      };
+      await upsertStory(db, story, 0, nowISO);
+      // Fully processed (post_status='ok') -> excluded from the pending set.
+      await upsertProcessingState(db, story.id, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        updatedAt: olderISO,
+        error: null,
+      });
+      expect(await listPendingStoryIds(db, 10, cutoffISO, nowISO)).toEqual([]);
+
+      // The backfill's D1 step: reset post_status so the worker reselects it.
+      await db.prepare("UPDATE processing_state SET post_status = 'missing' WHERE story_id = ?").bind(story.id).run();
+
+      expect(await listPendingStoryIds(db, 10, cutoffISO, nowISO)).toEqual([story.id]);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
   test("pages schedule spreads 500 monthly across days", () => {
     const d1 = new Date(Date.UTC(2026, 1, 1, 0, 0, 0));
     const d2 = new Date(Date.UTC(2026, 1, 24, 0, 0, 0));

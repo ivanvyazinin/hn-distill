@@ -36,9 +36,13 @@ export function makeServices(e: Env): Services {
   return makeServicesCore(e, { pdfToText });
 }
 
-export async function getOrFetchArticleMarkdown(services: Services, story: NormalizedStory) {
+export async function getOrFetchArticleMarkdown(
+  services: Services,
+  story: NormalizedStory
+): Promise<string | undefined> {
   const store = createFsStore();
-  return await getOrFetchArticleMarkdownCore(services, story, store);
+  const { md } = await getOrFetchArticleMarkdownCore(services, story, store);
+  return md;
 }
 
 export async function processSingleStory(services: Services, id: number): Promise<void> {
