@@ -18,7 +18,7 @@ import type {
   TelegramLedgerSnapshot,
 } from "@utils/meta-store";
 
-export function createSqliteStore(dbPath: string): MetaStore {
+export function createSqliteStore(dbPath: string): MetaStore & { close: () => void } {
   const db = new DatabaseSync(dbPath);
   db.exec("PRAGMA journal_mode = WAL;");
 
@@ -54,6 +54,10 @@ export function createSqliteStore(dbPath: string): MetaStore {
           version
         );
       }
+    },
+
+    close(): void {
+      db.close();
     },
 
     async upsertStory(story: NormalizedStory, rank: number, fetchedISO: string): Promise<void> {

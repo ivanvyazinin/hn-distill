@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
+import { env } from "../config/env";
 import type { ArticleExtractRow, MetaStore, SummaryRow } from "../utils/meta-store";
 import type { ChatMessage } from "../utils/openrouter";
 import { comment as makeComment, mockPaths, story as makeStory, withEnvPatch, withTempDir } from "./helpers";
@@ -16,6 +17,11 @@ Practice again
 - [LinkedIn](https://linkedin.com)
 
 [Privacy](/privacy) [Terms](/terms)`;
+
+const VALID_POST_SUMMARY =
+  "The project replaces a fragile polling loop with a durable queue that can recover work after restarts. " +
+  "The migration adds bounded retries, per-job tracing, and idempotent handlers so duplicate delivery remains safe. " +
+  "Early production results show lower peak latency and no dropped jobs during the busiest traffic windows.";
 
 type Recorder = {
   chatCalls: ChatMessage[][];
@@ -192,6 +198,156 @@ describe("degraded no-article lifecycle", () => {
       const post = await store.getJson<{ summary: string; degraded?: string }>(pathFor.postSummary(id));
       expect(post?.summary).toBe("");
       expect(post?.degraded).toBe("no-article");
+    });
+  });
+
+  test("threshold change no-article -> ok replaces the stub and preserves extract fetchedAt", async () => {
+    await withTempDir(async (base) => {
+      const { PATHS, pathFor } = mockPaths(base);
+      const { processSingleStory, summarizeWorkflow } = await import("../pipeline/summarize");
+      const { createFsStore } = await import("../utils/fs-store");
+
+      const store = createFsStore();
+      const id = 223;
+      const fetchedAt = "2026-01-02T03:04:05.000Z";
+      await store.putJson(pathFor.rawItem(id), makeStory({ id, url: "https://example.com/policy-up", commentIds: [] }));
+      await store.putJson(pathFor.rawComments(id), []);
+      await store.putText(pathFor.articleMd(id), GARBAGE_HTML_MD);
+      await store.putJson(PATHS.index, { updatedISO: new Date().toISOString(), storyIds: [id] });
+
+      const rec = makeRecorder();
+      rec.extractById.set(id, {
+        storyId: id,
+        status: "no-article",
+        sourceKind: "html",
+        fetchedAt,
+      });
+      const services = {
+        http: {} as never,
+        openrouter: {
+          chat: async (messages: ChatMessage[]) => {
+            rec.chatCalls.push(messages);
+            return VALID_POST_SUMMARY;
+          },
+          chatStructured: async () => "{}",
+        } as never,
+        guardTagsClient: {} as never,
+        fetchArticleMarkdown: async () => {
+          throw new Error("cached extract must not be fetched again");
+        },
+      } as never;
+      const meta = makeMeta(rec);
+
+      await withEnvPatch(
+        { TAGS_MAX_PER_STORY: 0, SUMMARY_LANG: "en", POST_GUARD_ENABLE: false },
+        async () => {
+          await processSingleStory(services, id, store, meta);
+        }
+      );
+      const stub = await store.getJson<{ inputHash?: string; degraded?: string }>(pathFor.postSummary(id));
+      expect(stub?.degraded).toBe("no-article");
+
+      await withEnvPatch(
+        {
+          TAGS_MAX_PER_STORY: 0,
+          SUMMARY_LANG: "en",
+          POST_GUARD_ENABLE: false,
+          OPENROUTER_API_KEY: "test-key",
+          EXTRACT_MIN_PROSE_CHARS: 0,
+          EXTRACT_MAX_LINK_DENSITY: 1,
+          EXTRACT_MAX_DUP_RATIO: 1,
+        },
+        async () => {
+          // Exercise workflow pre-selection too: computePostChanged must use the
+          // same detector-policy fingerprint as processPostSummary.
+          await summarizeWorkflow(services, env, store, meta);
+        }
+      );
+
+      expect(rec.chatCalls.length).toBe(1);
+      const post = await store.getJson<{ inputHash?: string; summary?: string; degraded?: string }>(
+        pathFor.postSummary(id)
+      );
+      expect(post?.summary).toBe(VALID_POST_SUMMARY);
+      expect(post?.degraded).toBeUndefined();
+      expect(post?.inputHash).not.toBe(stub?.inputHash);
+      expect(rec.summaries.at(-1)?.summary).toBe(VALID_POST_SUMMARY);
+      expect(rec.extractById.get(id)?.status).toBe("ok");
+      expect(rec.extractById.get(id)?.fetchedAt).toBe(fetchedAt);
+    });
+  });
+
+  test("threshold change ok -> no-article replaces the summary with an empty degraded upsert", async () => {
+    await withTempDir(async (base) => {
+      const { PATHS, pathFor } = mockPaths(base);
+      const { processSingleStory, summarizeWorkflow } = await import("../pipeline/summarize");
+      const { createFsStore } = await import("../utils/fs-store");
+
+      const store = createFsStore();
+      const id = 224;
+      const fetchedAt = "2026-02-03T04:05:06.000Z";
+      await store.putJson(pathFor.rawItem(id), makeStory({ id, url: "https://example.com/policy-down", commentIds: [] }));
+      await store.putJson(pathFor.rawComments(id), []);
+      await store.putText(pathFor.articleMd(id), GARBAGE_HTML_MD);
+      await store.putJson(PATHS.index, { updatedISO: new Date().toISOString(), storyIds: [id] });
+
+      const rec = makeRecorder();
+      rec.extractById.set(id, { storyId: id, status: "ok", sourceKind: "html", fetchedAt });
+      const services = {
+        http: {} as never,
+        openrouter: {
+          chat: async (messages: ChatMessage[]) => {
+            rec.chatCalls.push(messages);
+            return VALID_POST_SUMMARY;
+          },
+          chatStructured: async () => "{}",
+        } as never,
+        guardTagsClient: {} as never,
+        fetchArticleMarkdown: async () => {
+          throw new Error("cached extract must not be fetched again");
+        },
+      } as never;
+      const meta = makeMeta(rec);
+
+      await withEnvPatch(
+        {
+          TAGS_MAX_PER_STORY: 0,
+          SUMMARY_LANG: "en",
+          POST_GUARD_ENABLE: false,
+          EXTRACT_MIN_PROSE_CHARS: 0,
+          EXTRACT_MAX_LINK_DENSITY: 1,
+          EXTRACT_MAX_DUP_RATIO: 1,
+        },
+        async () => {
+          await processSingleStory(services, id, store, meta);
+        }
+      );
+      const original = await store.getJson<{ inputHash?: string; summary?: string }>(pathFor.postSummary(id));
+      expect(original?.summary).toBe(VALID_POST_SUMMARY);
+
+      await withEnvPatch(
+        {
+          TAGS_MAX_PER_STORY: 0,
+          SUMMARY_LANG: "en",
+          POST_GUARD_ENABLE: false,
+          OPENROUTER_API_KEY: "test-key",
+        },
+        async () => {
+          await summarizeWorkflow(services, env, store, meta);
+        }
+      );
+
+      expect(rec.chatCalls.length).toBe(1);
+      const post = await store.getJson<{ inputHash?: string; summary?: string; degraded?: string }>(
+        pathFor.postSummary(id)
+      );
+      expect(post?.summary).toBe("");
+      expect(post?.degraded).toBe("no-article");
+      expect(post?.inputHash).not.toBe(original?.inputHash);
+      expect(rec.summaries.at(-1)?.kind).toBe("post");
+      expect(rec.summaries.at(-1)?.summary).toBe("");
+      expect(rec.extractById.get(id)?.status).toBe("no-article");
+      expect(rec.extractById.get(id)?.fetchedAt).toBe(fetchedAt);
     });
   });
 

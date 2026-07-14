@@ -4,7 +4,10 @@ import { existsSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import { ensureDir, writeTextFile } from "../utils/fs.ts";
 import { htmlToMd } from "../utils/html-to-md";
+import type { LocalMetaStore } from "../utils/meta-runtime";
 import { makeMockHttp, story as makeStory, mockPaths, withTempDir } from "./helpers";
+
+const noop = async (): Promise<void> => {};
 
 describe("summarize.getOrFetchArticleMarkdown", () => {
   test("fetches, converts, caches and avoids refetch", async () => {
@@ -42,7 +45,7 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
     });
   });
 
-  test("returns cached content without HTTP hit if file exists", async () => {
+  test("wrapper opens local metadata and re-fetches a legacy cache without sourceKind", async () => {
     await withTempDir(async (base) => {
       const { pathFor } = mockPaths(base);
       const { getOrFetchArticleMarkdown } = await import("../scripts/summarize.mts");
@@ -52,7 +55,10 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
       await ensureDir(dirname(path));
       await writeTextFile(path, "# Pre-cached");
 
-      const mockResult = makeMockHttp({ "/^https:\\/\\/example\\.com\\/cached\\/?$/u": "" });
+      const mockResult = makeMockHttp({
+        "/^https:\\/\\/example\\.com\\/cached\\/?$/u":
+          "<h1>Fresh article</h1><p>The newly extracted body replaces the legacy whole-page cache.</p>",
+      });
       const { http } = mockResult;
       const services = {
         http,
@@ -63,10 +69,28 @@ describe("summarize.getOrFetchArticleMarkdown", () => {
         },
       } as Parameters<typeof getOrFetchArticleMarkdown>[0];
 
-      const md = await getOrFetchArticleMarkdown(services, s);
+      let openCalls = 0;
+      let closed = false;
+      const meta = {
+        migrate: noop,
+        close: () => {
+          closed = true;
+        },
+        getArticleExtract: async () => {},
+        upsertArticleExtract: noop,
+        upsertRawBlob: noop,
+      } as unknown as LocalMetaStore;
+      const md = await getOrFetchArticleMarkdown(services, s, {
+        openMetaStore: async () => {
+          openCalls += 1;
+          return meta;
+        },
+      });
 
-      expect(mockResult.calls).toBe(0);
-      expect(md).toBe("# Pre-cached");
+      expect(openCalls).toBe(1);
+      expect(closed).toBe(true);
+      expect(mockResult.calls).toBe(1);
+      expect(md).toContain("# Fresh article");
 
       rmSync(path, { force: true });
     });

@@ -392,13 +392,27 @@ async function hashString(s: string): Promise<string> {
   return await sha256Hex(s);
 }
 
+type ExtractDetectorPolicy = Pick<
+  Env,
+  "EXTRACT_MAX_DUP_RATIO" | "EXTRACT_MAX_LINK_DENSITY" | "EXTRACT_MIN_PROSE_CHARS"
+>;
+
 /**
- * Input hash for a post summary. Includes EXTRACT_POLICY_VERSION so bumping the
- * extraction/slicing policy invalidates every cached post summary. Must stay
- * identical between processPostSummary and computePostChanged (reselection).
+ * Input hash for a post summary. Includes both the code policy version and the
+ * runtime detector thresholds: changing a verdict must also replace the current
+ * summary/stub. Keep the inputs identical in processing and pre-selection.
  */
-async function postInputHash(lang: string, articleSlice: string): Promise<string> {
-  return await hashString(`${lang}|${EXTRACT_POLICY_VERSION}|${articleSlice}`);
+async function postInputHash(
+  lang: string,
+  articleSlice: string,
+  detectorPolicy: ExtractDetectorPolicy
+): Promise<string> {
+  const detectorFingerprint = [
+    detectorPolicy.EXTRACT_MIN_PROSE_CHARS,
+    detectorPolicy.EXTRACT_MAX_LINK_DENSITY,
+    detectorPolicy.EXTRACT_MAX_DUP_RATIO,
+  ].join("|");
+  return await hashString(`${lang}|${EXTRACT_POLICY_VERSION}|${detectorFingerprint}|${articleSlice}`);
 }
 
 function buildPostSystemInstruction(strict?: boolean): string {
@@ -914,7 +928,9 @@ export async function getOrFetchArticleMarkdown(
         // cached extracts without a re-fetch (a cached verdict alone would be stale).
         extractStatus = detectHtmlExtractStatus(cached);
         if (meta && extractStatus !== extract.status) {
-          await meta.upsertArticleExtract({ ...extract, status: extractStatus, fetchedAt: new Date().toISOString() });
+          // This is only a local verdict re-evaluation; the underlying bytes were
+          // not fetched again, so preserve their original fetchedAt provenance.
+          await meta.upsertArticleExtract({ ...extract, status: extractStatus });
         }
       }
       return { md: cached, ...(extractStatus === undefined ? {} : { extractStatus }) };
@@ -993,7 +1009,7 @@ async function processPostSummary(
 
   const { md: articleMd, extractStatus } = await getOrFetchArticleMarkdown(services, story, store, meta);
   const postArticleSlice = await buildPostPrompt(story, articleMd);
-  const inputHash = await postInputHash(env.SUMMARY_LANG, postArticleSlice);
+  const inputHash = await postInputHash(env.SUMMARY_LANG, postArticleSlice, env);
 
   if (existingPostSummary?.inputHash === inputHash) {
     log.debug(LOG_NAMESPACE_POST, "Post summary up-to-date; skipping", { id: story.id });
@@ -1459,6 +1475,7 @@ type CandidateSelectionConfig = {
   cooldownMs: number;
   summaryLang: string;
   postSummaryOnlyIfMissing: boolean;
+  detectorPolicy: ExtractDetectorPolicy;
 };
 
 function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: number): boolean {
@@ -1490,7 +1507,7 @@ async function computePostChanged(
     return false;
   }
   const slice = await buildPostPrompt(story, cachedMd);
-  const hash = await postInputHash(config.summaryLang, slice);
+  const hash = await postInputHash(config.summaryLang, slice, config.detectorPolicy);
   return existingPost.inputHash !== hash;
 }
 
@@ -1594,6 +1611,7 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
     cooldownMs: cooldownMins * 60_000,
     summaryLang: SUMMARY_LANG,
     postSummaryOnlyIfMissing: POST_SUMMARY_ONLY_IF_MISSING,
+    detectorPolicy: e,
   }, store);
 
   // Sort: higher priority first; then newest by timeISO desc; then id desc

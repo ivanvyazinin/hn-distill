@@ -1,7 +1,6 @@
 import { env, type Env } from "@config/env";
-import type { NormalizedStory } from "@config/schemas";
 import { createFsStore } from "@utils/fs-store";
-import { openLocalMetaStore } from "@utils/meta-runtime";
+import { openLocalMetaStore, type LocalMetaStore } from "@utils/meta-runtime";
 import { pdfToText } from "@utils/pdf";
 
 import {
@@ -20,6 +19,8 @@ import {
   type Services,
 } from "../pipeline/summarize";
 
+import type { NormalizedStory } from "@config/schemas";
+
 export type { Services } from "../pipeline/summarize";
 export {
   RateLimitError,
@@ -36,24 +37,47 @@ export function makeServices(e: Env): Services {
   return makeServicesCore(e, { pdfToText });
 }
 
-export async function getOrFetchArticleMarkdown(
-  services: Services,
-  story: NormalizedStory
-): Promise<string | undefined> {
-  const store = createFsStore();
-  const { md } = await getOrFetchArticleMarkdownCore(services, story, store);
-  return md;
+type LocalMetaOptions = {
+  /** Test seam; normal script callers always use openLocalMetaStore. */
+  openMetaStore?: () => Promise<LocalMetaStore | undefined>;
+};
+
+async function withLocalMeta<T>(
+  options: LocalMetaOptions | undefined,
+  fn: (meta?: LocalMetaStore) => Promise<T>
+): Promise<T> {
+  const meta = await (options?.openMetaStore ?? openLocalMetaStore)();
+  try {
+    return await fn(meta);
+  } finally {
+    await meta?.close();
+  }
 }
 
-export async function processSingleStory(services: Services, id: number): Promise<void> {
+export async function getOrFetchArticleMarkdown(
+  services: Services,
+  story: NormalizedStory,
+  options?: LocalMetaOptions
+): Promise<string | undefined> {
   const store = createFsStore();
-  await processSingleStoryCore(services, id, store);
+  return await withLocalMeta(options, async (meta) => {
+    const { md } = await getOrFetchArticleMarkdownCore(services, story, store, meta);
+    return md;
+  });
+}
+
+export async function processSingleStory(services: Services, id: number, options?: LocalMetaOptions): Promise<void> {
+  const store = createFsStore();
+  await withLocalMeta(options, async (meta) => {
+    await processSingleStoryCore(services, id, store, meta);
+  });
 }
 
 export async function summarizeWorkflow(services: Services, e: Env = env): Promise<void> {
   const store = createFsStore();
-  const meta = await openLocalMetaStore();
-  await summarizeWorkflowCore(services, e, store, meta ?? undefined);
+  await withLocalMeta(undefined, async (meta) => {
+    await summarizeWorkflowCore(services, e, store, meta);
+  });
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

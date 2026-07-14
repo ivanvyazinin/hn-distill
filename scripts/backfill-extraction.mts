@@ -3,14 +3,14 @@
  * OPTIONAL targeted tool for the Readability extraction change
  * (docs/product-review-summarization.md §1).
  *
- * NOTE: the bulk migration is now AUTOMATIC and you usually do NOT need this script.
+ * NOTE: the bulk migration is automatic on local workflow runs and opt-in for the
+ * worker; you usually do NOT need this script.
  * Legacy cached article Markdown (pre-Readability, whole-page turndown) is written
  * without a `sourceKind`, so getOrFetchArticleMarkdown re-fetches + re-extracts it on
  * the next run — for both FS (local) and R2 (worker). Post reselection is likewise
- * automatic via EXTRACT_POLICY_VERSION in the post inputHash. For the worker, just
- * make sure the story is re-selected (listPendingStoryIds excludes post_status='ok'):
- *   bunx wrangler d1 execute hn_distill --remote \
- *     --command "UPDATE processing_state SET post_status='missing'"
+ * automatic via EXTRACT_POLICY_VERSION in the post inputHash. For the worker, use
+ * WORKER_EXTRACTION_BACKFILL_ENABLE as documented in docs/architecture.md; resetting
+ * post_status alone does not select history outside the current TOP_N fetch.
  *
  * Use this script only to force a re-fetch of SPECIFIC stories WITHOUT bumping the
  * policy (e.g. one article changed upstream). It invalidates the cached FS article md
@@ -140,7 +140,7 @@ async function main(): Promise<void> {
       options.dryRun ? " (dry-run)" : ""
     }. ` +
       `Next 'bun run data:summarize' will re-fetch + re-extract. ` +
-      `For the D1 worker, also reset post_status via wrangler (see file header).`
+      `For the D1 worker, use the opt-in migration drain documented in docs/architecture.md.`
   );
 }
 

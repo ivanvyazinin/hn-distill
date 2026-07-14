@@ -123,6 +123,12 @@ const EnvironmentSchema = z.object({
   WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(55_000),
   WORKER_SUMMARIZE_MAX_PER_CRON: z.coerce.number().int().min(1).max(50).default(3),
   WORKER_RETRY_COOLDOWN_SECONDS: z.coerce.number().int().min(60).max(24 * 60 * 60).default(600),
+  // Opt-in migration drain. When enabled, worker cron also processes legacy
+  // article_extracts with no source_kind, independent of current TOP_N/fetchedISO.
+  WORKER_EXTRACTION_BACKFILL_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
 
   // Cloudflare Pages deploy scheduling (optional)
   PAGES_DEPLOY_HOOK_URL: z.string().optional(),
