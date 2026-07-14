@@ -207,12 +207,17 @@ async function main(): Promise<void> {
           articleId: spec.article.id,
           title: spec.article.title.slice(0, 60),
         });
-        await throttle(providerKey(spec.candidate));
         const { record: scored, summaryText } = await scoreOneRun({
           candidateClient: clientFor(spec.candidate),
           judgeClient,
           model: spec.candidate.model,
           label: spec.candidate.label,
+          ...(spec.candidate.pipeline === undefined ? {} : { pipeline: spec.candidate.pipeline }),
+          // Throttle before EVERY candidate call: the two-step pipeline makes two
+          // requests per run, and both must respect the per-provider interval.
+          beforeCandidateCall: async () => {
+            await throttle(providerKey(spec.candidate));
+          },
           article: spec.article,
           repeat: spec.repeat,
           envLike: env,

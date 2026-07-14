@@ -128,22 +128,18 @@ function rateLimitDelayMs(message: string): number | undefined {
   return Math.min(delay, CANDIDATE_RETRY_MAX_MS);
 }
 
-export async function summarizeWithModel(
+/** Chat call with retry on provider 429 (free pools saturate for seconds at a time). */
+async function chatWithRateLimitRetry(
   client: OpenRouter,
-  articleSlice: string,
+  messages: ReturnType<typeof buildPostChatMessages>,
   model: string,
-  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">
-): Promise<RunOutput> {
-  const started = Date.now();
+  maxTokens: number
+): Promise<{ content: string } | { error: string }> {
   let lastError = "unknown";
   for (let attempt = 1; attempt <= CANDIDATE_MAX_ATTEMPTS; attempt += 1) {
     try {
-      const content = await client.chat(buildPostChatMessages(articleSlice, { strict: false }), {
-        model,
-        temperature: 0.3,
-        maxTokens: envLike.BENCH_SUMMARY_MAX_TOKENS,
-      });
-      return { content: sanitizeLlmContent(content), latencyMs: Date.now() - started };
+      const content = await client.chat(messages, { model, temperature: 0.3, maxTokens });
+      return { content: sanitizeLlmContent(content) };
     } catch (error) {
       lastError = error instanceof Error ? error.message : String(error);
       const delayMs = rateLimitDelayMs(lastError);
@@ -155,7 +151,88 @@ export async function summarizeWithModel(
       await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
     }
   }
-  return { content: "", latencyMs: Date.now() - started, error: lastError };
+  return { error: lastError };
+}
+
+export async function summarizeWithModel(
+  client: OpenRouter,
+  articleSlice: string,
+  model: string,
+  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">
+): Promise<RunOutput> {
+  const started = Date.now();
+  const result = await chatWithRateLimitRetry(
+    client,
+    buildPostChatMessages(articleSlice, { strict: false }),
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS
+  );
+  if ("error" in result) {
+    return { content: "", latencyMs: Date.now() - started, error: result.error };
+  }
+  return { content: result.content, latencyMs: Date.now() - started };
+}
+
+/**
+ * Two-step EN→RU pipeline: summarize in English first (a local prompt, independent of the
+ * global SUMMARY_LANG), then have the same model translate its own summary into Russian.
+ */
+const EN_STEP_SYSTEM = [
+  "You craft tight and concise Hacker News article distillations in Markdown. In English.",
+  "Aim for roughly 170 words across two short paragraphs; add a third only if it truly helps.",
+  "Spotlight the core idea plus one or two vivid facts, quotes, or numbers readers should remember.",
+  "Skip titles, bylines, publication dates, and source attributions.",
+  "Begin directly—no headings like 'Summary:' and no closing sign-offs.",
+  "Important: mention all the key information from the article, don't lose it. Be precise and concise.",
+].join("\n");
+
+const RU_TRANSLATION_SYSTEM = [
+  "Ты профессиональный переводчик технических текстов на русский язык.",
+  "Переведи пересказ статьи на естественный русский, сохраняя Markdown-разметку и структуру абзацев.",
+  "Пиши только по-русски: латиница допустима лишь для имён собственных, названий продуктов и кода.",
+  "Не добавляй заголовков, комментариев или пояснений — выведи только перевод.",
+].join("\n");
+
+export async function summarizeTwoStepEnRu(
+  client: OpenRouter,
+  articleSlice: string,
+  model: string,
+  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">,
+  beforeCall?: () => Promise<void>
+): Promise<RunOutput> {
+  const started = Date.now();
+
+  await beforeCall?.();
+  const enStep = await chatWithRateLimitRetry(
+    client,
+    [
+      { role: "system", content: EN_STEP_SYSTEM },
+      { role: "user", content: articleSlice },
+    ],
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS
+  );
+  if ("error" in enStep) {
+    return { content: "", latencyMs: Date.now() - started, error: enStep.error };
+  }
+  if (enStep.content.trim().length === 0) {
+    return { content: "", latencyMs: Date.now() - started, error: "empty EN step output" };
+  }
+
+  await beforeCall?.();
+  const ruStep = await chatWithRateLimitRetry(
+    client,
+    [
+      { role: "system", content: RU_TRANSLATION_SYSTEM },
+      { role: "user", content: enStep.content },
+    ],
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS
+  );
+  if ("error" in ruStep) {
+    return { content: "", latencyMs: Date.now() - started, error: ruStep.error };
+  }
+  return { content: ruStep.content, latencyMs: Date.now() - started };
 }
 
 function truncateSnippet(input: string, limit: number): string {
@@ -266,13 +343,24 @@ export async function scoreOneRun(params: {
   model: string;
   /** Unique leaderboard key for this candidate (defaults to `model`). */
   label?: string;
+  /** Summary generation strategy (default "direct"). */
+  pipeline?: "direct" | "en-then-ru";
+  /** Called before EVERY candidate API call (provider throttling). */
+  beforeCandidateCall?: () => Promise<void>;
   article: BenchArticle;
   repeat: number;
   envLike: Env;
   stubJudge?: boolean;
 }): Promise<{ record: ScoredRunRecord; summaryText: string }> {
-  const { candidateClient, judgeClient, model, label, article, repeat, envLike, stubJudge } = params;
-  const run = await summarizeWithModel(candidateClient, article.articleSlice, model, envLike);
+  const { candidateClient, judgeClient, model, label, pipeline, beforeCandidateCall, article, repeat, envLike, stubJudge } =
+    params;
+  let run: RunOutput;
+  if (pipeline === "en-then-ru") {
+    run = await summarizeTwoStepEnRu(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall);
+  } else {
+    await beforeCandidateCall?.();
+    run = await summarizeWithModel(candidateClient, article.articleSlice, model, envLike);
+  }
   const heuristic = checkSummaryHeuristics(run.content || undefined, {
     minChars: envLike.POST_SUMMARY_MIN_CHARS,
     language: envLike.SUMMARY_LANG,

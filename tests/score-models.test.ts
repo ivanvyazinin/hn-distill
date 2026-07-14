@@ -4,12 +4,14 @@ import { env } from "@config/env";
 import type { HttpClient } from "@utils/http-client";
 import { OpenRouter } from "@utils/openrouter";
 
+import { selectCandidates } from "../eval/models-under-test";
 import {
   aggregate,
   JudgeVerdictSchema,
   renderLeaderboardMarkdown,
   runQualityJudge,
   scoreOneRun,
+  summarizeTwoStepEnRu,
   summarizeWithModel,
   type ScoredRunRecord,
 } from "../eval/score-models";
@@ -169,5 +171,71 @@ describe("renderLeaderboardMarkdown", () => {
     expect(md).toContain("composite");
     expect(md).toContain("`a`");
     expect(md).toContain("Lang purity");
+  });
+});
+
+describe("en-then-ru pipeline", () => {
+  test("summarizeTwoStepEnRu chains EN summary into RU translation and throttles each call", async () => {
+    const prompts: string[] = [];
+    let beforeCalls = 0;
+    const http = {
+      json: async (_url: string, init: { body?: string }) => {
+        const body = JSON.parse(init.body ?? "{}") as { messages: Array<{ role: string; content: string }> };
+        prompts.push(body.messages.map((m) => m.content).join("\n---\n"));
+        const content = prompts.length === 1 ? "English summary." : "Русский перевод.";
+        return { choices: [{ message: { content } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeTwoStepEnRu(client, "article body", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.content).toBe("Русский перевод.");
+    expect(beforeCalls).toBe(2);
+    expect(prompts.length).toBe(2);
+    expect(prompts[1]).toContain("English summary.");
+    expect(prompts[1]).toContain("переводчик");
+  });
+
+  test("scoreOneRun dispatches to the two-step pipeline", async () => {
+    let calls = 0;
+    const http = {
+      json: async () => {
+        calls += 1;
+        return { choices: [{ message: { content: calls === 1 ? "English summary." : "Русский перевод." } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const { record } = await scoreOneRun({
+      candidateClient: client,
+      judgeClient: client,
+      model: "m/test",
+      label: "m/test@en-ru",
+      pipeline: "en-then-ru",
+      article: { id: 1, title: "t", url: "u", articleSlice: "slice" },
+      repeat: 0,
+      envLike: env,
+      stubJudge: true,
+    });
+
+    expect(calls).toBe(2);
+    expect(record.model).toBe("m/test@en-ru");
+    expect(record.outputChars).toBeGreaterThan(0);
+  });
+
+  test("selectCandidates parses the @en-ru suffix", () => {
+    const [direct, twoStep] = selectCandidates([
+      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "qwen/qwen3-next-80b-a3b-instruct:free@en-ru",
+    ]);
+    expect(direct?.pipeline).toBeUndefined();
+    expect(direct?.label).toBe("qwen/qwen3-next-80b-a3b-instruct:free");
+    expect(twoStep?.pipeline).toBe("en-then-ru");
+    expect(twoStep?.label).toBe("qwen/qwen3-next-80b-a3b-instruct:free@en-ru");
+    expect(twoStep?.model).toBe("qwen/qwen3-next-80b-a3b-instruct:free");
   });
 });

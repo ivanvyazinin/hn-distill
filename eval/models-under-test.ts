@@ -25,6 +25,8 @@ export type CandidateSpec = {
   baseUrl?: string;
   /** process.env var holding the provider key. Omit → OPENROUTER_API_KEY (or none for keyless gateways). */
   apiKeyEnv?: string;
+  /** Summary generation strategy: single direct call (default) or EN summary + RU translation. */
+  pipeline?: "direct" | "en-then-ru";
 };
 
 export const MODELS_UNDER_TEST: ReadonlyArray<CandidateSpec | string> = [
@@ -74,13 +76,25 @@ export function resolveCandidates(): CandidateSpec[] {
   return out;
 }
 
+const EN_RU_SUFFIX = "@en-ru";
+
 /**
  * Resolve CLI --models names. Matches a known candidate by label or model id; an unknown
  * name is treated as a bare OpenRouter slug so ad-hoc models still work.
+ * A trailing `@en-ru` selects the two-step EN→RU pipeline for that candidate; the suffix
+ * stays in the leaderboard label to keep it distinct from the direct run.
  */
 export function selectCandidates(names: string[]): CandidateSpec[] {
   const all = resolveCandidates();
   const byLabel = new Map(all.map((c) => [c.label, c]));
   const byModel = new Map(all.map((c) => [c.model, c]));
-  return names.map((name) => byLabel.get(name) ?? byModel.get(name) ?? { label: name, model: name });
+  return names.map((name) => {
+    const twoStep = name.endsWith(EN_RU_SUFFIX);
+    const bare = twoStep ? name.slice(0, -EN_RU_SUFFIX.length) : name;
+    const base = byLabel.get(bare) ?? byModel.get(bare) ?? { label: bare, model: bare };
+    if (!twoStep) {
+      return base;
+    }
+    return { ...base, label: `${base.label}${EN_RU_SUFFIX}`, pipeline: "en-then-ru" };
+  });
 }
