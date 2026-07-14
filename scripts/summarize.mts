@@ -12,6 +12,7 @@ import {
   getOrFetchArticleMarkdown as getOrFetchArticleMarkdownCore,
   preserveMarkdownWhitespace,
   processSingleStory as processSingleStoryCore,
+  generateValidatedCommentsSummary,
   summarizeComments,
   summarizePost,
   summarizeWorkflow as summarizeWorkflowCore,
@@ -29,6 +30,7 @@ export {
   buildPostPrompt,
   generateValidatedPostSummary,
   preserveMarkdownWhitespace,
+  generateValidatedCommentsSummary,
   summarizeComments,
   summarizePost,
 };

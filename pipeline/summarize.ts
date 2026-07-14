@@ -856,13 +856,14 @@ export async function summarizeComments(
   services: Services,
   storyId: number,
   prompt: string,
-  sampleIds: number[] = []
+  sampleIds: number[] = [],
+  options: { models?: string[]; context?: LlmLogContext } = {}
 ): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
   const messages: ChatMessage[] = [
     { role: "system", content: buildCommentsSystemInstruction() },
     { role: "user", content: prompt },
   ];
-  const { content, modelUsed } = await callLLMWithMessages(services, messages);
+  const { content, modelUsed } = await callLLMWithMessages(services, messages, options.context ?? {}, options.models);
   return {
     id: storyId,
     lang: env.SUMMARY_LANG,
@@ -870,6 +871,63 @@ export async function summarizeComments(
     sampleComments: sampleIds,
     model: modelUsed,
   };
+}
+
+/**
+ * Comments summary with content validation and a single escalated retry.
+ * The first call keeps the default model chain untouched; on a heuristics reject
+ * (language gate, refusal, artifacts, ...) one retry runs, starting from
+ * SUMMARY_CONTENT_REJECT_MODEL when configured. A summary is never dropped:
+ * if the retry is also rejected (or errors), the best available text is kept.
+ */
+export async function generateValidatedCommentsSummary(
+  services: Services,
+  storyId: number,
+  prompt: string,
+  sampleIds: number[] = []
+): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
+  const checkOptions = {
+    minChars: env.POST_SUMMARY_MIN_CHARS,
+    language: env.SUMMARY_LANG,
+    kind: "comments" as const,
+    languageGate: languageGateFromEnv(env),
+  };
+
+  const first = await summarizeComments(services, storyId, prompt, sampleIds);
+  const firstCheck = checkSummaryHeuristics(first.summary, checkOptions);
+  if (firstCheck.ok) {
+    return first;
+  }
+
+  log.warn(LOG_NAMESPACE_COMMENTS, "Comments heuristic check failed; retrying with escalation", {
+    id: storyId,
+    triggers: firstCheck.triggers,
+  });
+
+  const escalationModel = env.SUMMARY_CONTENT_REJECT_MODEL.trim();
+  const models = escalationModel.length > 0 ? [escalationModel, env.OPENROUTER_FALLBACK_MODEL] : undefined;
+  let retry: Awaited<ReturnType<typeof summarizeComments>>;
+  try {
+    retry = await summarizeComments(services, storyId, prompt, sampleIds, {
+      ...(models === undefined ? {} : { models }),
+      context: { attempt: "comments-retry" },
+    });
+  } catch (error) {
+    log.error(LOG_NAMESPACE_COMMENTS, "Comments retry failed; keeping first summary", {
+      id: storyId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return first;
+  }
+
+  const retryCheck = checkSummaryHeuristics(retry.summary, checkOptions);
+  if (!retryCheck.ok) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments retry still flagged; keeping it anyway", {
+      id: storyId,
+      triggers: retryCheck.triggers,
+    });
+  }
+  return retry;
 }
 
 /**
@@ -1100,7 +1158,7 @@ async function processCommentsSummary(
   }
 
   if (comments.length > 0) {
-    const summaryContent = await summarizeComments(services, story.id, commentsPrompt, sampleIds);
+    const summaryContent = await generateValidatedCommentsSummary(services, story.id, commentsPrompt, sampleIds);
     const modelUsed = summaryContent.model ?? env.OPENROUTER_MODEL;
     const commentsSummary: CommentsSummary = {
       ...summaryContent,
