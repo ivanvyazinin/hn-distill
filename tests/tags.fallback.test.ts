@@ -7,18 +7,12 @@ const DEFAULT_MODEL = "default-model";
 mock.module("@config/openrouter", () => ({
   TAGS_FALLBACK_MODELS: [DEFAULT_MODEL, "fallback-model"] as const,
 }));
-mock.module("../scripts/summarize.mts", async () => {
-  const actual = await import("../scripts/summarize.mts?actual");
-  return {
-    ...actual,
-    makeServices: () => ({
-      http: {},
-      openrouter: {},
-      guardTagsClient: {},
-      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
-    }),
-  };
-});
+// NB: do NOT mock "../scripts/summarize.mts" here. The workflow runner is
+// injected via __setTagsWorkflowRunnerForTests and ignores the services, so the
+// real `makeServices` (which only constructs HTTP/LLM clients, no I/O) is safe
+// to call. Mocking summarize.mts with an async factory that re-imports itself
+// via `?actual` deadlocks bun 1.2.19 when summarize.mts is already loaded by an
+// earlier test file — an order-dependent hang that wedged CI (exit 124).
 
 describe("tags bulk fallback handling", () => {
   test("switches to a different model after rate limit", async () => {

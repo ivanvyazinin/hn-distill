@@ -64,6 +64,11 @@ const EnvironmentSchema = z.object({
   SITE: z.string().optional(),
   BASE: z.string().optional(),
 
+  // GoatCounter subdomain code (e.g. "hn-distill" → hn-distill.goatcounter.com). When set,
+  // a lightweight cookieless pageview script is injected into every page at build time.
+  // Unset (e.g. in dev) → no analytics, local visits are not counted.
+  GOATCOUNTER_CODE: z.string().optional(),
+
   // Summarization workload controls
   // Hard cap: how many stories to actually summarize per run (prioritized newest and missing/outdated first)
   SUMMARIZE_MAX_STORIES_PER_RUN: z.coerce.number().int().min(1).max(500).default(500),
