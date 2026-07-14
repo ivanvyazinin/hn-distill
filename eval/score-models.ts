@@ -32,6 +32,7 @@ export const JudgeVerdictSchema = z.object({
   completeness: z.number().min(1).max(5),
   faithfulness: z.number().min(1).max(5),
   format_adherence: z.number().min(1).max(5),
+  language_purity: z.number().min(1).max(5),
   overall: z.number().min(1).max(5),
   is_refusal: z.boolean(),
   reasons: z.array(z.string()).max(8),
@@ -64,6 +65,7 @@ export type ModelScore = {
   mean_completeness: number | undefined;
   mean_faithfulness: number | undefined;
   mean_format_adherence: number | undefined;
+  mean_language_purity: number | undefined;
   error_rate: number;
   p50_latency_ms: number;
   p95_latency_ms: number;
@@ -147,6 +149,8 @@ function buildJudgePrompt(payload: { language: string; summary: string; articleS
     "Score the candidate article summary against the excerpt using the JSON rubric.",
     "format_adherence: ~170 words, two short paragraphs, no headings like 'Summary:', no closing sign-offs, matches production style.",
     "faithfulness: penalize hallucinations and content not supported by the excerpt.",
+    "language_purity: the summary must be written entirely in the requested language (see Language:). Penalize words, phrases, or sentences from another language embedded in connected prose (e.g. English inside Russian text). Latin script is acceptable only for proper nouns, product names, quoted terms, and code.",
+    "overall: holistic quality; a summary with poor language_purity cannot receive a high overall score.",
     "Article excerpt:",
     "---",
     payload.articleSnippet,
@@ -176,11 +180,21 @@ export async function runQualityJudge(
       completeness: { type: "number", minimum: 1, maximum: 5 },
       faithfulness: { type: "number", minimum: 1, maximum: 5 },
       format_adherence: { type: "number", minimum: 1, maximum: 5 },
+      language_purity: { type: "number", minimum: 1, maximum: 5 },
       overall: { type: "number", minimum: 1, maximum: 5 },
       is_refusal: { type: "boolean" },
       reasons: { type: "array", items: { type: "string" }, maxItems: 8 },
     },
-    required: ["accuracy", "completeness", "faithfulness", "format_adherence", "overall", "is_refusal", "reasons"],
+    required: [
+      "accuracy",
+      "completeness",
+      "faithfulness",
+      "format_adherence",
+      "language_purity",
+      "overall",
+      "is_refusal",
+      "reasons",
+    ],
     additionalProperties: false,
   };
 
@@ -216,6 +230,7 @@ const STUB_JUDGE_VERDICT: JudgeVerdict = {
   completeness: 3,
   faithfulness: 3,
   format_adherence: 3,
+  language_purity: 3,
   overall: 3,
   is_refusal: false,
   reasons: ["stub_judge"],
@@ -329,6 +344,7 @@ export function aggregate(runs: ScoredRunRecord[]): ModelScore[] {
       mean_completeness: mean(judged.map((r) => r.judge.completeness)),
       mean_faithfulness: mean(judged.map((r) => r.judge.faithfulness)),
       mean_format_adherence: mean(judged.map((r) => r.judge.format_adherence)),
+      mean_language_purity: mean(judged.map((r) => r.judge.language_purity)),
       error_rate,
       p50_latency_ms: percentile(latencies, 50),
       p95_latency_ms: percentile(latencies, 95),
@@ -355,15 +371,17 @@ export function renderLeaderboardMarkdown(scores: ModelScore[], meta?: { generat
     meta?.runCount === undefined ? "" : `Runs: ${meta.runCount}`,
     "",
     "Rank uses **composite** = `mean_overall × heuristic_pass_rate` (tie-break: lower p95 latency).",
+    "The judge is instructed to fold language_purity into `overall`, so purity affects the rank; the column shows it separately.",
     "",
-    "| Rank | Model | Composite | Judge overall | Heuristic pass | Error rate | Refusal rate | p95 ms |",
-    "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Rank | Model | Composite | Judge overall | Lang purity | Heuristic pass | Error rate | Refusal rate | p95 ms |",
+    "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ].filter((line) => line !== "");
 
   for (const [i, s] of scores.entries()) {
     const overall = s.mean_overall === undefined ? "—" : s.mean_overall.toFixed(2);
+    const purity = s.mean_language_purity === undefined ? "—" : s.mean_language_purity.toFixed(2);
     lines.push(
-      `| ${i + 1} | \`${s.model}\` | ${s.composite_rank.toFixed(3)} | ${overall} | ${(s.heuristic_pass_rate * 100).toFixed(0)}% | ${(s.error_rate * 100).toFixed(0)}% | ${(s.refusal_rate * 100).toFixed(0)}% | ${Math.round(s.p95_latency_ms)} |`
+      `| ${i + 1} | \`${s.model}\` | ${s.composite_rank.toFixed(3)} | ${overall} | ${purity} | ${(s.heuristic_pass_rate * 100).toFixed(0)}% | ${(s.error_rate * 100).toFixed(0)}% | ${(s.refusal_rate * 100).toFixed(0)}% | ${Math.round(s.p95_latency_ms)} |`
     );
   }
 

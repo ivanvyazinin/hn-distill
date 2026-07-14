@@ -29,6 +29,7 @@ describe("aggregate", () => {
           completeness: 4,
           faithfulness: 5,
           format_adherence: 4,
+          language_purity: 5,
           overall: 4,
           is_refusal: false,
           reasons: [],
@@ -61,6 +62,7 @@ describe("aggregate", () => {
     expect(Math.abs((scores[0]?.mean_overall ?? 0) - 4)).toBeLessThan(0.001);
     expect(Math.abs((scores[0]?.composite_rank ?? 0) - 2)).toBeLessThan(0.001);
     expect(scores[0]?.p50_latency_ms).toBe(100);
+    expect(Math.abs((scores[0]?.mean_language_purity ?? 0) - 5)).toBeLessThan(0.001);
     expect(scores[1]?.error_rate).toBe(1);
     expect(scores[1]?.failure_histogram["candidate_error"]).toBe(1);
   });
@@ -73,6 +75,7 @@ describe("runQualityJudge", () => {
       completeness: 4,
       faithfulness: 5,
       format_adherence: 4,
+      language_purity: 5,
       overall: 4.5,
       is_refusal: false,
       reasons: ["solid"],
@@ -95,6 +98,7 @@ describe("runQualityJudge", () => {
     });
     const parsed = JudgeVerdictSchema.parse(verdict);
     expect(parsed.overall).toBe(4.5);
+    expect(parsed.language_purity).toBe(5);
   });
 });
 
@@ -152,6 +156,7 @@ describe("renderLeaderboardMarkdown", () => {
           mean_completeness: 4,
           mean_faithfulness: 4,
           mean_format_adherence: 4,
+          mean_language_purity: 5,
           error_rate: 0,
           p50_latency_ms: 10,
           p95_latency_ms: 10,
@@ -163,5 +168,6 @@ describe("renderLeaderboardMarkdown", () => {
     );
     expect(md).toContain("composite");
     expect(md).toContain("`a`");
+    expect(md).toContain("Lang purity");
   });
 });
