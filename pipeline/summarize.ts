@@ -171,6 +171,8 @@ type LlmLogContext = Record<string, unknown>;
 type SummarizePostOptions = {
   strictSystem?: boolean;
   context?: LlmLogContext;
+  /** Ordered model chain override; undefined → default primary/fallback chain. */
+  models?: string[];
 };
 
 type PostSummaryValidated = {
@@ -642,106 +644,82 @@ async function callOpenRouterAttempt(
   }
 }
 
+/** Default production chain: primary, then the two configured fallbacks. */
+function defaultModelChain(): string[] {
+  return [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2];
+}
+
 async function callOpenRouterWithRetry(
   services: Services,
   messages: ChatMessage[],
-  context: LlmLogContext
+  context: LlmLogContext,
+  models?: string[]
 ): Promise<LlmResult> {
-  const { OPENROUTER_MODEL, OPENROUTER_FALLBACK_MODEL, OPENROUTER_FALLBACK_MODEL_2 } = env;
-  let primaryFailure: LlmCallError | RateLimitError | undefined;
-  let fallbackFailure: LlmCallError | RateLimitError | undefined;
+  const chain = models === undefined || models.length === 0 ? defaultModelChain() : models;
+  const failures: Array<LlmCallError | RateLimitError> = [];
 
-  try {
-    return await callOpenRouterAttempt(services, messages, OPENROUTER_MODEL, "primary", context);
-  } catch (error) {
-    if (error instanceof RateLimitError) {
-      primaryFailure = error;
-      log.warn(LOG_NAMESPACE_LLM, "Rate limit on primary model; trying fallback", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        ...error.toLogMeta(context),
-      });
-    } else if (error instanceof LlmCallError) {
-      primaryFailure = error;
-      log.warn(LOG_NAMESPACE_LLM, "Primary model failed; trying fallback", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        ...context,
-        error: error.cause instanceof Error ? error.cause.message : error.message,
-      });
-    } else {
-      throw error;
-    }
-  }
+  for (const [index, model] of chain.entries()) {
+    const attempt = index === 0 ? "primary" : "fallback";
+    try {
+      return await callOpenRouterAttempt(services, messages, model, attempt, context);
+    } catch (error) {
+      if (!(error instanceof RateLimitError) && !(error instanceof LlmCallError)) {
+        throw error;
+      }
+      failures.push(error);
+      const nextModel = chain[index + 1];
+      if (nextModel !== undefined) {
+        if (error instanceof RateLimitError) {
+          log.warn(LOG_NAMESPACE_LLM, "Rate limit on model; trying next in chain", {
+            model,
+            next: nextModel,
+            chain,
+            ...error.toLogMeta(context),
+          });
+        } else {
+          log.warn(LOG_NAMESPACE_LLM, "Model failed; trying next in chain", {
+            model,
+            next: nextModel,
+            chain,
+            ...context,
+            error: error.cause instanceof Error ? error.cause.message : error.message,
+          });
+        }
+        continue;
+      }
 
-  try {
-    return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL, "fallback", context);
-  } catch (error) {
-    if (error instanceof RateLimitError) {
-      fallbackFailure = error;
-      log.warn(LOG_NAMESPACE_LLM, "Rate limit on first fallback; trying second fallback", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        fallback2: OPENROUTER_FALLBACK_MODEL_2,
-        ...error.toLogMeta(context),
-      });
-    } else if (error instanceof LlmCallError) {
-      fallbackFailure = error;
-      log.warn(LOG_NAMESPACE_LLM, "First fallback model failed; trying second fallback", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        fallback2: OPENROUTER_FALLBACK_MODEL_2,
-        ...context,
-        error: error.cause instanceof Error ? error.cause.message : error.message,
-      });
-    } else {
-      throw error;
-    }
-  }
-
-  try {
-    return await callOpenRouterAttempt(services, messages, OPENROUTER_FALLBACK_MODEL_2, "fallback", context);
-  } catch (error) {
-    if (error instanceof RateLimitError) {
-      log.error(LOG_NAMESPACE_LLM, "Rate limit on all models", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        fallback2: OPENROUTER_FALLBACK_MODEL_2,
-        ...error.toLogMeta(context),
-      });
-      throw error;
-    }
-    if (error instanceof LlmCallError) {
-      const fallback2Failure = error;
+      if (error instanceof RateLimitError) {
+        log.error(LOG_NAMESPACE_LLM, "Rate limit on all models", {
+          chain,
+          ...error.toLogMeta(context),
+        });
+        throw error;
+      }
       log.error(LOG_NAMESPACE_LLM, "All models failed", {
-        primary: OPENROUTER_MODEL,
-        fallback: OPENROUTER_FALLBACK_MODEL,
-        fallback2: OPENROUTER_FALLBACK_MODEL_2,
+        chain,
         ...context,
-        primaryError: primaryFailure instanceof LlmCallError ? primaryFailure.describe() : primaryFailure.message,
-        fallbackError: fallbackFailure instanceof LlmCallError ? fallbackFailure.describe() : fallbackFailure.message,
-        fallback2Error: fallback2Failure.describe(),
+        errors: failures.map((failure) =>
+          failure instanceof LlmCallError ? failure.describe() : failure.message
+        ),
       });
       throw new AggregateError(
-        [
-          primaryFailure instanceof LlmCallError ? primaryFailure.toError() : primaryFailure,
-          fallbackFailure instanceof LlmCallError ? fallbackFailure.toError() : fallbackFailure,
-          fallback2Failure.toError(),
-        ].filter(Boolean),
-        `LLM call failed for primary model ${OPENROUTER_MODEL}, fallback model ${OPENROUTER_FALLBACK_MODEL}, and second fallback model ${OPENROUTER_FALLBACK_MODEL_2}`
+        failures.map((failure) => (failure instanceof LlmCallError ? failure.toError() : failure)),
+        `LLM call failed for models: ${chain.join(", ")}`
       );
     }
-    throw error;
   }
+
+  throw new Error("Model chain is empty");
 }
 
 async function callLLMWithMessages(
   services: Services,
   messages: ChatMessage[],
-  context: LlmLogContext = {}
+  context: LlmLogContext = {},
+  models?: string[]
 ): Promise<LlmResult> {
   const ctx: LlmLogContext = { messages: messages.length, ...context };
-  return await callOpenRouterWithRetry(services, messages, ctx);
+  return await callOpenRouterWithRetry(services, messages, ctx, models);
 }
 
 export function buildPostChatMessages(articleSlice: string, options: { strict?: boolean } = {}): ChatMessage[] {
@@ -763,7 +741,7 @@ export async function summarizePost(
   if (options.strictSystem !== undefined) {
     context["strict"] = options.strictSystem;
   }
-  const { content, modelUsed } = await callLLMWithMessages(services, messages, context);
+  const { content, modelUsed } = await callLLMWithMessages(services, messages, context, options.models);
   return { id: story.id, lang: env.SUMMARY_LANG, summary: content, model: modelUsed };
 }
 
@@ -775,11 +753,19 @@ export async function generateValidatedPostSummary(
   const lang = env.SUMMARY_LANG;
   const attemptContextBase = { storyId: story.id };
 
+  // Content-reject escalation: strict retries start from the (bench-selected) escalation
+  // model instead of the small primary that produced the rejected draft. Applies to both
+  // heuristic rejects and guard rejects (any `continue` below lands on a strict attempt).
+  const escalationModel = env.SUMMARY_CONTENT_REJECT_MODEL.trim();
+  const escalationChain =
+    escalationModel.length > 0 ? [escalationModel, env.OPENROUTER_FALLBACK_MODEL] : undefined;
+
   for (const attempt of POST_SUMMARY_ATTEMPTS) {
     try {
       const summaryContent = await summarizePost(services, story, articleSlice, {
         strictSystem: attempt.strict,
         context: { ...attemptContextBase, attempt: attempt.label },
+        ...(attempt.strict && escalationChain !== undefined ? { models: escalationChain } : {}),
       });
 
       const heuristics = checkSummaryHeuristics(summaryContent.summary, {

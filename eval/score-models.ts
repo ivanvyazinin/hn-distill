@@ -115,6 +115,19 @@ export function makeJudgeClient(envLike: Pick<Env, "JUDGE_API_KEY" | "JUDGE_BASE
   return new OpenRouter(services.http, apiKey, envLike.JUDGE_MODEL, envLike.JUDGE_BASE_URL);
 }
 
+const CANDIDATE_MAX_ATTEMPTS = 4;
+const CANDIDATE_RETRY_FALLBACK_MS = 15_000;
+const CANDIDATE_RETRY_MAX_MS = 60_000;
+
+function rateLimitDelayMs(message: string): number | undefined {
+  if (!message.includes('429')) {
+    return undefined;
+  }
+  const retryAfter = /"retry_after_seconds"\s*:\s*(?<seconds>\d+)/u.exec(message)?.groups?.["seconds"];
+  const delay = retryAfter === undefined ? CANDIDATE_RETRY_FALLBACK_MS : Number.parseInt(retryAfter, 10) * 1000 + 1000;
+  return Math.min(delay, CANDIDATE_RETRY_MAX_MS);
+}
+
 export async function summarizeWithModel(
   client: OpenRouter,
   articleSlice: string,
@@ -122,18 +135,27 @@ export async function summarizeWithModel(
   envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">
 ): Promise<RunOutput> {
   const started = Date.now();
-  try {
-    const content = await client.chat(buildPostChatMessages(articleSlice, { strict: false }), {
-      model,
-      temperature: 0.3,
-      maxTokens: envLike.BENCH_SUMMARY_MAX_TOKENS,
-    });
-    return { content: sanitizeLlmContent(content), latencyMs: Date.now() - started };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    log.warn(LOG_NAMESPACE, "Candidate model failed", { model, error: message });
-    return { content: "", latencyMs: Date.now() - started, error: message };
+  let lastError = "unknown";
+  for (let attempt = 1; attempt <= CANDIDATE_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const content = await client.chat(buildPostChatMessages(articleSlice, { strict: false }), {
+        model,
+        temperature: 0.3,
+        maxTokens: envLike.BENCH_SUMMARY_MAX_TOKENS,
+      });
+      return { content: sanitizeLlmContent(content), latencyMs: Date.now() - started };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      const delayMs = rateLimitDelayMs(lastError);
+      if (delayMs === undefined || attempt === CANDIDATE_MAX_ATTEMPTS) {
+        log.warn(LOG_NAMESPACE, "Candidate model failed", { model, attempt, error: lastError });
+        break;
+      }
+      log.info(LOG_NAMESPACE, "Candidate rate-limited; retrying", { model, attempt, delayMs });
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    }
   }
+  return { content: "", latencyMs: Date.now() - started, error: lastError };
 }
 
 function truncateSnippet(input: string, limit: number): string {
