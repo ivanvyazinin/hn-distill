@@ -24,6 +24,12 @@ const BAD_RU_BULLETS = [
   "- Автор поста обещает следить за развитием событий и публиковать обновления по мере их поступления",
 ].join("\n");
 
+const WORSE_ENGLISH_RETRY = [
+  "- The participants discuss the law and its consequences for privacy in several countries around the world",
+  "- Most commenters reject the decision and say that the process did not include meaningful public debate",
+  "- The author promises to follow future developments and publish updates when more information becomes available",
+].join("\n");
+
 function makeServices(chatHandlers: ChatHandler[]) {
   let index = 0;
   const calls: CallRecord[] = [];
@@ -96,7 +102,7 @@ describe("generateValidatedCommentsSummary", () => {
     expect(calls[1]?.model).toBe(ESCALATION_MODEL);
   });
 
-  test("retry still flagged: summary is kept, not dropped", async () => {
+  test("equally flagged retry keeps the first result", async () => {
     const { services, calls } = makeServices([
       async () => BAD_RU_BULLETS,
       async () => BAD_RU_BULLETS,
@@ -105,7 +111,22 @@ describe("generateValidatedCommentsSummary", () => {
     const result = await generateValidatedCommentsSummary(services, 202, PROMPT_TEXT);
 
     expect(result.summary).toBe(BAD_RU_BULLETS);
+    expect(result.model).toBe(env.OPENROUTER_MODEL);
     expect(calls.length).toBe(2);
+  });
+
+  test("worse retry does not replace a less severe first result", async () => {
+    const { services, calls } = makeServices([
+      async () => BAD_RU_BULLETS,
+      async () => WORSE_ENGLISH_RETRY,
+    ]);
+
+    const result = await generateValidatedCommentsSummary(services, 205, PROMPT_TEXT);
+
+    expect(result.summary).toBe(BAD_RU_BULLETS);
+    expect(result.model).toBe(env.OPENROUTER_MODEL);
+    expect(calls.length).toBe(2);
+    expect(calls[1]?.model).toBe(ESCALATION_MODEL);
   });
 
   test("retry error: first summary is kept", async () => {

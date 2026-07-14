@@ -753,9 +753,9 @@ export async function generateValidatedPostSummary(
   const lang = env.SUMMARY_LANG;
   const attemptContextBase = { storyId: story.id };
 
-  // Content-reject escalation: strict retries start from the (bench-selected) escalation
-  // model instead of the small primary that produced the rejected draft. Applies to both
-  // heuristic rejects and guard rejects (any `continue` below lands on a strict attempt).
+  // Content-reject escalation: when explicitly configured, strict retries start from a
+  // separately validated model instead of the primary that produced the rejected draft.
+  // Empty config safely preserves the default chain. Applies to heuristic and guard rejects.
   const escalationModel = env.SUMMARY_CONTENT_REJECT_MODEL.trim();
   const escalationChain =
     escalationModel.length > 0 ? [escalationModel, env.OPENROUTER_FALLBACK_MODEL] : undefined;
@@ -873,6 +873,36 @@ export async function summarizeComments(
   };
 }
 
+const HEURISTIC_REJECTION_WEIGHTS: Readonly<Record<string, number>> = {
+  empty: 1000,
+  refusal: 800,
+  policy: 800,
+  content_free: 700,
+  artifact: 600,
+  prompt_instructions: 600,
+  low_cyrillic_ratio: 500,
+  url_encoded_noise: 400,
+  bare_bullets: 300,
+  repetition_run: 300,
+  low_unique_ratio: 250,
+  contains_url: 200,
+  latin_prose: 150,
+  numeric_headings: 150,
+  generic: 100,
+  meta_instructions: 100,
+  too_short: 75,
+  too_few_words: 50,
+  bullets_only: 50,
+};
+
+/** Lower is better; zero is a valid summary. Used only when both comment attempts fail. */
+function heuristicRejectionScore(verdict: ReturnType<typeof checkSummaryHeuristics>): number {
+  return verdict.triggers.reduce(
+    (score, trigger) => score + (HEURISTIC_REJECTION_WEIGHTS[trigger.reason] ?? 100),
+    0
+  );
+}
+
 /**
  * Comments summary with content validation and a single escalated retry.
  * The first call keeps the default model chain untouched; on a heuristics reject
@@ -921,13 +951,22 @@ export async function generateValidatedCommentsSummary(
   }
 
   const retryCheck = checkSummaryHeuristics(retry.summary, checkOptions);
-  if (!retryCheck.ok) {
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments retry still flagged; keeping it anyway", {
-      id: storyId,
-      triggers: retryCheck.triggers,
-    });
+  if (retryCheck.ok) {
+    return retry;
   }
-  return retry;
+
+  const firstScore = heuristicRejectionScore(firstCheck);
+  const retryScore = heuristicRejectionScore(retryCheck);
+  const keepRetry = retryScore < firstScore;
+  log.warn(LOG_NAMESPACE_COMMENTS, "Comments retry still flagged; keeping less severe result", {
+    id: storyId,
+    firstScore,
+    retryScore,
+    selected: keepRetry ? "retry" : "first",
+    firstTriggers: firstCheck.triggers,
+    retryTriggers: retryCheck.triggers,
+  });
+  return keepRetry ? retry : first;
 }
 
 /**

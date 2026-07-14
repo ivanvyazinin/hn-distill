@@ -133,10 +133,12 @@ async function chatWithRateLimitRetry(
   client: OpenRouter,
   messages: ReturnType<typeof buildPostChatMessages>,
   model: string,
-  maxTokens: number
+  maxTokens: number,
+  beforeCall?: () => Promise<void>
 ): Promise<{ content: string } | { error: string }> {
   let lastError = "unknown";
   for (let attempt = 1; attempt <= CANDIDATE_MAX_ATTEMPTS; attempt += 1) {
+    await beforeCall?.();
     try {
       const content = await client.chat(messages, { model, temperature: 0.3, maxTokens });
       return { content: sanitizeLlmContent(content) };
@@ -158,14 +160,16 @@ export async function summarizeWithModel(
   client: OpenRouter,
   articleSlice: string,
   model: string,
-  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">
+  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">,
+  beforeCall?: () => Promise<void>
 ): Promise<RunOutput> {
   const started = Date.now();
   const result = await chatWithRateLimitRetry(
     client,
     buildPostChatMessages(articleSlice, { strict: false }),
     model,
-    envLike.BENCH_SUMMARY_MAX_TOKENS
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
   );
   if ("error" in result) {
     return { content: "", latencyMs: Date.now() - started, error: result.error };
@@ -202,7 +206,6 @@ export async function summarizeTwoStepEnRu(
 ): Promise<RunOutput> {
   const started = Date.now();
 
-  await beforeCall?.();
   const enStep = await chatWithRateLimitRetry(
     client,
     [
@@ -210,7 +213,8 @@ export async function summarizeTwoStepEnRu(
       { role: "user", content: articleSlice },
     ],
     model,
-    envLike.BENCH_SUMMARY_MAX_TOKENS
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
   );
   if ("error" in enStep) {
     return { content: "", latencyMs: Date.now() - started, error: enStep.error };
@@ -219,7 +223,6 @@ export async function summarizeTwoStepEnRu(
     return { content: "", latencyMs: Date.now() - started, error: "empty EN step output" };
   }
 
-  await beforeCall?.();
   const ruStep = await chatWithRateLimitRetry(
     client,
     [
@@ -227,7 +230,8 @@ export async function summarizeTwoStepEnRu(
       { role: "user", content: enStep.content },
     ],
     model,
-    envLike.BENCH_SUMMARY_MAX_TOKENS
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
   );
   if ("error" in ruStep) {
     return { content: "", latencyMs: Date.now() - started, error: ruStep.error };
@@ -354,13 +358,10 @@ export async function scoreOneRun(params: {
 }): Promise<{ record: ScoredRunRecord; summaryText: string }> {
   const { candidateClient, judgeClient, model, label, pipeline, beforeCandidateCall, article, repeat, envLike, stubJudge } =
     params;
-  let run: RunOutput;
-  if (pipeline === "en-then-ru") {
-    run = await summarizeTwoStepEnRu(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall);
-  } else {
-    await beforeCandidateCall?.();
-    run = await summarizeWithModel(candidateClient, article.articleSlice, model, envLike);
-  }
+  const run =
+    pipeline === "en-then-ru"
+      ? await summarizeTwoStepEnRu(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall)
+      : await summarizeWithModel(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall);
   const heuristic = checkSummaryHeuristics(run.content || undefined, {
     minChars: envLike.POST_SUMMARY_MIN_CHARS,
     language: envLike.SUMMARY_LANG,

@@ -79,7 +79,7 @@ const EnvironmentSchema = z.object({
     .default(true),
   // Escalation model for content-rejected summaries (heuristics/guard). Strict retry
   // attempts start from this model instead of the small primary. Empty → default chain.
-  // Winner of the direct-RU bench (docs/escalation-model-bench.md).
+  // Keep empty until the exact production route passes docs/escalation-model-bench.md.
   SUMMARY_CONTENT_REJECT_MODEL: z.string().default(""),
 
   LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),

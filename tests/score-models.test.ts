@@ -141,6 +141,29 @@ describe("summarizeWithModel", () => {
     expect(out.content).toBe("");
     expect(out.error).toBe("boom");
   });
+
+  test("throttles every physical API attempt including a 429 retry", async () => {
+    let apiCalls = 0;
+    let beforeCalls = 0;
+    const http = {
+      json: async () => {
+        apiCalls += 1;
+        if (apiCalls === 1) {
+          throw new Error('429 {"retry_after_seconds":0}');
+        }
+        return { choices: [{ message: { content: "Русский пересказ после ретрая." } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeWithModel(client, "article", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(apiCalls).toBe(2);
+    expect(beforeCalls).toBe(2);
+  });
 });
 
 describe("renderLeaderboardMarkdown", () => {
@@ -198,6 +221,31 @@ describe("en-then-ru pipeline", () => {
     expect(prompts.length).toBe(2);
     expect(prompts[1]).toContain("English summary.");
     expect(prompts[1]).toContain("переводчик");
+  });
+
+  test("two-step pipeline throttles retries on both stages", async () => {
+    let apiCalls = 0;
+    let beforeCalls = 0;
+    const http = {
+      json: async () => {
+        apiCalls += 1;
+        if (apiCalls === 1 || apiCalls === 3) {
+          throw new Error('429 {"retry_after_seconds":0}');
+        }
+        const content = apiCalls === 2 ? "English summary after retry." : "Русский перевод после ретрая.";
+        return { choices: [{ message: { content } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeTwoStepEnRu(client, "article body", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.content).toBe("Русский перевод после ретрая.");
+    expect(apiCalls).toBe(4);
+    expect(beforeCalls).toBe(4);
   });
 
   test("scoreOneRun dispatches to the two-step pipeline", async () => {

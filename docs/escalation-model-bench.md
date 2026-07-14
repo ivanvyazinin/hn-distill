@@ -1,78 +1,61 @@
-# Ф4: Выбор escalation-модели для content-reject (direct-RU бенч)
+# Ф4: валидация escalation-модели для content-reject
 
-Дата фиксации критериев: 2026-07-14 (ДО запуска бенча).
+Дата фиксации критериев: 2026-07-14 (до запуска бенча).
 
-## Setup
+## Критерии production route
 
-- Кандидаты: `nvidia/nemotron-3-nano-30b-a3b:free` (текущий primary, baseline),
-  `qwen/qwen3-next-80b-a3b-instruct:free`, `meta-llama/llama-3.3-70b-instruct:free`.
-- Judge: `xai/grok-4` (→ grok-4.3) через локальный 9Router, structured output проверен.
-- `SUMMARY_LANG=ru`, промпт продовый (`buildPostChatMessages`, strict:false, с новой
-  языковой строкой), статьи — фиксированный префикс `bench/manifest.json` (12 id), repeats = 3.
-- Команда: `bun run data:score --models <3 модели> --articles <12 id> --repeats 3`.
+`SUMMARY_CONTENT_REJECT_MODEL` можно включить только для **точного route/model id**,
+который одновременно проходит:
 
-## Числовые критерии выбора (зафиксированы до запуска)
+1. language-fail-rate ≤ 10% и не выше baseline;
+2. mean language purity ≥ 4.5;
+3. faithfulness и overall не ниже baseline более чем на 0.2;
+4. error rate ≤ 10%;
+5. p95 latency ≤ 60 секунд.
 
-Победитель — модель с максимальным `composite_rank`, удовлетворяющая ВСЕМ условиям:
+Если точный route не прошёл все условия, переменная остаётся пустой и content-reject retry
+использует прежнюю default model chain.
 
-1. **language-fail-rate** (доля прогонов с `latin_prose` или `low_cyrillic_ratio` в
-   heuristic-триггерах) **≤ 10%** и **не выше**, чем у baseline (nemotron) в этом же прогоне;
-2. **mean_language_purity ≥ 4.5**;
-3. **mean_faithfulness ≥ baseline − 0.2** и **mean_overall ≥ baseline − 0.2**;
-4. **error_rate ≤ 10%**;
-5. **p95_latency_ms ≤ 60 000** (эскалация — не latency-критичный путь, лимит защищает от
-   патологических очередей free-tier).
+## Что реально измерено
 
-Если ни один кандидат не проходит — эскалация остаётся на дефолтной цепочке fallback-моделей
-(решение по SUMMARY_CONTENT_REJECT_MODEL откладывается, Ф5 реализуется с дефолтом = primary
-chain), вопрос эскалируется пользователю.
+На одинаковых 12 статьях × 3 повтора были получены quality-замеры:
 
-Победитель записывается в `SUMMARY_CONTENT_REJECT_MODEL` (новая env-переменная).
+| Фактически измеренный route | lang-fail | purity | overall | faith | heur pass | error | p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| nemotron-3-nano-30b `:free` (baseline, 8k) | 36% | 3.64 | 3.33 | 3.67 | 58% | 0% | 80 с |
+| llama-3.3-70b через Groq/9Router | 0% | 4.53 | 4.06 | 4.53 | 100% | 0% | 43 с |
+| qwen3-next-80b, платный OpenRouter route | 0% | 4.86 | 4.47 | 4.53 | 86% | 0% | 9 с |
 
-## Отклонения от плана прогона (зафиксированы по ходу)
+Эти результаты подтверждают качество весов на использованных routes, но не являются
+availability/latency-доказательством для других routes.
 
-- `:free`-слаги qwen3-next-80b и llama-3.3-70b на OpenRouter были **полностью
-  rate-limited upstream** (провайдер Venice, вечерний пик; 100% ошибок с ретраями).
-  Качество измерено на тех же весах через другие маршруты: **`qwen/qwen3-next-80b-a3b-instruct`
-  (платный слаг OpenRouter)** и **`groq:llama-3.3-70b-versatile` (через локальный 9Router)**.
-  Замер качества валиден (те же веса); `error_rate`/`p95` для продовых `:free`-слагов
-  этой сессией не измерены — прод-путь остаётся `:free`, доступность транзиентна.
-- Baseline nemotron дополнительно перегнан с `BENCH_SUMMARY_MAX_TOKENS=8000`
-  (прод-значение `OPENROUTER_MAX_TOKENS`): у reasoning-модели бюджет 2048 обрезал
-  рассуждения и «need to produce…» протекал в выдачу, занижая baseline.
+## Невалидированный production route
 
-## Результаты (2026-07-14, 12 статей × 3 повтора, judge grok-4.3)
+Точные OpenRouter routes
+`qwen/qwen3-next-80b-a3b-instruct:free` и
+`meta-llama/llama-3.3-70b-instruct:free` в той сессии дали 100% upstream rate-limit.
+Следовательно, они не прошли критерии error-rate и p95; объявлять
+`meta-llama/llama-3.3-70b-instruct:free` победителем было некорректно.
 
-| Модель | lang-fail | purity | overall | faith | heur pass | error | p95 | composite |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| nemotron-3-nano-30b (baseline, 8k tok) | 36% | 3.64 | 3.33 | 3.67 | 58% | 0% | 80 c | 1.94 |
-| **llama-3.3-70b** (groq-маршрут) | **0%** | 4.53 | 4.06 | 4.53 | **100%** | 0% | 43 c | **4.06** |
-| qwen3-next-80b (платный слаг) | **0%** | **4.86** | **4.47** | 4.53 | 86% | 0% | **9 c** | 3.85 |
+Решение: **validated production winner пока отсутствует**. `config/env.ts`, `.env.example`
+и hourly workflow оставляют `SUMMARY_CONTENT_REJECT_MODEL` пустым по умолчанию. Workflow
+явно читает одноимённую GitHub repository variable, поэтому после отдельной успешной
+проверки точного route rollout не потребует изменения кода.
 
-Оба кандидата проходят все критерии. **Победитель по зафиксированному правилу
-(max composite среди прошедших): `meta-llama/llama-3.3-70b-instruct:free`** →
-`SUMMARY_CONTENT_REJECT_MODEL`.
+## Ф7: EN→RU two-step
 
-Примечания:
-- qwen — сильный runner-up: выше purity (4.86 vs 4.53), overall (4.47 vs 4.06) и на
-  порядок быстрее (p95 9 c vs 43 c); composite ему срезали 5 не-языковых heur-реджектов
-  (2× артефакт `<|`, 3× URL в тексте на одной статье). В проде такой брак эскалационной
-  попытки сжигает strict-attempt — именно это composite и штрафует.
-- Baseline подтверждает первопричину из ревью: даже при прод-бюджете токенов primary
-  даёт 36% языкового брака (утечки английских рассуждений «need to produce…»), purity 3.64.
-- У кандидатов lang-fail-rate 0% на 72 прогонах.
+Эксперимент для nemotron (8k токенов) дал: direct — 36% lang-fail, purity 3.64,
+overall 3.33, p95 80 с; two-step — 22%, 3.50, 3.08, 210 с. Two-step в production не
+переносится: качество ниже, а latency почти втрое выше.
 
-## Ф7: EN→RU two-step (nemotron@en-ru)
+## Матрица фаз
 
-| Режим (8000 tok) | lang-fail | purity | overall | faith | heur pass | p95 |
-|---|---:|---:|---:|---:|---:|---:|
-| direct | 36% | 3.64 | 3.33 | 3.67 | 58% | 80 c |
-| en→ru two-step | 22% | 3.50 | 3.08 | 3.53 | 72% | **210 c** |
-
-(При бюджете 2048 двухшаговка ещё хуже: purity 1.58 vs 2.06 — второй вызов удваивает
-поверхность утечки рассуждений.)
-
-**Вывод: двухшаговку в прод не переносим.** Она снижает частоту языкового брака, но
-проседает по purity/overall/faithfulness, почти утраивает латентность (два
-последовательных reasoning-вызова) и по всем измерениям уступает эскалации на
-llama-3.3-70b (0% lang-fail, purity 4.53, p95 43 c).
+| Фаза | Done | Verified | Deferred |
+|---|---|---|---|
+| Ф1 detector/calibration | Детектор и committed labeled fixture | 12/12 manual-label agreement; detector unit tests | — |
+| Ф2 RU gate/prompt | Gate, env и call-sites | Targeted unit tests | — |
+| Ф3 judge | `language_purity` и leaderboard | `score-models` tests | — |
+| Ф4 model selection | Критерии и route-specific результаты зафиксированы | Измеренные routes подписаны явно | Exact production `:free` route validation |
+| Ф5 escalation | Ordered chain и explicit hourly variable | Post escalation tests | Включение variable до прохождения Ф4 |
+| Ф6 comments | Validation, retry и severity comparator | Comments validation tests | — |
+| Ф7 EN→RU | Эксперимент завершён, rollout отклонён | Direct/two-step результаты зафиксированы | — |

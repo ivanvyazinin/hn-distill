@@ -162,9 +162,54 @@ describe("utils/summary-heuristics", () => {
       expect(verdict.triggers).toEqual([]);
     });
 
-    test("does not flag quoted English strings and glosses", () => {
+    test("allows short quoted UI terms and glosses", () => {
       const verdict = checkSummaryHeuristics(
-        `При ошибке появляется сообщение «Something went wrong», а производитель осевого (axial flux) двигателя цитирует твит «Duplication is far cheaper than the wrong abstraction». ${RU_FILLER}`,
+        `При ошибке появляется сообщение «Something went wrong», а производитель осевого (axial flux) двигателя показывает режим «Dark mode». ${RU_FILLER}`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeTrue();
+      expect(verdict.triggers).toEqual([]);
+    });
+
+    test("flags a quoted English clause inside Russian prose", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Автор пишет: «lets you compare results globally», после чего продолжает разбор русским текстом.`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags a long quoted English sentence", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Автор цитирует вывод: «Duplication is far cheaper than the wrong abstraction when a system is still evolving quickly».`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags a fully English ALL-CAPS sentence", () => {
+      const verdict = checkSummaryHeuristics(
+        "THIS ARTICLE EXPLAINS WHY DISTRIBUTED STORAGE SYSTEMS NEED CAREFUL RECOVERY PLANS AND REGULAR FAILURE TESTING.",
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "low_cyrillic_ratio")).toBeTrue();
+    });
+
+    test("flags a singleton after a proper noun", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Компания OpenAI admits ошибку и обещает исправить поведение новой версии.`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("allows lowercase glue inside a proper-noun phrase", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Исследование Institute for Highway Safety сравнивает результаты испытаний автомобилей.`,
         { minChars: 60, language: "ru" }
       );
       expect(verdict.ok).toBeTrue();

@@ -9,7 +9,7 @@ export type LatinSingletonHit = {
 };
 
 export type LanguageGateOptions = {
-  /** Minimum share of Cyrillic among all letters (after stripping code/URLs/quotes). */
+  /** Minimum share of Cyrillic among prose letters (after stripping code/URLs/short quoted terms). */
   minCyrillicRatio?: number;
   /** Minimum length of a run of consecutive lowercase-Latin words to count as a run. */
   latinRunMinWords?: number;
@@ -322,11 +322,14 @@ const LY_ADVERB_RE = /^[a-z]{3,}ly$/u;
 const FENCED_CODE_RE = /```[\s\S]*?(?:```|$)/gu;
 const INLINE_CODE_RE = /`[^\n`]*`/gu;
 const MARKDOWN_LINK_RE = /\[(?<label>[^[\]]*)\]\([^()]*\)/gu;
+const MARKDOWN_HEADING_RE = /^#{1,6}\s+(?<inner>[^\n]{1,80})$/gmu;
 const URL_RE = /(?:https?:\/\/|www\.)\S+/giu;
-// Quoted spans are treated as citations (UI strings, titles, quotes) — not the model's own prose.
-const GUILLEMET_QUOTE_RE = /«[^«»]{1,300}»/gu;
-const CURLY_QUOTE_RE = /“[^“”]{1,300}”/gu;
-const ASCII_QUOTE_RE = /"[^\n"]{1,300}"/gu;
+// Short quoted terms are usually UI strings or titles. Longer quotes are still prose and
+// must remain visible to the gate: otherwise a model can hide a whole English sentence in
+// quotation marks.
+const GUILLEMET_QUOTE_RE = /«(?<inner>[^«»]{1,300})»/gu;
+const CURLY_QUOTE_RE = /“(?<inner>[^“”]{1,300})”/gu;
+const ASCII_QUOTE_RE = /"(?<inner>[^\n"]{1,300})"/gu;
 // Parenthesized fragments without Cyrillic: glosses like «осевого (axial flux) двигателя».
 const PAREN_RE = /\((?<inner>[^()]{1,60})\)/gu;
 
@@ -343,15 +346,26 @@ function isPureLatinWord(word: string): boolean {
   return LATIN_WORD_CHARS_RE.test(word) && LATIN_EDGE_RE.test(word) && !DOUBLE_SEPARATOR_RE.test(word);
 }
 
+function stripShortQuotedTerm(_match: string, ...args: unknown[]): string {
+  const groups = args.at(-1) as { inner?: string } | undefined;
+  const inner = groups?.inner ?? "";
+  const wordCount = inner.trim().split(/\s+/u).filter(Boolean).length;
+  return wordCount <= 3 ? " " : ` ${inner} `;
+}
+
 export function stripNonProse(text: string): string {
   return text
     .replaceAll(FENCED_CODE_RE, " ")
     .replaceAll(INLINE_CODE_RE, " ")
     .replaceAll(MARKDOWN_LINK_RE, "$<label>")
+    .replaceAll(MARKDOWN_HEADING_RE, (match, ...args: unknown[]) => {
+      const groups = args.at(-1) as { inner?: string } | undefined;
+      return CYRILLIC_RE.test(groups?.inner ?? "") ? match : " ";
+    })
     .replaceAll(URL_RE, " ")
-    .replaceAll(GUILLEMET_QUOTE_RE, " ")
-    .replaceAll(CURLY_QUOTE_RE, " ")
-    .replaceAll(ASCII_QUOTE_RE, " ")
+    .replaceAll(GUILLEMET_QUOTE_RE, stripShortQuotedTerm)
+    .replaceAll(CURLY_QUOTE_RE, stripShortQuotedTerm)
+    .replaceAll(ASCII_QUOTE_RE, stripShortQuotedTerm)
     .replaceAll(PAREN_RE, (match, inner: string) => (CYRILLIC_RE.test(inner) ? match : " "));
 }
 
@@ -381,10 +395,10 @@ const ALNUM_RE = /[\p{L}\p{N}]/u;
 function trimNonAlnum(raw: string): string {
   let start = 0;
   let end = raw.length;
-  while (start < end && !ALNUM_RE.test(raw[start])) {
+  while (start < end && !ALNUM_RE.test(raw.charAt(start))) {
     start += 1;
   }
-  while (end > start && !ALNUM_RE.test(raw[end - 1])) {
+  while (end > start && !ALNUM_RE.test(raw.charAt(end - 1))) {
     end -= 1;
   }
   return raw.slice(start, end);
@@ -438,9 +452,9 @@ function contextAround(tokens: Token[], start: number, end: number): string {
  * - latinRuns: connected English prose embedded in Russian text (high confidence);
  * - softLatinRuns: short Latin noun phrases (low precision, opt-in);
  * - latinSingletons: single English words in Russian grammar («создают precedents»).
- * Code, URLs, quoted spans, and Latin-only parenthesized glosses are stripped first;
- * Capitalized/CamelCase/ALL-CAPS tokens and words adjacent to proper nouns or numbers
- * are never flagged as singletons.
+ * Code, URLs, short quoted terms, and Latin-only parenthesized glosses are stripped first.
+ * Long quoted prose remains visible. Capitalized/CamelCase tokens are excluded from the
+ * normal ratio, while an all-Latin fallback still catches fully English ALL-CAPS output.
  */
 export function analyzeRussianLanguagePurity(text: string, options: LanguageGateOptions = {}): LanguageGateReport {
   const minCyrillicRatio = options.minCyrillicRatio ?? DEFAULT_MIN_CYRILLIC_RATIO;
@@ -460,8 +474,14 @@ export function analyzeRussianLanguagePurity(text: string, options: LanguageGate
   // tools are names, not prose, and must not drag a legit Russian text below the threshold.
   let cyrillicLetters = 0;
   let lowercaseLatinLetters = 0;
+  let allLatinLetters = 0;
+  let pureLatinWordCount = 0;
   for (const token of tokens) {
     cyrillicLetters += countChars(token.word, CYRILLIC_RE);
+    if (isPureLatinWord(token.word) && !allowlist.has(token.word.toLowerCase())) {
+      allLatinLetters += letterLength(token.word);
+      pureLatinWordCount += 1;
+    }
     if (isLowercaseLatinWord(token.word) && !allowlist.has(token.word)) {
       lowercaseLatinLetters += letterLength(token.word);
     }
@@ -473,15 +493,20 @@ export function analyzeRussianLanguagePurity(text: string, options: LanguageGate
   const latinSingletons: LatinSingletonHit[] = [];
 
   const neighborBlocksSingleton = (index: number): boolean => {
-    for (const neighbor of [tokens[index - 1], tokens[index + 1]]) {
-      if (!neighbor) {
-        continue;
-      }
-      if (UPPER_LATIN_RE.test(neighbor.word) || DIGIT_RE.test(neighbor.word)) {
-        return true;
-      }
+    const previous = tokens[index - 1];
+    const next = tokens[index + 1];
+    if ([previous, next].some((neighbor) => neighbor !== undefined && DIGIT_RE.test(neighbor.word))) {
+      return true;
     }
-    return false;
+    // Proper-name glue is safe only when the lowercase token is inside the name:
+    // «Institute for Highway Safety». A single Capitalized neighbor must not hide
+    // broken prose such as «Компания OpenAI admits ошибку».
+    return (
+      previous !== undefined &&
+      next !== undefined &&
+      UPPER_LATIN_RE.test(previous.word) &&
+      UPPER_LATIN_RE.test(next.word)
+    );
   };
 
   let runStart = -1;
@@ -500,7 +525,8 @@ export function analyzeRussianLanguagePurity(text: string, options: LanguageGate
         return;
       }
       // Command idiom: «команды brew bundle», «в podman machine».
-      if (words.length === 2 && allowlist.has(words[0])) {
+      const firstWord = words[0];
+      if (words.length === 2 && firstWord !== undefined && allowlist.has(firstWord)) {
         return;
       }
       // Function words inside an English proper-noun phrase: «Car of the Year»,
@@ -525,6 +551,7 @@ export function analyzeRussianLanguagePurity(text: string, options: LanguageGate
     if (flagSingletons && words.length === 1) {
       const word = words[0];
       if (
+        word !== undefined &&
         letterLength(word) >= 3 &&
         !allowlist.has(word) &&
         isSingletonDefectWord(word) &&
@@ -553,7 +580,11 @@ export function analyzeRussianLanguagePurity(text: string, options: LanguageGate
   return {
     cyrillicRatio,
     letterCount: letters,
-    lowCyrillicRatio: letters > 0 && cyrillicRatio < minCyrillicRatio,
+    lowCyrillicRatio:
+      (letters > 0 && cyrillicRatio < minCyrillicRatio) ||
+      // The normal ratio intentionally ignores names/acronyms. If there is no Cyrillic
+      // at all, four or more Latin words are prose regardless of case (including ALL-CAPS).
+      (cyrillicLetters === 0 && pureLatinWordCount >= 4 && allLatinLetters >= 16),
     latinRuns,
     softLatinRuns,
     latinSingletons,

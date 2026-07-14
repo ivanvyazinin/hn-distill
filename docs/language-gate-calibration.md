@@ -1,39 +1,59 @@
 # Калибровка языкового гейта RU-саммари (Ф1)
 
-Дата: 2026-07-14. Скрипт: `scripts/calibrate-language-gate.mts` (read-only).
-Выборка: `data/summaries/*.post.json` + `*.comments.json`, фильтр `lang === "ru" && createdISO >= "2026-07-09"` → **132 post + 150 comments = 282 саммари** (manifest: `docs/language-gate-manifest.json`).
+Дата: 2026-07-14. Детектор: `utils/language-gate.ts`. Скрипт:
+`scripts/calibrate-language-gate.mts` (read-only на входных данных).
 
-Детектор: `utils/language-gate.ts` (`analyzeRussianLanguagePurity`).
+## Воспроизводимая выборка
 
-## Итоговая конструкция детектора
+В репозитории лежит компактный fixture
+`docs/language-gate-calibration-fixture.json`: 12 текстов с ручными метками
+`expectedSignals`. Он содержит 7 известных дефектов и 5 precision-антипримеров:
+lowercase-инструменты, короткую UI-строку, proper-name phrase, скобочный технический
+глосс и командную идиому.
 
-Препроцессинг (`stripNonProse`): удаляются fenced/inline-код, URL, markdown-ссылки (остаётся label), **цитаты** «…», “…”, "…" (≤300 симв. — цитирование UI-строк/твитов/названий легитимно) и **скобочные глоссы без кириллицы** ≤60 симв. («осевого (axial flux) двигателя»).
+Команда из чистого checkout:
 
-Сигналы:
+```sh
+bun run tsx scripts/calibrate-language-gate.mts --out-dir /tmp/language-gate-calibration
+```
 
-1. **`low_cyrillic_ratio`** — prose-eligible ratio: кириллические буквы / (кириллические + буквы **lowercase-латинских слов**). Capitalized/CamelCase/ALL-CAPS-токены, токены с цифрами и allowlist-инструменты — это имена, не проза, в знаменатель не входят (иначе легитимный обзор с GLM‑5.2/MiniMax/DeepSeek падал до 0.71). Порог по калибровке: **0.8**.
-2. **`latin_prose` strong** — run из ≥2 подряд lowercase-латинских слов, содержащий английское function word ИЛИ длиной ≥4 слов. Runs рвутся на пунктуации (запятые ломают перечисления «npm, krew и winget»). Исключения: run целиком из allowlist; «командная идиома» из 2 слов с allowlist-первым («brew bundle», «podman machine»); runs только из function words рядом с Capitalized-соседом («Car **of the** Year»).
-3. **`latin_prose` singletons** — одиночное lowercase-латинское слово ≥3 букв, входящее в словарь дефектных слов: function words (thus, alike, per…), частотные глаголы (admits, imposes, lets…), морфология `-tion/-sion/-ment/-ness/-ance/-ence`, `-ly` (с blocklist RU-техжаргона: production, performance, inference, assembly, early, daily…), кураторские (precedents, dissent, impasse, sovereign, fight, sharp). Не флагаются: allowlist, соседство с Capitalized-токеном («Institute **for** Highway Safety») или числом («600 **dpi**», «release 22.03»).
-4. **soft noun-runs** (2–3 lowercase-слова без function words: «unified memory», «load average») — precision ~40% на выборке, **по умолчанию выключены** (`flagSoftRuns: false`); включаются опционально.
+Фактический результат текущей реализации:
 
-## Результаты на выборке (282 саммари)
+- loaded: 12 (10 post, 2 comments);
+- production threshold: `SUMMARY_MIN_CYRILLIC_RATIO = 0.8`;
+- hard signal: 7/12;
+- strong runs: 3; singletons: 3;
+- agreement с ручными метками: 12/12.
 
-Распределение prose-eligible ratio: p5 = 0.914, p10 = 0.978, p50 = 1.0. Полностью английские саммари — ratio = 0.
+Скрипт завершится ошибкой при любом расхождении меток и запишет полный
+`report.json` с текстом после препроцессинга, ratio, runs и singletons.
 
-| Сигнал | Срабатываний | Ручная разметка |
-|---|---|---|
-| ratio < 0.8 | 12 доков | 12/12 true — целиком английские саммари (100% precision) |
-| strong runs (ratio ≥ 0.85) | 4 дока | 3 true («lets you drag…», «equipped with…», «lets you compare results globally»), 1 gray («41 shades of blue» — незакавыченное название) |
-| singletons (ratio ≥ 0.85) | 8 доков | 8/8 true: rejection, alike, dissent, sharp, fight, impasse, thus, precedents (100% precision) |
-| soft noun-runs | 19 доков | ~40% precision (unified memory, load average, resident set size — FP) → выключены |
+## Конструкция детектора
 
-Все 4 канонических дефекта из `docs/product-review-summarization.md` §2 ловятся: «создают **precedents**», «**lets you compare results globally**», «для от **rejection**», «которым **alike**». Анти-примеры (GitHub, OpenWrt, API, systemd, npm, curl, nginx, htop-обзор) — 0 ложных срабатываний на уровне hard-сигналов.
+1. `low_cyrillic_ratio`: кириллица / (кириллица + lowercase-латинская проза), порог
+   0.8. Отдельный case-insensitive fallback ловит полностью латинский текст из четырёх
+   и более слов, включая ALL-CAPS, не штрафуя одиночные названия и акронимы.
+2. `latin_prose` strong: run из двух и более lowercase-латинских слов с английским
+   function word либо run длиной от четырёх слов.
+3. `latin_prose` singleton: precision-first словарь английских function words,
+   глаголов и характерной морфологии. Proper-name glue допускается только между двумя
+   Capitalized-токенами (`Institute for Highway Safety`), поэтому `OpenAI admits`
+   остаётся видимым.
+4. Soft noun-runs по умолчанию выключены из-за низкой precision.
 
-Итог по выборке: hard-сигналы флагают 24/282 (~8.5%) — самые грубые дефекты; остальная часть из «54/132» ревью (стилистические кальки без латиницы) — зона judge-метрики `language_purity` (Ф3).
+Fenced/inline code и URL удаляются. Короткие цитаты до трёх слов считаются UI/title
+термами; длинная цитата остаётся прозой и анализируется. Короткие латинские глоссы в
+скобках исключаются.
 
-## Дефолты
+## Локальная exploratory-выборка
 
-- `SUMMARY_MIN_CYRILLIC_RATIO = 0.8`
-- strong runs: включены; singletons: включены; soft noun-runs: выключены.
+При наличии generated summaries можно отдельно запустить:
 
-Воспроизведение: `bun run tsx scripts/calibrate-language-gate.mts --data-dir data/summaries --out-dir <dir>` (отчёт `hits.json` со всеми срабатываниями и контекстами).
+```sh
+bun run tsx scripts/calibrate-language-gate.mts \
+  --data-dir data/summaries --since 2026-07-09 --out-dir /tmp/language-gate-local
+```
+
+Этот режим не является источником committed цифр: `data/summaries` зависит от локального
+snapshot. Прежний manifest только с ID/датами удалён, потому что без текстов и ручных меток
+он не позволял воспроизвести ни выборку, ни precision.
