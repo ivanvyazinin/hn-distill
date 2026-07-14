@@ -482,8 +482,11 @@ export async function buildPostPrompt(story: NormalizedStory, articleMd?: string
     return content;
   }
   // Long article: keep the head plus a tail so conclusions survive the slice.
-  const tailChars = Math.max(0, ARTICLE_SLICE_CHARS - ARTICLE_HEAD_CHARS);
-  const head = content.slice(0, ARTICLE_HEAD_CHARS);
+  // Clamp head to the total budget so ARTICLE_SLICE_CHARS stays the hard ceiling
+  // even when ARTICLE_HEAD_CHARS is misconfigured larger than it.
+  const headChars = Math.min(ARTICLE_HEAD_CHARS, ARTICLE_SLICE_CHARS);
+  const tailChars = ARTICLE_SLICE_CHARS - headChars;
+  const head = content.slice(0, headChars);
   const articleSlice = tailChars === 0 ? head : `${head}\n\n[…]\n\n${content.slice(content.length - tailChars)}`;
   log.debug(LOG_NAMESPACE_POST, "Built post prompt (head+tail)", {
     id: story.id,
@@ -873,6 +876,17 @@ export async function summarizeComments(
  */
 export type ArticleFetchResult = { md?: string; extractStatus?: string };
 
+// HTML-only garbage verdict with the CURRENT env thresholds. Lists/short lines are
+// legitimate in PDFs, transcripts, READMEs and plaintext, so only "html" runs it.
+function detectHtmlExtractStatus(md: string): "no-article" | "ok" {
+  const quality = assessExtractQuality(md, {
+    minProseChars: env.EXTRACT_MIN_PROSE_CHARS,
+    maxLinkDensity: env.EXTRACT_MAX_LINK_DENSITY,
+    maxDupRatio: env.EXTRACT_MAX_DUP_RATIO,
+  });
+  return quality.verdict === "no-article" ? "no-article" : "ok";
+}
+
 export async function getOrFetchArticleMarkdown(
   services: Services,
   story: NormalizedStory,
@@ -886,11 +900,29 @@ export async function getOrFetchArticleMarkdown(
   const path = pathFor.articleMd(story.id);
   const cached = await store.getText(path);
   if (cached?.trim()) {
-    log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
-    // Reuse the persisted verdict; do not re-run the detector on kind-less cached md.
     const extract = meta ? await meta.getArticleExtract(story.id) : undefined;
-    const extractStatus = extract?.status ?? undefined;
-    return { md: cached, ...(extractStatus === undefined ? {} : { extractStatus }) };
+    // Legacy cache: written before Readability extraction landed (no sourceKind
+    // recorded). Re-fetch once so the article is re-extracted through Readability +
+    // detector. Works for both FS (local) and R2 (worker); the re-fetch overwrites
+    // the cached blob in place, so no separate cache-invalidation step is needed.
+    const isLegacyCache = meta !== undefined && extract?.sourceKind === undefined;
+    if (!isLegacyCache) {
+      log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
+      let extractStatus = extract?.status ?? undefined;
+      if (extract?.sourceKind === "html") {
+        // Re-run the detector with the CURRENT thresholds so tuning takes effect on
+        // cached extracts without a re-fetch (a cached verdict alone would be stale).
+        extractStatus = detectHtmlExtractStatus(cached);
+        if (meta && extractStatus !== extract.status) {
+          await meta.upsertArticleExtract({ ...extract, status: extractStatus, fetchedAt: new Date().toISOString() });
+        }
+      }
+      return { md: cached, ...(extractStatus === undefined ? {} : { extractStatus }) };
+    }
+    log.info(LOG_NAMESPACE_ARTICLE, "Re-fetching legacy cached article for Readability re-extraction", {
+      id: story.id,
+      path,
+    });
   }
   try {
     log.info(LOG_NAMESPACE_ARTICLE, "Fetching article and processing content", { id: story.id, url: story.url });
@@ -900,23 +932,9 @@ export async function getOrFetchArticleMarkdown(
       log.warn(LOG_NAMESPACE_ARTICLE, "Fetched content is empty", { id: story.id, url: story.url });
       return {};
     }
-    // HTML-only garbage detection. Lists/short lines are legitimate in PDFs,
-    // transcripts, READMEs and plaintext, so those bypass the detector.
-    let extractStatus = "ok";
-    if (sourceKind === "html") {
-      const quality = assessExtractQuality(text, {
-        minProseChars: env.EXTRACT_MIN_PROSE_CHARS,
-        maxLinkDensity: env.EXTRACT_MAX_LINK_DENSITY,
-        maxDupRatio: env.EXTRACT_MAX_DUP_RATIO,
-      });
-      if (quality.verdict === "no-article") {
-        extractStatus = "no-article";
-        log.warn(LOG_NAMESPACE_ARTICLE, "Extract flagged as no-article", {
-          id: story.id,
-          url: story.url,
-          ...quality.metrics,
-        });
-      }
+    const extractStatus = sourceKind === "html" ? detectHtmlExtractStatus(text) : "ok";
+    if (extractStatus === "no-article") {
+      log.warn(LOG_NAMESPACE_ARTICLE, "Extract flagged as no-article", { id: story.id, url: story.url });
     }
     await store.putText(path, text, { contentType: "text/markdown" });
     if (meta) {

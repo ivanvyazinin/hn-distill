@@ -1,27 +1,25 @@
 #!/usr/bin/env bun
 /**
- * One-time, opt-in migration for the Readability extraction + garbage-detector
- * change (docs/product-review-summarization.md §1).
+ * OPTIONAL targeted tool for the Readability extraction change
+ * (docs/product-review-summarization.md §1).
  *
- * Article Markdown is cached (fs / R2) and it is POST-turndown of the whole page,
- * so Readability can only help on a re-fetch. This script invalidates the cached
- * raw article Markdown for a target story set so the next summarize run re-fetches
- * and re-extracts through Readability + the detector.
- *
- * Reselection itself is automatic: EXTRACT_POLICY_VERSION is folded into the post
- * inputHash, so every existing post summary's hash differs and computePostChanged
- * reselects it on the next local run (unless POST_SUMMARY_ONLY_IF_MISSING=true).
- *
- * Cloudflare/D1 worker topology only: listPendingStoryIds excludes post_status='ok',
- * so also reset post_status for the target stories with wrangler, e.g.:
+ * NOTE: the bulk migration is now AUTOMATIC and you usually do NOT need this script.
+ * Legacy cached article Markdown (pre-Readability, whole-page turndown) is written
+ * without a `sourceKind`, so getOrFetchArticleMarkdown re-fetches + re-extracts it on
+ * the next run — for both FS (local) and R2 (worker). Post reselection is likewise
+ * automatic via EXTRACT_POLICY_VERSION in the post inputHash. For the worker, just
+ * make sure the story is re-selected (listPendingStoryIds excludes post_status='ok'):
  *   bunx wrangler d1 execute hn_distill --remote \
  *     --command "UPDATE processing_state SET post_status='missing'"
  *
+ * Use this script only to force a re-fetch of SPECIFIC stories WITHOUT bumping the
+ * policy (e.g. one article changed upstream). It invalidates the cached FS article md
+ * so the next `data:summarize` re-fetches. FS topology only (Node can't reach worker R2).
+ *
  * Usage:
  *   set -a; source .env; set +a
- *   bun run tsx scripts/backfill-extraction.mts            # all stories in the index
  *   bun run tsx scripts/backfill-extraction.mts --ids 48845049,48849066
- *   bun run tsx scripts/backfill-extraction.mts --dry-run
+ *   bun run tsx scripts/backfill-extraction.mts --dry-run   # all stories in the index
  */
 
 import { PATHS, pathFor } from "@config/paths";
@@ -37,20 +35,41 @@ type IndexData = z.infer<typeof IndexSchema>;
 
 type CliOptions = { ids?: number[]; dryRun: boolean };
 
+function parseIds(value: string | undefined): number[] {
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error("--ids requires a comma-separated list of positive integer story IDs");
+  }
+  const tokens = value
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t !== "");
+  const ids: number[] = [];
+  for (const token of tokens) {
+    // Strict: reject "not-an-id", "123abc", negatives, 0. Fail closed — a typo must
+    // never silently fall back to invalidating the entire index.
+    if (!/^\d+$/u.test(token)) {
+      throw new Error(`--ids: invalid story ID ${JSON.stringify(token)} (expected a positive integer)`);
+    }
+    const num = Number.parseInt(token, 10);
+    if (!Number.isSafeInteger(num) || num <= 0) {
+      throw new Error(`--ids: story ID out of range: ${token}`);
+    }
+    ids.push(num);
+  }
+  if (ids.length === 0) {
+    throw new Error("--ids was provided but contained no valid story IDs");
+  }
+  return ids;
+}
+
 function parseArgs(args: string[]): CliOptions {
   let ids: number[] | undefined;
   let dryRun = false;
   for (let i = 0; i < args.length; i += 1) {
     const arg = args[i];
     if (arg === "--ids") {
-      const value = args[i + 1];
-      if (typeof value === "string") {
-        ids = value
-          .split(",")
-          .map((part) => Number.parseInt(part.trim(), 10))
-          .filter((num) => Number.isInteger(num));
-        i += 1;
-      }
+      ids = parseIds(args[i + 1]);
+      i += 1;
       continue;
     }
     if (arg === "--dry-run") {
@@ -61,8 +80,9 @@ function parseArgs(args: string[]): CliOptions {
       printUsage();
       process.exit(0);
     }
+    throw new Error(`Unknown argument: ${String(arg)}`);
   }
-  return ids && ids.length > 0 ? { ids, dryRun } : { dryRun };
+  return ids ? { ids, dryRun } : { dryRun };
 }
 
 function printUsage(): void {

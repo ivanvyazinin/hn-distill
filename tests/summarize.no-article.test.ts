@@ -194,4 +194,41 @@ describe("degraded no-article lifecycle", () => {
       expect(post?.degraded).toBe("no-article");
     });
   });
+
+  test("legacy cache (no sourceKind) is re-fetched so Readability re-extracts", async () => {
+    await withTempDir(async (base) => {
+      const { pathFor } = mockPaths(base);
+      const { getOrFetchArticleMarkdown } = await import("../pipeline/summarize");
+      const { createFsStore } = await import("../utils/fs-store");
+
+      const store = createFsStore();
+      const id = 333;
+      // Old whole-page markdown already in the store (pre-Readability).
+      await store.putText(pathFor.articleMd(id), "# Old\n\n[Home](/) [About](/about) old whole-page dump");
+
+      const rec = makeRecorder();
+      // Legacy extract record: status ok, but NO sourceKind (column added later).
+      rec.extractById.set(id, { storyId: id, status: "ok" });
+
+      let fetchCalls = 0;
+      const fresh = `# Fresh article\n\n${"This is the real Readability-extracted article body with plenty of substantial prose. ".repeat(10)}`;
+      const services = {
+        http: {} as never,
+        openrouter: {} as never,
+        guardTagsClient: {} as never,
+        fetchArticleMarkdown: async () => {
+          fetchCalls += 1;
+          return { md: fresh, sourceKind: "html" as const };
+        },
+      } as never;
+
+      const result = await getOrFetchArticleMarkdown(services, makeStory({ id, url: "https://example.com/z" }), store, makeMeta(rec));
+
+      expect(fetchCalls).toBe(1); // HTTP fetch actually happened despite the cache hit
+      expect(result.md).toContain("Fresh article");
+      expect(result.extractStatus).toBe("ok");
+      // Extract record upgraded with sourceKind.
+      expect(rec.extractById.get(id)?.sourceKind).toBe("html");
+    });
+  });
 });

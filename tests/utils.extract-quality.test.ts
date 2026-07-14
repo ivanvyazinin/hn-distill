@@ -68,6 +68,14 @@ it started with a page at three in the morning saying that latency was spiking a
 
 what actually happened was that a config change had shipped that afternoon and it quietly doubled the number of retries on a downstream call so under load we were amplifying our own traffic and the whole thing spiralled from there until we rolled it back`;
 
+// Chinese prose has no inter-word spaces: a whitespace-only word count is 1.
+// The detector must still recognise it as an article.
+const CHINESE_ARTICLE = `# 为什么我们重写了调度器
+
+我们原来的调度器是一个单线程循环，每秒轮询一次数据库并逐个分发任务。随着流量增长，这成了主要瓶颈，在高峰时段为每个请求增加了数秒的延迟，并且当队列超出其固定缓冲区时偶尔会丢弃任务，给下游服务带来了很大压力。
+
+我们用一个基于无锁环形缓冲区的工作窃取线程池替换了它。每个工作线程拥有一个本地双端队列，只有在空闲时才从兄弟线程窃取任务，这样可以保持较高的缓存局部性，并避免我们在共享互斥锁上看到的惊群问题。在我们的预发布基准测试中，吞吐量提高了大约四倍，尾部延迟从八百毫秒降到了四十毫秒以下。`;
+
 const NAV_FOOTER_JUNK = `[Home](/) [About](/about) [Products](/products) [Pricing](/pricing) [Blog](/blog) [Careers](/careers) [Contact](/contact)
 
 [Sign in](/login) [Sign up](/signup)
@@ -109,6 +117,7 @@ describe("assessExtractQuality golden corpus", () => {
     ["github README", GITHUB_README],
     ["release notes", RELEASE_NOTES],
     ["docs page", DOCS_PAGE],
+    ["chinese article (no word spaces)", CHINESE_ARTICLE],
     // These bypass the detector in the pipeline (non-HTML), but must survive it anyway.
     ["pdf text", PDF_TEXT],
     ["youtube transcript", YOUTUBE_TRANSCRIPT],

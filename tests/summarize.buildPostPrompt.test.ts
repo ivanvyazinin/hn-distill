@@ -27,12 +27,21 @@ describe("buildPostPrompt head+tail slicing", () => {
     });
   });
 
-  test("HEAD >= SLICE degenerates to head-only (no tail, no separator)", async () => {
+  test("HEAD == SLICE degenerates to head-only (no tail, no separator)", async () => {
     await withEnvPatch({ ARTICLE_SLICE_CHARS: 6000, ARTICLE_HEAD_CHARS: 6000 }, async () => {
       const content = "z".repeat(6100);
       const out = await buildPostPrompt(makeStory(), content);
       expect(out).not.toContain(SEP);
       expect(out.length).toBe(6000);
+    });
+  });
+
+  test("HEAD > SLICE stays within the total budget (head clamped to SLICE)", async () => {
+    await withEnvPatch({ ARTICLE_SLICE_CHARS: 1000, ARTICLE_HEAD_CHARS: 2000 }, async () => {
+      const content = "z".repeat(5000);
+      const out = await buildPostPrompt(makeStory(), content);
+      expect(out).not.toContain(SEP);
+      expect(out.length).toBe(1000); // NOT 2000
     });
   });
 
