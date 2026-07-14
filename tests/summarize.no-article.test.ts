@@ -74,7 +74,12 @@ describe("degraded no-article lifecycle", () => {
       const rec = makeRecorder();
       const chat = async (messages: ChatMessage[]): Promise<string> => {
         rec.chatCalls.push(messages);
-        return "- Readers found the game fun\n- Several report scoring bugs";
+        // Valid comments summary for the default RU heuristics profile (no retry triggered).
+        return [
+          "- Читатели считают игру увлекательной и делятся первыми впечатлениями от новых уровней и механик",
+          "- Несколько участников сообщают об ошибках в подсчёте очков и просят авторов исправить баланс",
+          "- Автор обещает выпустить обновление с исправлениями и опубликовать план развития проекта",
+        ].join("\n");
       };
       const orMock = { chat, chatStructured: async () => "{}" } as never;
       const services = {
@@ -131,7 +136,12 @@ describe("degraded no-article lifecycle", () => {
       const orMock = {
         chat: async (messages: ChatMessage[]) => {
           rec.chatCalls.push(messages);
-          return "- one\n- two";
+          // Valid EN comments summary for the heuristics profile (no validation retry).
+          return [
+            "- Readers discuss the new release and share detailed first impressions of the updated levels",
+            "- Several participants report scoring bugs and ask the developers to rebalance the difficulty",
+            "- The author promises a follow-up patch with fixes and a public roadmap for the project",
+          ].join("\n");
         },
         chatStructured: async () => "{}",
       } as never;
@@ -177,7 +187,12 @@ describe("degraded no-article lifecycle", () => {
       const orMock = {
         chat: async (messages: ChatMessage[]) => {
           rec.chatCalls.push(messages);
-          return "- one\n- two";
+          // Valid EN comments summary for the heuristics profile (no validation retry).
+          return [
+            "- Readers discuss the new release and share detailed first impressions of the updated levels",
+            "- Several participants report scoring bugs and ask the developers to rebalance the difficulty",
+            "- The author promises a follow-up patch with fixes and a public roadmap for the project",
+          ].join("\n");
         },
         chatStructured: async () => "{}",
       } as never;
