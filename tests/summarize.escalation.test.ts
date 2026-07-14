@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
-import { env } from "../config/env.ts";
+import { env, parseEnv } from "../config/env.ts";
 import type { Services } from "../scripts/summarize.mts";
 import { generateValidatedPostSummary } from "../scripts/summarize.mts";
 
@@ -94,6 +94,10 @@ describe("generateValidatedPostSummary escalation", () => {
   let savedRejectModel: string;
   let savedGuardEnable: boolean;
   let savedLang: typeof env.SUMMARY_LANG;
+
+  test("defaults content-reject escalation to the validated paid Qwen route", () => {
+    expect(parseEnv({}).SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+  });
 
   beforeEach(() => {
     savedRejectModel = env.SUMMARY_CONTENT_REJECT_MODEL;

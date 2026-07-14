@@ -79,8 +79,8 @@ const EnvironmentSchema = z.object({
     .default(true),
   // Escalation model for content-rejected summaries (heuristics/guard). Strict retry
   // attempts start from this model instead of the small primary. Empty → default chain.
-  // Keep empty until the exact production route passes docs/escalation-model-bench.md.
-  SUMMARY_CONTENT_REJECT_MODEL: z.string().default(""),
+  // Paid OpenRouter route validated in docs/escalation-model-bench.md.
+  SUMMARY_CONTENT_REJECT_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
 
   LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
 

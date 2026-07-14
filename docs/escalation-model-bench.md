@@ -29,7 +29,11 @@
 Эти результаты подтверждают качество весов на использованных routes, но не являются
 availability/latency-доказательством для других routes.
 
-## Невалидированный production route
+Дополнительный production-smoke точного paid route
+`qwen/qwen3-next-80b-a3b-instruct` с strict escalation prompt прошёл 2026-07-14:
+1/1 успешных ответов, 10.36 с, 1021 символ, heuristic/language gate без триггеров.
+
+## Почему не `:free` route
 
 Точные OpenRouter routes
 `qwen/qwen3-next-80b-a3b-instruct:free` и
@@ -37,10 +41,11 @@ availability/latency-доказательством для других routes.
 Следовательно, они не прошли критерии error-rate и p95; объявлять
 `meta-llama/llama-3.3-70b-instruct:free` победителем было некорректно.
 
-Решение: **validated production winner пока отсутствует**. `config/env.ts`, `.env.example`
-и hourly workflow оставляют `SUMMARY_CONTENT_REJECT_MODEL` пустым по умолчанию. Workflow
-явно читает одноимённую GitHub repository variable, поэтому после отдельной успешной
-проверки точного route rollout не потребует изменения кода.
+Решение: production winner — paid OpenRouter route
+`qwen/qwen3-next-80b-a3b-instruct`. Он прошёл зафиксированные quality,
+error-rate и p95 критерии, а также strict-prompt smoke. `config/env.ts`, `.env.example`
+и hourly workflow используют его по умолчанию; GitHub repository variable может
+явно переопределить model id.
 
 ## Ф7: EN→RU two-step
 
@@ -55,7 +60,7 @@ overall 3.33, p95 80 с; two-step — 22%, 3.50, 3.08, 210 с. Two-step в produ
 | Ф1 detector/calibration | Детектор и committed labeled fixture | 12/12 manual-label agreement; detector unit tests | — |
 | Ф2 RU gate/prompt | Gate, env и call-sites | Targeted unit tests | — |
 | Ф3 judge | `language_purity` и leaderboard | `score-models` tests | — |
-| Ф4 model selection | Критерии и route-specific результаты зафиксированы | Измеренные routes подписаны явно | Exact production `:free` route validation |
-| Ф5 escalation | Ordered chain и explicit hourly variable | Post escalation tests | Включение variable до прохождения Ф4 |
+| Ф4 model selection | Выбран paid Qwen3 Next OpenRouter route | 12×3 quality run + strict smoke | Free-route не используется |
+| Ф5 escalation | Ordered chain и paid default в hourly workflow | Post escalation tests | — |
 | Ф6 comments | Validation, retry и severity comparator | Comments validation tests | — |
 | Ф7 EN→RU | Эксперимент завершён, rollout отклонён | Direct/two-step результаты зафиксированы | — |
