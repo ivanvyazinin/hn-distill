@@ -60,6 +60,9 @@ export const PostSummarySchema = z.object({
   id: z.number(),
   lang: LangSchema,
   summary: z.string(),
+  // Set when content extraction produced no usable article (nav/boilerplate/link
+  // farm). The post LLM is skipped and `summary` is "" — only comments are summarized.
+  degraded: z.literal("no-article").optional(),
   inputHash: z.string().optional(),
   model: z.string().optional(),
   createdISO: z.string().optional(),

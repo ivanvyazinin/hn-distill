@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS tags (
 CREATE TABLE IF NOT EXISTS article_extracts (
   story_id INTEGER PRIMARY KEY,
   status TEXT NOT NULL,
+  source_kind TEXT,
   char_count INTEGER,
   raw_article_ref TEXT,
   fetched_at TEXT

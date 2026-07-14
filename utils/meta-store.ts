@@ -29,6 +29,8 @@ export type RawBlobRow = {
 export type ArticleExtractRow = {
   storyId: number;
   status: string;
+  /** how the source was fetched/parsed: "html" | "pdf" | "youtube" | "text" | "empty" */
+  sourceKind?: string;
   charCount?: number;
   rawArticleRef?: string;
   fetchedAt?: string;
@@ -57,6 +59,8 @@ export interface MetaStore {
   upsertSummary(row: SummaryRow): Promise<void>;
   replaceTags(storyId: number, tags: string[]): Promise<void>;
   upsertArticleExtract(row: ArticleExtractRow): Promise<void>;
+  /** Read the persisted extract verdict for a story (used at summarize time on cache hits). */
+  getArticleExtract(storyId: number): Promise<ArticleExtractRow | undefined>;
   upsertRawBlob(row: RawBlobRow): Promise<void>;
   upsertDailyRanking(row: DailyRankingRow): Promise<void>;
 

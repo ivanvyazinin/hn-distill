@@ -36,7 +36,7 @@ function makeServices(handlers: Handler[]): { services: Services; calls: CallRec
     http: {} as Services["http"],
     openrouter: orMock,
     guardTagsClient: orMock,
-    fetchArticleMarkdown: async () => "",
+    fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
   };
 
   return { services, calls };

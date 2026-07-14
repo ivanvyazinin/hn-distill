@@ -15,7 +15,18 @@ const EnvironmentSchema = z.object({
   MAX_DEPTH: z.coerce.number().int().min(1).max(10).default(2),
   CONCURRENCY: z.coerce.number().int().min(1).max(32).default(8),
   ARTICLE_SLICE_CHARS: z.coerce.number().int().min(1000).max(20_000).default(6000),
+  // Head+tail slicing: keep the first ARTICLE_HEAD_CHARS of the article, then the
+  // last (ARTICLE_SLICE_CHARS - ARTICLE_HEAD_CHARS) so conclusions survive. When
+  // ARTICLE_HEAD_CHARS >= ARTICLE_SLICE_CHARS the tail is empty (head-only).
+  ARTICLE_HEAD_CHARS: z.coerce.number().int().min(500).max(20_000).default(4000),
   MAX_BODY_CHARS: z.coerce.number().int().min(1000).max(50_000).default(2000),
+
+  // HTML-extract garbage detector thresholds (see utils/extract-quality.ts). An
+  // extract is flagged `no-article` (post LLM skipped, only comments summarized)
+  // when prose is too thin OR links/duplicate-lines dominate.
+  EXTRACT_MIN_PROSE_CHARS: z.coerce.number().int().min(0).max(20_000).default(500),
+  EXTRACT_MAX_LINK_DENSITY: z.coerce.number().min(0).max(1).default(0.5),
+  EXTRACT_MAX_DUP_RATIO: z.coerce.number().min(0).max(1).default(0.5),
 
   HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(15_000),
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
@@ -117,6 +128,12 @@ const EnvironmentSchema = z.object({
   WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(55_000),
   WORKER_SUMMARIZE_MAX_PER_CRON: z.coerce.number().int().min(1).max(50).default(3),
   WORKER_RETRY_COOLDOWN_SECONDS: z.coerce.number().int().min(60).max(24 * 60 * 60).default(600),
+  // Opt-in migration drain. When enabled, worker cron also processes legacy
+  // article_extracts with no source_kind, independent of current TOP_N/fetchedISO.
+  WORKER_EXTRACTION_BACKFILL_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
 
   // Cloudflare Pages deploy scheduling (optional)
   PAGES_DEPLOY_HOOK_URL: z.string().optional(),
@@ -160,6 +177,14 @@ const EnvironmentSchema = z.object({
    */
   BENCH_PROVIDER_THROTTLE_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
 });
+
+/**
+ * Bump when the content-extraction / slicing policy changes in a way that should
+ * invalidate all cached post summaries. Folded into the post inputHash so local
+ * reselection (computePostChanged) and processPostSummary both reprocess stories.
+ * Not an env var — a code constant so a deploy is the only way to change it.
+ */
+export const EXTRACT_POLICY_VERSION = "1";
 
 export type Env = z.infer<typeof EnvironmentSchema>;
 

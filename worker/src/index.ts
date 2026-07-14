@@ -16,6 +16,7 @@ import {
   getProcessingUpdatedMax,
   getPagesDeployState,
   getTelegramSentIds,
+  listLegacyExtractionStoryIds,
   listPendingStoryIds,
   markTelegramSent,
   setPagesDeployState,
@@ -150,7 +151,13 @@ async function processInlineSummaries(
   const maxPerCron = Math.max(1, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON);
   const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
   const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
-  const ids = await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO);
+  const pendingIds = await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO);
+  const legacyIds = parsedEnv.WORKER_EXTRACTION_BACKFILL_ENABLE
+    ? await listLegacyExtractionStoryIds(env.DB, maxPerCron, cutoffISO)
+    : [];
+  // Prioritize the explicitly enabled migration drain, then fill the remaining
+  // bounded inline budget with current-fetch work. Set removes overlap.
+  const ids = [...new Set([...legacyIds, ...pendingIds])].slice(0, maxPerCron);
   if (ids.length === 0) {
     log.info("worker/cron", "No pending summaries");
     return;
@@ -382,7 +389,10 @@ export default {
       const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
       const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
       const pendingIds = await listPendingStoryIds(env.DB, index.storyIds.length, cutoffISO, nowISO);
-      await enqueueSummaries(queue, pendingIds);
+      const legacyIds = parsedEnv.WORKER_EXTRACTION_BACKFILL_ENABLE
+        ? await listLegacyExtractionStoryIds(env.DB, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON, cutoffISO)
+        : [];
+      await enqueueSummaries(queue, [...new Set([...legacyIds, ...pendingIds])]);
     } else {
       await processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, nowISO);
     }

@@ -3,13 +3,21 @@ import { readFile } from "node:fs/promises";
 
 import { Miniflare } from "miniflare";
 
+import { parseEnv } from "@config/env";
 import { pathFor } from "@config/paths";
 import type { NormalizedStory } from "@config/schemas";
 
 import { buildScheduleForDate } from "../worker/src/pages-schedule";
 import { createD1MetaStore } from "../worker/src/d1-meta-store";
 import { createWorkerStore } from "../worker/src/store";
-import { getTelegramSentIds, listPendingStoryIds, markTelegramSent, upsertProcessingState, upsertStory } from "../worker/src/d1";
+import {
+  getTelegramSentIds,
+  listLegacyExtractionStoryIds,
+  listPendingStoryIds,
+  markTelegramSent,
+  upsertProcessingState,
+  upsertStory,
+} from "../worker/src/d1";
 import worker from "../worker/src/index";
 
 const MINIFLARE_SCRIPT = "export default { fetch() { return new Response('ok'); } };";
@@ -38,6 +46,11 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Promise<Res
 }
 
 describe("cloudflare infra", () => {
+  test("worker extraction backfill is opt-in", () => {
+    expect(parseEnv({}).WORKER_EXTRACTION_BACKFILL_ENABLE).toBe(false);
+    expect(parseEnv({ WORKER_EXTRACTION_BACKFILL_ENABLE: "true" }).WORKER_EXTRACTION_BACKFILL_ENABLE).toBe(true);
+  });
+
   test("R2 store maps summary keys", async () => {
     const mf = new Miniflare({
       modules: true,
@@ -208,6 +221,55 @@ describe("cloudflare infra", () => {
     }
   });
 
+  test("worker extraction backfill selects legacy history outside the current fetch", async () => {
+    const mf = new Miniflare({ modules: true, script: MINIFLARE_SCRIPT, d1Databases: ["DB"] });
+    try {
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+
+      const nowISO = new Date().toISOString();
+      const historyFetchISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const olderISO = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const cutoffISO = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const story: NormalizedStory = {
+        id: 2001,
+        title: "Degraded story",
+        url: "https://example.com/degraded",
+        by: "carol",
+        timeISO: nowISO,
+        commentIds: [],
+        score: 20,
+        descendants: 0,
+      };
+      // This story belongs to an older fetch and is fully processed, so the
+      // normal current-fetch selector cannot see it.
+      await upsertStory(db, story, 0, historyFetchISO);
+      await upsertProcessingState(db, story.id, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        updatedAt: olderISO,
+        error: null,
+      });
+      await db
+        .prepare(
+          "INSERT INTO article_extracts (story_id, status, source_kind, char_count, raw_article_ref, fetched_at) " +
+            "VALUES (?, 'ok', NULL, 1234, ?, ?)"
+        )
+        .bind(story.id, `data/raw/articles/${story.id}.md`, historyFetchISO)
+        .run();
+      expect(await listPendingStoryIds(db, 10, cutoffISO, nowISO)).toEqual([]);
+
+      expect(await listLegacyExtractionStoryIds(db, 10, cutoffISO)).toEqual([story.id]);
+
+      // Successful Readability processing records provenance and drains the row.
+      await db.prepare("UPDATE article_extracts SET source_kind = 'html' WHERE story_id = ?").bind(story.id).run();
+      expect(await listLegacyExtractionStoryIds(db, 10, cutoffISO)).toEqual([]);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
   test("pages schedule spreads 500 monthly across days", () => {
     const d1 = new Date(Date.UTC(2026, 1, 1, 0, 0, 0));
     const d2 = new Date(Date.UTC(2026, 1, 24, 0, 0, 0));
@@ -239,6 +301,34 @@ describe("cloudflare infra", () => {
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
+      const historyISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const historyStateISO = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const historyStory: NormalizedStory = {
+        id: 4001,
+        title: "Legacy history story",
+        url: "https://example.com/legacy",
+        by: "history",
+        timeISO: historyISO,
+        commentIds: [],
+        score: 50,
+        descendants: 0,
+      };
+      await upsertStory(db, historyStory, 99, historyISO);
+      await upsertProcessingState(db, historyStory.id, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        updatedAt: historyStateISO,
+        error: null,
+      });
+      await db
+        .prepare(
+          "INSERT INTO article_extracts (story_id, status, source_kind, char_count, raw_article_ref, fetched_at) " +
+            "VALUES (?, 'ok', NULL, 1234, ?, ?)"
+        )
+        .bind(historyStory.id, `data/raw/articles/${historyStory.id}.md`, historyISO)
+        .run();
+
       const tasks: unknown[] = [];
       const env = {
         DATA_BUCKET: bucket,
@@ -251,6 +341,8 @@ describe("cloudflare infra", () => {
         CONCURRENCY: "1",
         TELEGRAM_ENABLE: "false",
         TAGS_MAX_PER_STORY: "0",
+        WORKER_EXTRACTION_BACKFILL_ENABLE: "true",
+        WORKER_SUMMARIZE_MAX_PER_CRON: "1",
       };
 
       const storyId = 4242;
@@ -282,8 +374,13 @@ describe("cloudflare infra", () => {
         restore();
       }
 
-      expect(tasks.length).toBe(1);
-      expect((tasks[0] as { kind?: string }).kind).toBe("summarize");
+      expect(tasks.length).toBe(2);
+      expect(
+        tasks.map((task) => task as { id?: number; kind?: string })
+      ).toEqual([
+        { kind: "summarize", id: historyStory.id },
+        { kind: "summarize", id: storyId },
+      ]);
 
       const indexObj = await bucket.get("data/index.json");
       expect(indexObj).not.toBeNull();
