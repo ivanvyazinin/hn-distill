@@ -4,12 +4,14 @@ import { env } from "@config/env";
 import type { HttpClient } from "@utils/http-client";
 import { OpenRouter } from "@utils/openrouter";
 
+import { selectCandidates } from "../eval/models-under-test";
 import {
   aggregate,
   JudgeVerdictSchema,
   renderLeaderboardMarkdown,
   runQualityJudge,
   scoreOneRun,
+  summarizeTwoStepEnRu,
   summarizeWithModel,
   type ScoredRunRecord,
 } from "../eval/score-models";
@@ -29,6 +31,7 @@ describe("aggregate", () => {
           completeness: 4,
           faithfulness: 5,
           format_adherence: 4,
+          language_purity: 5,
           overall: 4,
           is_refusal: false,
           reasons: [],
@@ -61,6 +64,7 @@ describe("aggregate", () => {
     expect(Math.abs((scores[0]?.mean_overall ?? 0) - 4)).toBeLessThan(0.001);
     expect(Math.abs((scores[0]?.composite_rank ?? 0) - 2)).toBeLessThan(0.001);
     expect(scores[0]?.p50_latency_ms).toBe(100);
+    expect(Math.abs((scores[0]?.mean_language_purity ?? 0) - 5)).toBeLessThan(0.001);
     expect(scores[1]?.error_rate).toBe(1);
     expect(scores[1]?.failure_histogram["candidate_error"]).toBe(1);
   });
@@ -73,6 +77,7 @@ describe("runQualityJudge", () => {
       completeness: 4,
       faithfulness: 5,
       format_adherence: 4,
+      language_purity: 5,
       overall: 4.5,
       is_refusal: false,
       reasons: ["solid"],
@@ -95,6 +100,7 @@ describe("runQualityJudge", () => {
     });
     const parsed = JudgeVerdictSchema.parse(verdict);
     expect(parsed.overall).toBe(4.5);
+    expect(parsed.language_purity).toBe(5);
   });
 });
 
@@ -135,6 +141,29 @@ describe("summarizeWithModel", () => {
     expect(out.content).toBe("");
     expect(out.error).toBe("boom");
   });
+
+  test("throttles every physical API attempt including a 429 retry", async () => {
+    let apiCalls = 0;
+    let beforeCalls = 0;
+    const http = {
+      json: async () => {
+        apiCalls += 1;
+        if (apiCalls === 1) {
+          throw new Error('429 {"retry_after_seconds":0}');
+        }
+        return { choices: [{ message: { content: "Русский пересказ после ретрая." } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeWithModel(client, "article", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(apiCalls).toBe(2);
+    expect(beforeCalls).toBe(2);
+  });
 });
 
 describe("renderLeaderboardMarkdown", () => {
@@ -152,6 +181,7 @@ describe("renderLeaderboardMarkdown", () => {
           mean_completeness: 4,
           mean_faithfulness: 4,
           mean_format_adherence: 4,
+          mean_language_purity: 5,
           error_rate: 0,
           p50_latency_ms: 10,
           p95_latency_ms: 10,
@@ -163,5 +193,97 @@ describe("renderLeaderboardMarkdown", () => {
     );
     expect(md).toContain("composite");
     expect(md).toContain("`a`");
+    expect(md).toContain("Lang purity");
+  });
+});
+
+describe("en-then-ru pipeline", () => {
+  test("summarizeTwoStepEnRu chains EN summary into RU translation and throttles each call", async () => {
+    const prompts: string[] = [];
+    let beforeCalls = 0;
+    const http = {
+      json: async (_url: string, init: { body?: string }) => {
+        const body = JSON.parse(init.body ?? "{}") as { messages: Array<{ role: string; content: string }> };
+        prompts.push(body.messages.map((m) => m.content).join("\n---\n"));
+        const content = prompts.length === 1 ? "English summary." : "Русский перевод.";
+        return { choices: [{ message: { content } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeTwoStepEnRu(client, "article body", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.content).toBe("Русский перевод.");
+    expect(beforeCalls).toBe(2);
+    expect(prompts.length).toBe(2);
+    expect(prompts[1]).toContain("English summary.");
+    expect(prompts[1]).toContain("переводчик");
+  });
+
+  test("two-step pipeline throttles retries on both stages", async () => {
+    let apiCalls = 0;
+    let beforeCalls = 0;
+    const http = {
+      json: async () => {
+        apiCalls += 1;
+        if (apiCalls === 1 || apiCalls === 3) {
+          throw new Error('429 {"retry_after_seconds":0}');
+        }
+        const content = apiCalls === 2 ? "English summary after retry." : "Русский перевод после ретрая.";
+        return { choices: [{ message: { content } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const out = await summarizeTwoStepEnRu(client, "article body", "m/test", env, async () => {
+      beforeCalls += 1;
+    });
+
+    expect(out.error).toBeUndefined();
+    expect(out.content).toBe("Русский перевод после ретрая.");
+    expect(apiCalls).toBe(4);
+    expect(beforeCalls).toBe(4);
+  });
+
+  test("scoreOneRun dispatches to the two-step pipeline", async () => {
+    let calls = 0;
+    const http = {
+      json: async () => {
+        calls += 1;
+        return { choices: [{ message: { content: calls === 1 ? "English summary." : "Русский перевод." } }] };
+      },
+    } as unknown as HttpClient;
+    const client = new OpenRouter(http, "key", "m/test");
+
+    const { record } = await scoreOneRun({
+      candidateClient: client,
+      judgeClient: client,
+      model: "m/test",
+      label: "m/test@en-ru",
+      pipeline: "en-then-ru",
+      article: { id: 1, title: "t", url: "u", articleSlice: "slice" },
+      repeat: 0,
+      envLike: env,
+      stubJudge: true,
+    });
+
+    expect(calls).toBe(2);
+    expect(record.model).toBe("m/test@en-ru");
+    expect(record.outputChars).toBeGreaterThan(0);
+  });
+
+  test("selectCandidates parses the @en-ru suffix", () => {
+    const [direct, twoStep] = selectCandidates([
+      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "qwen/qwen3-next-80b-a3b-instruct:free@en-ru",
+    ]);
+    expect(direct?.pipeline).toBeUndefined();
+    expect(direct?.label).toBe("qwen/qwen3-next-80b-a3b-instruct:free");
+    expect(twoStep?.pipeline).toBe("en-then-ru");
+    expect(twoStep?.label).toBe("qwen/qwen3-next-80b-a3b-instruct:free@en-ru");
+    expect(twoStep?.model).toBe("qwen/qwen3-next-80b-a3b-instruct:free");
   });
 });

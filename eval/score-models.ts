@@ -6,7 +6,7 @@ import { z } from "zod";
 import { PATHS } from "@config/paths";
 import { log } from "@utils/log";
 import { OpenRouter, type JsonSchema } from "@utils/openrouter";
-import { checkSummaryHeuristics } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 
 import { buildPostChatMessages, makeServices, sanitizeLlmContent } from "../pipeline/summarize";
 
@@ -32,6 +32,7 @@ export const JudgeVerdictSchema = z.object({
   completeness: z.number().min(1).max(5),
   faithfulness: z.number().min(1).max(5),
   format_adherence: z.number().min(1).max(5),
+  language_purity: z.number().min(1).max(5),
   overall: z.number().min(1).max(5),
   is_refusal: z.boolean(),
   reasons: z.array(z.string()).max(8),
@@ -64,6 +65,7 @@ export type ModelScore = {
   mean_completeness: number | undefined;
   mean_faithfulness: number | undefined;
   mean_format_adherence: number | undefined;
+  mean_language_purity: number | undefined;
   error_rate: number;
   p50_latency_ms: number;
   p95_latency_ms: number;
@@ -113,25 +115,128 @@ export function makeJudgeClient(envLike: Pick<Env, "JUDGE_API_KEY" | "JUDGE_BASE
   return new OpenRouter(services.http, apiKey, envLike.JUDGE_MODEL, envLike.JUDGE_BASE_URL);
 }
 
+const CANDIDATE_MAX_ATTEMPTS = 4;
+const CANDIDATE_RETRY_FALLBACK_MS = 15_000;
+const CANDIDATE_RETRY_MAX_MS = 60_000;
+
+function rateLimitDelayMs(message: string): number | undefined {
+  if (!message.includes('429')) {
+    return undefined;
+  }
+  const retryAfter = /"retry_after_seconds"\s*:\s*(?<seconds>\d+)/u.exec(message)?.groups?.["seconds"];
+  const delay = retryAfter === undefined ? CANDIDATE_RETRY_FALLBACK_MS : Number.parseInt(retryAfter, 10) * 1000 + 1000;
+  return Math.min(delay, CANDIDATE_RETRY_MAX_MS);
+}
+
+/** Chat call with retry on provider 429 (free pools saturate for seconds at a time). */
+async function chatWithRateLimitRetry(
+  client: OpenRouter,
+  messages: ReturnType<typeof buildPostChatMessages>,
+  model: string,
+  maxTokens: number,
+  beforeCall?: () => Promise<void>
+): Promise<{ content: string } | { error: string }> {
+  let lastError = "unknown";
+  for (let attempt = 1; attempt <= CANDIDATE_MAX_ATTEMPTS; attempt += 1) {
+    await beforeCall?.();
+    try {
+      const content = await client.chat(messages, { model, temperature: 0.3, maxTokens });
+      return { content: sanitizeLlmContent(content) };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+      const delayMs = rateLimitDelayMs(lastError);
+      if (delayMs === undefined || attempt === CANDIDATE_MAX_ATTEMPTS) {
+        log.warn(LOG_NAMESPACE, "Candidate model failed", { model, attempt, error: lastError });
+        break;
+      }
+      log.info(LOG_NAMESPACE, "Candidate rate-limited; retrying", { model, attempt, delayMs });
+      await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+  return { error: lastError };
+}
+
 export async function summarizeWithModel(
   client: OpenRouter,
   articleSlice: string,
   model: string,
-  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">
+  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">,
+  beforeCall?: () => Promise<void>
 ): Promise<RunOutput> {
   const started = Date.now();
-  try {
-    const content = await client.chat(buildPostChatMessages(articleSlice, { strict: false }), {
-      model,
-      temperature: 0.3,
-      maxTokens: envLike.BENCH_SUMMARY_MAX_TOKENS,
-    });
-    return { content: sanitizeLlmContent(content), latencyMs: Date.now() - started };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    log.warn(LOG_NAMESPACE, "Candidate model failed", { model, error: message });
-    return { content: "", latencyMs: Date.now() - started, error: message };
+  const result = await chatWithRateLimitRetry(
+    client,
+    buildPostChatMessages(articleSlice, { strict: false }),
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
+  );
+  if ("error" in result) {
+    return { content: "", latencyMs: Date.now() - started, error: result.error };
   }
+  return { content: result.content, latencyMs: Date.now() - started };
+}
+
+/**
+ * Two-step EN→RU pipeline: summarize in English first (a local prompt, independent of the
+ * global SUMMARY_LANG), then have the same model translate its own summary into Russian.
+ */
+const EN_STEP_SYSTEM = [
+  "You craft tight and concise Hacker News article distillations in Markdown. In English.",
+  "Aim for roughly 170 words across two short paragraphs; add a third only if it truly helps.",
+  "Spotlight the core idea plus one or two vivid facts, quotes, or numbers readers should remember.",
+  "Skip titles, bylines, publication dates, and source attributions.",
+  "Begin directly—no headings like 'Summary:' and no closing sign-offs.",
+  "Important: mention all the key information from the article, don't lose it. Be precise and concise.",
+].join("\n");
+
+const RU_TRANSLATION_SYSTEM = [
+  "Ты профессиональный переводчик технических текстов на русский язык.",
+  "Переведи пересказ статьи на естественный русский, сохраняя Markdown-разметку и структуру абзацев.",
+  "Пиши только по-русски: латиница допустима лишь для имён собственных, названий продуктов и кода.",
+  "Не добавляй заголовков, комментариев или пояснений — выведи только перевод.",
+].join("\n");
+
+export async function summarizeTwoStepEnRu(
+  client: OpenRouter,
+  articleSlice: string,
+  model: string,
+  envLike: Pick<Env, "BENCH_SUMMARY_MAX_TOKENS">,
+  beforeCall?: () => Promise<void>
+): Promise<RunOutput> {
+  const started = Date.now();
+
+  const enStep = await chatWithRateLimitRetry(
+    client,
+    [
+      { role: "system", content: EN_STEP_SYSTEM },
+      { role: "user", content: articleSlice },
+    ],
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
+  );
+  if ("error" in enStep) {
+    return { content: "", latencyMs: Date.now() - started, error: enStep.error };
+  }
+  if (enStep.content.trim().length === 0) {
+    return { content: "", latencyMs: Date.now() - started, error: "empty EN step output" };
+  }
+
+  const ruStep = await chatWithRateLimitRetry(
+    client,
+    [
+      { role: "system", content: RU_TRANSLATION_SYSTEM },
+      { role: "user", content: enStep.content },
+    ],
+    model,
+    envLike.BENCH_SUMMARY_MAX_TOKENS,
+    beforeCall
+  );
+  if ("error" in ruStep) {
+    return { content: "", latencyMs: Date.now() - started, error: ruStep.error };
+  }
+  return { content: ruStep.content, latencyMs: Date.now() - started };
 }
 
 function truncateSnippet(input: string, limit: number): string {
@@ -147,6 +252,8 @@ function buildJudgePrompt(payload: { language: string; summary: string; articleS
     "Score the candidate article summary against the excerpt using the JSON rubric.",
     "format_adherence: ~170 words, two short paragraphs, no headings like 'Summary:', no closing sign-offs, matches production style.",
     "faithfulness: penalize hallucinations and content not supported by the excerpt.",
+    "language_purity: the summary must be written entirely in the requested language (see Language:). Penalize words, phrases, or sentences from another language embedded in connected prose (e.g. English inside Russian text). Latin script is acceptable only for proper nouns, product names, quoted terms, and code.",
+    "overall: holistic quality; a summary with poor language_purity cannot receive a high overall score.",
     "Article excerpt:",
     "---",
     payload.articleSnippet,
@@ -176,11 +283,21 @@ export async function runQualityJudge(
       completeness: { type: "number", minimum: 1, maximum: 5 },
       faithfulness: { type: "number", minimum: 1, maximum: 5 },
       format_adherence: { type: "number", minimum: 1, maximum: 5 },
+      language_purity: { type: "number", minimum: 1, maximum: 5 },
       overall: { type: "number", minimum: 1, maximum: 5 },
       is_refusal: { type: "boolean" },
       reasons: { type: "array", items: { type: "string" }, maxItems: 8 },
     },
-    required: ["accuracy", "completeness", "faithfulness", "format_adherence", "overall", "is_refusal", "reasons"],
+    required: [
+      "accuracy",
+      "completeness",
+      "faithfulness",
+      "format_adherence",
+      "language_purity",
+      "overall",
+      "is_refusal",
+      "reasons",
+    ],
     additionalProperties: false,
   };
 
@@ -216,6 +333,7 @@ const STUB_JUDGE_VERDICT: JudgeVerdict = {
   completeness: 3,
   faithfulness: 3,
   format_adherence: 3,
+  language_purity: 3,
   overall: 3,
   is_refusal: false,
   reasons: ["stub_judge"],
@@ -229,16 +347,26 @@ export async function scoreOneRun(params: {
   model: string;
   /** Unique leaderboard key for this candidate (defaults to `model`). */
   label?: string;
+  /** Summary generation strategy (default "direct"). */
+  pipeline?: "direct" | "en-then-ru";
+  /** Called before EVERY candidate API call (provider throttling). */
+  beforeCandidateCall?: () => Promise<void>;
   article: BenchArticle;
   repeat: number;
   envLike: Env;
   stubJudge?: boolean;
 }): Promise<{ record: ScoredRunRecord; summaryText: string }> {
-  const { candidateClient, judgeClient, model, label, article, repeat, envLike, stubJudge } = params;
-  const run = await summarizeWithModel(candidateClient, article.articleSlice, model, envLike);
+  const { candidateClient, judgeClient, model, label, pipeline, beforeCandidateCall, article, repeat, envLike, stubJudge } =
+    params;
+  const run =
+    pipeline === "en-then-ru"
+      ? await summarizeTwoStepEnRu(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall)
+      : await summarizeWithModel(candidateClient, article.articleSlice, model, envLike, beforeCandidateCall);
   const heuristic = checkSummaryHeuristics(run.content || undefined, {
     minChars: envLike.POST_SUMMARY_MIN_CHARS,
     language: envLike.SUMMARY_LANG,
+    kind: "post",
+    languageGate: languageGateFromEnv(envLike),
   });
 
   const skipJudge = run.error !== undefined || run.content.trim().length === 0;
@@ -327,6 +455,7 @@ export function aggregate(runs: ScoredRunRecord[]): ModelScore[] {
       mean_completeness: mean(judged.map((r) => r.judge.completeness)),
       mean_faithfulness: mean(judged.map((r) => r.judge.faithfulness)),
       mean_format_adherence: mean(judged.map((r) => r.judge.format_adherence)),
+      mean_language_purity: mean(judged.map((r) => r.judge.language_purity)),
       error_rate,
       p50_latency_ms: percentile(latencies, 50),
       p95_latency_ms: percentile(latencies, 95),
@@ -353,15 +482,17 @@ export function renderLeaderboardMarkdown(scores: ModelScore[], meta?: { generat
     meta?.runCount === undefined ? "" : `Runs: ${meta.runCount}`,
     "",
     "Rank uses **composite** = `mean_overall × heuristic_pass_rate` (tie-break: lower p95 latency).",
+    "The judge is instructed to fold language_purity into `overall`, so purity affects the rank; the column shows it separately.",
     "",
-    "| Rank | Model | Composite | Judge overall | Heuristic pass | Error rate | Refusal rate | p95 ms |",
-    "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+    "| Rank | Model | Composite | Judge overall | Lang purity | Heuristic pass | Error rate | Refusal rate | p95 ms |",
+    "| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
   ].filter((line) => line !== "");
 
   for (const [i, s] of scores.entries()) {
     const overall = s.mean_overall === undefined ? "—" : s.mean_overall.toFixed(2);
+    const purity = s.mean_language_purity === undefined ? "—" : s.mean_language_purity.toFixed(2);
     lines.push(
-      `| ${i + 1} | \`${s.model}\` | ${s.composite_rank.toFixed(3)} | ${overall} | ${(s.heuristic_pass_rate * 100).toFixed(0)}% | ${(s.error_rate * 100).toFixed(0)}% | ${(s.refusal_rate * 100).toFixed(0)}% | ${Math.round(s.p95_latency_ms)} |`
+      `| ${i + 1} | \`${s.model}\` | ${s.composite_rank.toFixed(3)} | ${overall} | ${purity} | ${(s.heuristic_pass_rate * 100).toFixed(0)}% | ${(s.error_rate * 100).toFixed(0)}% | ${(s.refusal_rate * 100).toFixed(0)}% | ${Math.round(s.p95_latency_ms)} |`
     );
   }
 

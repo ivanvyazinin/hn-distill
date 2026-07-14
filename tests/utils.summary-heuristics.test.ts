@@ -112,4 +112,171 @@ describe("utils/summary-heuristics", () => {
     expect(verdict.ok).toBeTrue();
     expect(verdict.triggers.some((trigger) => trigger.reason === "prompt_instructions")).toBeFalse();
   });
+
+  describe("RU language gate", () => {
+    const RU_FILLER =
+      "Автор подробно разбирает архитектуру системы, приводит цифры из тестов, объясняет причины решений и сравнивает подход с альтернативами, чтобы читатель мог оценить применимость на практике.";
+
+    test("flags single English word in Russian grammar (precedents)", () => {
+      const verdict = checkSummaryHeuristics(`${RU_FILLER} Эксперты считают, что такие меры создают precedents, позволяющие государствам шпионить за пользователями.`, {
+        minChars: 60,
+        language: "ru",
+      });
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((t) => t.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags English clause inside Russian prose", () => {
+      const verdict = checkSummaryHeuristics(`${RU_FILLER} Вы выбираете стратегию, а система очков lets you compare results globally.`, {
+        minChars: 60,
+        language: "ru",
+      });
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((t) => t.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags broken grammar with function word (для от rejection)", () => {
+      const verdict = checkSummaryHeuristics(`${RU_FILLER} Несмотря на протесты абсолютного большинства для от rejection он прошёл без поправок.`, {
+        minChars: 60,
+        language: "ru",
+      });
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((t) => t.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags fully English summary via low_cyrillic_ratio", () => {
+      const verdict = checkSummaryHeuristics(
+        "The article explains how a new distributed storage engine shards petabytes of logs across regions and highlights the operational lessons learned during the migration to the new architecture of the platform.",
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((t) => t.reason === "low_cyrillic_ratio")).toBeTrue();
+    });
+
+    test("does not flag proper nouns, acronyms and lowercase tools", () => {
+      const verdict = checkSummaryHeuristics(
+        `Проект OpenWrt публикует релиз на GitHub: обновлены systemd, npm, curl и nginx, добавлена поддержка API и HTTP, а команда brew bundle получила параллельную установку. ${RU_FILLER}`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeTrue();
+      expect(verdict.triggers).toEqual([]);
+    });
+
+    test("allows short quoted UI terms and glosses", () => {
+      const verdict = checkSummaryHeuristics(
+        `При ошибке появляется сообщение «Something went wrong», а производитель осевого (axial flux) двигателя показывает режим «Dark mode». ${RU_FILLER}`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeTrue();
+      expect(verdict.triggers).toEqual([]);
+    });
+
+    test("flags a quoted English clause inside Russian prose", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Автор пишет: «lets you compare results globally», после чего продолжает разбор русским текстом.`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags a long quoted English sentence", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Автор цитирует вывод: «Duplication is far cheaper than the wrong abstraction when a system is still evolving quickly».`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("flags a fully English ALL-CAPS sentence", () => {
+      const verdict = checkSummaryHeuristics(
+        "THIS ARTICLE EXPLAINS WHY DISTRIBUTED STORAGE SYSTEMS NEED CAREFUL RECOVERY PLANS AND REGULAR FAILURE TESTING.",
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "low_cyrillic_ratio")).toBeTrue();
+    });
+
+    test("flags a singleton after a proper noun", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Компания OpenAI admits ошибку и обещает исправить поведение новой версии.`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+    });
+
+    test("allows lowercase glue inside a proper-noun phrase", () => {
+      const verdict = checkSummaryHeuristics(
+        `${RU_FILLER} Исследование Institute for Highway Safety сравнивает результаты испытаний автомобилей.`,
+        { minChars: 60, language: "ru" }
+      );
+      expect(verdict.ok).toBeTrue();
+      expect(verdict.triggers).toEqual([]);
+    });
+
+    test("gate can be disabled via languageGate.enable", () => {
+      const verdict = checkSummaryHeuristics(`${RU_FILLER} Такие меры создают precedents, позволяющие обходить закон.`, {
+        minChars: 60,
+        language: "ru",
+        languageGate: { enable: false },
+      });
+      expect(verdict.triggers.some((t) => t.reason === "latin_prose")).toBeFalse();
+    });
+
+    test("gate is inactive for English summaries", () => {
+      const verdict = checkSummaryHeuristics(
+        "The article explains how a new distributed storage engine shards petabytes of logs across regions, describes the recovery model in detail, and highlights the operational lessons learned during migration.",
+        { minChars: 60, language: "en" }
+      );
+      expect(verdict.ok).toBeTrue();
+    });
+
+    test("soft noun-phrase runs flag only when enabled", () => {
+      const text = `${RU_FILLER} Надёжнее использовать resident set size вместо виртуальной памяти при мониторинге процессов.`;
+      const defaultVerdict = checkSummaryHeuristics(text, { minChars: 60, language: "ru" });
+      expect(defaultVerdict.triggers.some((t) => t.reason === "latin_prose")).toBeFalse();
+      const softVerdict = checkSummaryHeuristics(text, {
+        minChars: 60,
+        language: "ru",
+        languageGate: { flagSoftRuns: true },
+      });
+      expect(softVerdict.triggers.some((t) => t.reason === "latin_prose")).toBeTrue();
+    });
+  });
+
+  describe("comments profile", () => {
+    test("does not flag a valid RU bullet list as bullets_only", () => {
+      const summary = [
+        "- Участники обсуждают производительность нового движка и делятся замерами на реальных данных",
+        "- Часть пользователей сомневается в честности методики сравнения и просит раскрыть конфигурацию",
+        "- Автор отвечает на критику и обещает опубликовать полный набор бенчмарков вместе с кодом",
+      ].join("\n");
+      const verdict = checkSummaryHeuristics(summary, { minChars: 60, language: "ru", kind: "comments" });
+      expect(verdict.ok).toBeTrue();
+      expect(verdict.triggers).toEqual([]);
+    });
+
+    test("post profile still flags bullets_only", () => {
+      const summary = [
+        "- Участники обсуждают производительность нового движка и делятся замерами на реальных данных",
+        "- Часть пользователей сомневается в честности методики сравнения и просит раскрыть конфигурацию",
+        "- Автор отвечает на критику и обещает опубликовать полный набор бенчмарков вместе с кодом",
+      ].join("\n");
+      const verdict = checkSummaryHeuristics(summary, { minChars: 60, language: "ru", kind: "post" });
+      expect(verdict.triggers.some((t) => t.reason === "bullets_only")).toBeTrue();
+    });
+
+    test("language gate still applies to comment bullet lists", () => {
+      const summary = [
+        "- Участники обсуждают закон и его последствия для приватности пользователей в разных странах",
+        "- Несмотря на протесты абсолютного большинства для от rejection он прошёл без поправок",
+        "- Автор поста обещает следить за развитием событий и публиковать обновления по мере поступления",
+      ].join("\n");
+      const verdict = checkSummaryHeuristics(summary, { minChars: 60, language: "ru", kind: "comments" });
+      expect(verdict.ok).toBeFalse();
+      expect(verdict.triggers.some((t) => t.reason === "latin_prose")).toBeTrue();
+    });
+  });
 });
