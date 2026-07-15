@@ -20,9 +20,11 @@ import {
 import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
-import type { MetaStore } from "@utils/meta-store";
+import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
+
+import type { MetaStore } from "@utils/meta-store";
 
 type Services = {
   noop?: true;
@@ -123,6 +125,15 @@ export function buildAggregatedItem(
   const tags = [...new Set(rawTags)];
 
   const rawPostSummary = (postSummary as { summary?: string } | undefined)?.summary;
+  const commentsSummaryRecord = commentsSummary as
+    | { summary?: unknown; formatVersion?: unknown }
+    | undefined;
+  const rawCommentsSummary = commentsSummaryRecord?.summary;
+  const persistedCommentsSummary =
+    typeof rawCommentsSummary === "string" &&
+    (rawCommentsSummary.length > 0 || commentsSummaryRecord?.formatVersion === 2)
+      ? presentCommentsSummary(rawCommentsSummary)
+      : undefined;
   const postGuard = (postSummary as { guard?: PostSummaryGuardPersisted } | undefined)?.guard;
   const cleanedPostSummary = sanitizePostSummary(rawPostSummary, postGuard, { id: story.id });
 
@@ -133,7 +144,7 @@ export function buildAggregatedItem(
     by: story.by,
     timeISO: story.timeISO,
     postSummary: cleanedPostSummary,
-    commentsSummary: (commentsSummary as { summary?: string } | undefined)?.summary ?? fb.commentsSummary,
+    commentsSummary: resolveCommentsSummary(persistedCommentsSummary, fb.commentsSummary),
     score: story.score,
     commentsCount: story.descendants ?? comments.length,
     hnUrl: HN.itemUrl(story.id),

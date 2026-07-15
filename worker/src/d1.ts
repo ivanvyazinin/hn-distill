@@ -1,7 +1,13 @@
-import type { NormalizedStory } from "@config/schemas";
 import type { D1DatabaseLike } from "./bindings";
+import type { NormalizedStory } from "@config/schemas";
 
-export type ProcessingStatus = "ok" | "missing" | "error";
+export type ProcessingStatus = "error" | "missing" | "ok";
+
+export type CommentsPolicyState = {
+  commentsPolicyVersion: string | undefined;
+  commentsInputHash: string | undefined;
+  updatedAt: string | undefined;
+};
 
 export async function upsertStory(
   db: D1DatabaseLike,
@@ -37,12 +43,22 @@ export async function upsertProcessingState(
     tagsStatus: ProcessingStatus;
     updatedAt: string;
     error?: string | null;
+    commentsPolicyVersion?: string;
+    commentsInputHash?: string;
   }
 ): Promise<void> {
+  // D1 uses SQL NULL for optional fields; omitted policy fields must preserve existing values via COALESCE.
+  // eslint-disable-next-line unicorn/no-null
+  const databaseNull = null;
   await db
     .prepare(
-      "INSERT INTO processing_state (story_id, post_status, comments_status, tags_status, updated_at, error) VALUES (?, ?, ?, ?, ?, ?) " +
-        "ON CONFLICT(story_id) DO UPDATE SET post_status=excluded.post_status, comments_status=excluded.comments_status, tags_status=excluded.tags_status, updated_at=excluded.updated_at, error=excluded.error"
+      "INSERT INTO processing_state (story_id, post_status, comments_status, tags_status, updated_at, error, comments_policy_version, comments_input_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+        "ON CONFLICT(story_id) DO UPDATE SET post_status=excluded.post_status, comments_status=excluded.comments_status, tags_status=excluded.tags_status, updated_at=excluded.updated_at, error=excluded.error, " +
+        // SQL column identifiers look like high-entropy credentials to the generic secret detector.
+        // eslint-disable-next-line no-secrets/no-secrets
+        "comments_policy_version=COALESCE(excluded.comments_policy_version, processing_state.comments_policy_version), " +
+        // eslint-disable-next-line no-secrets/no-secrets
+        "comments_input_hash=COALESCE(excluded.comments_input_hash, processing_state.comments_input_hash)"
     )
     .bind(
       storyId,
@@ -50,9 +66,62 @@ export async function upsertProcessingState(
       state.commentsStatus,
       state.tagsStatus,
       state.updatedAt,
-      state.error ?? null
+      state.error ?? databaseNull,
+      state.commentsPolicyVersion ?? databaseNull,
+      state.commentsInputHash ?? databaseNull
     )
     .run();
+}
+
+type CommentsPolicyRow = {
+  story_id: number;
+  comments_policy_version?: string | null;
+  comments_input_hash?: string | null;
+  updated_at?: string | null;
+};
+
+function commentsPolicyStateFromRow(row: CommentsPolicyRow): CommentsPolicyState {
+  return {
+    commentsPolicyVersion: row.comments_policy_version ?? undefined,
+    commentsInputHash: row.comments_input_hash ?? undefined,
+    updatedAt: row.updated_at ?? undefined,
+  };
+}
+
+export async function getCommentsPolicyState(
+  db: D1DatabaseLike,
+  storyId: number
+): Promise<CommentsPolicyState | undefined> {
+  const row = await db
+    .prepare(
+      "SELECT story_id, comments_policy_version, comments_input_hash, updated_at FROM processing_state WHERE story_id = ?"
+    )
+    .bind(storyId)
+    .first<CommentsPolicyRow>();
+  return row === null ? undefined : commentsPolicyStateFromRow(row);
+}
+
+export async function getCommentsPolicyStates(
+  db: D1DatabaseLike,
+  storyIds: number[]
+): Promise<Map<number, CommentsPolicyState>> {
+  const states = new Map<number, CommentsPolicyState>();
+  const uniqueIds = [...new Set(storyIds)];
+  const chunkSize = 90;
+  for (let offset = 0; offset < uniqueIds.length; offset += chunkSize) {
+    const chunk = uniqueIds.slice(offset, offset + chunkSize);
+    const placeholders = chunk.map(() => "?").join(",");
+    const result = await db
+      .prepare(
+        `SELECT story_id, comments_policy_version, comments_input_hash, updated_at FROM processing_state WHERE story_id IN (${placeholders})`
+      )
+      .bind(...chunk)
+      .all<CommentsPolicyRow>();
+    for (const row of result.results) {
+      states.set(row.story_id, commentsPolicyStateFromRow(row));
+    }
+  }
+  return states;
 }
 
 export async function getTelegramSentIds(db: D1DatabaseLike, ids: number[]): Promise<Set<number>> {
@@ -118,7 +187,8 @@ export async function listPendingStoryIds(
   db: D1DatabaseLike,
   limit: number,
   updatedBeforeISO: string,
-  fetchedISO: string
+  fetchedISO: string,
+  desiredPolicyVersion: string
 ): Promise<number[]> {
   const safeLimit = Math.max(1, Math.min(limit, 200));
   const result = await db
@@ -129,13 +199,14 @@ export async function listPendingStoryIds(
         "p.story_id IS NULL " +
         "OR ((p.post_status IS NULL OR p.post_status != 'ok' " +
         "OR p.comments_status IS NULL OR p.comments_status != 'ok' " +
-        "OR p.tags_status IS NULL OR p.tags_status != 'ok') " +
+        "OR p.tags_status IS NULL OR p.tags_status != 'ok' " +
+        "OR p.comments_policy_version IS NULL OR p.comments_policy_version != ?) " +
         "AND (p.updated_at IS NULL OR p.updated_at < ?))" +
         ") " +
         "ORDER BY s.rank ASC, s.id DESC " +
         "LIMIT ?"
     )
-    .bind(fetchedISO, updatedBeforeISO, safeLimit)
+    .bind(fetchedISO, desiredPolicyVersion, updatedBeforeISO, safeLimit)
     .all<{ id: number }>();
   return result.results.map((row) => row.id);
 }

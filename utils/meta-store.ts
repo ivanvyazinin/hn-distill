@@ -49,6 +49,16 @@ export type TelegramLedgerSnapshot = {
   lastUpdatedISO?: string;
 };
 
+export type ProcessingStateUpdate = {
+  postStatus: ProcessingStatus;
+  commentsStatus: ProcessingStatus;
+  commentsPolicyVersion?: string;
+  commentsInputHash?: string;
+  tagsStatus: ProcessingStatus;
+  updatedAt: string;
+  error?: string | null;
+};
+
 export interface MetaStore {
   migrate(): Promise<void>;
 
@@ -64,22 +74,18 @@ export interface MetaStore {
   upsertRawBlob(row: RawBlobRow): Promise<void>;
   upsertDailyRanking(row: DailyRankingRow): Promise<void>;
 
-  upsertProcessingState(
-    storyId: number,
-    state: {
-      postStatus: ProcessingStatus;
-      commentsStatus: ProcessingStatus;
-      tagsStatus: ProcessingStatus;
-      updatedAt: string;
-      error?: string | null;
-    }
-  ): Promise<void>;
+  upsertProcessingState(storyId: number, state: ProcessingStateUpdate): Promise<void>;
 
   getTelegramSentIds(ids: number[]): Promise<Set<number>>;
   markTelegramSent(storyId: number, messageId: number, sentAtISO: string): Promise<void>;
   getTelegramLedger(): Promise<TelegramLedgerSnapshot>;
   acquireRunLock(key: string, nowISO: string, ttlMs: number, owner: string): Promise<boolean>;
-  listPendingStoryIds(limit: number, updatedBeforeISO: string, fetchedISO: string): Promise<number[]>;
+  listPendingStoryIds(
+    limit: number,
+    updatedBeforeISO: string,
+    fetchedISO: string,
+    desiredPolicyVersion: string
+  ): Promise<number[]>;
   getProcessingUpdatedMax(): Promise<string | undefined>;
   getAggregateState(
     key: string

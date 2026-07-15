@@ -68,8 +68,27 @@ export type StoryRow = {
   descendants: number | null;
 };
 
-export type SummaryMap = Map<number, { post?: string; comments?: string }>;
+export type PresentCommentsSummary = {
+  present: true;
+  summary: string;
+};
+
+// The DB contract stores only the rendered string. Row presence is therefore
+// the v2 marker for an intentional empty result; legacy zero-comment runs did
+// not persist a comments summary row.
+export type SummaryMap = Map<number, { post?: string; comments?: PresentCommentsSummary }>;
 export type TagsMap = Map<number, string[]>;
+
+export function presentCommentsSummary(summary: string): PresentCommentsSummary {
+  return { present: true, summary };
+}
+
+export function resolveCommentsSummary(
+  persisted: PresentCommentsSummary | undefined,
+  fallback?: string
+): string | undefined {
+  return persisted === undefined ? fallback : persisted.summary;
+}
 
 export function buildAggregatedItemsFromRows(
   stories: StoryRow[],
@@ -88,7 +107,7 @@ export function buildAggregatedItemsFromRows(
       by: story.by,
       timeISO: story.timeISO,
       postSummary,
-      commentsSummary: sum?.comments,
+      commentsSummary: resolveCommentsSummary(sum?.comments),
       score: story.score ?? undefined,
       commentsCount: story.descendants ?? undefined,
       hnUrl: HN.itemUrl(story.id),

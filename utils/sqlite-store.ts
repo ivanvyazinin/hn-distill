@@ -12,7 +12,7 @@ import type {
   ArticleExtractRow,
   DailyRankingRow,
   MetaStore,
-  ProcessingStatus,
+  ProcessingStateUpdate,
   RawBlobRow,
   SummaryRow,
   TelegramLedgerSnapshot,
@@ -186,24 +186,29 @@ export function createSqliteStore(dbPath: string): MetaStore & { close: () => vo
 
     async upsertProcessingState(
       storyId: number,
-      state: {
-        postStatus: ProcessingStatus;
-        commentsStatus: ProcessingStatus;
-        tagsStatus: ProcessingStatus;
-        updatedAt: string;
-        error?: string | null;
-      }
+      state: ProcessingStateUpdate
     ): Promise<void> {
+      // SQLite uses SQL NULL for omitted optional values; conflict COALESCE preserves applied policy state.
+      // eslint-disable-next-line unicorn/no-null
+      const databaseNull = null;
       db.prepare(
-        "INSERT INTO processing_state (story_id, post_status, comments_status, tags_status, updated_at, error) VALUES (?, ?, ?, ?, ?, ?) " +
-          "ON CONFLICT(story_id) DO UPDATE SET post_status=excluded.post_status, comments_status=excluded.comments_status, tags_status=excluded.tags_status, updated_at=excluded.updated_at, error=excluded.error"
+        "INSERT INTO processing_state (story_id, post_status, comments_status, comments_policy_version, comments_input_hash, tags_status, updated_at, error) VALUES (?, ?, ?, ?, ?, ?, ?, ?) " +
+          "ON CONFLICT(story_id) DO UPDATE SET post_status=excluded.post_status, comments_status=excluded.comments_status, " +
+          // SQL identifiers look like credentials to the generic secret detector.
+          // eslint-disable-next-line no-secrets/no-secrets
+          "comments_policy_version=COALESCE(excluded.comments_policy_version, processing_state.comments_policy_version), " +
+          // eslint-disable-next-line no-secrets/no-secrets
+          "comments_input_hash=COALESCE(excluded.comments_input_hash, processing_state.comments_input_hash), " +
+          "tags_status=excluded.tags_status, updated_at=excluded.updated_at, error=excluded.error"
       ).run(
         storyId,
         state.postStatus,
         state.commentsStatus,
+        state.commentsPolicyVersion ?? databaseNull,
+        state.commentsInputHash ?? databaseNull,
         state.tagsStatus,
         state.updatedAt,
-        state.error ?? null
+        state.error ?? databaseNull
       );
     },
 
@@ -253,7 +258,12 @@ export function createSqliteStore(dbPath: string): MetaStore & { close: () => vo
       return false;
     },
 
-    async listPendingStoryIds(limit: number, updatedBeforeISO: string, fetchedISO: string): Promise<number[]> {
+    async listPendingStoryIds(
+      limit: number,
+      updatedBeforeISO: string,
+      fetchedISO: string,
+      desiredPolicyVersion: string
+    ): Promise<number[]> {
       const safeLimit = Math.max(1, Math.min(limit, 200));
       const rows = db
         .prepare(
@@ -263,13 +273,14 @@ export function createSqliteStore(dbPath: string): MetaStore & { close: () => vo
             "p.story_id IS NULL " +
             "OR ((p.post_status IS NULL OR p.post_status != 'ok' " +
             "OR p.comments_status IS NULL OR p.comments_status != 'ok' " +
-            "OR p.tags_status IS NULL OR p.tags_status != 'ok') " +
+            "OR p.tags_status IS NULL OR p.tags_status != 'ok' " +
+            "OR p.comments_policy_version IS NULL OR p.comments_policy_version != ?) " +
             "AND (p.updated_at IS NULL OR p.updated_at < ?))" +
             ") " +
             "ORDER BY s.rank ASC, s.id DESC " +
             "LIMIT ?"
         )
-        .all(fetchedISO, updatedBeforeISO, safeLimit) as Array<{ id: number }>;
+        .all(fetchedISO, desiredPolicyVersion, updatedBeforeISO, safeLimit) as Array<{ id: number }>;
       return rows.map((r) => r.id);
     },
 

@@ -1,28 +1,45 @@
-import { env, EXTRACT_POLICY_VERSION, type Env } from "@config/env";
+import { COMMENTS_POLICY_VERSION, env, EXTRACT_POLICY_VERSION, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
+  CommentsInsightsJsonSchema,
+  CommentsInsightsSchema,
   CommentsSummarySchema,
   IndexSchema,
   NormalizedCommentSchema,
   NormalizedStorySchema,
   PostSummarySchema,
   TagsSummarySchema,
+  type CommentsInsights,
   type CommentsSummary,
   type NormalizedComment,
   type NormalizedStory,
   type PostSummary,
 } from "@config/schemas";
+import {
+  renderCommentsSummaryMarkdown,
+  renderTooFewCommentsFallback,
+  validateCommentsQuote,
+} from "@utils/comments-render";
+import {
+  buildCommentsThread,
+  buildCommentsPromptV2,
+  buildCommentsSystemInstructionV2,
+  commentsInputHash,
+} from "@utils/comments-thread";
 import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
 import { assessExtractQuality } from "@utils/extract-quality";
 import { sha256Hex } from "@utils/hash";
 import { extractArticleMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
-import type { MetaStore } from "@utils/meta-store";
-import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
-import { OpenRouter, type ChatMessage } from "@utils/openrouter";
+import { readJsonSafeOrStore } from "@utils/object-store";
+import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
-import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
+import {
+  checkCommentsInsightsHeuristics,
+  checkSummaryHeuristics,
+  languageGateFromEnv,
+} from "@utils/summary-heuristics";
 import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 import {
   Telegram,
@@ -35,8 +52,12 @@ import {
 } from "@utils/telegram";
 import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
 
+import type { MetaStore } from "@utils/meta-store";
+import type { ObjectStore } from "@utils/object-store";
 import type { PdfToTextOptions } from "@utils/pdf";
 import type { z } from "zod";
+
+export { buildCommentsPromptV2, buildCommentsSystemInstructionV2, buildCommentsThread, commentsInputHash };
 
 /** How a story's article content was fetched/parsed. Only "html" is subject to the garbage detector. */
 export type ArticleSourceKind = "empty" | "html" | "pdf" | "text" | "youtube";
@@ -969,6 +990,270 @@ export async function generateValidatedCommentsSummary(
   return keepRetry ? retry : first;
 }
 
+const COMMENTS_DEADLINE_BUFFER_MS = 250;
+
+export type CommentsGenerationBudgetOptions = {
+  deadlineAt?: number;
+  maxCalls?: number;
+  now?: () => number;
+  requestTimeoutMs?: number;
+};
+
+/** A single budget shared by every physical comments-v2 request. */
+export class CommentsGenerationBudget {
+  readonly maxCalls: number;
+  private readonly deadlineAt: number | undefined;
+  private readonly now: () => number;
+  private readonly requestTimeoutMs: number;
+  private used: number;
+
+  constructor(options: CommentsGenerationBudgetOptions = {}) {
+    this.used = 0;
+    this.maxCalls = options.maxCalls ?? env.COMMENTS_MAX_LLM_CALLS;
+    this.deadlineAt = options.deadlineAt;
+    this.now = options.now ?? Date.now;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? env.COMMENTS_LLM_REQUEST_TIMEOUT_MS;
+  }
+
+  get callsUsed(): number {
+    return this.used;
+  }
+
+  claimRequestTimeoutMs(): number | undefined {
+    if (this.used >= this.maxCalls) {
+      return undefined;
+    }
+    let timeoutMs = this.requestTimeoutMs;
+    if (this.deadlineAt !== undefined) {
+      const availableMs = this.deadlineAt - this.now() - COMMENTS_DEADLINE_BUFFER_MS;
+      if (availableMs < 1000) {
+        return undefined;
+      }
+      timeoutMs = Math.min(timeoutMs, availableMs);
+    }
+    this.used += 1;
+    return Math.max(1, Math.floor(timeoutMs));
+  }
+}
+
+export type PreparedCommentsPromptV2 = ReturnType<typeof buildCommentsPromptV2>;
+
+export type ValidatedCommentsSummaryV2 = {
+  insights: CommentsInsights;
+  modelUsed: string;
+  prompt: string;
+  sampleIds: number[];
+  summary: string;
+};
+
+export type GenerateCommentsSummaryV2Input = {
+  budget?: CommentsGenerationBudget;
+  comments: NormalizedComment[];
+  deadlineAt?: number;
+  postSummary?: Pick<PostSummary, "degraded" | "summary">;
+  prepared?: PreparedCommentsPromptV2;
+  story: Pick<NormalizedStory, "id" | "title">;
+};
+
+function commentsV2Messages(prompt: string, strict: boolean): ChatMessage[] {
+  const strictInstruction =
+    env.SUMMARY_LANG === "ru"
+      ? "Строго соблюдай JSON-схему, не отказывайся от анализа и не добавляй вымышленных фактов."
+      : "Follow the JSON schema exactly, do not refuse the analysis, and do not invent facts.";
+  const system = [buildCommentsSystemInstructionV2(env.SUMMARY_LANG), ...(strict ? [strictInstruction] : [])].join(
+    "\n"
+  );
+  return [
+    { role: "system", content: system },
+    { role: "user", content: prompt },
+  ];
+}
+
+function validateCommentsInsightsCandidate(
+  insights: CommentsInsights,
+  comments: NormalizedComment[],
+  sampleIds: number[]
+): string | undefined {
+  const heuristics = checkCommentsInsightsHeuristics(insights, {
+    language: env.SUMMARY_LANG,
+    minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
+  });
+  if (!heuristics.ok) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 insights failed heuristics", {
+      triggers: heuristics.triggers,
+    });
+    return undefined;
+  }
+
+  if (insights.best_quote !== null) {
+    const quote = validateCommentsQuote(insights, comments);
+    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 quote failed provenance", {
+        commentId: insights.best_quote.comment_id,
+      });
+      return undefined;
+    }
+  }
+
+  const summary = renderCommentsSummaryMarkdown(insights, {
+    language: env.SUMMARY_LANG,
+    comments,
+  });
+  if (summary.trim().length < env.COMMENTS_SUMMARY_MIN_CHARS) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 rendered summary is too short", {
+      chars: summary.trim().length,
+      minimum: env.COMMENTS_SUMMARY_MIN_CHARS,
+    });
+    return undefined;
+  }
+  return summary;
+}
+
+function hasHttpErrorCause(error: unknown): boolean {
+  let current = error;
+  for (let depth = 0; depth < 6 && current instanceof Error; depth += 1) {
+    if (current instanceof HttpError) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
+
+export async function callStructuredWithModelChain(
+  services: Services,
+  input: {
+    budget: CommentsGenerationBudget;
+    comments: NormalizedComment[];
+    prompt: string;
+    sampleIds: number[];
+  }
+): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
+  const modelChain = [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2].filter(
+    (model, index, all) => model.trim().length > 0 && all.indexOf(model) === index
+  );
+  let modelIndex = 0;
+  let strict = false;
+  let useResponseFormat = true;
+
+  const moveToFallback = (): boolean => {
+    modelIndex += 1;
+    strict = true;
+    useResponseFormat = true;
+    return modelIndex < modelChain.length;
+  };
+
+  while (modelIndex < modelChain.length) {
+    const model = modelChain[modelIndex];
+    if (model === undefined) {
+      return undefined;
+    }
+
+    const requestTimeoutMs = input.budget.claimRequestTimeoutMs();
+    if (requestTimeoutMs === undefined) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 request budget or deadline exhausted", {
+        callsUsed: input.budget.callsUsed,
+        maxCalls: input.budget.maxCalls,
+      });
+      return undefined;
+    }
+
+    try {
+      const insights = await services.openrouter.chatStructured(
+        commentsV2Messages(input.prompt, strict),
+        {
+          temperature: 0.2,
+          maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
+          model,
+          jsonExtraction: useResponseFormat ? "strict" : "balanced-object",
+          transportRetries: 0,
+          requestTimeoutMs,
+          ...(useResponseFormat
+            ? {
+                signalUnsupportedResponseFormat: true,
+                responseFormat: {
+                  type: "json_schema" as const,
+                  json_schema: {
+                    name: "comments_insights_v2",
+                    strict: true,
+                    schema: CommentsInsightsJsonSchema as unknown as JsonSchema,
+                  },
+                },
+              }
+            : {}),
+        },
+        CommentsInsightsSchema,
+        1
+      );
+      const summary = validateCommentsInsightsCandidate(insights, input.comments, input.sampleIds);
+      if (summary !== undefined) {
+        return { insights, modelUsed: model, summary };
+      }
+      if (!strict) {
+        strict = true;
+      } else if (!moveToFallback()) {
+        return undefined;
+      }
+    } catch (error) {
+      if (useResponseFormat && error instanceof UnsupportedResponseFormatError) {
+        useResponseFormat = false;
+        strict = true;
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 response_format unsupported; retrying without it", {
+          model,
+        });
+        continue;
+      }
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 structured attempt failed", {
+        model,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      if (!useResponseFormat || hasHttpErrorCause(error) || strict) {
+        if (!moveToFallback()) {
+          return undefined;
+        }
+      } else {
+        strict = true;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+export async function generateValidatedCommentsSummaryV2(
+  services: Services,
+  input: GenerateCommentsSummaryV2Input
+): Promise<ValidatedCommentsSummaryV2 | undefined> {
+  const prepared =
+    input.prepared ??
+    buildCommentsPromptV2({
+      story: input.story,
+      comments: input.comments,
+      ...(input.postSummary === undefined ? {} : { postSummary: input.postSummary }),
+      language: env.SUMMARY_LANG,
+      maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+    });
+  const budget =
+    input.budget ??
+    new CommentsGenerationBudget({
+      ...(input.deadlineAt === undefined ? {} : { deadlineAt: input.deadlineAt }),
+    });
+  const result = await callStructuredWithModelChain(services, {
+    budget,
+    comments: input.comments,
+    prompt: prepared.prompt,
+    sampleIds: prepared.sampleIds,
+  });
+  if (result === undefined) {
+    return undefined;
+  }
+  return {
+    ...result,
+    prompt: prepared.prompt,
+    sampleIds: prepared.sampleIds,
+  };
+}
+
 /**
  * Extract status persisted on the article_extract record:
  * - "ok": usable content (or a non-HTML source that bypasses the detector)
@@ -1179,50 +1464,155 @@ async function processPostSummary(
   }
 }
 
-async function processCommentsSummary(
+export type CommentsProcessingResult =
+  | {
+      status: "applied";
+      policyVersion: string;
+      inputHash: string;
+      summary: CommentsSummary;
+    }
+  | {
+      status: "pending";
+      desiredPolicyVersion: string;
+      inputHash: string;
+      reason: string;
+    };
+
+async function upsertCommentsSummaryMeta(meta: MetaStore | undefined, summary: CommentsSummary): Promise<void> {
+  if (meta === undefined) {
+    return;
+  }
+  await meta.upsertSummary({
+    storyId: summary.id,
+    kind: "comments",
+    lang: summary.lang,
+    ...(summary.model === undefined ? {} : { model: summary.model }),
+    summary: summary.summary,
+    createdAt: summary.createdISO ?? new Date().toISOString(),
+  });
+}
+
+export async function processCommentsSummary(
   services: Services,
   story: NormalizedStory,
   comments: NormalizedComment[],
+  postSummary: PostSummary | undefined,
   commentsPath: string,
   store: ObjectStore,
-  meta?: MetaStore
-): Promise<void> {
-  const { prompt: commentsPrompt, sampleIds } = await buildCommentsPrompt(comments);
-  const commentsInputHash = await hashString(commentsPrompt);
-  const existingCommentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
-
-  if (existingCommentsSummary?.inputHash === commentsInputHash) {
-    log.debug(LOG_NAMESPACE_COMMENTS, "Comments summary up-to-date; skipping", { id: story.id });
-    return;
+  meta?: MetaStore,
+  options: { deadlineAt?: number } = {}
+): Promise<CommentsProcessingResult> {
+  const prepared = buildCommentsPromptV2({
+    story,
+    comments,
+    ...(postSummary === undefined ? {} : { postSummary }),
+    language: env.SUMMARY_LANG,
+    maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+  });
+  const inputHash = await commentsInputHash(env.SUMMARY_LANG, COMMENTS_POLICY_VERSION, prepared.prompt);
+  let existingCommentsSummary: CommentsSummary | undefined;
+  try {
+    existingCommentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
+  } catch (error) {
+    log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 storage read failed", { id: story.id, error: String(error) });
+    return {
+      status: "pending",
+      desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+      inputHash,
+      reason: "storage-read-failed",
+    };
   }
 
-  if (comments.length > 0) {
-    const summaryContent = await generateValidatedCommentsSummary(services, story.id, commentsPrompt, sampleIds);
-    const modelUsed = summaryContent.model ?? env.OPENROUTER_MODEL;
-    const commentsSummary: CommentsSummary = {
-      ...summaryContent,
-      inputHash: commentsInputHash,
-      model: modelUsed,
+  if (existingCommentsSummary?.inputHash === inputHash && existingCommentsSummary.formatVersion === 2) {
+    try {
+      await upsertCommentsSummaryMeta(meta, existingCommentsSummary);
+      log.debug(LOG_NAMESPACE_COMMENTS, "Comments-v2 summary up-to-date; repaired meta if needed", {
+        id: story.id,
+      });
+      return {
+        status: "applied",
+        policyVersion: COMMENTS_POLICY_VERSION,
+        inputHash,
+        summary: existingCommentsSummary,
+      };
+    } catch (error) {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 meta repair failed", { id: story.id, error: String(error) });
+      return {
+        status: "pending",
+        desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+        inputHash,
+        reason: "meta-repair-failed",
+      };
+    }
+  }
+
+  const substantiveComments = comments.filter((comment) => comment.textPlain.replaceAll(/\s+/gu, " ").trim().length >= 80);
+  let commentsSummary: CommentsSummary;
+  if (substantiveComments.length < 3) {
+    const now = new Date().toISOString();
+    commentsSummary = {
+      id: story.id,
+      lang: env.SUMMARY_LANG,
+      summary: renderTooFewCommentsFallback(substantiveComments, env.SUMMARY_LANG),
+      degraded: "too-few-comments",
+      formatVersion: 2,
+      inputHash,
+      sampleComments: substantiveComments.map((comment) => comment.id),
+      createdISO: now,
+    };
+  } else {
+    const validated = await generateValidatedCommentsSummaryV2(services, {
+      story,
+      comments,
+      ...(postSummary === undefined ? {} : { postSummary }),
+      prepared,
+      ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+    });
+    if (validated === undefined) {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 rejected after request budget", { id: story.id });
+      return {
+        status: "pending",
+        desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+        inputHash,
+        reason: "generation-failed",
+      };
+    }
+    commentsSummary = {
+      id: story.id,
+      lang: env.SUMMARY_LANG,
+      summary: validated.summary,
+      structured: validated.insights,
+      formatVersion: 2,
+      inputHash,
+      model: validated.modelUsed,
+      sampleComments: validated.sampleIds,
       createdISO: new Date().toISOString(),
     };
+  }
+
+  try {
     await store.putJson(commentsPath, commentsSummary, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      await meta.upsertSummary({
-        storyId: story.id,
-        kind: "comments",
-        lang: commentsSummary.lang,
-        ...(commentsSummary.model ? { model: commentsSummary.model } : {}),
-        summary: commentsSummary.summary,
-        createdAt: commentsSummary.createdISO ?? new Date().toISOString(),
-      });
-    }
-    log.info(LOG_NAMESPACE_COMMENTS, "Comments summary written", {
+    await upsertCommentsSummaryMeta(meta, commentsSummary);
+    log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 summary written", {
       id: story.id,
       chars: commentsSummary.summary.length,
-      model: modelUsed,
+      model: commentsSummary.model,
+      degraded: commentsSummary.degraded,
     });
-  } else {
-    log.warn(LOG_NAMESPACE_COMMENTS, "No comments available; skipping summary", { id: story.id });
+    return {
+      status: "applied",
+      policyVersion: COMMENTS_POLICY_VERSION,
+      inputHash,
+      summary: commentsSummary,
+    };
+  } catch (error) {
+    log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 persistence failed", { id: story.id, error: String(error) });
+    return {
+      status: "pending",
+      desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+      inputHash,
+      reason: "persistence-failed",
+    };
   }
 }
 
@@ -1266,14 +1656,18 @@ async function persistTelegramLedgerCached(next: TelegramLedger, meta?: MetaStor
   }
 }
 
-function buildTelegramItemFromStory(story: NormalizedStory, summary: string): TelegramDigestItem {
+function buildTelegramItemFromStory(
+  story: NormalizedStory,
+  summary: string,
+  commentsSummary: string | undefined
+): TelegramDigestItem {
   return {
     id: story.id,
     title: story.title,
     url: story.url,
     hnUrl: `https://news.ycombinator.com/item?id=${story.id}`,
     postSummary: summary,
-    commentsSummary: undefined,
+    ...(commentsSummary === undefined ? {} : { commentsSummary }),
     timeISO: story.timeISO,
   };
 }
@@ -1370,7 +1764,8 @@ async function sendTelegramWithRetries(
 async function publishTelegramAfterSummary(
   services: Services,
   story: NormalizedStory,
-  store: ObjectStore,
+  postSummary: string | undefined,
+  commentsSummary: string | undefined,
   meta?: MetaStore
 ): Promise<void> {
   const cfg = getTelegramStreamConfig();
@@ -1378,8 +1773,7 @@ async function publishTelegramAfterSummary(
     return;
   }
 
-  const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
-  const summary = post?.summary?.trim();
+  const summary = postSummary?.trim();
   if (!summary) {
     return;
   }
@@ -1390,17 +1784,8 @@ async function publishTelegramAfterSummary(
     return;
   }
 
-  const item = buildTelegramItemFromStory(story, summary);
-  let message = buildTelegramMessage(item, env.SITE);
-  const TELEGRAM_LIMIT = 4096;
-  if (message.length > TELEGRAM_LIMIT) {
-    log.warn("telegram", "Message exceeds Telegram limit, truncating", {
-      id: story.id,
-      originalLength: message.length,
-      limit: TELEGRAM_LIMIT,
-    });
-    message = `${message.slice(0, TELEGRAM_LIMIT - 3)}...`;
-  }
+  const item = buildTelegramItemFromStory(story, summary, commentsSummary);
+  const message = buildTelegramMessage(item, env.SITE, { language: env.SUMMARY_LANG });
 
   const telegram = new Telegram(services.http, cfg.botToken);
   const messageId = await sendTelegramWithRetries(telegram, message, story.id, cfg.chatId);
@@ -1509,7 +1894,8 @@ export async function processSingleStory(
   services: Services,
   id: number,
   store: ObjectStore,
-  meta?: MetaStore
+  meta?: MetaStore,
+  options: { deadlineAt?: number } = {}
 ): Promise<void> {
   const story = await readJsonSafeOrStore<NormalizedStory>(
     store,
@@ -1521,30 +1907,80 @@ export async function processSingleStory(
     return;
   }
 
-  const comments = await readJsonSafeOrStore<NormalizedComment[]>(
-    store,
-    pathFor.rawComments(id),
-    NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
-    []
-  );
-  log.debug(LOG_NAMESPACE_COMMENTS, "Comments loaded", { id: story.id, count: comments.length });
-
   const postPath = pathFor.postSummary(id);
   const commentsPath = pathFor.commentsSummary(id);
 
   await processPostSummary(services, story, postPath, store, meta);
-  await publishTelegramAfterSummary(services, story, store, meta);
-  await processCommentsSummary(services, story, comments, commentsPath, store, meta);
-
   const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
-  const commentsSummary = await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema);
+  let comments: NormalizedComment[] | undefined;
+  try {
+    comments =
+      (await readJsonSafeOrStore<NormalizedComment[]>(
+        store,
+        pathFor.rawComments(id),
+        NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
+        []
+      )) ?? [];
+    log.debug(LOG_NAMESPACE_COMMENTS, "Comments loaded", { id: story.id, count: comments.length });
+  } catch (error) {
+    log.error(LOG_NAMESPACE_COMMENTS, "Comments input load failed; continuing with legacy Telegram summary", {
+      id: story.id,
+      error: String(error),
+    });
+  }
+
+  let commentsSummary: CommentsSummary | undefined;
+  try {
+    commentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
+  } catch (error) {
+    log.error(LOG_NAMESPACE_COMMENTS, "Comments summary snapshot failed; continuing without Telegram teaser", {
+      id: story.id,
+      error: String(error),
+    });
+  }
+
+  let commentsResult: CommentsProcessingResult | undefined;
+  if (comments !== undefined) {
+    try {
+      commentsResult = await processCommentsSummary(services, story, comments, post, commentsPath, store, meta, {
+        ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+      });
+    } catch (error) {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments processing failed; continuing with Telegram publication", {
+        id: story.id,
+        error: String(error),
+      });
+    }
+  }
+
+  if (commentsResult?.status === "applied") {
+    commentsSummary = commentsResult.summary;
+  } else {
+    try {
+      commentsSummary =
+        (await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema)) ?? commentsSummary;
+    } catch (error) {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments summary refresh failed; using pre-processing snapshot", {
+        id: story.id,
+        error: String(error),
+      });
+    }
+  }
+
+  await publishTelegramAfterSummary(services, story, post?.summary, commentsSummary?.summary, meta);
   await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
 
   if (meta) {
     const now = new Date().toISOString();
     await meta.upsertProcessingState(story.id, {
       postStatus: post ? "ok" : "missing",
-      commentsStatus: commentsSummary ? "ok" : "missing",
+      commentsStatus: commentsResult?.status === "applied" ? "ok" : "missing",
+      ...(commentsResult?.status === "applied"
+        ? {
+            commentsPolicyVersion: commentsResult.policyVersion,
+            commentsInputHash: commentsResult.inputHash,
+          }
+        : {}),
       tagsStatus: (await readJsonSafeOrStore(store, pathFor.tagsSummary(story.id), TagsSummarySchema)) ? "ok" : "missing",
       updatedAt: now,
       error: null,
@@ -1598,9 +2034,10 @@ async function computePostChanged(
   return existingPost.inputHash !== hash;
 }
 
-async function computeCommentsChanged(
-  id: number,
+export async function computeCommentsChanged(
+  story: NormalizedStory,
   existingComments: CommentsSummary | null | undefined,
+  language: Env["SUMMARY_LANG"],
   cooldownMs: number,
   now: number,
   store: ObjectStore
@@ -1613,13 +2050,20 @@ async function computeCommentsChanged(
   }
   const comments = await readJsonSafeOrStore<NormalizedComment[]>(
     store,
-    pathFor.rawComments(id),
+    pathFor.rawComments(story.id),
     NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
     []
   );
-  const { prompt } = await buildCommentsPrompt(comments);
-  const hash = await hashString(prompt);
-  return existingComments.inputHash !== hash;
+  const postSummary = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
+  const prepared = buildCommentsPromptV2({
+    story,
+    comments: comments ?? [],
+    ...(postSummary === undefined ? {} : { postSummary }),
+    language,
+    maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+  });
+  const hash = await commentsInputHash(language, COMMENTS_POLICY_VERSION, prepared.prompt);
+  return existingComments.formatVersion !== 2 || existingComments.inputHash !== hash;
 }
 
 async function evaluateCandidate(
@@ -1643,7 +2087,14 @@ async function evaluateCandidate(
 
   const now = Date.now();
   const postChanged = await computePostChanged(story, existingPost, config, now, store);
-  const commentsChanged = await computeCommentsChanged(id, existingComments, config.cooldownMs, now, store);
+  const commentsChanged = await computeCommentsChanged(
+    story,
+    existingComments,
+    config.summaryLang as Env["SUMMARY_LANG"],
+    config.cooldownMs,
+    now,
+    store
+  );
   const priority = (postChanged ? 1 : 0) + (commentsChanged ? 2 : 0);
 
   if (priority <= 0) {

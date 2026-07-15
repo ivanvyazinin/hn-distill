@@ -31,8 +31,8 @@ export function createD1MetaStore(db: D1DatabaseLike): MetaStore {
 
     upsertStory: (story, rank, fetchedISO) => upsertStory(db, story, rank, fetchedISO),
     acquireRunLock: (key, nowISO, ttlMs, owner) => acquireRunLock(db, key, nowISO, ttlMs, owner),
-    listPendingStoryIds: (limit, updatedBeforeISO, fetchedISO) =>
-      listPendingStoryIds(db, limit, updatedBeforeISO, fetchedISO),
+    listPendingStoryIds: (limit, updatedBeforeISO, fetchedISO, desiredPolicyVersion) =>
+      listPendingStoryIds(db, limit, updatedBeforeISO, fetchedISO, desiredPolicyVersion),
     getProcessingUpdatedMax: () => getProcessingUpdatedMax(db),
     getAggregateState: (key) => getAggregateState(db, key),
     setAggregateState: (key, indexUpdatedISO, processingUpdatedISO, updatedAtISO) =>

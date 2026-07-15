@@ -15,6 +15,8 @@ CREATE TABLE IF NOT EXISTS processing_state (
   story_id INTEGER PRIMARY KEY,
   post_status TEXT,
   comments_status TEXT,
+  comments_policy_version TEXT,
+  comments_input_hash TEXT,
   tags_status TEXT,
   updated_at TEXT,
   error TEXT

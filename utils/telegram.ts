@@ -101,44 +101,305 @@ export type TelegramDigestItem = {
   timeISO: string;
 };
 
-function normalizeSiteBase(siteBase?: string): { base: string; label: string } {
-  const fallback = "https://hckr.top";
-  const trimmed = siteBase?.trim();
-  const base = trimmed && trimmed.length > 0 ? trimmed : fallback;
-  const normalized = base.endsWith("/") ? base.slice(0, -1) : base;
+export type TelegramMessageLanguage = "en" | "ru";
+
+export type TelegramMessageOptions = {
+  language?: TelegramMessageLanguage;
+  maxLength?: number;
+};
+
+const TELEGRAM_MESSAGE_LIMIT = 4096;
+const TELEGRAM_COMMENTS_TEASER_LIMIT = 200;
+const MAX_OPTIONAL_LINK_LENGTH = 1024;
+const MAX_REQUIRED_LINK_LENGTH = 512;
+
+const TELEGRAM_LABELS: Record<
+  TelegramMessageLanguage,
+  { comments: string; hn: string; readOn: string; site: string; source: string }
+> = {
+  ru: {
+    comments: "О чём спорят",
+    hn: "комментарии на HN",
+    readOn: "читать на",
+    site: "сайте",
+    source: "источник",
+  },
+  en: {
+    comments: "What people debate",
+    hn: "comments on HN",
+    readOn: "read on",
+    site: "site",
+    source: "source",
+  },
+};
+
+const DISPUTE_HEADINGS = new Set(["о чём спорят", "what people debate"]);
+
+function normalizePlainText(value: string): string {
+  return value.replaceAll(/\s+/gu, " ").trim();
+}
+
+function stripMarkdownInline(value: string): string {
+  return normalizePlainText(
+    value
+      .replaceAll(/!\[(?<label>[^\n\]]{0,500})\]\([^\n)]{0,2000}\)/gu, "$<label>")
+      .replaceAll(/\[(?<label>[^\n\]]{1,500})\]\([^\n)]{0,2000}\)/gu, "$<label>")
+      .replaceAll(/(?<!\\)(?:\*\*|__|~~|`+)/gu, "")
+      .replaceAll(/(?<!\\)[*_]/gu, "")
+      .replaceAll(/\\(?<escaped>[^\s\p{L}\p{N}])/gu, "$<escaped>")
+  );
+}
+
+function bulletText(line: string): string | undefined {
+  const trimmed = line.trim();
+  let text: string | undefined;
+  if (trimmed.startsWith("- ") || trimmed.startsWith("+ ") || trimmed.startsWith("* ")) {
+    text = trimmed.slice(2);
+  } else {
+    const numericPrefix = /^\d{1,6}[).] /u.exec(trimmed)?.[0];
+    if (numericPrefix !== undefined) {
+      text = trimmed.slice(numericPrefix.length);
+    }
+  }
+  if (text === undefined || text.length === 0) {
+    return undefined;
+  }
+  const plain = stripMarkdownInline(text);
+  return plain.length > 0 ? plain : undefined;
+}
+
+function headingText(line: string): string | undefined {
+  const trimmed = line.trim();
+  let markerLength = 0;
+  while (markerLength < 6 && trimmed[markerLength] === "#") {
+    markerLength += 1;
+  }
+  if (markerLength === 0 || trimmed[markerLength] !== " ") {
+    return undefined;
+  }
+  let text = trimmed.slice(markerLength + 1).trimEnd();
+  while (text.endsWith("#")) {
+    text = text.slice(0, -1).trimEnd();
+  }
+  return text.length === 0 ? undefined : stripMarkdownInline(text).toLocaleLowerCase();
+}
+
+function truncatePlain(value: string, maxLength: number): string {
+  if (maxLength <= 0) {
+    return "";
+  }
+  if (value.length <= maxLength) {
+    return value;
+  }
+  if (maxLength === 1) {
+    return "…";
+  }
+  const target = maxLength - 1;
+  let length = 0;
+  let truncated = "";
+  for (const character of value) {
+    if (length + character.length > target) {
+      break;
+    }
+    truncated += character;
+    length += character.length;
+  }
+  return `${truncated.trimEnd()}…`;
+}
+
+export function commentsTeaser(
+  summaryMd: string | null | undefined,
+  maxChars: number = TELEGRAM_COMMENTS_TEASER_LIMIT
+): string {
+  const normalized = summaryMd?.replaceAll(/\r\n?/gu, "\n").trim();
+  const safeMaxChars = Number.isFinite(maxChars)
+    ? Math.max(0, Math.floor(maxChars))
+    : TELEGRAM_COMMENTS_TEASER_LIMIT;
+  if (normalized === undefined || normalized.length === 0 || safeMaxChars === 0) {
+    return "";
+  }
+
+  const lines = normalized.split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    if (line === undefined || !DISPUTE_HEADINGS.has(headingText(line) ?? "")) {
+      continue;
+    }
+    for (let bulletIndex = index + 1; bulletIndex < lines.length; bulletIndex += 1) {
+      const candidate = lines[bulletIndex];
+      if (candidate === undefined || headingText(candidate) !== undefined) {
+        break;
+      }
+      const bullet = bulletText(candidate);
+      if (bullet !== undefined) {
+        return truncatePlain(bullet, safeMaxChars);
+      }
+    }
+  }
+
+  for (const line of lines) {
+    const bullet = bulletText(line);
+    if (bullet !== undefined) {
+      return truncatePlain(bullet, safeMaxChars);
+    }
+  }
+  return "";
+}
+
+function safeHttpUrl(value: string | null | undefined, maxLength: number): string | undefined {
+  const trimmed = value?.trim();
+  if (trimmed === undefined || trimmed.length === 0) {
+    return undefined;
+  }
   try {
-    const url = new URL(normalized);
-    return { base: normalized, label: url.host };
+    const url = new URL(trimmed);
+    if ((url.protocol !== "https:" && url.protocol !== "http:") || url.username || url.password) {
+      return undefined;
+    }
+    const serialized = url.toString();
+    return escapeHtml(serialized).length <= maxLength ? serialized : undefined;
   } catch {
-    return { base: normalized, label: "сайте" };
+    return undefined;
   }
 }
 
-export function buildTelegramMessage(item: TelegramDigestItem, siteBase?: string): string {
-  const summary = item.postSummary?.trim() ?? "";
+function normalizeSiteBase(siteBase?: string): { base: string; label: string } {
+  const fallback = "https://hckr.top";
+  const safeBase = safeHttpUrl(siteBase, MAX_REQUIRED_LINK_LENGTH) ?? fallback;
+  const normalized = safeBase.endsWith("/") ? safeBase.slice(0, -1) : safeBase;
+  return { base: normalized, label: new URL(normalized).host };
+}
+
+function renderLink(href: string, label: string): string {
+  return `<a href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+}
+
+function fitPlainToEscapedBudget(value: string, maxEscapedLength: number): string {
+  if (maxEscapedLength <= 0) {
+    return "";
+  }
+  const normalized = normalizePlainText(value);
+  if (escapeHtml(normalized).length <= maxEscapedLength) {
+    return normalized;
+  }
+
+  const boundaries = [0];
+  let position = 0;
+  for (const character of normalized) {
+    position += character.length;
+    boundaries.push(position);
+  }
+  let low = 0;
+  let high = boundaries.length - 1;
+  let best = "";
+  while (low <= high) {
+    const middle = Math.floor((low + high) / 2);
+    const boundary = boundaries[middle] ?? 0;
+    const candidate = truncatePlain(normalized, Math.max(1, boundary + 1));
+    if (escapeHtml(candidate).length <= maxEscapedLength) {
+      best = candidate;
+      low = middle + 1;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return best;
+}
+
+function composeTelegramMessage(input: {
+  commentsLabel: string;
+  links: string[];
+  summary: string;
+  teaser: string;
+  title: string;
+}): string {
+  const titleLine = `<b>${escapeHtml(input.title)}</b>`;
+  const summaryLine = input.summary.length > 0 ? `\n\n${escapeHtml(input.summary)}` : "";
+  const teaserLine =
+    input.teaser.length > 0
+      ? `\n\n💬 <b>${escapeHtml(input.commentsLabel)}:</b> ${escapeHtml(input.teaser)}`
+      : "";
+  const linksLine = input.links.length > 0 ? `\n\n${input.links.join(" | ")}` : "";
+  return `${titleLine}${summaryLine}${teaserLine}${linksLine}`;
+}
+
+export function buildTelegramMessage(
+  item: TelegramDigestItem,
+  siteBase?: string,
+  options: TelegramMessageOptions = {}
+): string {
+  const language = options.language ?? "ru";
+  const labels = TELEGRAM_LABELS[language];
+  const configuredMaxLength = options.maxLength ?? TELEGRAM_MESSAGE_LIMIT;
+  const maxLength = Number.isFinite(configuredMaxLength)
+    ? Math.max(1, Math.floor(configuredMaxLength))
+    : TELEGRAM_MESSAGE_LIMIT;
+  let title = normalizePlainText(item.title);
+  let summary = normalizePlainText(item.postSummary ?? "");
+  let teaser = commentsTeaser(item.commentsSummary);
 
   const links: string[] = [];
-  if (item.url) {
-    links.push(`<a href="${item.url}">источник</a>`);
+  const sourceUrl = safeHttpUrl(item.url, MAX_OPTIONAL_LINK_LENGTH);
+  if (sourceUrl !== undefined) {
+    links.push(renderLink(sourceUrl, labels.source));
   }
 
   const { base, label } = normalizeSiteBase(siteBase);
   const siteLink = `${base}/item/${item.id}`;
-  links.push(`<a href="${siteLink}">читать на ${escapeHtml(label)}</a>`);
+  links.push(renderLink(siteLink, `${labels.readOn} ${label.length > 0 ? label : labels.site}`));
 
-  const hnUrl = item.hnUrl ?? `https://news.ycombinator.com/item?id=${item.id}`;
-  links.push(`<a href="${hnUrl}">комментарии на HN</a>`);
+  const fallbackHnUrl = `https://news.ycombinator.com/item?id=${item.id}`;
+  const hnUrl = safeHttpUrl(item.hnUrl, MAX_REQUIRED_LINK_LENGTH) ?? fallbackHnUrl;
+  links.push(renderLink(hnUrl, labels.hn));
 
-  const linksLine = links.length > 0 ? `\n\n${links.join(" | ")}` : "";
+  const compose = (): string =>
+    composeTelegramMessage({ commentsLabel: labels.comments, links, summary, teaser, title });
+  let message = compose();
+  if (message.length <= maxLength) {
+    return message;
+  }
 
-  const titleLine = `<b>${escapeHtml(item.title)}</b>`;
-  const summaryLine = summary ? `\n\n${escapeHtml(summary)}` : "";
+  const withoutSummary = composeTelegramMessage({ commentsLabel: labels.comments, links, summary: "", teaser, title });
+  const summaryMarkupLength = summary.length > 0 ? 2 : 0;
+  summary = fitPlainToEscapedBudget(summary, maxLength - withoutSummary.length - summaryMarkupLength);
+  message = compose();
+  if (message.length <= maxLength) {
+    return message;
+  }
 
-  return `${titleLine}${summaryLine}${linksLine}`;
+  summary = "";
+  const withoutTitle = composeTelegramMessage({ commentsLabel: labels.comments, links, summary, teaser, title: "" });
+  title = fitPlainToEscapedBudget(title, maxLength - withoutTitle.length);
+  message = compose();
+  if (message.length <= maxLength) {
+    return message;
+  }
+
+  teaser = "";
+  const linksOnlyWithEmptyTitle = composeTelegramMessage({
+    commentsLabel: labels.comments,
+    links,
+    summary: "",
+    teaser: "",
+    title: "",
+  });
+  title = fitPlainToEscapedBudget(title, maxLength - linksOnlyWithEmptyTitle.length);
+  message = compose();
+  if (message.length <= maxLength) {
+    return message;
+  }
+
+  // This only matters for artificial limits below the fixed two-link footer.
+  // Keep the HTML valid rather than slicing through a tag.
+  return escapeHtml(fitPlainToEscapedBudget(item.title, maxLength));
 }
 
-export function buildTelegramMessages(items: TelegramDigestItem[], siteBase?: string): string[] {
-  return items.map((item) => buildTelegramMessage(item, siteBase));
+export function buildTelegramMessages(
+  items: TelegramDigestItem[],
+  siteBase?: string,
+  options: TelegramMessageOptions = {}
+): string[] {
+  return items.map((item) => buildTelegramMessage(item, siteBase, options));
 }
 
 export type SeenCache = {
