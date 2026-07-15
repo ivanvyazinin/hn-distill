@@ -148,9 +148,10 @@ data/raw/comments/{id}.json
 - HTML: из полной страницы через `@mozilla/readability` (на pure-JS DOM `linkedom`, совместимом с workerd — не `jsdom`) извлекается **основная статья**, затем turndown → Markdown. Если Readability не находит статью, откат к конвертации всей страницы;
 - PDF преобразуется в текст;
 - для YouTube запрашивается transcript;
-- неизвестный текстовый формат декодируется как plain text.
+- неизвестный текстовый формат декодируется как plain text;
+- **Cloudflare / bot-block fallback:** если прямой HTTP-фетч получает 403 (или тело challenge-страницы «Just a moment…» / `challenges.cloudflare.com`), при `ARTICLE_FETCH_READER_FALLBACK=true` (дефолт) запрос повторяется через [Jina Reader](https://r.jina.ai/) (`https://r.jina.ai/<url>`). Reader возвращает готовый markdown → `source_kind='reader'`. Опционально `JINA_API_KEY` для более высокого RPM. Если и reader не отдал контент — graceful skip (пост без article-промпта), как раньше.
 
-Только для HTML извлечённый Markdown проходит дешёвый детектор мусора (`utils/extract-quality.ts`, без LLM): доля ссылок, объём связного текста, повторяемость строк. Если это навигация / cookie-баннер / футер / ссылочная ферма, вердикт `no-article` записывается в `article_extracts.status`. PDF / transcript / plaintext детектор пропускают (списки и короткие строки там легитимны). Пороги: `EXTRACT_MIN_PROSE_CHARS`, `EXTRACT_MAX_LINK_DENSITY`, `EXTRACT_MAX_DUP_RATIO`.
+Для `html` и `reader` извлечённый Markdown проходит дешёвый детектор мусора (`utils/extract-quality.ts`, без LLM): доля ссылок, объём связного текста, повторяемость строк. Если это навигация / cookie-баннер / футер / ссылочная ферма, вердикт `no-article` записывается в `article_extracts.status`. PDF / transcript / plaintext детектор пропускают (списки и короткие строки там легитимны). Пороги: `EXTRACT_MIN_PROSE_CHARS`, `EXTRACT_MAX_LINK_DENSITY`, `EXTRACT_MAX_DUP_RATIO`.
 
 Извлечённый контент кэшируется:
 

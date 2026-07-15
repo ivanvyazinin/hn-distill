@@ -16,6 +16,11 @@ import {
   type PostSummary,
 } from "@config/schemas";
 import {
+  fetchViaJinaReader,
+  isCloudflareChallengeError,
+  looksLikeCloudflareChallenge,
+} from "@utils/article-fetch";
+import {
   renderCommentsLead,
   renderCommentsSummaryMarkdown,
   renderTooFewCommentsFallback,
@@ -60,8 +65,12 @@ import type { z } from "zod";
 
 export { buildCommentsPromptV2, buildCommentsSystemInstructionV2, buildCommentsThread, commentsInputHash };
 
-/** How a story's article content was fetched/parsed. Only "html" is subject to the garbage detector. */
-export type ArticleSourceKind = "empty" | "html" | "pdf" | "text" | "youtube";
+/**
+ * How a story's article content was fetched/parsed.
+ * "html" and "reader" (Jina markdown fallback) are subject to the garbage detector;
+ * pdf / youtube / text / empty bypass it (lists and short lines are legitimate there).
+ */
+export type ArticleSourceKind = "empty" | "html" | "pdf" | "reader" | "text" | "youtube";
 
 export type FetchedArticle = { md: string; sourceKind: ArticleSourceKind };
 
@@ -76,20 +85,26 @@ export type Services = {
 
 export function makeServices(
   e: Env,
-  options?: { pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string> }
+  options?: {
+    pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
+    /** Test-only: inject a stub HttpClient (bytes/text) instead of the real one. */
+    http?: HttpClient;
+  }
 ): Services {
-  const http = new HttpClient(
-    {
-      retries: e.HTTP_RETRIES,
-      baseBackoffMs: e.HTTP_BACKOFF_MS,
-      timeoutMs: e.HTTP_TIMEOUT_MS,
-      retryOnStatuses: [408, 425, 429, 500, 502, 503, 504, 522],
-    },
-    {
-      ua: "hn-distill/1.1 (+https://hckr.top/)",
-      headers: {},
-    }
-  );
+  const http =
+    options?.http ??
+    new HttpClient(
+      {
+        retries: e.HTTP_RETRIES,
+        baseBackoffMs: e.HTTP_BACKOFF_MS,
+        timeoutMs: e.HTTP_TIMEOUT_MS,
+        retryOnStatuses: [408, 425, 429, 500, 502, 503, 504, 522],
+      },
+      {
+        ua: "hn-distill/1.1 (+https://hckr.top/)",
+        headers: {},
+      }
+    );
   const openrouter = new OpenRouter(http, e.OPENROUTER_API_KEY ?? "", e.OPENROUTER_MODEL);
   // Route tags + post-guard (structured JSON) to Groq when a key is set; otherwise reuse OpenRouter.
   const guardTagsClient =
@@ -103,8 +118,49 @@ export function makeServices(
       return { md: youtubeText, sourceKind: "youtube" };
     }
 
-    const { data, contentType } = await http.bytes(url);
-    return parseFetchedContent(url, data, contentType ?? undefined);
+    try {
+      const { data, contentType } = await http.bytes(url);
+      // Rare: origin returns 200 with a Cloudflare challenge HTML body. Treat as
+      // fallback-eligible instead of feeding the interstitial to Readability.
+      if (looksLikeHtml(contentType ?? undefined)) {
+        const html = decodeText(data, contentType ?? undefined);
+        if (looksLikeCloudflareChallenge(html)) {
+          if (!e.ARTICLE_FETCH_READER_FALLBACK) {
+            throw new HttpError(url, 403, `HTTP 403 Cloudflare challenge body for ${url}`);
+          }
+          return await fetchArticleViaReader(url);
+        }
+      }
+      return await parseFetchedContent(url, data, contentType ?? undefined);
+    } catch (error) {
+      if (!e.ARTICLE_FETCH_READER_FALLBACK || !isCloudflareChallengeError(error)) {
+        throw error;
+      }
+      try {
+        return await fetchArticleViaReader(url);
+      } catch (readerError) {
+        log.warn(LOG_NAMESPACE_ARTICLE, "Jina reader fallback failed", {
+          url,
+          error: String(readerError),
+        });
+        // Preserve the original origin failure (status/url) so outer logging still
+        // classifies it as bot-protection; attach reader failure as cause.
+        if (error instanceof HttpError) {
+          throw new HttpError(error.url, error.status, error.message, { cause: readerError });
+        }
+        throw error;
+      }
+    }
+  }
+
+  async function fetchArticleViaReader(url: string): Promise<FetchedArticle> {
+    log.info(LOG_NAMESPACE_ARTICLE, "Retrying article via Jina reader", { url });
+    const md = await fetchViaJinaReader(http, url, {
+      apiKey: e.JINA_API_KEY,
+      baseUrl: e.ARTICLE_READER_BASE_URL,
+      timeoutMs: e.HTTP_TIMEOUT_MS,
+    });
+    return { md, sourceKind: "reader" };
   }
 
   async function tryFetchYouTubeContent(url: string): Promise<string | undefined> {
@@ -1263,8 +1319,9 @@ export async function generateValidatedCommentsSummaryV2(
  */
 export type ArticleFetchResult = { md?: string; extractStatus?: string };
 
-// HTML-only garbage verdict with the CURRENT env thresholds. Lists/short lines are
-// legitimate in PDFs, transcripts, READMEs and plaintext, so only "html" runs it.
+// Garbage verdict with the CURRENT env thresholds. Lists/short lines are legitimate
+// in PDFs, transcripts, READMEs and plaintext, so only "html" and "reader" run it.
+// "reader" is already markdown from Jina but can still be nav/boilerplate.
 function detectHtmlExtractStatus(md: string): "no-article" | "ok" {
   const quality = assessExtractQuality(md, {
     minProseChars: env.EXTRACT_MIN_PROSE_CHARS,
@@ -1272,6 +1329,10 @@ function detectHtmlExtractStatus(md: string): "no-article" | "ok" {
     maxDupRatio: env.EXTRACT_MAX_DUP_RATIO,
   });
   return quality.verdict === "no-article" ? "no-article" : "ok";
+}
+
+function sourceKindUsesExtractDetector(sourceKind: string | undefined): boolean {
+  return sourceKind === "html" || sourceKind === "reader";
 }
 
 export async function getOrFetchArticleMarkdown(
@@ -1296,7 +1357,7 @@ export async function getOrFetchArticleMarkdown(
     if (!isLegacyCache) {
       log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
       let extractStatus = extract?.status ?? undefined;
-      if (extract?.sourceKind === "html") {
+      if (extract !== undefined && sourceKindUsesExtractDetector(extract.sourceKind)) {
         // Re-run the detector with the CURRENT thresholds so tuning takes effect on
         // cached extracts without a re-fetch (a cached verdict alone would be stale).
         extractStatus = detectHtmlExtractStatus(cached);
@@ -1321,7 +1382,9 @@ export async function getOrFetchArticleMarkdown(
       log.warn(LOG_NAMESPACE_ARTICLE, "Fetched content is empty", { id: story.id, url: story.url });
       return {};
     }
-    const extractStatus = sourceKind === "html" ? detectHtmlExtractStatus(text) : "ok";
+    const extractStatus = sourceKindUsesExtractDetector(sourceKind)
+      ? detectHtmlExtractStatus(text)
+      : "ok";
     if (extractStatus === "no-article") {
       log.warn(LOG_NAMESPACE_ARTICLE, "Extract flagged as no-article", { id: story.id, url: story.url });
     }
@@ -1344,14 +1407,29 @@ export async function getOrFetchArticleMarkdown(
         fetchedAt,
       });
     }
-    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", { id: story.id, path, extractStatus });
+    log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", {
+      id: story.id,
+      path,
+      extractStatus,
+      sourceKind,
+    });
     return { md: text, extractStatus };
   } catch (error) {
-    log.error(LOG_NAMESPACE_ARTICLE, "Failed to fetch content", {
-      id: story.id,
-      url: story.url,
-      error: String(error),
-    });
+    if (isCloudflareChallengeError(error)) {
+      // Expected bot-protection miss (fallback off, or reader also failed). Keep
+      // ERROR reserved for unexpected fetch/network problems.
+      log.warn(LOG_NAMESPACE_ARTICLE, "Blocked by site bot protection; skipping article", {
+        id: story.id,
+        url: story.url,
+        error: String(error),
+      });
+    } else {
+      log.error(LOG_NAMESPACE_ARTICLE, "Failed to fetch content", {
+        id: story.id,
+        url: story.url,
+        error: String(error),
+      });
+    }
     return {};
   }
 }
@@ -1641,11 +1719,7 @@ function getTelegramStreamConfig(): { chatId: string; botToken: string } | undef
 
 async function getTelegramLedgerCached(meta?: MetaStore): Promise<TelegramLedger> {
   if (!telegramLedgerCache) {
-    if (meta) {
-      telegramLedgerCache = await meta.getTelegramLedger();
-    } else {
-      telegramLedgerCache = await readTelegramLedger(PATHS.telegramSent);
-    }
+    telegramLedgerCache = await (meta ? meta.getTelegramLedger() : readTelegramLedger(PATHS.telegramSent));
   }
   return telegramLedgerCache;
 }
@@ -1710,7 +1784,7 @@ async function sendTelegramWithRetries(
 
   while (retryCount < maxRetries) {
     try {
-      const messageId = await telegram.sendMessage({
+      return await telegram.sendMessage({
         chatId,
         text: message,
         parseMode: "HTML",
@@ -1718,7 +1792,6 @@ async function sendTelegramWithRetries(
         disableNotification: env.TELEGRAM_DISABLE_NOTIFICATIONS,
         ...(env.TELEGRAM_MESSAGE_THREAD_ID && { messageThreadId: env.TELEGRAM_MESSAGE_THREAD_ID }),
       });
-      return messageId;
     } catch (error) {
       if (error instanceof Error && (error.message.includes("429") || error.message.includes("Too Many Requests"))) {
         const { retryAfter, description } = parseTelegramError(error.message);
@@ -1972,9 +2045,9 @@ export async function processSingleStory(
   }
 
   const telegramLead =
-    commentsSummary?.structured?.bottom_line !== undefined
-      ? { lead: renderCommentsLead(commentsSummary.structured.bottom_line) }
-      : undefined;
+    commentsSummary?.structured?.bottom_line === undefined
+      ? undefined
+      : { lead: renderCommentsLead(commentsSummary.structured.bottom_line) };
   await publishTelegramAfterSummary(
     services,
     story,
