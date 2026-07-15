@@ -105,7 +105,12 @@ export function makeServices(
         headers: {},
       }
     );
-  const openrouter = new OpenRouter(http, e.OPENROUTER_API_KEY ?? "", e.OPENROUTER_MODEL);
+  const openrouter = new OpenRouter(
+    http,
+    e.OPENROUTER_API_KEY ?? "",
+    e.OPENROUTER_MODEL,
+    e.OPENROUTER_BASE_URL
+  );
   // Route tags + post-guard (structured JSON) to Groq when a key is set; otherwise reuse OpenRouter.
   const guardTagsClient =
     e.GROQ_API_KEY !== undefined && e.GROQ_API_KEY.length > 0
@@ -1204,7 +1209,10 @@ export async function callStructuredWithModelChain(
   );
   let modelIndex = 0;
   let strict = false;
-  let useResponseFormat = true;
+  // Direct Groq rejects json_schema on llama-3.3; starting with response_format only
+  // burns a full prompt against TPD. Prefer balanced extraction on that route.
+  const baseUrl = env.OPENROUTER_BASE_URL ?? "";
+  let useResponseFormat = !baseUrl.includes("api.groq.com");
 
   const moveToFallback = (): boolean => {
     modelIndex += 1;
@@ -2200,9 +2208,8 @@ export async function computeCommentsChanged(
     maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
   });
   const hash = await commentsInputHash(language, COMMENTS_POLICY_VERSION, prepared.prompt);
-  const degraded = existingComments.degraded as string | undefined;
   return (
-    degraded === "generation-failed" ||
+    existingComments.degraded === "generation-failed" ||
     existingComments.formatVersion !== 2 ||
     existingComments.inputHash !== hash
   );

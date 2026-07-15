@@ -114,8 +114,12 @@ function isUnsupportedResponseFormatError(error: unknown): error is HttpError {
   const message = error.message.toLowerCase();
   const mentionsFormat =
     message.includes("response_format") || message.includes("response format") || message.includes("json_schema");
+  // Groq: "does not support response format `json_schema`". OpenAI-ish: "not supported" / "unsupported".
   const saysUnsupported =
-    message.includes("unsupported") || message.includes("not supported") || message.includes("unknown parameter");
+    message.includes("unsupported") ||
+    message.includes("not supported") ||
+    message.includes("does not support") ||
+    message.includes("unknown parameter");
   return mentionsFormat && saysUnsupported;
 }
 

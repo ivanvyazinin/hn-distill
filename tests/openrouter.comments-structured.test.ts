@@ -157,4 +157,38 @@ describe("OpenRouter comments structured output", () => {
     const parsedBody = JSON.parse(requestBody ?? "{}") as Record<string, unknown>;
     expect(parsedBody["response_format"] === undefined).toBeFalse();
   });
+
+  test("Groq 'does not support response format json_schema' is signaled as unsupported", async () => {
+    const unsupported = new HttpError(
+      "https://api.groq.com/openai/v1/chat/completions",
+      400,
+      'HTTP 400 {"error":{"message":"This model does not support response format `json_schema`. See supported models at https://console.groq.com/docs/structured-outputs#supported-models","type":"invalid_request_error","param":"response_format"}}'
+    );
+    const { http, getCalls } = makeMockHttp(async () => {
+      throw unsupported;
+    });
+    const openrouter = makeOpenRouter(http);
+
+    try {
+      await openrouter.chatStructured(
+        [{ role: "user", content: "comments" }],
+        {
+          responseFormat: {
+            type: "json_schema",
+            json_schema: { name: "comments", strict: true, schema: { type: "object" } },
+          },
+          signalUnsupportedResponseFormat: true,
+          transportRetries: 0,
+        },
+        ValueSchema,
+        1
+      );
+      throw new Error("Expected unsupported response_format signal");
+    } catch (error) {
+      expect(error).toBeInstanceOf(UnsupportedResponseFormatError);
+      expect((error as UnsupportedResponseFormatError).status).toBe(400);
+    }
+
+    expect(getCalls()).toBe(1);
+  });
 });
