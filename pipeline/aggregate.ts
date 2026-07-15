@@ -20,6 +20,7 @@ import {
 import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
+import { renderCommentsSummaryParts } from "@utils/comments-render";
 import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
@@ -126,7 +127,13 @@ export function buildAggregatedItem(
 
   const rawPostSummary = (postSummary as { summary?: string } | undefined)?.summary;
   const commentsSummaryRecord = commentsSummary as
-    | { summary?: unknown; formatVersion?: unknown }
+    | {
+        summary?: unknown;
+        formatVersion?: unknown;
+        structured?: unknown;
+        degraded?: unknown;
+        lang?: unknown;
+      }
     | undefined;
   const rawCommentsSummary = commentsSummaryRecord?.summary;
   const persistedCommentsSummary =
@@ -137,6 +144,23 @@ export function buildAggregatedItem(
   const postGuard = (postSummary as { guard?: PostSummaryGuardPersisted } | undefined)?.guard;
   const cleanedPostSummary = sanitizePostSummary(rawPostSummary, postGuard, { id: story.id });
 
+  let commentsInsights: AggregatedItem["commentsInsights"];
+  if (
+    commentsSummaryRecord?.formatVersion === 2 &&
+    commentsSummaryRecord.degraded === undefined &&
+    commentsSummaryRecord.structured !== undefined &&
+    commentsSummaryRecord.structured !== null
+  ) {
+    const parsed = CommentsSummarySchema.safeParse(commentsSummaryRecord);
+    if (parsed.success && parsed.data.structured !== undefined) {
+      const language = parsed.data.lang === "en" ? "en" : "ru";
+      commentsInsights = renderCommentsSummaryParts(parsed.data.structured, {
+        language,
+        comments,
+      });
+    }
+  }
+
   return {
     id: story.id,
     title: story.title,
@@ -145,6 +169,7 @@ export function buildAggregatedItem(
     timeISO: story.timeISO,
     postSummary: cleanedPostSummary,
     commentsSummary: resolveCommentsSummary(persistedCommentsSummary, fb.commentsSummary),
+    ...(commentsInsights === undefined ? {} : { commentsInsights }),
     score: story.score,
     commentsCount: story.descendants ?? comments.length,
     hnUrl: HN.itemUrl(story.id),

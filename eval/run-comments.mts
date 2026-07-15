@@ -205,7 +205,7 @@ function makeStubCandidate(summary: string, version: "v1" | "v2"): CommentsCandi
       requestedModel: `stub-${version}`,
       resolvedModel: `stub-${version}`,
       provider: "local-stub",
-      policyVersion: version === "v2" ? "2" : "1",
+      policyVersion: version === "v2" ? "3" : "1",
       promptVersion: version,
     },
   };

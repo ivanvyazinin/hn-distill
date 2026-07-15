@@ -16,6 +16,7 @@ import {
   type PostSummary,
 } from "@config/schemas";
 import {
+  renderCommentsLead,
   renderCommentsSummaryMarkdown,
   renderTooFewCommentsFallback,
   validateCommentsQuote,
@@ -1659,7 +1660,8 @@ async function persistTelegramLedgerCached(next: TelegramLedger, meta?: MetaStor
 function buildTelegramItemFromStory(
   story: NormalizedStory,
   summary: string,
-  commentsSummary: string | undefined
+  commentsSummary: string | undefined,
+  commentsInsights?: { lead: string }
 ): TelegramDigestItem {
   return {
     id: story.id,
@@ -1668,6 +1670,7 @@ function buildTelegramItemFromStory(
     hnUrl: `https://news.ycombinator.com/item?id=${story.id}`,
     postSummary: summary,
     ...(commentsSummary === undefined ? {} : { commentsSummary }),
+    ...(commentsInsights === undefined ? {} : { commentsInsights }),
     timeISO: story.timeISO,
   };
 }
@@ -1766,7 +1769,8 @@ async function publishTelegramAfterSummary(
   story: NormalizedStory,
   postSummary: string | undefined,
   commentsSummary: string | undefined,
-  meta?: MetaStore
+  meta?: MetaStore,
+  commentsInsights?: { lead: string }
 ): Promise<void> {
   const cfg = getTelegramStreamConfig();
   if (!cfg) {
@@ -1784,7 +1788,7 @@ async function publishTelegramAfterSummary(
     return;
   }
 
-  const item = buildTelegramItemFromStory(story, summary, commentsSummary);
+  const item = buildTelegramItemFromStory(story, summary, commentsSummary, commentsInsights);
   const message = buildTelegramMessage(item, env.SITE, { language: env.SUMMARY_LANG });
 
   const telegram = new Telegram(services.http, cfg.botToken);
@@ -1967,7 +1971,18 @@ export async function processSingleStory(
     }
   }
 
-  await publishTelegramAfterSummary(services, story, post?.summary, commentsSummary?.summary, meta);
+  const telegramLead =
+    commentsSummary?.structured?.bottom_line !== undefined
+      ? { lead: renderCommentsLead(commentsSummary.structured.bottom_line) }
+      : undefined;
+  await publishTelegramAfterSummary(
+    services,
+    story,
+    post?.summary,
+    commentsSummary?.summary,
+    meta,
+    telegramLead
+  );
   await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
 
   if (meta) {

@@ -52,26 +52,33 @@ class MemoryStore implements ObjectStore {
 }
 
 const VALID_INSIGHTS: CommentsInsights = {
-  consensus: [
-    "Участники согласны, что перед миграцией необходимо измерить задержки и проверить восстановление после сбоев.",
-  ],
-  disputes: [
+  bottom_line:
+    "Тред добавляет практический опыт: перед миграцией нужно измерить задержки и проверить восстановление после сбоев.",
+  insights: [
     {
-      topic: "Стратегия безопасного запуска",
-      position_a: "Одна сторона предлагает сразу переключить весь трафик после успешного нагрузочного испытания.",
-      position_b: "Другая сторона настаивает на постепенном включении с наблюдением за ошибками и быстрым откатом.",
+      kind: "consensus",
+      text: "Участники согласны, что перед миграцией необходимо измерить задержки и проверить восстановление после сбоев.",
     },
-  ],
-  practical_advice: [
-    "Сначала зеркалируйте запросы, сравнивайте ответы и включайте запись только после устранения расхождений.",
+    {
+      kind: "dispute",
+      text: "Спор: одна сторона за полный cutover после нагрузочного испытания, другая — за постепенное включение с откатом.",
+    },
+    {
+      kind: "advice",
+      text: "Сначала зеркалируйте запросы, сравнивайте ответы и включайте запись только после устранения расхождений.",
+    },
   ],
   best_quote: null,
 };
 
 const INVALID_LANGUAGE_INSIGHTS: CommentsInsights = {
-  consensus: ["Participants agree that benchmarks should be published before the migration begins."],
-  disputes: [],
-  practical_advice: [],
+  bottom_line: "Participants agree that benchmarks should be published before the migration begins.",
+  insights: [
+    {
+      kind: "consensus",
+      text: "Participants agree that benchmarks should be published before the migration begins.",
+    },
+  ],
   best_quote: null,
 };
 

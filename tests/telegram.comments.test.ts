@@ -49,22 +49,14 @@ function expectValidTelegramHtml(message: string): void {
 }
 
 describe("commentsTeaser", () => {
-  test("prefers the first RU/EN dispute bullet and converts rendered Markdown to plain text", () => {
+  test("prefers the first bullet after skipping headings", () => {
     const ru = [
-      "### Консенсус",
-      "",
-      "- Этот буллет расположен раньше, но не относится к спору.",
-      "",
-      "### О чём спорят",
+      "### Из обсуждения",
       "",
       "- **Цена\\* API:** одна сторона за кэш — другая за простоту.",
     ].join("\n");
     const en = [
-      "### Consensus",
-      "",
-      "- An earlier consensus bullet.",
-      "",
-      "### What people debate",
+      "### From the discussion",
       "",
       "- **Operational cost:** one side prefers queues — the other prefers cron.",
     ].join("\n");
@@ -98,16 +90,30 @@ describe("commentsTeaser", () => {
 });
 
 describe("buildTelegramMessage comments block", () => {
+  test("prefers commentsInsights.lead over markdown teaser", () => {
+    const item = {
+      ...BASE_ITEM,
+      commentsSummary: "- First markdown bullet that should lose to lead.",
+      commentsInsights: {
+        lead: "Lead from structured bottom_line with **markdown** that is stripped.",
+      },
+    };
+    const en = buildTelegramMessage(item, "https://hckr.top", { language: "en" });
+    // stripMarkdownInline removes underscores from bottom_line markers like bottom_line → bottomline
+    expect(en).toContain("💬 <b>Comments:</b> Lead from structured bottomline with markdown that is stripped.");
+    expect(en).not.toContain("First markdown bullet");
+  });
+
   test("localizes the comments label and places the teaser before links", () => {
     const item = {
       ...BASE_ITEM,
-      commentsSummary: "### What people debate\n\n- **Caching:** faster reads — harder invalidation.",
+      commentsSummary: "- **Caching:** faster reads — harder invalidation.",
     };
     const ru = buildTelegramMessage(item, "https://hckr.top", { language: "ru" });
     const en = buildTelegramMessage(item, "https://hckr.top", { language: "en" });
 
-    expect(ru).toContain("💬 <b>О чём спорят:</b> Caching: faster reads — harder invalidation.");
-    expect(en).toContain("💬 <b>What people debate:</b> Caching: faster reads — harder invalidation.");
+    expect(ru).toContain("💬 <b>Комментарии:</b> Caching: faster reads — harder invalidation.");
+    expect(en).toContain("💬 <b>Comments:</b> Caching: faster reads — harder invalidation.");
     expect(en.indexOf("💬")).toBeLessThan(en.indexOf("<a href="));
     expect(en).toContain(">source</a>");
     expect(en).toContain(">comments on HN</a>");
@@ -117,7 +123,7 @@ describe("buildTelegramMessage comments block", () => {
     const legacy = buildTelegramMessage({ ...BASE_ITEM, commentsSummary: "- First legacy viewpoint\n- Second" });
     const missing = buildTelegramMessage({ ...BASE_ITEM, commentsSummary: "" });
 
-    expect(legacy).toContain("💬 <b>О чём спорят:</b> First legacy viewpoint");
+    expect(legacy).toContain("💬 <b>Комментарии:</b> First legacy viewpoint");
     expect(missing).not.toContain("💬");
   });
 
@@ -163,7 +169,7 @@ describe("buildTelegramMessage comments block", () => {
         ...BASE_ITEM,
         title: `Entity & emoji 😀 ${"title ".repeat(100)}`,
         postSummary: `Long <summary> & entities 😀 ${"payload &<> 😀 ".repeat(800)}`,
-        commentsSummary: `### What people debate\n\n- **Unicode:** ${"😀 & < > ".repeat(80)}`,
+        commentsSummary: `- **Unicode:** ${"😀 & < > ".repeat(80)}`,
       },
       "https://hckr.top",
       { language: "en" }
@@ -195,7 +201,7 @@ describe("buildTelegramMessage comments block", () => {
 
   test("keeps old call sites working and forwards language through the batch builder", () => {
     const item = { ...BASE_ITEM, commentsSummary: "- A legacy opinion" };
-    expect(buildTelegramMessage(item)).toContain("О чём спорят");
-    expect(buildTelegramMessages([item], undefined, { language: "en" })[0]).toContain("What people debate");
+    expect(buildTelegramMessage(item)).toContain("Комментарии");
+    expect(buildTelegramMessages([item], undefined, { language: "en" })[0]).toContain("Comments");
   });
 });

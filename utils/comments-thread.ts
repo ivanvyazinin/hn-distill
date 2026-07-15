@@ -229,12 +229,18 @@ export function buildCommentsSystemInstructionV2(language: CommentsLanguage): st
       "Write every generated semantic field in English; when best_quote is emitted, set translation to null.",
       "Return only JSON matching the requested schema, without Markdown fences or commentary.",
       "Preserve usernames and technical terms, and never invent claims, consensus, disputes, advice, or quotes.",
+      'Use kind="dispute" only for genuine disagreements with substantive arguments from both sides, and put both sides inside text.',
+      "Attribute experience when present (e.g. 'per @user in production…'); prefer voices with direct operational experience.",
+      "Rank densest insights first. Five is a ceiling, not a quota. One fact = one insight; two dense items beat five vague ones.",
     ].join("\n");
   }
   return [
     "Точно и кратко анализируй обсуждения Hacker News на русском языке.",
     "Возвращай только JSON по запрошенной схеме, без Markdown-ограждений и пояснений.",
     "Сохраняй ники и технические термины; не выдумывай тезисы, консенсус, споры, советы и цитаты.",
+    'kind="dispute" только при настоящем споре с содержательными аргументами обеих сторон — обе стороны внутри text.',
+    "Атрибутируй опыт, когда он есть (например: «по опыту @ник в проде…»); предпочитай голоса с прямым опытом.",
+    "Ранжируй: самое ценное первым. 5 — потолок, не план. Один факт = один insight; 2 плотных лучше 5 общих.",
   ].join("\n");
 }
 
@@ -244,26 +250,37 @@ function promptParts(input: BuildCommentsPromptV2Input): { prefix: string; suffi
     input.postSummary?.degraded === "no-article"
       ? ""
       : singleLine(input.postSummary?.summary ?? "").slice(0, POST_SUMMARY_CONTEXT_MAX_CHARS);
+  const hasGist = postSummary.length > 0;
   const contextLines =
     input.language === "ru"
-      ? [`Тема поста: ${title}`, ...(postSummary.length > 0 ? [`Суть статьи: ${postSummary}`] : []), "Обсуждение:"]
-      : [`Story topic: ${title}`, ...(postSummary.length > 0 ? [`Article gist: ${postSummary}`] : []), "Discussion:"];
+      ? [`Тема поста: ${title}`, ...(hasGist ? [`Суть статьи: ${postSummary}`] : []), "Обсуждение:"]
+      : [`Story topic: ${title}`, ...(hasGist ? [`Article gist: ${postSummary}`] : []), "Discussion:"];
   const quoteRule =
     input.language === "ru"
       ? "best_quote — null либо объект с comment_id из обсуждения, дословным source_text и отдельным translation; для EN translation=null."
       : "best_quote is null or an object with a discussion comment_id, verbatim source_text, and translation=null for English.";
+  const deltaRule =
+    input.language === "ru"
+      ? hasGist
+        ? "Не повторяй суть статьи; извлекай только то, что тред ДОБАВЛЯЕТ (опыт эксплуатации, возражения, цифры из практики, механизмы). bottom_line — что тред добавляет к статье: подтверждает/опровергает/дополняет — и чем."
+        : "bottom_line — главный вывод треда."
+      : hasGist
+        ? "Do not restate the article gist; extract only what the thread ADDS (ops experience, objections, practice numbers, mechanisms). bottom_line = what the thread adds to the article: confirms/refutes/extends — and how."
+        : "bottom_line is the thread's main takeaway.";
   const suffixLines =
     input.language === "ru"
       ? [
           "Верни только один JSON-объект по этой точной JSON Schema:",
           COMMENTS_JSON_CONTRACT,
           quoteRule,
+          deltaRule,
           "Не добавляй сведения, которых нет во включённых комментариях.",
         ]
       : [
           "Return exactly one JSON object matching this JSON Schema:",
           COMMENTS_JSON_CONTRACT,
           quoteRule,
+          deltaRule,
           "Do not add information absent from the included comments.",
         ];
   return { prefix: `${contextLines.join("\n")}\n`, suffix: `\n${suffixLines.join("\n")}` };

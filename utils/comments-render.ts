@@ -1,7 +1,9 @@
 import type { CommentsInsights, NormalizedComment } from "@config/schemas";
+import { dedupByContainment } from "@utils/comments-dedup";
 
 type SummaryLanguage = "en" | "ru";
 type CommentsQuote = NonNullable<CommentsInsights["best_quote"]>;
+type InsightKind = CommentsInsights["insights"][number]["kind"];
 
 export type ValidatedCommentsQuote = {
   commentId: number;
@@ -15,36 +17,37 @@ export type RenderCommentsSummaryOptions = {
   comments: NormalizedComment[];
 };
 
-const HEADINGS: Record<SummaryLanguage, {
-  disputes: string;
-  consensus: string;
-  advice: string;
-  quote: string;
-  fallback: string;
-  translation: string;
-}> = {
+export type CommentsSummaryParts = {
+  lead: string;
+  visible: string;
+  folded: string;
+  foldedInsightsCount: number;
+};
+
+const LABELS: Record<
+  SummaryLanguage,
+  {
+    dispute: string;
+    advice: string;
+    fallback: string;
+    translation: string;
+  }
+> = {
   ru: {
-    disputes: "О чём спорят",
-    consensus: "Консенсус",
-    advice: "Советы из треда",
-    quote: "Цитата из обсуждения",
+    dispute: "Спор",
+    advice: "Совет",
     fallback: "Из обсуждения",
     translation: "Перевод",
   },
   en: {
-    disputes: "What people debate",
-    consensus: "Consensus",
-    advice: "Advice from the thread",
-    quote: "Quote from the discussion",
+    dispute: "Debate",
+    advice: "Advice",
     fallback: "From the discussion",
     translation: "Translation",
   },
 };
 
-const MAX_DISPUTES = 3;
-const MAX_CONSENSUS = 3;
-const MAX_ADVICE = 3;
-const MAX_SEMANTIC_BULLETS = 7;
+const MAX_VISIBLE_INSIGHTS = 3;
 const MAX_FALLBACK_COMMENTS = 2;
 const MIN_FALLBACK_COMMENT_CHARS = 80;
 const MARKDOWN_LITERAL_CHARACTERS = ["\\", "`", "*", "_", "[", "]", "{", "}", "<", ">", "#", "+", "-", "|", "!"] as const;
@@ -105,59 +108,80 @@ export function validateCommentsQuote(
   };
 }
 
-function pushSection(lines: string[], heading: string, bullets: string[]): void {
-  if (bullets.length === 0) {
-    return;
+function renderInsightBullet(kind: InsightKind, text: string, language: SummaryLanguage): string {
+  const body = safeInline(text);
+  if (kind === "dispute") {
+    return `- **${LABELS[language].dispute}:** ${body}`;
   }
-  if (lines.length > 0) {
-    lines.push("");
+  if (kind === "advice") {
+    return `- **${LABELS[language].advice}:** ${body}`;
   }
-  lines.push(`### ${heading}`, "", ...bullets.map((bullet) => `- ${bullet}`));
+  return `- ${body}`;
 }
 
-function renderQuote(lines: string[], heading: string, translationLabel: string, quote: ValidatedCommentsQuote): void {
-  if (lines.length > 0) {
-    lines.push("");
-  }
+function renderQuote(translationLabel: string, quote: ValidatedCommentsQuote): string {
   const quoteLines = escapeMarkdownLiteral(quote.sourceText).split("\n");
-  lines.push(`### ${heading}`, "", ...quoteLines.map((line) => (line.length === 0 ? ">" : `> ${line}`)));
-  lines.push(`> — @${safeAuthor(quote.author)}`);
+  const lines = [
+    ...quoteLines.map((line) => (line.length === 0 ? ">" : `> ${line}`)),
+    `> — @${safeAuthor(quote.author)}`,
+  ];
   if (quote.translation !== null && normalizeInline(quote.translation).length > 0) {
     lines.push("", `_${translationLabel}:_ ${safeInline(quote.translation)}`);
   }
+  return lines.join("\n");
+}
+
+function joinChunks(chunks: readonly string[]): string {
+  const nonempty = chunks.filter((chunk) => chunk.length > 0);
+  return nonempty.length === 0 ? "" : `${nonempty.join("\n\n")}\n`;
+}
+
+export function renderCommentsLead(bottomLine: string): string {
+  const lead = safeInline(bottomLine);
+  return lead.length === 0 ? "" : `${lead}\n`;
+}
+
+/**
+ * Deterministic site-facing parts. Dedup runs here intentionally: a card that is
+ * pure near-duplicates can fail the min-chars gate after rendering — desired.
+ */
+export function renderCommentsSummaryParts(
+  insights: CommentsInsights,
+  options: RenderCommentsSummaryOptions
+): CommentsSummaryParts {
+  const labels = LABELS[options.language];
+  const lead = safeInline(insights.bottom_line);
+  const surviving = dedupByContainment(
+    insights.bottom_line,
+    insights.insights.map((insight) => insight.text)
+  );
+  const bullets = surviving.map((index) => {
+    const insight = insights.insights[index];
+    if (insight === undefined) {
+      throw new Error(`dedup returned unknown index ${index}`);
+    }
+    return renderInsightBullet(insight.kind, insight.text, options.language);
+  });
+
+  const visibleBullets = bullets.slice(0, MAX_VISIBLE_INSIGHTS);
+  const foldedBullets = bullets.slice(MAX_VISIBLE_INSIGHTS);
+  const quote = validateCommentsQuote(insights, options.comments);
+  const quoteMarkdown = quote === undefined ? "" : renderQuote(labels.translation, quote);
+
+  return {
+    lead: lead.length === 0 ? "" : `${lead}\n`,
+    visible: visibleBullets.length === 0 ? "" : `${visibleBullets.join("\n")}\n`,
+    folded: joinChunks([foldedBullets.length === 0 ? "" : foldedBullets.join("\n"), quoteMarkdown]),
+    foldedInsightsCount: foldedBullets.length,
+  };
 }
 
 export function renderCommentsSummaryMarkdown(
   insights: CommentsInsights,
   options: RenderCommentsSummaryOptions
 ): string {
-  const headings = HEADINGS[options.language];
-  const lines: string[] = [];
-  let remainingBullets = MAX_SEMANTIC_BULLETS;
-
-  const disputes = insights.disputes.slice(0, Math.min(MAX_DISPUTES, remainingBullets)).map((dispute) =>
-    `**${safeInline(dispute.topic)}:** ${safeInline(dispute.position_a)} — ${safeInline(dispute.position_b)}`
-  );
-  remainingBullets -= disputes.length;
-  pushSection(lines, headings.disputes, disputes);
-
-  const consensus = insights.consensus
-    .slice(0, Math.min(MAX_CONSENSUS, remainingBullets))
-    .map((item) => safeInline(item));
-  remainingBullets -= consensus.length;
-  pushSection(lines, headings.consensus, consensus);
-
-  const advice = insights.practical_advice
-    .slice(0, Math.min(MAX_ADVICE, remainingBullets))
-    .map((item) => safeInline(item));
-  pushSection(lines, headings.advice, advice);
-
-  const quote = validateCommentsQuote(insights, options.comments);
-  if (quote !== undefined) {
-    renderQuote(lines, headings.quote, headings.translation, quote);
-  }
-
-  return lines.length === 0 ? "" : `${lines.join("\n")}\n`;
+  const parts = renderCommentsSummaryParts(insights, options);
+  return joinChunks([parts.lead.trimEnd(), parts.visible.trimEnd(), parts.folded.trimEnd()]);
 }
 
 export function renderTooFewCommentsFallback(comments: NormalizedComment[], language: SummaryLanguage): string {
@@ -171,5 +195,5 @@ export function renderTooFewCommentsFallback(comments: NormalizedComment[], lang
   const bullets = contentComments.map(
     (comment) => `- **@${safeAuthor(comment.by)}:** ${safeInline(comment.textPlain)}`
   );
-  return `### ${HEADINGS[language].fallback}\n\n${bullets.join("\n")}\n`;
+  return `### ${LABELS[language].fallback}\n\n${bullets.join("\n")}\n`;
 }

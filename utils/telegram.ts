@@ -98,6 +98,7 @@ export type TelegramDigestItem = {
   hnUrl?: string;
   postSummary?: string;
   commentsSummary?: string;
+  commentsInsights?: { lead: string };
   timeISO: string;
 };
 
@@ -118,22 +119,20 @@ const TELEGRAM_LABELS: Record<
   { comments: string; hn: string; readOn: string; site: string; source: string }
 > = {
   ru: {
-    comments: "О чём спорят",
+    comments: "Комментарии",
     hn: "комментарии на HN",
     readOn: "читать на",
     site: "сайте",
     source: "источник",
   },
   en: {
-    comments: "What people debate",
+    comments: "Comments",
     hn: "comments on HN",
     readOn: "read on",
     site: "site",
     source: "source",
   },
 };
-
-const DISPUTE_HEADINGS = new Set(["о чём спорят", "what people debate"]);
 
 function normalizePlainText(value: string): string {
   return value.replaceAll(/\s+/gu, " ").trim();
@@ -219,25 +218,12 @@ export function commentsTeaser(
     return "";
   }
 
+  // Prefer the first bullet; headings (legacy fallback cards) are skipped.
   const lines = normalized.split("\n");
-  for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    if (line === undefined || !DISPUTE_HEADINGS.has(headingText(line) ?? "")) {
+  for (const line of lines) {
+    if (headingText(line) !== undefined) {
       continue;
     }
-    for (let bulletIndex = index + 1; bulletIndex < lines.length; bulletIndex += 1) {
-      const candidate = lines[bulletIndex];
-      if (candidate === undefined || headingText(candidate) !== undefined) {
-        break;
-      }
-      const bullet = bulletText(candidate);
-      if (bullet !== undefined) {
-        return truncatePlain(bullet, safeMaxChars);
-      }
-    }
-  }
-
-  for (const line of lines) {
     const bullet = bulletText(line);
     if (bullet !== undefined) {
       return truncatePlain(bullet, safeMaxChars);
@@ -336,7 +322,11 @@ export function buildTelegramMessage(
     : TELEGRAM_MESSAGE_LIMIT;
   let title = normalizePlainText(item.title);
   let summary = normalizePlainText(item.postSummary ?? "");
-  let teaser = commentsTeaser(item.commentsSummary);
+  const lead = item.commentsInsights?.lead;
+  let teaser =
+    lead !== undefined && lead.trim().length > 0
+      ? truncatePlain(stripMarkdownInline(lead), TELEGRAM_COMMENTS_TEASER_LIMIT)
+      : commentsTeaser(item.commentsSummary);
 
   const links: string[] = [];
   const sourceUrl = safeHttpUrl(item.url, MAX_OPTIONAL_LINK_LENGTH);

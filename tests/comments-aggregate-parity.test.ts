@@ -9,6 +9,7 @@ import { buildAggregatedItem, fallbackFromRaw, readAggregates } from "../pipelin
 import { renderTooFewCommentsFallback } from "../utils/comments-render";
 import { createFsStore } from "../utils/fs-store";
 import { getAggregatedItemsD1 } from "../utils/meta-aggregated-load-d1";
+import { makeEnCommentsInsights } from "./helpers/comments-insights.ts";
 
 import { comment, story, withTempDir } from "./helpers";
 
@@ -204,5 +205,56 @@ describe("comments summary aggregation parity", () => {
     );
     expect(commentsById(d1Items)).toEqual(expected);
     expect(sqliteComments).toEqual(expected);
+  });
+
+  test("FS path attaches commentsInsights parts; D1/sqlite loaders omit them (D2 asymmetry)", async () => {
+    const normalizedStory = story({ id: 801, commentIds: [810], descendants: 1, score: 120 });
+    const rawComments = [
+      comment({
+        id: 810,
+        parent: 801,
+        textPlain:
+          "A sufficiently detailed operational comment about measuring latency before flipping production traffic.",
+      }),
+    ];
+    const structured = makeEnCommentsInsights();
+    const commentsSummary = {
+      id: 801,
+      lang: "en" as const,
+      summary: "unused string path",
+      structured,
+      formatVersion: 2 as const,
+      sampleComments: [810],
+    };
+
+    const fsItem = buildAggregatedItem(normalizedStory, rawComments, void 0, commentsSummary, void 0);
+    expect(fsItem.commentsInsights !== undefined).toBeTrue();
+    expect(fsItem.commentsInsights?.lead.trim().length).toBeGreaterThan(0);
+    expect(fsItem.commentsInsights?.visible).toContain("-");
+
+    const storyRows: StoryRow[] = [
+      {
+        id: normalizedStory.id,
+        title: normalizedStory.title,
+        url: normalizedStory.url,
+        by: normalizedStory.by,
+        timeISO: normalizedStory.timeISO,
+        score: normalizedStory.score ?? null,
+        descendants: normalizedStory.descendants ?? null,
+      },
+    ];
+    const summaryRows: SummaryRow[] = [
+      {
+        story_id: 801,
+        kind: "comments",
+        summary: commentsSummary.summary,
+      },
+    ];
+    const d1Items = await getAggregatedItemsD1(fakeD1(storyRows, summaryRows), [801]);
+    expect(d1Items[0]?.commentsInsights).toBeUndefined();
+
+    const sqliteComments = await loadSqliteComments(storyRows, summaryRows);
+    // sqlite loader only returns commentsSummary strings; no commentsInsights key.
+    expect(sqliteComments.get(801)).toBe(commentsSummary.summary);
   });
 });

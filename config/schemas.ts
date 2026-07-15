@@ -77,22 +77,21 @@ export const PostSummarySchema = z.object({
 });
 
 const CommentsInsightTextSchema = z.string().min(20).max(300);
+const CommentsInsightKindSchema = z.enum(["consensus", "dispute", "advice"]);
 
 export const CommentsInsightsSchema = z
   .object({
-    consensus: z.array(CommentsInsightTextSchema).max(3),
-    disputes: z
+    bottom_line: CommentsInsightTextSchema,
+    insights: z
       .array(
         z
           .object({
-            topic: z.string().min(8).max(160),
-            position_a: z.string().min(20).max(400),
-            position_b: z.string().min(20).max(400),
+            kind: CommentsInsightKindSchema,
+            text: CommentsInsightTextSchema,
           })
           .strict()
       )
-      .max(3),
-    practical_advice: z.array(CommentsInsightTextSchema).max(3),
+      .max(5),
     best_quote: z
       .object({
         comment_id: z.number().int().positive(),
@@ -103,10 +102,7 @@ export const CommentsInsightsSchema = z
       .nullable(),
   })
   .strict()
-  .refine(
-    (value) => value.consensus.length + value.disputes.length + value.practical_advice.length >= 1,
-    "at least one consensus, dispute, or practical advice item is required"
-  );
+  .refine((value) => value.insights.length >= 1, "at least one insight is required");
 
 /**
  * Provider-facing equivalent of CommentsInsightsSchema. Keep this explicit so
@@ -115,29 +111,22 @@ export const CommentsInsightsSchema = z
 export const CommentsInsightsJsonSchema = {
   type: "object",
   properties: {
-    consensus: {
-      type: "array",
-      items: { type: "string", minLength: 20, maxLength: 300 },
-      maxItems: 3,
-    },
-    disputes: {
+    bottom_line: { type: "string", minLength: 20, maxLength: 300 },
+    insights: {
       type: "array",
       items: {
         type: "object",
         properties: {
-          topic: { type: "string", minLength: 8, maxLength: 160 },
-          position_a: { type: "string", minLength: 20, maxLength: 400 },
-          position_b: { type: "string", minLength: 20, maxLength: 400 },
+          // Nested enum is allowed (Groq/OpenAI reject enum only at schema root).
+          kind: { type: "string", enum: ["consensus", "dispute", "advice"] },
+          text: { type: "string", minLength: 20, maxLength: 300 },
         },
-        required: ["topic", "position_a", "position_b"],
+        required: ["kind", "text"],
         additionalProperties: false,
       },
-      maxItems: 3,
-    },
-    practical_advice: {
-      type: "array",
-      items: { type: "string", minLength: 20, maxLength: 300 },
-      maxItems: 3,
+      maxItems: 5,
+      // No minItems: the "at least one insight" rule lives in the Zod refine only
+      // so we do not expand the provider surface with keywords they reject at root.
     },
     best_quote: {
       anyOf: [
@@ -160,13 +149,11 @@ export const CommentsInsightsJsonSchema = {
       ],
     },
   },
-  required: ["consensus", "disputes", "practical_advice", "best_quote"],
+  required: ["bottom_line", "insights", "best_quote"],
   additionalProperties: false,
-  anyOf: [
-    { properties: { consensus: { minItems: 1 } } },
-    { properties: { disputes: { minItems: 1 } } },
-    { properties: { practical_advice: { minItems: 1 } } },
-  ],
+  // No top-level anyOf: strict providers (Groq, OpenAI structured outputs) reject
+  // oneOf/anyOf/enum/not at the schema root. The "at least one insight" rule is
+  // enforced by CommentsInsightsSchema's Zod refine on every parse.
 } as const;
 
 export const CommentsSummarySchema = z.object({
@@ -228,6 +215,16 @@ export const AggregatedItemSchema = z.object({
   timeISO: IsoString,
   postSummary: z.string().optional(),
   commentsSummary: z.string().optional(),
+  // Rendered parts for the site fold UI. Populated only on the FS aggregation
+  // path (D1/sqlite loaders intentionally omit this — no migration).
+  commentsInsights: z
+    .object({
+      lead: z.string(),
+      visible: z.string(),
+      folded: z.string(),
+      foldedInsightsCount: z.number().int().min(0),
+    })
+    .optional(),
   score: z.number().optional(),
   commentsCount: z.number().optional(),
   hnUrl: z

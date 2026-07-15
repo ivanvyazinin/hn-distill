@@ -5,7 +5,7 @@ import { COMMENTS_POLICY_VERSION, parseEnv } from "../config/env.ts";
 describe("comments-v2 environment", () => {
   test("uses bounded defaults compatible with the worker task budget", () => {
     const parsed = parseEnv({});
-    expect(COMMENTS_POLICY_VERSION).toBe("2");
+    expect(COMMENTS_POLICY_VERSION).toBe("3");
     expect(parsed.COMMENTS_SUMMARY_MIN_CHARS).toBe(200);
     expect(parsed.COMMENTS_MIN_CYRILLIC_RATIO).toBe(0.65);
     expect(parsed.COMMENTS_PROMPT_MAX_CHARS).toBe(24_000);

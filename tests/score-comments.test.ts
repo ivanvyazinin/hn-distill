@@ -64,9 +64,13 @@ function candidate(variant: CommentsVariant, inputFixture: CommentsBenchFixture)
     ...(variant === "v2" && firstComment !== undefined
       ? {
           structured: {
-            consensus: ["A sufficiently detailed consensus item for the structured candidate."],
-            disputes: [],
-            practical_advice: [],
+            bottom_line: "The thread adds a sufficiently detailed operational takeaway for the structured candidate.",
+            insights: [
+              {
+                kind: "consensus",
+                text: "A sufficiently detailed consensus item for the structured candidate.",
+              },
+            ],
             best_quote: {
               comment_id: firstComment.id,
               source_text: "exact source quotation",

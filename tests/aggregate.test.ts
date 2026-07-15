@@ -63,6 +63,80 @@ describe("Aggregation & grouping", () => {
     });
   });
 
+  test("buildAggregatedItem attaches commentsInsights for v2 structured and skips degraded/legacy", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const { buildAggregatedItem } = await import("@scripts/aggregate.mts");
+      const { makeEnCommentsInsights } = await import("./helpers/comments-insights.ts");
+
+      const s: NormalizedStory = makeStory({ id: 99, url: null, score: 120, commentIds: [101] });
+      const comments: NormalizedComment[] = [
+        makeComment({
+          id: 101,
+          parent: s.id,
+          textPlain:
+            "Operational comment with enough length to serve as quote provenance if needed for the fold path.",
+        }),
+      ];
+      const structured = makeEnCommentsInsights();
+
+      const withStructured = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 99,
+          lang: "en",
+          summary: "rendered markdown",
+          structured,
+          formatVersion: 2,
+        },
+        void 0
+      );
+      expect(withStructured.commentsInsights !== undefined).toBeTrue();
+      expect(withStructured.commentsInsights?.lead).toContain(structured.bottom_line.slice(0, 20));
+
+      const degraded = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 99,
+          lang: "en",
+          summary: "### From the discussion\n\n- fallback",
+          formatVersion: 2,
+          degraded: "too-few-comments",
+        },
+        void 0
+      );
+      expect(degraded.commentsInsights).toBeUndefined();
+
+      const legacy = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        { id: 99, lang: "en", summary: "- old freeform summary" },
+        void 0
+      );
+      expect(legacy.commentsInsights).toBeUndefined();
+
+      const broken = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 99,
+          lang: "en",
+          summary: "rendered",
+          formatVersion: 2,
+          structured: { not: "a valid insights object" },
+        },
+        void 0
+      );
+      expect(broken.commentsInsights).toBeUndefined();
+    });
+  });
+
   test("Domain extraction strips www and handles bad URLs gracefully", async () => {
     await withTempDir(async (base) => {
       mockPaths(base);

@@ -1,11 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
 import { CommentsInsightsJsonSchema, CommentsInsightsSchema } from "../config/schemas";
+import { makeRuCommentsInsights } from "./helpers/comments-insights.ts";
 
 type JsonSchemaNode = {
   additionalProperties?: boolean;
   anyOf?: readonly JsonSchemaNode[];
   const?: unknown;
+  enum?: readonly unknown[];
   items?: JsonSchemaNode;
   maximum?: number;
   maxItems?: number;
@@ -18,32 +20,37 @@ type JsonSchemaNode = {
   type?: string | readonly string[];
 };
 
-const VALID_ADVICE = "Проверьте решение на небольшом наборе данных перед полным запуском.";
-const VALID_CONSENSUS = "Участники согласны, что измерения нужны до выбора архитектуры.";
-
-const validAdviceOnly = {
-  consensus: [],
-  disputes: [],
-  practical_advice: [VALID_ADVICE],
-  best_quote: null,
-};
-
-const validComplete = {
-  consensus: [VALID_CONSENSUS],
-  disputes: [
+const validAdviceOnly = makeRuCommentsInsights({
+  insights: [
     {
-      topic: "Стратегия миграции",
-      position_a: "Одна сторона предлагает переключить всех пользователей сразу после тестов.",
-      position_b: "Другая сторона настаивает на постепенном включении с быстрым откатом.",
+      kind: "advice",
+      text: "Проверьте решение на небольшом наборе данных перед полным запуском.",
     },
   ],
-  practical_advice: [VALID_ADVICE],
+  best_quote: null,
+});
+
+const validComplete = makeRuCommentsInsights({
+  insights: [
+    {
+      kind: "consensus",
+      text: "Участники согласны, что измерения нужны до выбора архитектуры.",
+    },
+    {
+      kind: "dispute",
+      text: "Спор: одна сторона предлагает переключить всех сразу, другая — постепенное включение с откатом.",
+    },
+    {
+      kind: "advice",
+      text: "Проверьте решение на небольшом наборе данных перед полным запуском.",
+    },
+  ],
   best_quote: {
     comment_id: 41_850_701,
     source_text: "Measure twice, migrate once, and keep a rollback path ready.",
     translation: "Сначала всё измерьте, затем мигрируйте и оставьте путь для отката.",
   },
-};
+});
 
 function hasType(schema: JsonSchemaNode, type: string): boolean {
   return Array.isArray(schema.type) ? schema.type.includes(type) : schema.type === type;
@@ -51,6 +58,10 @@ function hasType(schema: JsonSchemaNode, type: string): boolean {
 
 function matchesJsonSchema(value: unknown, schema: JsonSchemaNode): boolean {
   if (schema.const !== undefined && value !== schema.const) {
+    return false;
+  }
+
+  if (schema.enum !== undefined && !schema.enum.includes(value)) {
     return false;
   }
 
@@ -124,45 +135,68 @@ function matchesJsonSchema(value: unknown, schema: JsonSchemaNode): boolean {
 describe("CommentsInsights schema contract", () => {
   test("keeps the response-format schema closed at every object boundary", () => {
     const schema = CommentsInsightsJsonSchema as JsonSchemaNode;
-    const dispute = schema.properties?.["disputes"]?.items;
+    const insight = schema.properties?.["insights"]?.items;
     const quote = schema.properties?.["best_quote"]?.anyOf?.find((candidate) => candidate.type === "object");
 
     expect(schema.type).toBe("object");
     expect(schema.additionalProperties).toBeFalse();
-    expect(schema.required).toEqual(["consensus", "disputes", "practical_advice", "best_quote"]);
-    expect(dispute?.additionalProperties).toBeFalse();
-    expect(dispute?.required).toEqual(["topic", "position_a", "position_b"]);
+    expect(schema.required).toEqual(["bottom_line", "insights", "best_quote"]);
+    expect(schema.properties?.["insights"]?.minItems).toBeUndefined();
+    expect(insight?.additionalProperties).toBeFalse();
+    expect(insight?.required).toEqual(["kind", "text"]);
+    expect(insight?.properties?.["kind"]?.enum).toEqual(["consensus", "dispute", "advice"]);
     expect(quote?.additionalProperties).toBeFalse();
     expect(quote?.required).toEqual(["comment_id", "source_text", "translation"]);
   });
 
   test("Zod and JSON Schema agree on a shared valid/invalid matrix", () => {
-    const matrix: ReadonlyArray<{ expected: boolean; name: string; value: unknown }> = [
+    const matrix: ReadonlyArray<{
+      expected: boolean;
+      /** JSON Schema verdict when it deliberately diverges from Zod (structural vs semantic). */
+      jsonSchemaExpected?: boolean;
+      name: string;
+      value: unknown;
+    }> = [
       { expected: true, name: "complete payload", value: validComplete },
       { expected: true, name: "advice-only payload", value: validAdviceOnly },
       {
         expected: false,
-        name: "empty semantic payload",
-        value: { consensus: [], disputes: [], practical_advice: [], best_quote: null },
+        // Deliberate divergence: the JSON Schema is structural-only (no minItems),
+        // so the at-least-one-insight rule lives in the Zod refine alone.
+        jsonSchemaExpected: true,
+        name: "empty insights payload",
+        value: {
+          bottom_line: validAdviceOnly.bottom_line,
+          insights: [],
+          best_quote: null,
+        },
       },
       { expected: false, name: "additional root property", value: { ...validAdviceOnly, invented: true } },
       {
         expected: false,
-        name: "additional dispute property",
+        name: "additional insight property",
         value: {
           ...validComplete,
-          disputes: [{ ...validComplete.disputes[0], confidence: 0.9 }],
+          insights: [{ ...validComplete.insights[0]!, confidence: 0.9 }],
+        },
+      },
+      {
+        expected: false,
+        name: "invalid insight kind",
+        value: {
+          ...validAdviceOnly,
+          insights: [{ kind: "tip", text: validAdviceOnly.insights[0]!.text }],
         },
       },
       {
         expected: false,
         name: "non-positive quote id",
-        value: { ...validComplete, best_quote: { ...validComplete.best_quote, comment_id: 0 } },
+        value: { ...validComplete, best_quote: { ...validComplete.best_quote!, comment_id: 0 } },
       },
       {
         expected: false,
         name: "model-authored quote attribution",
-        value: { ...validComplete, best_quote: { ...validComplete.best_quote, author: "alice" } },
+        value: { ...validComplete, best_quote: { ...validComplete.best_quote!, author: "alice" } },
       },
       {
         expected: false,
@@ -170,10 +204,15 @@ describe("CommentsInsights schema contract", () => {
         value: {
           ...validComplete,
           best_quote: {
-            comment_id: validComplete.best_quote.comment_id,
-            translation: validComplete.best_quote.translation,
+            comment_id: validComplete.best_quote!.comment_id,
+            translation: validComplete.best_quote!.translation,
           },
         },
+      },
+      {
+        expected: false,
+        name: "missing bottom_line",
+        value: { insights: validAdviceOnly.insights, best_quote: null },
       },
     ];
     const jsonSchema = CommentsInsightsJsonSchema as JsonSchemaNode;
@@ -188,9 +227,8 @@ describe("CommentsInsights schema contract", () => {
       });
       expect({ fixture: fixture.name, result: jsonSchemaResult }).toEqual({
         fixture: fixture.name,
-        result: fixture.expected,
+        result: fixture.jsonSchemaExpected ?? fixture.expected,
       });
-      expect(jsonSchemaResult).toBe(zodResult);
     }
   });
 });

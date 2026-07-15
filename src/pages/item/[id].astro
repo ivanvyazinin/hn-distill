@@ -36,8 +36,13 @@ function tagHref(tag: string): string {
 
 const postMd = item.postSummary ?? "";
 const commentsMd = item.commentsSummary ?? "";
+const parts = item.commentsInsights;
+const visibleMd = parts
+  ? [parts.lead.trimEnd(), parts.visible.trimEnd()].filter((chunk) => chunk.length > 0).join("\n\n")
+  : commentsMd;
 const postHtml = postMd ? mdToHtml(postMd) : "";
-const commentsHtml = commentsMd ? mdToHtml(commentsMd) : "";
+const commentsHtml = visibleMd ? mdToHtml(visibleMd) : "";
+const foldedHtml = parts?.folded ? mdToHtml(parts.folded) : "";
 const datePretty = formatDateHuman(item.timeISO);
 const hnUrl = item.hnUrl ?? `https://news.ycombinator.com/item?id=${item.id}`;
 
@@ -46,13 +51,33 @@ const description = (postMd || commentsMd || `Hacker News discussion for: ${item
 const i18n = {
   ru: {
     comments: "Комментарии",
+    moreTakeaways: (n: number) => {
+      if (n === 0) return "цитата из треда";
+      if (n === 1) return "ещё 1 тезис";
+      return `ещё ${n} тезиса`;
+    },
+    moreWithQuote: (n: number) => {
+      if (n === 0) return "цитата из треда";
+      if (n === 1) return "ещё 1 тезис (+ и цитата)";
+      return `ещё ${n} тезиса (+ и цитата)`;
+    },
   },
   en: {
     comments: "Comments",
+    moreTakeaways: (n: number) => (n === 0 ? "quote from the thread" : `${n} more takeaways`),
+    moreWithQuote: (n: number) =>
+      n === 0 ? "quote from the thread" : `${n} more takeaways (+ quote)`,
   },
 };
 const t = i18n[lang];
 const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.commentsCount})` : "";
+const hasQuoteInFold = Boolean(parts?.folded && parts.folded.includes("> "));
+const foldLabel =
+  parts === undefined
+    ? ""
+    : hasQuoteInFold
+      ? t.moreWithQuote(parts.foldedInsightsCount)
+      : t.moreTakeaways(parts.foldedInsightsCount);
 ---
 
 <html lang={lang}>
@@ -93,7 +118,19 @@ const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.comment
           <h3 class="title">
             <a href={hnUrl} target="_blank" rel="noopener noreferrer nofollow">{t.comments}{commentsLabel}</a>
           </h3>
-          {commentsHtml ? <div class="md" set:html={commentsHtml} /> : <p class="meta">No comments summary.</p>}
+          {commentsHtml ? (
+            <>
+              <div class="md" set:html={commentsHtml} />
+              {foldedHtml && (
+                <details class="md-fold">
+                  <summary>{foldLabel}</summary>
+                  <div class="md" set:html={foldedHtml} />
+                </details>
+              )}
+            </>
+          ) : (
+            <p class="meta">No comments summary.</p>
+          )}
         </aside>
       </section>
     </main>

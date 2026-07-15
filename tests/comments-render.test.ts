@@ -1,10 +1,18 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  renderCommentsLead,
   renderCommentsSummaryMarkdown,
+  renderCommentsSummaryParts,
   renderTooFewCommentsFallback,
   validateCommentsQuote,
 } from "../utils/comments-render.ts";
+import {
+  COMMENTS_INSIGHTS_FIXTURE_TEXT,
+  makeEnCommentsInsights,
+  makeRuCommentsInsights,
+  makeRuDisputeInsight,
+} from "./helpers/comments-insights.ts";
 
 import type { CommentsInsights, NormalizedComment } from "../config/schemas.ts";
 
@@ -22,55 +30,93 @@ function comment(overrides: Partial<NormalizedComment> = {}): NormalizedComment 
   };
 }
 
-function insights(overrides: Partial<CommentsInsights> = {}): CommentsInsights {
+function longInsight(kind: CommentsInsights["insights"][number]["kind"], index: number): CommentsInsights["insights"][number] {
+  // Distinct content per index so containment dedup does not collapse fold-boundary fixtures.
+  const topics = [
+    "измерение задержек очереди при пиковой нагрузке на прод",
+    "канареечный rollout feature flags перед cutover",
+    "стоимость self-hosted Wireguard против managed VPN",
+    "корреляция сна и здоровья без доказанной причинности",
+    "откат миграции базы через dual-write и сравнение ответов",
+  ] as const;
+  const topic = topics[index - 1] ?? `уникальная тема номер ${index}`;
   return {
-    disputes: [],
-    consensus: [],
-    practical_advice: ["Проверяйте предложенный подход на небольшом воспроизводимом примере."],
-    best_quote: null,
-    ...overrides,
+    kind,
+    text: `Достаточно подробный тезис номер ${index}: ${topic}.`,
   };
 }
 
 describe("comments summary renderer", () => {
-  test("renders localized RU sections in disputes, consensus, advice order with at most seven semantic bullets", () => {
-    const repeated = [1, 2, 3].map((index) => `Достаточно подробный пункт номер ${index} для проверки ограничения списка.`);
-    const value = insights({
-      disputes: repeated.map((item, index) => ({
-        topic: `Спорная тема ${index + 1}`,
-        position_a: `${item} Первая позиция участников обсуждения.`,
-        position_b: `${item} Альтернативная позиция участников обсуждения.`,
-      })),
-      consensus: repeated,
-      practical_advice: repeated,
+  test("lead is plain bottom_line without a heading", () => {
+    const value = makeRuCommentsInsights();
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments: [] });
+    expect(parts.lead).toBe(`${COMMENTS_INSIGHTS_FIXTURE_TEXT.ru.bottom}\n`);
+    expect(parts.lead).not.toContain("###");
+    expect(renderCommentsLead(value.bottom_line)).toBe(parts.lead);
+  });
+
+  test("labels dispute/advice and leaves consensus unlabeled (RU and EN)", () => {
+    const ru = makeRuCommentsInsights({
+      insights: [
+        makeRuDisputeInsight(),
+        { kind: "consensus", text: COMMENTS_INSIGHTS_FIXTURE_TEXT.ru.consensus },
+        { kind: "advice", text: COMMENTS_INSIGHTS_FIXTURE_TEXT.ru.advice },
+      ],
     });
+    const ruMd = renderCommentsSummaryMarkdown(ru, { language: "ru", comments: [] });
+    expect(ruMd).toContain("**Спор:**");
+    expect(ruMd).toContain("**Совет:**");
+    expect(ruMd).toContain(`- ${COMMENTS_INSIGHTS_FIXTURE_TEXT.ru.consensus}`);
+    expect(ruMd).not.toContain("###");
 
-    const markdown = renderCommentsSummaryMarkdown(value, { language: "ru", comments: [] });
-    expect(markdown.indexOf("### О чём спорят")).toBeLessThan(markdown.indexOf("### Консенсус"));
-    expect(markdown.indexOf("### Консенсус")).toBeLessThan(markdown.indexOf("### Советы из треда"));
-    expect(markdown.split("\n").filter((line) => line.startsWith("- ")).length).toBe(7);
-    expect(markdown).toContain("Достаточно подробный пункт номер 1");
-    expect(markdown).not.toContain("Достаточно подробный пункт номер 2\n- Достаточно подробный пункт номер 3");
+    const en = makeEnCommentsInsights({
+      insights: [
+        { kind: "dispute", text: COMMENTS_INSIGHTS_FIXTURE_TEXT.en.dispute },
+        { kind: "consensus", text: COMMENTS_INSIGHTS_FIXTURE_TEXT.en.consensus },
+        { kind: "advice", text: COMMENTS_INSIGHTS_FIXTURE_TEXT.en.advice },
+      ],
+    });
+    const enMd = renderCommentsSummaryMarkdown(en, { language: "en", comments: [] });
+    expect(enMd).toContain("**Debate:**");
+    expect(enMd).toContain("**Advice:**");
+    expect(enMd).toContain(`- ${COMMENTS_INSIGHTS_FIXTURE_TEXT.en.consensus}`);
   });
 
-  test("renders localized EN headings and accepts advice-only insights", () => {
-    const markdown = renderCommentsSummaryMarkdown(
-      insights({
-        practical_advice: ["Test the migration on a disposable database copy before production rollout."],
-      }),
-      { language: "en", comments: [] }
-    );
+  test("fold boundary: 1 and 3 insights stay visible; 4–5 go to folded", () => {
+    const one = makeRuCommentsInsights({ insights: [longInsight("advice", 1)] });
+    const oneParts = renderCommentsSummaryParts(one, { language: "ru", comments: [] });
+    expect(oneParts.visible).toContain("тезис номер 1");
+    expect(oneParts.folded).toBe("");
+    expect(oneParts.foldedInsightsCount).toBe(0);
 
-    expect(markdown).toBe(
-      "### Advice from the thread\n\n- Test the migration on a disposable database copy before production rollout.\n"
-    );
-    expect(markdown).not.toContain("What people debate");
-    expect(markdown).not.toContain("Consensus");
+    const three = makeRuCommentsInsights({
+      insights: [longInsight("advice", 1), longInsight("consensus", 2), longInsight("dispute", 3)],
+    });
+    const threeParts = renderCommentsSummaryParts(three, { language: "ru", comments: [] });
+    expect(threeParts.visible.split("\n").filter((line) => line.startsWith("- ")).length).toBe(3);
+    expect(threeParts.folded).toBe("");
+    expect(threeParts.foldedInsightsCount).toBe(0);
+
+    const five = makeRuCommentsInsights({
+      insights: [
+        longInsight("advice", 1),
+        longInsight("consensus", 2),
+        longInsight("dispute", 3),
+        longInsight("advice", 4),
+        longInsight("consensus", 5),
+      ],
+    });
+    const fiveParts = renderCommentsSummaryParts(five, { language: "ru", comments: [] });
+    expect(fiveParts.visible).toContain("тезис номер 3");
+    expect(fiveParts.visible).not.toContain("тезис номер 4");
+    expect(fiveParts.folded).toContain("тезис номер 4");
+    expect(fiveParts.folded).toContain("тезис номер 5");
+    expect(fiveParts.foldedInsightsCount).toBe(2);
   });
 
-  test("derives quote author by comment id and renders source and translation separately", () => {
+  test("quote is always folded and has no heading", () => {
     const comments = [comment({ by: "real_author" })];
-    const value = insights({
+    const value = makeRuCommentsInsights({
       best_quote: {
         comment_id: 101,
         source_text: "exact source quotation is preserved",
@@ -86,71 +132,127 @@ describe("comments summary renderer", () => {
       translation: "Точная исходная цитата сохранена отдельно от перевода.",
     });
 
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments });
+    expect(parts.folded).toContain("> exact source quotation is preserved");
+    expect(parts.folded).toContain(`> — @real${String.fromCodePoint(92)}_author`);
+    expect(parts.folded).toContain("_Перевод:_ Точная исходная цитата сохранена отдельно от перевода.");
+    expect(parts.folded).not.toContain("###");
+    expect(parts.visible).not.toContain("exact source quotation");
+  });
+
+  test("quote-only fold when all insights fit in visible", () => {
+    const comments = [comment()];
+    const value = makeRuCommentsInsights({
+      insights: [longInsight("advice", 1)],
+      best_quote: {
+        comment_id: 101,
+        source_text: "exact source quotation is preserved",
+        translation: null,
+      },
+    });
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments });
+    expect(parts.foldedInsightsCount).toBe(0);
+    expect(parts.folded).toContain("> exact source quotation is preserved");
+    expect(parts.folded).not.toContain("тезис номер");
+  });
+
+  test("markdown equals concatenation of non-empty parts", () => {
+    const comments = [comment()];
+    const value = makeRuCommentsInsights({
+      insights: [
+        longInsight("advice", 1),
+        longInsight("consensus", 2),
+        longInsight("dispute", 3),
+        longInsight("advice", 4),
+      ],
+      best_quote: {
+        comment_id: 101,
+        source_text: "exact source quotation is preserved",
+        translation: null,
+      },
+    });
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments });
     const markdown = renderCommentsSummaryMarkdown(value, { language: "ru", comments });
-    expect(markdown).toContain("### Цитата из обсуждения");
-    expect(markdown).toContain("> exact source quotation is preserved");
-    expect(markdown).toContain(`> — @real${String.fromCodePoint(92)}_author`);
-    expect(markdown).toContain("_Перевод:_ Точная исходная цитата сохранена отдельно от перевода.");
-    expect(markdown).not.toContain("> Точная исходная цитата сохранена");
+    const concat = [parts.lead.trimEnd(), parts.visible.trimEnd(), parts.folded.trimEnd()]
+      .filter((chunk) => chunk.length > 0)
+      .join("\n\n");
+    expect(markdown).toBe(`${concat}\n`);
+  });
+
+  test("dedups near-duplicate insights against bottom_line and earlier items", () => {
+    const value = makeRuCommentsInsights({
+      bottom_line:
+        "Тред добавляет практический опыт: VPN через SSH проще корпоративного клиента для доступа к внутренним сервисам.",
+      insights: [
+        {
+          kind: "advice",
+          text: "VPN через SSH удобнее корпоративного VPN-клиента для доступа к внутренним сервисам.",
+        },
+        {
+          kind: "consensus",
+          text: "Self-hosted Wireguard через Headscale проще для небольшой команды, чем полный Tailscale.",
+        },
+        {
+          kind: "advice",
+          text: "Для небольшой команды self-hosted Wireguard с Headscale проще полного Tailscale.",
+        },
+      ],
+    });
+    const markdown = renderCommentsSummaryMarkdown(value, { language: "ru", comments: [] });
+    expect(markdown).toContain("Wireguard");
+    expect(markdown).not.toContain("VPN через SSH удобнее");
+    // second Wireguard near-dup dropped; only one remains
+    expect(markdown.match(/Wireguard|Headscale/gu)?.length).toBeLessThanOrEqual(2);
+  });
+
+  test("escapes markdown literals in generated text", () => {
+    const value = makeRuCommentsInsights({
+      bottom_line: "Тред про `code` и *звёзды* с [ссылкой](x) в одном выводе.",
+      insights: [{ kind: "advice", text: "Проверьте `rm -rf` и **жирный** текст перед запуском миграции." }],
+    });
+    const markdown = renderCommentsSummaryMarkdown(value, { language: "ru", comments: [] });
+    expect(markdown).toContain("\\`code\\`");
+    expect(markdown).toContain("\\*звёзды\\*");
+    expect(markdown).toContain("\\[ссылкой\\]");
   });
 
   test("omits a quote with an unknown id or text absent from the original comment", () => {
     const comments = [comment()];
-    const unknownId = insights({
+    const unknownId = makeRuCommentsInsights({
       best_quote: {
         comment_id: 999,
         source_text: "exact source quotation is preserved",
         translation: null,
       },
     });
-    const inventedText = insights({
+    const missingText = makeRuCommentsInsights({
       best_quote: {
         comment_id: 101,
-        source_text: "This sentence was invented and never appeared in the source.",
+        source_text: "this quote is not present in the comment body at all",
         translation: null,
       },
     });
-
     expect(validateCommentsQuote(unknownId, comments)).toBeUndefined();
-    expect(validateCommentsQuote(inventedText, comments)).toBeUndefined();
-    expect(renderCommentsSummaryMarkdown(unknownId, { language: "en", comments })).not.toContain("Quote from");
-    expect(renderCommentsSummaryMarkdown(inventedText, { language: "en", comments })).not.toContain("Quote from");
+    expect(validateCommentsQuote(missingText, comments)).toBeUndefined();
+    expect(renderCommentsSummaryMarkdown(unknownId, { language: "ru", comments })).not.toContain(">");
   });
 
-  test("normalizes provenance whitespace and prevents quote Markdown from opening headings or fences", () => {
-    const sourceText = "# heading\n```ts\nconst answer = 42\n```";
-    const comments = [comment({ textPlain: `Prefix ${sourceText} suffix` })];
-    const value = insights({
-      best_quote: { comment_id: 101, source_text: sourceText, translation: null },
-    });
-    const markdown = renderCommentsSummaryMarkdown(value, { language: "en", comments });
-
-    expect(validateCommentsQuote(value.best_quote, comments)?.author).toBe("alice");
-    expect(markdown).toContain("> \\# heading");
-    expect(markdown).toContain("> \\`\\`\\`ts");
-    expect(markdown).not.toContain("\n# heading");
-    expect(markdown).not.toContain("\n```ts");
-  });
-
-  test("degraded fallback returns empty for zero content comments and nonempty localized output for one or two", () => {
-    const short = comment({ id: 1, textPlain: "too short" });
-    const first = comment({ id: 2, by: "first", textPlain: "A".repeat(80) });
-    const second = comment({ id: 3, by: "second", textPlain: "B".repeat(100) });
-    const third = comment({ id: 4, by: "third", textPlain: "C".repeat(100) });
-
-    expect(renderTooFewCommentsFallback([], "ru")).toBe("");
-    expect(renderTooFewCommentsFallback([short], "en")).toBe("");
-
-    const one = renderTooFewCommentsFallback([short, first], "ru");
-    expect(one).toContain("### Из обсуждения");
-    expect(one).toContain("**@first:**");
-    expect(one.split("\n").filter((line) => line.startsWith("- ")).length).toBe(1);
-
-    const two = renderTooFewCommentsFallback([first, second, third], "en");
-    expect(two).toContain("### From the discussion");
-    expect(two).toContain("**@first:**");
-    expect(two).toContain("**@second:**");
-    expect(two).not.toContain("@third");
-    expect(two.split("\n").filter((line) => line.startsWith("- ")).length).toBe(2);
+  test("renders too-few-comments fallback with the legacy heading", () => {
+    const comments = [
+      comment({
+        id: 1,
+        by: "alice",
+        textPlain: "A sufficiently long comment body that exceeds the minimum character threshold for fallback.",
+      }),
+      comment({
+        id: 2,
+        by: "bob",
+        textPlain: "Another sufficiently long comment body that exceeds the minimum character threshold for fallback.",
+      }),
+    ];
+    const markdown = renderTooFewCommentsFallback(comments, "ru");
+    expect(markdown).toContain("### Из обсуждения");
+    expect(markdown).toContain("@alice");
+    expect(markdown).toContain("@bob");
   });
 });

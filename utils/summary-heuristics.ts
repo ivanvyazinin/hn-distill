@@ -196,11 +196,7 @@ export function cyrillicRatio(text: string): number {
 }
 
 function commentsInsightsLanguageText(insights: CommentsInsights): string {
-  const fields = [
-    ...insights.consensus,
-    ...insights.disputes.flatMap((dispute) => [dispute.topic, dispute.position_a, dispute.position_b]),
-    ...insights.practical_advice,
-  ];
+  const fields = [insights.bottom_line, ...insights.insights.map((insight) => insight.text)];
   // source_text is deliberately excluded: it is a verbatim source quote, not
   // generated prose. The optional translation is generated and must pass the gate.
   const translation = insights.best_quote?.translation;

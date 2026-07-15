@@ -50,9 +50,13 @@ function verdict(overrides: Partial<CommentsJudgeVerdict> = {}): CommentsJudgeVe
 }
 
 const STRUCTURED_INSIGHTS: CommentsInsights = {
-  consensus: ["Commenters agree on a sufficiently detailed and testable implementation approach."],
-  disputes: [],
-  practical_advice: [],
+  bottom_line: "The thread adds a sufficiently detailed and testable implementation approach with caveats.",
+  insights: [
+    {
+      kind: "consensus",
+      text: "Commenters agree on a sufficiently detailed and testable implementation approach.",
+    },
+  ],
   best_quote: null,
 };
 
@@ -134,7 +138,7 @@ describe("comments evaluation production adapter", () => {
       requestedModel: "requested-model",
       resolvedModel: "resolved-structured-model",
       provider: "openrouter",
-      policyVersion: "2",
+      policyVersion: "3",
       promptVersion: "comments-structured-v2",
     });
     expect(v1.validationPassed).toBeTrue();

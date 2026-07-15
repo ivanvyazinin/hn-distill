@@ -40,18 +40,43 @@ const i18n = {
     hot: "Горячее",
     long: "Длинная дискуссия",
     original: "Оригинал",
+    moreTakeaways: (n: number) => {
+      if (n === 0) return "цитата из треда";
+      if (n === 1) return "ещё 1 тезис";
+      return `ещё ${n} тезиса`;
+    },
+    moreWithQuote: (n: number) => {
+      if (n === 0) return "цитата из треда";
+      if (n === 1) return "ещё 1 тезис (+ и цитата)";
+      return `ещё ${n} тезиса (+ и цитата)`;
+    },
   },
   en: {
     comments: "Comments",
     hot: "Hot",
     long: "Long discussion",
     original: "Original",
+    moreTakeaways: (n: number) => (n === 0 ? "quote from the thread" : `${n} more takeaways`),
+    moreWithQuote: (n: number) =>
+      n === 0 ? "quote from the thread" : `${n} more takeaways (+ quote)`,
   },
 };
 const t = i18n[lang];
 
 const postHtml = item.postSummary ? mdToHtml(item.postSummary) : "";
-const commentsHtml = item.commentsSummary ? mdToHtml(item.commentsSummary) : "";
+const parts = item.commentsInsights;
+const visibleMd = parts
+  ? [parts.lead.trimEnd(), parts.visible.trimEnd()].filter((chunk) => chunk.length > 0).join("\n\n")
+  : item.commentsSummary ?? "";
+const commentsHtml = visibleMd ? mdToHtml(visibleMd) : "";
+const foldedHtml = parts?.folded ? mdToHtml(parts.folded) : "";
+const hasQuoteInFold = Boolean(parts?.folded && parts.folded.includes("> "));
+const foldLabel =
+  parts === undefined
+    ? ""
+    : hasQuoteInFold
+      ? t.moreWithQuote(parts.foldedInsightsCount)
+      : t.moreTakeaways(parts.foldedInsightsCount);
 ---
 
 <section
@@ -92,6 +117,18 @@ const commentsHtml = item.commentsSummary ? mdToHtml(item.commentsSummary) : "";
     <h3 class="title">
       <a href={hnUrl} target="_blank" rel="noopener noreferrer nofollow">{t.comments}{commentsLabel}</a>
     </h3>
-    {commentsHtml ? <div class="md" set:html={commentsHtml} /> : <p>—</p>}
+    {commentsHtml ? (
+      <>
+        <div class="md" set:html={commentsHtml} />
+        {foldedHtml && (
+          <details class="md-fold">
+            <summary>{foldLabel}</summary>
+            <div class="md" set:html={foldedHtml} />
+          </details>
+        )}
+      </>
+    ) : (
+      <p>—</p>
+    )}
   </div>
 </section>

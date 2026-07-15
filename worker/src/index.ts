@@ -193,6 +193,9 @@ async function collectTelegramItems(
       ...(item.hnUrl === undefined ? {} : { hnUrl: item.hnUrl }),
       ...(item.postSummary === undefined ? {} : { postSummary: item.postSummary }),
       ...(item.commentsSummary === undefined ? {} : { commentsSummary: item.commentsSummary }),
+      ...(item.commentsInsights === undefined
+        ? {}
+        : { commentsInsights: { lead: item.commentsInsights.lead } }),
       timeISO: item.timeISO,
     };
     items.push(payload);

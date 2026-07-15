@@ -117,13 +117,17 @@ describe("comments prompt v2", () => {
     expect(result.prompt).toContain(`Тема поста: ${STORY.title}`);
     expect(result.prompt).toContain(`Суть статьи: ${"А".repeat(400)}`);
     expect(result.prompt).not.toContain("НЕ_ДОЛЖНО_ПОПАСТЬ");
+    expect(result.prompt).toContain('"bottom_line"');
+    expect(result.prompt).toContain('"insights"');
+    expect(result.prompt).toContain('"kind"');
     expect(result.prompt).toContain('"comment_id"');
     expect(result.prompt).toContain('"source_text"');
     expect(result.prompt).toContain('"translation"');
+    expect(result.prompt).toContain("Не повторяй суть статьи");
     expect(result.sampleIds).toEqual([1]);
   });
 
-  test("omits article gist for no-article degraded posts", () => {
+  test("omits article gist for no-article degraded posts and uses main-takeaway bottom_line", () => {
     const result = buildCommentsPromptV2({
       story: STORY,
       comments: [],
@@ -134,15 +138,42 @@ describe("comments prompt v2", () => {
     expect(result.prompt).toContain(`Story topic: ${STORY.title}`);
     expect(result.prompt).not.toContain("Article gist:");
     expect(result.prompt).not.toContain("garbage navigation");
+    expect(result.prompt).toContain("bottom_line is the thread's main takeaway");
+    expect(result.prompt).not.toContain("Do not restate the article gist");
   });
 
-  test("provides distinct RU and EN system instructions", () => {
+  test("ru without gist and en with gist use the matching bottom_line rules", () => {
+    const ruNoGist = buildCommentsPromptV2({
+      story: STORY,
+      comments: [],
+      language: "ru",
+      maxChars: 5000,
+    });
+    expect(ruNoGist.prompt).toContain("bottom_line — главный вывод треда");
+    expect(ruNoGist.prompt).not.toContain("Не повторяй суть статьи");
+
+    const enWithGist = buildCommentsPromptV2({
+      story: STORY,
+      comments: [],
+      postSummary: { summary: "The article proposes a staged migration with measured cutover." },
+      language: "en",
+      maxChars: 5000,
+    });
+    expect(enWithGist.prompt).toContain("Do not restate the article gist");
+    expect(enWithGist.prompt).toContain("bottom_line = what the thread adds to the article");
+  });
+
+  test("provides distinct RU and EN system instructions with dispute/ranking rules", () => {
     const ru = buildCommentsSystemInstructionV2("ru");
     const en = buildCommentsSystemInstructionV2("en");
     expect(ru).toContain("русском");
     expect(en).toContain("Analyze Hacker News");
     expect(en).toContain("generated semantic field in English");
     expect(en).toContain("translation to null");
+    expect(en).toContain('kind="dispute"');
+    expect(ru).toContain('kind="dispute"');
+    expect(en).toContain("Five is a ceiling");
+    expect(ru).toContain("5 — потолок");
     expect(ru).not.toBe(en);
   });
 

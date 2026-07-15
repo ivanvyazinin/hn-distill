@@ -301,7 +301,7 @@ describe("local comments-to-Telegram integration", () => {
     expect(store.commentsWrites).toBe(2);
     expect(await store.getJson(pathFor.commentsSummary(storyId))).toEqual(legacyComments);
     expect(sentTexts).toEqual([expected]);
-    expect(sentTexts[0]).toContain("What people debate");
+    expect(sentTexts[0]).toContain("Comments");
     expect(sentMessageIds).toEqual([7001]);
     expect(processingUpdates.length).toBe(2);
     expect(processingUpdates.every((update) => update.commentsStatus === "missing")).toBeTrue();
