@@ -38,6 +38,16 @@ const EnvironmentSchema = z.object({
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
 
+  // Comments-v2 has an independent input/output and request budget. Three
+  // seven-second calls fit under the worker's 25s task timeout with its 2s buffer.
+  COMMENTS_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(1000).default(200),
+  COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
+  COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
+  COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1200),
+  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(3),
+  COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
+  COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
+
   TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
@@ -199,6 +209,14 @@ const EnvironmentSchema = z.object({
    * 0 disables. Quality/completeness over speed → default spaces to ~15 req/min.
    */
   BENCH_PROVIDER_THROTTLE_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
+}).superRefine((value, context) => {
+  if (value.COMMENTS_JUDGE_THREAD_MAX_CHARS < value.COMMENTS_PROMPT_MAX_CHARS) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["COMMENTS_JUDGE_THREAD_MAX_CHARS"],
+      message: "must be greater than or equal to COMMENTS_PROMPT_MAX_CHARS",
+    });
+  }
 });
 
 /**
@@ -208,6 +226,9 @@ const EnvironmentSchema = z.object({
  * Not an env var — a code constant so a deploy is the only way to change it.
  */
 export const EXTRACT_POLICY_VERSION = "1";
+
+/** Bump to invalidate persisted comments summaries after a policy change. */
+export const COMMENTS_POLICY_VERSION = "2";
 
 export type Env = z.infer<typeof EnvironmentSchema>;
 

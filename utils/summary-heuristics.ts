@@ -1,5 +1,7 @@
 import { analyzeRussianLanguagePurity, DEFAULT_MIN_CYRILLIC_RATIO } from "@utils/language-gate";
 
+import type { CommentsInsights } from "@config/schemas";
+
 export type HeuristicTrigger = {
   reason: string;
   detail?: string;
@@ -8,6 +10,11 @@ export type HeuristicTrigger = {
 export type HeuristicVerdict = {
   ok: boolean;
   triggers: HeuristicTrigger[];
+};
+
+export type CommentsInsightsHeuristicOptions = {
+  language: "en" | "ru";
+  minCyrillicRatio?: number;
 };
 
 export type LanguageGateSettings = {
@@ -56,6 +63,7 @@ const BARE_BULLET_RATIO_THRESHOLD = 0.9;
 const PROMPT_INSTRUCTION_SCORE_THRESHOLD = 2;
 const NUMERIC_HEADINGS_MIN_LINES = 3;
 const NUMERIC_HEADINGS_RATIO_THRESHOLD = 0.8;
+const COMMENTS_INSIGHTS_REUSED_REASONS = new Set(["policy", "prompt_instructions", "refusal"]);
 
 const REFUSAL_PHRASES = [
   "as an ai",
@@ -165,6 +173,65 @@ function pushIfApologyRefusal(summaryLower: string, reason: string, triggers: He
       return;
     }
   }
+}
+
+function withoutMarkdownCodeSpans(text: string): string {
+  return text.replaceAll(/```[\s\S]*?```/gu, " ").replaceAll(/`[^\n\r`]*`/gu, " ");
+}
+
+/** Ratio of Cyrillic letters to Cyrillic + Latin letters outside Markdown code spans. */
+export function cyrillicRatio(text: string): number {
+  const prose = withoutMarkdownCodeSpans(text);
+  let cyrillicLetters = 0;
+  let latinLetters = 0;
+  for (const char of prose) {
+    if (/\p{Script=Cyrillic}/u.test(char)) {
+      cyrillicLetters += 1;
+    } else if (/\p{Script=Latin}/u.test(char)) {
+      latinLetters += 1;
+    }
+  }
+  const eligibleLetters = cyrillicLetters + latinLetters;
+  return eligibleLetters > 0 ? cyrillicLetters / eligibleLetters : 1;
+}
+
+function commentsInsightsLanguageText(insights: CommentsInsights): string {
+  const fields = [
+    ...insights.consensus,
+    ...insights.disputes.flatMap((dispute) => [dispute.topic, dispute.position_a, dispute.position_b]),
+    ...insights.practical_advice,
+  ];
+  // source_text is deliberately excluded: it is a verbatim source quote, not
+  // generated prose. The optional translation is generated and must pass the gate.
+  const translation = insights.best_quote?.translation;
+  if (translation !== undefined && translation !== null && translation.length > 0) {
+    fields.push(translation);
+  }
+  return withoutMarkdownCodeSpans(fields.join("\n"));
+}
+
+/** Content checks for model-generated insight fields, excluding quote provenance. */
+export function checkCommentsInsightsHeuristics(
+  insights: CommentsInsights,
+  options: CommentsInsightsHeuristicOptions
+): HeuristicVerdict {
+  const semanticText = commentsInsightsLanguageText(insights);
+  const reused = checkSummaryHeuristics(semanticText, {
+    kind: "comments",
+    language: "en",
+    minChars: 0,
+  }).triggers.filter((trigger) => COMMENTS_INSIGHTS_REUSED_REASONS.has(trigger.reason));
+  const triggers = [...reused];
+
+  if (options.language === "ru") {
+    const minimum = options.minCyrillicRatio ?? 0.65;
+    const ratio = cyrillicRatio(semanticText);
+    if (ratio < minimum) {
+      triggers.push({ reason: "low_cyrillic_ratio", detail: `ratio=${ratio.toFixed(3)}` });
+    }
+  }
+
+  return { ok: triggers.length === 0, triggers };
 }
 
 export function checkSummaryHeuristics(

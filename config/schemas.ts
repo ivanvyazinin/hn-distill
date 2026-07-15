@@ -76,10 +76,106 @@ export const PostSummarySchema = z.object({
     .optional(),
 });
 
+const CommentsInsightTextSchema = z.string().min(20).max(300);
+
+export const CommentsInsightsSchema = z
+  .object({
+    consensus: z.array(CommentsInsightTextSchema).max(3),
+    disputes: z
+      .array(
+        z
+          .object({
+            topic: z.string().min(8).max(160),
+            position_a: z.string().min(20).max(400),
+            position_b: z.string().min(20).max(400),
+          })
+          .strict()
+      )
+      .max(3),
+    practical_advice: z.array(CommentsInsightTextSchema).max(3),
+    best_quote: z
+      .object({
+        comment_id: z.number().int().positive(),
+        source_text: z.string().min(20).max(300),
+        translation: z.string().min(20).max(300).nullable(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict()
+  .refine(
+    (value) => value.consensus.length + value.disputes.length + value.practical_advice.length >= 1,
+    "at least one consensus, dispute, or practical advice item is required"
+  );
+
+/**
+ * Provider-facing equivalent of CommentsInsightsSchema. Keep this explicit so
+ * structured-output requests do not depend on a runtime schema converter.
+ */
+export const CommentsInsightsJsonSchema = {
+  type: "object",
+  properties: {
+    consensus: {
+      type: "array",
+      items: { type: "string", minLength: 20, maxLength: 300 },
+      maxItems: 3,
+    },
+    disputes: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          topic: { type: "string", minLength: 8, maxLength: 160 },
+          position_a: { type: "string", minLength: 20, maxLength: 400 },
+          position_b: { type: "string", minLength: 20, maxLength: 400 },
+        },
+        required: ["topic", "position_a", "position_b"],
+        additionalProperties: false,
+      },
+      maxItems: 3,
+    },
+    practical_advice: {
+      type: "array",
+      items: { type: "string", minLength: 20, maxLength: 300 },
+      maxItems: 3,
+    },
+    best_quote: {
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            comment_id: { type: "integer", minimum: 1 },
+            source_text: { type: "string", minLength: 20, maxLength: 300 },
+            translation: {
+              anyOf: [
+                { type: "string", minLength: 20, maxLength: 300 },
+                { type: "null" },
+              ],
+            },
+          },
+          required: ["comment_id", "source_text", "translation"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
+    },
+  },
+  required: ["consensus", "disputes", "practical_advice", "best_quote"],
+  additionalProperties: false,
+  anyOf: [
+    { properties: { consensus: { minItems: 1 } } },
+    { properties: { disputes: { minItems: 1 } } },
+    { properties: { practical_advice: { minItems: 1 } } },
+  ],
+} as const;
+
 export const CommentsSummarySchema = z.object({
   id: z.number(),
   lang: LangSchema,
   summary: z.string(),
+  structured: CommentsInsightsSchema.optional(),
+  formatVersion: z.literal(2).optional(),
+  degraded: z.literal("too-few-comments").optional(),
   sampleComments: z.array(z.number()).optional(),
   inputHash: z.string().optional(),
   model: z.string().optional(),
@@ -169,6 +265,7 @@ export type HnItemRaw = z.infer<typeof HnItemRawSchema>;
 export type NormalizedStory = z.infer<typeof NormalizedStorySchema>;
 export type NormalizedComment = z.infer<typeof NormalizedCommentSchema>;
 export type PostSummary = z.infer<typeof PostSummarySchema>;
+export type CommentsInsights = z.infer<typeof CommentsInsightsSchema>;
 export type CommentsSummary = z.infer<typeof CommentsSummarySchema>;
 export type TagsSummary = z.infer<typeof TagsSummarySchema>;
 export type AggregatedItem = z.infer<typeof AggregatedItemSchema>;
