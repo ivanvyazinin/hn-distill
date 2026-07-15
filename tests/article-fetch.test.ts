@@ -14,18 +14,28 @@ const CF_BODY =
   '<!DOCTYPE html><html><title>Just a moment...</title><script src="https://challenges.cloudflare.com/cdn-cgi/challenge-platform/..."></script></html>';
 
 describe("looksLikeCloudflareChallenge", () => {
-  test("detects common challenge markers", () => {
+  test("detects high-signal challenge markers", () => {
     expect(looksLikeCloudflareChallenge(CF_BODY)).toBe(true);
     expect(looksLikeCloudflareChallenge("Enable JavaScript and cookies to continue")).toBe(true);
     expect(looksLikeCloudflareChallenge("Attention Required! | Cloudflare")).toBe(true);
     expect(looksLikeCloudflareChallenge("Checking your browser before accessing example.com")).toBe(true);
+    expect(looksLikeCloudflareChallenge('<html><title>Just a moment...</title><body>wait</body></html>')).toBe(true);
+    expect(looksLikeCloudflareChallenge("cdn-cgi/challenge-platform/h/g/orchestrate")).toBe(true);
   });
 
-  test("rejects normal article html/markdown", () => {
+  test("rejects normal article html/markdown and bare English phrases", () => {
     expect(looksLikeCloudflareChallenge("# Hello\n\nWorld of Minecraft maps.")).toBe(false);
     expect(looksLikeCloudflareChallenge("<html><body><p>Article body</p></body></html>")).toBe(false);
     expect(looksLikeCloudflareChallenge("")).toBe(false);
     expect(looksLikeCloudflareChallenge()).toBe(false);
+    // Regression: bare phrase must NOT trip the detector (HN articles discuss
+    // spinners / CF in prose without being interstitials).
+    expect(looksLikeCloudflareChallenge("Please wait just a moment while we load the map.")).toBe(false);
+    expect(
+      looksLikeCloudflareChallenge(
+        "# How Cloudflare works\n\nThe edge shows a spinner for just a moment before the page loads."
+      )
+    ).toBe(false);
   });
 });
 
@@ -97,9 +107,25 @@ describe("fetchViaJinaReader", () => {
     expect(out.startsWith("# Title")).toBe(true);
     expect(calls.length).toBe(1);
     expect(calls[0]?.url).toBe("https://r.jina.ai/https://example.com/a");
-    expect(calls[0]?.init?.headers?.["x-respond-with"]).toBe("markdown");
+    expect(calls[0]?.init?.headers?.["X-Respond-With"]).toBe("markdown");
     expect(calls[0]?.init?.headers?.["Authorization"]).toBe("Bearer jk_test");
     expect(calls[0]?.init?.headers?.["Accept"]).toBe("text/plain");
+  });
+
+  test("accepts reader markdown that mentions 'just a moment' in prose", async () => {
+    // Must not reject legitimate article text that happens to use the English phrase.
+    const md = [
+      "# Waiting rooms",
+      "",
+      "The UI shows 'just a moment' while the edge warms the cache.",
+      "Operators then route traffic to the origin.",
+      "x".repeat(MIN_READER_MD_CHARS),
+    ].join("\n");
+    const http = {
+      text: async () => md,
+    } as unknown as HttpClient;
+    const out = await fetchViaJinaReader(http, "https://example.com/waiting");
+    expect(out).toContain("just a moment");
   });
 
   test("omits Authorization when no api key", async () => {

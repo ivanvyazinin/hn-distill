@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { existsSync, rmSync } from "node:fs";
 
 import { env } from "../config/env";
+import { isCloudflareChallengeError } from "../utils/article-fetch";
 import type { ArticleExtractRow, MetaStore } from "../utils/meta-store";
 import { HttpError, type BytesResponse, type HttpClient, type SafeRequestInit } from "../utils/http-client";
 import { mockPaths, story as makeStory, withEnvPatch, withTempDir } from "./helpers";
@@ -73,7 +74,7 @@ describe("makeServices reader fallback", () => {
         const readerCall = calls.find((c) => c.method === "text");
         expect(readerCall?.url).toBe("https://r.jina.ai/https://2b2t.place/1million");
         expect(readerCall?.init?.headers?.["Authorization"]).toBe("Bearer jk_test_key");
-        expect(readerCall?.init?.headers?.["x-respond-with"]).toBe("markdown");
+        expect(readerCall?.init?.headers?.["X-Respond-With"]).toBe("markdown");
       }
     );
   });
@@ -151,6 +152,53 @@ describe("makeServices reader fallback", () => {
       const result = await services.fetchArticleMarkdown("https://cf.example/page");
       expect(result.sourceKind).toBe("reader");
       expect(result.md).toContain("Minecraft");
+      expect(calls.filter((c) => c.method === "text").length).toBe(1);
+    });
+  });
+
+  test("200 HTML with bare 'just a moment' prose does NOT trigger reader", async () => {
+    await withEnvPatch({ ARTICLE_FETCH_READER_FALLBACK: true }, async () => {
+      const { makeServices } = await import("../pipeline/summarize");
+      // Legitimate article that happens to use the English phrase — must stay on html path.
+      const html =
+        "<!DOCTYPE html><html><head><title>Waiting rooms</title></head>" +
+        "<body><article><p>Please wait just a moment while the cache warms.</p>" +
+        "<p>Then traffic is routed to the origin with healthy backends.</p></article></body></html>";
+      const encoded = new TextEncoder().encode(html);
+      const { http, calls } = makeHttpStub({
+        origin: {
+          bytes: { data: encoded, contentType: "text/html; charset=utf-8" },
+        },
+        readerText: READER_MD,
+      });
+      const services = makeServices(env, { http });
+      const result = await services.fetchArticleMarkdown("https://example.com/waiting-rooms");
+      expect(result.sourceKind).toBe("html");
+      expect(result.md.length).toBeGreaterThan(0);
+      expect(calls.filter((c) => c.method === "text").length).toBe(0);
+    });
+  });
+
+  test("200 challenge body + reader failure rethrows as bot-protection HttpError(403)", async () => {
+    await withEnvPatch({ ARTICLE_FETCH_READER_FALLBACK: true }, async () => {
+      const { makeServices } = await import("../pipeline/summarize");
+      const encoded = new TextEncoder().encode(CF_BODY);
+      const { http, calls } = makeHttpStub({
+        origin: {
+          bytes: { data: encoded, contentType: "text/html; charset=utf-8" },
+        },
+        readerText: "x", // too short → reader fails
+      });
+      const services = makeServices(env, { http });
+      let thrown: unknown;
+      try {
+        await services.fetchArticleMarkdown("https://cf.example/blocked");
+      } catch (error) {
+        thrown = error;
+      }
+      expect(thrown).toBeInstanceOf(HttpError);
+      expect((thrown as HttpError).status).toBe(403);
+      expect(isCloudflareChallengeError(thrown)).toBe(true);
       expect(calls.filter((c) => c.method === "text").length).toBe(1);
     });
   });

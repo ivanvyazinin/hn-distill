@@ -122,14 +122,15 @@ export function makeServices(
       const { data, contentType } = await http.bytes(url);
       // Rare: origin returns 200 with a Cloudflare challenge HTML body. Treat as
       // fallback-eligible instead of feeding the interstitial to Readability.
+      // Decode once; reuse for both challenge check and HTML extract.
       if (looksLikeHtml(contentType ?? undefined)) {
         const html = decodeText(data, contentType ?? undefined);
         if (looksLikeCloudflareChallenge(html)) {
-          if (!e.ARTICLE_FETCH_READER_FALLBACK) {
-            throw new HttpError(url, 403, `HTTP 403 Cloudflare challenge body for ${url}`);
-          }
-          return await fetchArticleViaReader(url);
+          // Synthetic 403 so reader failure on this path classifies as bot-protection
+          // (WARN), same as a real origin 403 — not a generic ERROR.
+          throw new HttpError(url, 403, `HTTP 403 Cloudflare challenge body for ${url}`);
         }
+        return await parseFetchedContent(url, data, contentType ?? undefined, html);
       }
       return await parseFetchedContent(url, data, contentType ?? undefined);
     } catch (error) {
@@ -154,7 +155,13 @@ export function makeServices(
   }
 
   async function fetchArticleViaReader(url: string): Promise<FetchedArticle> {
-    log.info(LOG_NAMESPACE_ARTICLE, "Retrying article via Jina reader", { url });
+    // Structured counter-ish log: grep "via Jina reader" / sourceKind=reader for frequency.
+    log.info(LOG_NAMESPACE_ARTICLE, "Retrying article via Jina reader", {
+      url,
+      fallback: "jina",
+      readerBase: e.ARTICLE_READER_BASE_URL,
+      hasJinaKey: Boolean(e.JINA_API_KEY && e.JINA_API_KEY.length > 0),
+    });
     const md = await fetchViaJinaReader(http, url, {
       apiKey: e.JINA_API_KEY,
       baseUrl: e.ARTICLE_READER_BASE_URL,
@@ -190,7 +197,13 @@ export function makeServices(
     return undefined;
   }
 
-  async function parseFetchedContent(url: string, data: Uint8Array, contentType?: string): Promise<FetchedArticle> {
+  async function parseFetchedContent(
+    url: string,
+    data: Uint8Array,
+    contentType?: string,
+    /** Pre-decoded HTML when the caller already decoded for challenge detection. */
+    decodedHtml?: string
+  ): Promise<FetchedArticle> {
     const head = data.subarray(0, 8);
     if (looksLikePdf({ url, contentType, bytesHead: head })) {
       log.info(LOG_NAMESPACE_ARTICLE, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
@@ -212,7 +225,7 @@ export function makeServices(
     }
     if (looksLikeHtml(contentType)) {
       log.debug(LOG_NAMESPACE_ARTICLE, "Processing HTML content", { url, contentType });
-      const html = decodeText(data, contentType);
+      const html = decodedHtml ?? decodeText(data, contentType);
       // Readability-extract the article before turndown; the extract-quality
       // detector (HTML-only, in getOrFetchArticleMarkdown) judges the result.
       return { md: extractArticleMd(html, url), sourceKind: "html" };

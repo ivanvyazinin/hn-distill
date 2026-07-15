@@ -6,18 +6,28 @@ export const DEFAULT_ARTICLE_READER_BASE_URL = "https://r.jina.ai";
 /** Minimum non-empty reader body we accept as usable article markdown. */
 export const MIN_READER_MD_CHARS = 40;
 
+/**
+ * High-signal Cloudflare / bot-fight markers. Prefer specific CF hostnames,
+ * meta/title anchors, and compound interstitial phrases over loose English
+ * fragments like bare "just a moment" (those appear in ordinary article prose
+ * and would false-positive the 200-HTML path + reader body validation).
+ */
 const CHALLENGE_MARKERS = [
-  "just a moment",
   "challenges.cloudflare.com",
+  "cdn-cgi/challenge-platform",
   "cf-browser-verification",
-  "enable javascript and cookies to continue",
+  "cf-challenge",
   "attention required! | cloudflare",
+  // Anchored title forms — not the bare English phrase.
+  "<title>just a moment",
+  "<title>just a moment...",
+  "enable javascript and cookies to continue",
   "checking your browser before accessing",
 ] as const;
 
 /**
  * True when a string looks like a Cloudflare JS-challenge / bot-fight page body.
- * Case-insensitive substring match against known markers.
+ * Case-insensitive substring match against high-signal markers only.
  */
 export function looksLikeCloudflareChallenge(text?: string | null): boolean {
   if (text === undefined || text === null || text === "") {
@@ -29,9 +39,9 @@ export function looksLikeCloudflareChallenge(text?: string | null): boolean {
 
 /**
  * Classify a thrown fetch error as a Cloudflare / bot-protection block that is
- * eligible for the Jina Reader fallback. Primary signal is HTTP 403 with challenge
- * markers in the message; bare 403 also qualifies (many CF edges omit the body
- * fragment we store). 503 with challenge markers is accepted as a secondary case.
+ * eligible for the Jina Reader fallback. Primary signal is HTTP 403; bare 403
+ * always qualifies (many CF edges omit the body fragment we store). 503 / status-
+ * less errors need challenge markers in the message.
  */
 export function isCloudflareChallengeError(error: unknown): boolean {
   if (!(error instanceof HttpError)) {
@@ -77,6 +87,9 @@ export type FetchViaJinaReaderOptions = {
 /**
  * Fetch article markdown via Jina Reader (`r.jina.ai`). Returns trimmed markdown
  * or throws HttpError / Error on empty / still-challenge body.
+ *
+ * Headers follow the upstream Reader docs (`X-Respond-With`; Accept text/plain).
+ * @see https://github.com/jina-ai/reader
  */
 export async function fetchViaJinaReader(
   http: HttpClient,
@@ -87,7 +100,8 @@ export async function fetchViaJinaReader(
   const readerUrl = buildJinaReaderUrl(targetUrl, baseUrl);
   const headers: Record<string, string> = {
     Accept: "text/plain",
-    "x-respond-with": "markdown",
+    // Canonical Jina Reader header (also accepted case-insensitively as x-respond-with).
+    "X-Respond-With": "markdown",
   };
   const apiKey = options.apiKey?.trim();
   if (apiKey !== undefined && apiKey.length > 0) {
