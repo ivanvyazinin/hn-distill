@@ -787,7 +787,7 @@ describe("cloudflare infra", () => {
     }
   });
 
-  test("worker leaves legacy comments pending and unstamped after generation failure", async () => {
+  test("worker persists a retryable comments fallback and leaves policy unstamped after generation failure", async () => {
     const mf = new Miniflare({
       modules: true,
       script: MINIFLARE_SCRIPT,
@@ -859,7 +859,11 @@ describe("cloudflare infra", () => {
       }
 
       expect(llmCalls).toBe(3);
-      expect(await store.getJson(pathFor.commentsSummary(storyId))).toEqual(legacy);
+      const fallback = await store.getJson<CommentsSummary>(pathFor.commentsSummary(storyId));
+      expect(fallback?.degraded).toBe("generation-failed");
+      expect(fallback?.formatVersion).toBe(2);
+      expect(fallback?.summary.length).toBeGreaterThan(0);
+      expect(fallback?.summary).not.toBe(legacy.summary);
       const policyState = await getCommentsPolicyState(db, storyId);
       expect(policyState?.commentsPolicyVersion).toBe("1");
       expect(policyState?.commentsInputHash).toBe("legacy-hash");
@@ -873,7 +877,7 @@ describe("cloudflare infra", () => {
     }
   });
 
-  test("worker passes an already exhausted comments deadline without starting an LLM request", async () => {
+  test("worker persists a retryable fallback for an already exhausted comments deadline", async () => {
     const mf = new Miniflare({
       modules: true,
       script: MINIFLARE_SCRIPT,
@@ -926,7 +930,10 @@ describe("cloudflare infra", () => {
 
       expect(fetchCalls).toBe(0);
       expect((await getCommentsPolicyState(db, storyId))?.commentsPolicyVersion).toBeUndefined();
-      expect(await store.getJson(pathFor.commentsSummary(storyId))).toBeNull();
+      const fallback = await store.getJson<CommentsSummary>(pathFor.commentsSummary(storyId));
+      expect(fallback?.degraded).toBe("generation-failed");
+      expect(fallback?.formatVersion).toBe(2);
+      expect(fallback?.summary.length).toBeGreaterThan(0);
     } finally {
       await mf.dispose();
     }

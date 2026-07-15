@@ -293,12 +293,14 @@ describe("comments-v2 persistence", () => {
     }
   });
 
-  test("all-fail generation leaves a legacy file untouched and pending", async () => {
+  test("all-fail generation persists a retryable fallback and remains pending", async () => {
     const story = makeStory({ id: 22 });
     const store = new MemoryStore();
     const path = "data/summaries/22.comments.json";
     const legacy = { id: story.id, lang: "ru", summary: "- Старое проверенное саммари", inputHash: "legacy" };
     await store.putJson(path, legacy);
+    const comments = threeComments(story.id);
+    await store.putJson(pathFor.rawComments(story.id), comments);
     const { services } = structuredServices([
       async () => {
         throw new SyntaxError("bad json one");
@@ -311,16 +313,14 @@ describe("comments-v2 persistence", () => {
       },
     ]);
 
-    const result = await processCommentsSummary(
-      services,
-      story,
-      threeComments(story.id),
-      undefined,
-      path,
-      store
-    );
+    const result = await processCommentsSummary(services, story, comments, undefined, path, store);
     expect(result.status).toBe("pending");
-    expect(await store.getJson(path)).toEqual(legacy);
+    const fallback = await store.getJson<CommentsSummary>(path);
+    expect(fallback?.degraded).toBe("generation-failed");
+    expect(fallback?.formatVersion).toBe(2);
+    expect(fallback?.summary.length).toBeGreaterThan(0);
+    expect(fallback?.summary).not.toBe(legacy.summary);
+    expect(await computeCommentsChanged(story, fallback, "ru", 60_000, Date.now(), store)).toBeTrue();
   });
 
   test("storage read failure returns pending without starting generation", async () => {

@@ -1615,7 +1615,12 @@ export async function processCommentsSummary(
     };
   }
 
-  if (existingCommentsSummary?.inputHash === inputHash && existingCommentsSummary.formatVersion === 2) {
+  const retryableFallback = existingCommentsSummary?.degraded === "generation-failed";
+  if (
+    existingCommentsSummary?.inputHash === inputHash &&
+    existingCommentsSummary.formatVersion === 2 &&
+    !retryableFallback
+  ) {
     try {
       await upsertCommentsSummaryMeta(meta, existingCommentsSummary);
       log.debug(LOG_NAMESPACE_COMMENTS, "Comments-v2 summary up-to-date; repaired meta if needed", {
@@ -1661,7 +1666,33 @@ export async function processCommentsSummary(
       ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
     });
     if (validated === undefined) {
-      log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 rejected after request budget", { id: story.id });
+      // Keep the card useful even when every structured model attempt fails. This
+      // marker is deliberately retryable: the next run must try generation again
+      // instead of treating the deterministic fallback as a successful v2 result.
+      const now = new Date().toISOString();
+      commentsSummary = {
+        id: story.id,
+        lang: env.SUMMARY_LANG,
+        summary: renderTooFewCommentsFallback(substantiveComments, env.SUMMARY_LANG),
+        degraded: "generation-failed",
+        formatVersion: 2,
+        inputHash,
+        sampleComments: substantiveComments.map((comment) => comment.id),
+        createdISO: now,
+      };
+      try {
+        await store.putJson(commentsPath, commentsSummary, { pretty: true, contentType: "application/json" });
+        await upsertCommentsSummaryMeta(meta, commentsSummary);
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 generation failed; persisted deterministic fallback", {
+          id: story.id,
+          chars: commentsSummary.summary.length,
+        });
+      } catch (error) {
+        log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 fallback persistence failed", {
+          id: story.id,
+          error: String(error),
+        });
+      }
       return {
         status: "pending",
         desiredPolicyVersion: COMMENTS_POLICY_VERSION,
@@ -2146,6 +2177,11 @@ export async function computeCommentsChanged(
   if (!existingComments) {
     return true;
   }
+  // A deterministic fallback is intentionally not protected by the normal
+  // cooldown: it exists only to keep the card visible until generation works.
+  if (existingComments.degraded === "generation-failed") {
+    return true;
+  }
   if (isInsideCooldown(existingComments.createdISO, now, cooldownMs)) {
     return false;
   }
@@ -2164,7 +2200,12 @@ export async function computeCommentsChanged(
     maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
   });
   const hash = await commentsInputHash(language, COMMENTS_POLICY_VERSION, prepared.prompt);
-  return existingComments.formatVersion !== 2 || existingComments.inputHash !== hash;
+  const degraded = existingComments.degraded as string | undefined;
+  return (
+    degraded === "generation-failed" ||
+    existingComments.formatVersion !== 2 ||
+    existingComments.inputHash !== hash
+  );
 }
 
 async function evaluateCandidate(
