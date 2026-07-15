@@ -31,6 +31,20 @@ const EnvironmentSchema = z.object({
   EXTRACT_MAX_LINK_DENSITY: z.coerce.number().min(0).max(1).default(0.5),
   EXTRACT_MAX_DUP_RATIO: z.coerce.number().min(0).max(1).default(0.5),
 
+  // When a direct article fetch hits Cloudflare JS-challenge / 403, retry via
+  // Jina Reader (https://r.jina.ai/<url>) which returns ready markdown. Off to
+  // skip the second hop (local debugging). On by default so GH Actions recovers
+  // bot-blocked origin pages without Playwright.
+  ARTICLE_FETCH_READER_FALLBACK: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(true),
+  // Optional Jina API key (Authorization: Bearer …). Free tier works without it
+  // at lower RPM; set for higher limits. Never required for correctness.
+  JINA_API_KEY: z.string().optional(),
+  // Override reader base (tests / self-host). No trailing slash required.
+  ARTICLE_READER_BASE_URL: z.string().default("https://r.jina.ai"),
+
   HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(15_000),
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
