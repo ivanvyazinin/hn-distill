@@ -162,7 +162,7 @@ export const CommentsSummarySchema = z.object({
   summary: z.string(),
   structured: CommentsInsightsSchema.optional(),
   formatVersion: z.literal(2).optional(),
-  degraded: z.literal("too-few-comments").optional(),
+  degraded: z.enum(["too-few-comments", "generation-failed"]).optional(),
   sampleComments: z.array(z.number()).optional(),
   inputHash: z.string().optional(),
   model: z.string().optional(),
