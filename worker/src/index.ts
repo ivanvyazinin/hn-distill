@@ -1,18 +1,23 @@
-import { applyEnv, parseEnv, type Env } from "@config/env";
+import { applyEnv, COMMENTS_POLICY_VERSION, parseEnv, type Env } from "@config/env";
 import { pathFor } from "@config/paths";
-import { type AggregatedFile, type NormalizedStory } from "@config/schemas";
+import { type AggregatedFile, type CommentsSummary, type NormalizedStory } from "@config/schemas";
 import { HttpClient } from "@utils/http-client";
 import { log } from "@utils/log";
 import { Telegram, buildTelegramMessage, parseTelegramError, type TelegramDigestItem } from "@utils/telegram";
 
 import { main as aggregateMain } from "../../pipeline/aggregate";
 import { main as fetchMain, makeServices as makeFetchServices } from "../../pipeline/fetch-hn";
-import { makeServices as makeSummarizeServices, processSingleStory } from "../../pipeline/summarize";
+import {
+  computeCommentsChanged,
+  makeServices as makeSummarizeServices,
+  processSingleStory,
+} from "../../pipeline/summarize";
 
 import type { QueueBatch, WorkerEnv } from "./bindings";
 import {
   acquireRunLock,
   getAggregateState,
+  getCommentsPolicyStates,
   getProcessingUpdatedMax,
   getPagesDeployState,
   getTelegramSentIds,
@@ -82,9 +87,79 @@ async function upsertStoriesFromStore(
 }
 
 async function enqueueSummaries(queue: NonNullable<WorkerEnv["TASKS"]>, ids: number[]): Promise<void> {
+  // Queue delivery is at-least-once. Selection and summary persistence are
+  // deliberately idempotent through the comments policy/input hash pair.
   for (const id of ids) {
     await queue.send({ kind: "summarize", id } satisfies TaskMessage);
   }
+}
+
+function isProcessingStateInsideCooldown(updatedAt: string | undefined, cutoffISO: string): boolean {
+  if (updatedAt === undefined) {
+    return false;
+  }
+  const updated = Date.parse(updatedAt);
+  const cutoff = Date.parse(cutoffISO);
+  return Number.isFinite(updated) && Number.isFinite(cutoff) && updated >= cutoff;
+}
+
+async function selectSummarizeIds(
+  env: WorkerEnv,
+  parsedEnv: Env,
+  store: ReturnType<typeof createWorkerStore>,
+  currentStoryIds: number[],
+  fetchedISO: string
+): Promise<number[]> {
+  const maxPerCron = Math.max(1, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON);
+  const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
+  const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
+  const currentIds = [...new Set(currentStoryIds)];
+  const sqlPending = new Set(
+    await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO, COMMENTS_POLICY_VERSION)
+  );
+  const policyStates = await getCommentsPolicyStates(env.DB, currentIds);
+  const selectedCurrent: number[] = [];
+
+  for (const id of currentIds) {
+    if (selectedCurrent.length >= maxPerCron) {
+      break;
+    }
+    const state = policyStates.get(id);
+    if (!sqlPending.has(id) && isProcessingStateInsideCooldown(state?.updatedAt, cutoffISO)) {
+      continue;
+    }
+
+    const story = await store.getJson<NormalizedStory>(pathFor.rawItem(id));
+    if (story === null) {
+      if (sqlPending.has(id)) {
+        selectedCurrent.push(id);
+      }
+      continue;
+    }
+    const existingComments = await store.getJson<CommentsSummary>(pathFor.commentsSummary(id));
+    const inputChanged = await computeCommentsChanged(
+      story,
+      existingComments,
+      parsedEnv.SUMMARY_LANG,
+      0,
+      Date.now(),
+      store
+    );
+    const stateMismatch =
+      state?.commentsPolicyVersion !== COMMENTS_POLICY_VERSION ||
+      state.commentsInputHash !== existingComments?.inputHash;
+    if (sqlPending.has(id) || inputChanged || stateMismatch) {
+      selectedCurrent.push(id);
+    }
+  }
+
+  if (!parsedEnv.WORKER_EXTRACTION_BACKFILL_ENABLE || selectedCurrent.length >= maxPerCron) {
+    return selectedCurrent;
+  }
+  const selectedSet = new Set(selectedCurrent);
+  const legacyIds = await listLegacyExtractionStoryIds(env.DB, maxPerCron, cutoffISO);
+  const selectedLegacy = legacyIds.filter((id) => !selectedSet.has(id)).slice(0, maxPerCron - selectedCurrent.length);
+  return [...selectedCurrent, ...selectedLegacy];
 }
 
 async function collectTelegramItems(
@@ -113,11 +188,14 @@ async function collectTelegramItems(
     const payload: TelegramDigestItem = {
       id: item.id,
       title: item.title,
-      domain: item.domain,
       url: item.url,
-      hnUrl: item.hnUrl,
-      postSummary: item.postSummary,
-      commentsSummary: item.commentsSummary,
+      ...(item.domain === undefined ? {} : { domain: item.domain }),
+      ...(item.hnUrl === undefined ? {} : { hnUrl: item.hnUrl }),
+      ...(item.postSummary === undefined ? {} : { postSummary: item.postSummary }),
+      ...(item.commentsSummary === undefined ? {} : { commentsSummary: item.commentsSummary }),
+      ...(item.commentsInsights === undefined
+        ? {}
+        : { commentsInsights: { lead: item.commentsInsights.lead } }),
       timeISO: item.timeISO,
     };
     items.push(payload);
@@ -146,18 +224,10 @@ async function processInlineSummaries(
   meta: ReturnType<typeof createD1MetaStore>,
   startedAt: number,
   cronTimeout: number,
+  currentStoryIds: number[],
   fetchedISO: string
 ): Promise<void> {
-  const maxPerCron = Math.max(1, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON);
-  const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
-  const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
-  const pendingIds = await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO);
-  const legacyIds = parsedEnv.WORKER_EXTRACTION_BACKFILL_ENABLE
-    ? await listLegacyExtractionStoryIds(env.DB, maxPerCron, cutoffISO)
-    : [];
-  // Prioritize the explicitly enabled migration drain, then fill the remaining
-  // bounded inline budget with current-fetch work. Set removes overlap.
-  const ids = [...new Set([...legacyIds, ...pendingIds])].slice(0, maxPerCron);
+  const ids = await selectSummarizeIds(env, parsedEnv, store, currentStoryIds, fetchedISO);
   if (ids.length === 0) {
     log.info("worker/cron", "No pending summaries");
     return;
@@ -173,7 +243,7 @@ async function processInlineSummaries(
     }
     const taskTimeout = Math.min(taskTimeoutBase, remaining);
     try {
-      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id, meta), taskTimeout, `summarize:${id}`);
+      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id, meta, taskTimeout), taskTimeout, `summarize:${id}`);
     } catch (error) {
       log.error("worker/cron", "Inline summarize failed", { id, error: String(error) });
     }
@@ -227,25 +297,17 @@ async function handleSummarizeTask(
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
   storyId: number,
-  meta: ReturnType<typeof createD1MetaStore>
+  meta: ReturnType<typeof createD1MetaStore>,
+  taskTimeoutMs: number
 ): Promise<void> {
+  const deadlineAt = Date.now() + taskTimeoutMs - TIMEOUT_BUFFER_MS;
   if (!parsedEnv.OPENROUTER_API_KEY) {
     log.warn("worker/summarize", "OPENROUTER_API_KEY missing; skipping", { id: storyId });
     return;
   }
   const services = makeSummarizeServices(parsedEnv);
   try {
-    await processSingleStory(services, storyId, store, meta);
-    const post = await store.getJson(pathFor.postSummary(storyId));
-    const comments = await store.getJson(pathFor.commentsSummary(storyId));
-    const tags = await store.getJson(pathFor.tagsSummary(storyId));
-    await upsertProcessingState(env.DB, storyId, {
-      postStatus: post ? "ok" : "missing",
-      commentsStatus: comments ? "ok" : "missing",
-      tagsStatus: tags ? "ok" : "missing",
-      updatedAt: new Date().toISOString(),
-      error: null,
-    });
+    await processSingleStory(services, storyId, store, meta, { deadlineAt });
   } catch (error) {
     await upsertProcessingState(env.DB, storyId, {
       postStatus: "error",
@@ -275,11 +337,7 @@ async function handleTelegramTask(env: WorkerEnv, parsedEnv: Env, item: Telegram
   });
   const telegram = new Telegram(http, parsedEnv.TELEGRAM_BOT_TOKEN);
 
-  let message = buildTelegramMessage(item, parsedEnv.SITE);
-  const TELEGRAM_LIMIT = 4096;
-  if (message.length > TELEGRAM_LIMIT) {
-    message = `${message.slice(0, TELEGRAM_LIMIT - 3)}...`;
-  }
+  const message = buildTelegramMessage(item, parsedEnv.SITE, { language: parsedEnv.SUMMARY_LANG });
 
   try {
     const messageId = await telegram.sendMessage({
@@ -386,15 +444,9 @@ export default {
     const index = await withTimeout(fetchMain(fetchServices, store, meta), cronTimeout - TIMEOUT_BUFFER_MS, "fetch-main");
     await upsertStoriesFromStore(env.DB, store, index.storyIds, nowISO);
     if (queue) {
-      const cooldownMs = Math.max(60_000, parsedEnv.WORKER_RETRY_COOLDOWN_SECONDS * 1000);
-      const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
-      const pendingIds = await listPendingStoryIds(env.DB, index.storyIds.length, cutoffISO, nowISO);
-      const legacyIds = parsedEnv.WORKER_EXTRACTION_BACKFILL_ENABLE
-        ? await listLegacyExtractionStoryIds(env.DB, parsedEnv.WORKER_SUMMARIZE_MAX_PER_CRON, cutoffISO)
-        : [];
-      await enqueueSummaries(queue, [...new Set([...legacyIds, ...pendingIds])]);
+      await enqueueSummaries(queue, await selectSummarizeIds(env, parsedEnv, store, index.storyIds, nowISO));
     } else {
-      await processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, nowISO);
+      await processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, index.storyIds, nowISO);
     }
 
     const elapsed = Date.now() - startedAt;
@@ -454,7 +506,11 @@ export default {
         continue;
       }
       if (body.kind === "summarize") {
-        await withTimeout(handleSummarizeTask(env, parsedEnv, store, body.id, meta), taskTimeout, `summarize:${body.id}`);
+        await withTimeout(
+          handleSummarizeTask(env, parsedEnv, store, body.id, meta, taskTimeout),
+          taskTimeout,
+          `summarize:${body.id}`
+        );
       } else if (body.kind === "telegram") {
         await withTimeout(handleTelegramTask(env, parsedEnv, body.item), taskTimeout, `telegram:${body.item.id}`);
       }

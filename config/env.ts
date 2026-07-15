@@ -2,6 +2,9 @@ import { z } from "zod";
 
 const EnvironmentSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
+  // Optional OpenAI-compatible chat-completions URL for the primary summarization client
+  // (e.g. a local gateway or a direct Groq route). Empty/unset keeps the OpenRouter default.
+  OPENROUTER_BASE_URL: z.string().optional(),
   // Optional secondary provider for tags + post-guard (structured JSON). When set, those
   // two calls go to Groq (reliable JSON, non-reasoning llama) instead of OPENROUTER_API_KEY.
   // TAGS_MODEL / POST_GUARD_MODEL must then be Groq model ids (e.g. llama-3.3-70b-versatile).
@@ -37,6 +40,16 @@ const EnvironmentSchema = z.object({
   OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct:free"),
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct:free"),
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
+
+  // Comments-v2 has an independent input/output and request budget. Three
+  // seven-second calls fit under the worker's 25s task timeout with its 2s buffer.
+  COMMENTS_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(1000).default(200),
+  COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
+  COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
+  COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1200),
+  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(3),
+  COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
+  COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
 
   TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
@@ -199,6 +212,14 @@ const EnvironmentSchema = z.object({
    * 0 disables. Quality/completeness over speed → default spaces to ~15 req/min.
    */
   BENCH_PROVIDER_THROTTLE_MS: z.coerce.number().int().min(0).max(60_000).default(4000),
+}).superRefine((value, context) => {
+  if (value.COMMENTS_JUDGE_THREAD_MAX_CHARS < value.COMMENTS_PROMPT_MAX_CHARS) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["COMMENTS_JUDGE_THREAD_MAX_CHARS"],
+      message: "must be greater than or equal to COMMENTS_PROMPT_MAX_CHARS",
+    });
+  }
 });
 
 /**
@@ -208,6 +229,9 @@ const EnvironmentSchema = z.object({
  * Not an env var — a code constant so a deploy is the only way to change it.
  */
 export const EXTRACT_POLICY_VERSION = "1";
+
+/** Bump to invalidate persisted comments summaries after a policy change. */
+export const COMMENTS_POLICY_VERSION = "3";
 
 export type Env = z.infer<typeof EnvironmentSchema>;
 

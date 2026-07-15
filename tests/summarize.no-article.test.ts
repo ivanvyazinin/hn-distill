@@ -93,8 +93,9 @@ describe("degraded no-article lifecycle", () => {
         await processSingleStory(services, id, store, makeMeta(rec));
       });
 
-      // No post LLM call — only the single comments call went through.
-      expect(rec.chatCalls.length).toBe(1);
+      // Neither post nor comments calls the LLM: both comments are below the
+      // substantive threshold, so comments-v2 persists an intentional degraded row.
+      expect(rec.chatCalls.length).toBe(0);
 
       // Degraded stub written to the post summary file.
       const post = await store.getJson<{ summary: string; degraded?: string; inputHash?: string }>(
@@ -113,11 +114,15 @@ describe("degraded no-article lifecycle", () => {
       const postUpsert = rec.summaries.find((r) => r.kind === "post");
       expect(postUpsert?.summary).toBe("");
 
-      // Comments summary still produced and written.
+      // Comments degraded result is still recorded identically in FS and meta.
       const commentsUpsert = rec.summaries.find((r) => r.kind === "comments");
-      expect(commentsUpsert?.summary).toContain("-");
-      const commentsFile = await store.getJson<{ summary: string }>(pathFor.commentsSummary(id));
-      expect(commentsFile?.summary).toContain("-");
+      const commentsFile = await store.getJson<{ summary: string; degraded?: string; formatVersion?: number }>(
+        pathFor.commentsSummary(id)
+      );
+      expect(commentsFile?.summary).toBe("");
+      expect(commentsFile?.degraded).toBe("too-few-comments");
+      expect(commentsFile?.formatVersion).toBe(2);
+      expect(commentsUpsert?.summary).toBe(commentsFile?.summary);
     });
   });
 
@@ -158,9 +163,14 @@ describe("degraded no-article lifecycle", () => {
         await processSingleStory(services, id, store, meta);
       });
 
-      // Run 1: one comments call. Run 2: post skipped via inputHash, comments skipped via
-      // its own inputHash -> no additional calls.
-      expect(rec.chatCalls.length).toBe(1);
+      // Both runs skip comments LLM generation; the second run reuses the v2 hash.
+      expect(rec.chatCalls.length).toBe(0);
+      const commentsFile = await store.getJson<{ degraded?: string; formatVersion?: number; summary?: string }>(
+        pathFor.commentsSummary(id)
+      );
+      expect(commentsFile?.summary).toBe("");
+      expect(commentsFile?.degraded).toBe("too-few-comments");
+      expect(commentsFile?.formatVersion).toBe(2);
     });
   });
 
@@ -209,7 +219,7 @@ describe("degraded no-article lifecycle", () => {
 
       // Not skipped (hash mismatch) and, since the fresh extract is garbage, the old
       // summary is replaced by the degraded stub — no post LLM call.
-      expect(rec.chatCalls.length).toBe(1);
+      expect(rec.chatCalls.length).toBe(0);
       const post = await store.getJson<{ summary: string; degraded?: string }>(pathFor.postSummary(id));
       expect(post?.summary).toBe("");
       expect(post?.degraded).toBe("no-article");
@@ -286,7 +296,7 @@ describe("degraded no-article lifecycle", () => {
       expect(post?.summary).toBe(VALID_POST_SUMMARY);
       expect(post?.degraded).toBeUndefined();
       expect(post?.inputHash).not.toBe(stub?.inputHash);
-      expect(rec.summaries.at(-1)?.summary).toBe(VALID_POST_SUMMARY);
+      expect([...rec.summaries].reverse().find((row) => row.kind === "post")?.summary).toBe(VALID_POST_SUMMARY);
       expect(rec.extractById.get(id)?.status).toBe("ok");
       expect(rec.extractById.get(id)?.fetchedAt).toBe(fetchedAt);
     });
@@ -359,8 +369,7 @@ describe("degraded no-article lifecycle", () => {
       expect(post?.summary).toBe("");
       expect(post?.degraded).toBe("no-article");
       expect(post?.inputHash).not.toBe(original?.inputHash);
-      expect(rec.summaries.at(-1)?.kind).toBe("post");
-      expect(rec.summaries.at(-1)?.summary).toBe("");
+      expect([...rec.summaries].reverse().find((row) => row.kind === "post")?.summary).toBe("");
       expect(rec.extractById.get(id)?.status).toBe("no-article");
       expect(rec.extractById.get(id)?.fetchedAt).toBe(fetchedAt);
     });

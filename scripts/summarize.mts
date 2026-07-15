@@ -6,6 +6,9 @@ import { pdfToText } from "@utils/pdf";
 import {
   RateLimitError,
   buildCommentsPrompt,
+  buildCommentsPromptV2,
+  buildCommentsSystemInstructionV2,
+  buildCommentsThread,
   buildPostChatMessages,
   buildPostPrompt,
   generateValidatedPostSummary,
@@ -13,6 +16,8 @@ import {
   preserveMarkdownWhitespace,
   processSingleStory as processSingleStoryCore,
   generateValidatedCommentsSummary,
+  generateValidatedCommentsSummaryV2,
+  commentsInputHash,
   summarizeComments,
   summarizePost,
   summarizeWorkflow as summarizeWorkflowCore,
@@ -26,14 +31,20 @@ export type { Services } from "../pipeline/summarize";
 export {
   RateLimitError,
   buildCommentsPrompt,
+  buildCommentsPromptV2,
+  buildCommentsSystemInstructionV2,
+  buildCommentsThread,
   buildPostChatMessages,
   buildPostPrompt,
   generateValidatedPostSummary,
   preserveMarkdownWhitespace,
   generateValidatedCommentsSummary,
+  generateValidatedCommentsSummaryV2,
+  commentsInputHash,
   summarizeComments,
   summarizePost,
 };
+export type { CommentsProcessingResult } from "../pipeline/summarize";
 
 export function makeServices(e: Env): Services {
   return makeServicesCore(e, { pdfToText });
@@ -68,10 +79,16 @@ export async function getOrFetchArticleMarkdown(
   });
 }
 
-export async function processSingleStory(services: Services, id: number, options?: LocalMetaOptions): Promise<void> {
+export async function processSingleStory(
+  services: Services,
+  id: number,
+  options?: LocalMetaOptions & { deadlineAt?: number }
+): Promise<void> {
   const store = createFsStore();
   await withLocalMeta(options, async (meta) => {
-    await processSingleStoryCore(services, id, store, meta);
+    await processSingleStoryCore(services, id, store, meta, {
+      ...(options?.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+    });
   });
 }
 

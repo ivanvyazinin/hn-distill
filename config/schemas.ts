@@ -76,10 +76,93 @@ export const PostSummarySchema = z.object({
     .optional(),
 });
 
+const CommentsInsightTextSchema = z.string().min(20).max(300);
+const CommentsInsightKindSchema = z.enum(["consensus", "dispute", "advice"]);
+
+export const CommentsInsightsSchema = z
+  .object({
+    bottom_line: CommentsInsightTextSchema,
+    insights: z
+      .array(
+        z
+          .object({
+            kind: CommentsInsightKindSchema,
+            text: CommentsInsightTextSchema,
+          })
+          .strict()
+      )
+      .max(5),
+    best_quote: z
+      .object({
+        comment_id: z.number().int().positive(),
+        source_text: z.string().min(20).max(300),
+        translation: z.string().min(20).max(300).nullable(),
+      })
+      .strict()
+      .nullable(),
+  })
+  .strict()
+  .refine((value) => value.insights.length >= 1, "at least one insight is required");
+
+/**
+ * Provider-facing equivalent of CommentsInsightsSchema. Keep this explicit so
+ * structured-output requests do not depend on a runtime schema converter.
+ */
+export const CommentsInsightsJsonSchema = {
+  type: "object",
+  properties: {
+    bottom_line: { type: "string", minLength: 20, maxLength: 300 },
+    insights: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          // Nested enum is allowed (Groq/OpenAI reject enum only at schema root).
+          kind: { type: "string", enum: ["consensus", "dispute", "advice"] },
+          text: { type: "string", minLength: 20, maxLength: 300 },
+        },
+        required: ["kind", "text"],
+        additionalProperties: false,
+      },
+      maxItems: 5,
+      // No minItems: the "at least one insight" rule lives in the Zod refine only
+      // so we do not expand the provider surface with keywords they reject at root.
+    },
+    best_quote: {
+      anyOf: [
+        {
+          type: "object",
+          properties: {
+            comment_id: { type: "integer", minimum: 1 },
+            source_text: { type: "string", minLength: 20, maxLength: 300 },
+            translation: {
+              anyOf: [
+                { type: "string", minLength: 20, maxLength: 300 },
+                { type: "null" },
+              ],
+            },
+          },
+          required: ["comment_id", "source_text", "translation"],
+          additionalProperties: false,
+        },
+        { type: "null" },
+      ],
+    },
+  },
+  required: ["bottom_line", "insights", "best_quote"],
+  additionalProperties: false,
+  // No top-level anyOf: strict providers (Groq, OpenAI structured outputs) reject
+  // oneOf/anyOf/enum/not at the schema root. The "at least one insight" rule is
+  // enforced by CommentsInsightsSchema's Zod refine on every parse.
+} as const;
+
 export const CommentsSummarySchema = z.object({
   id: z.number(),
   lang: LangSchema,
   summary: z.string(),
+  structured: CommentsInsightsSchema.optional(),
+  formatVersion: z.literal(2).optional(),
+  degraded: z.literal("too-few-comments").optional(),
   sampleComments: z.array(z.number()).optional(),
   inputHash: z.string().optional(),
   model: z.string().optional(),
@@ -132,6 +215,17 @@ export const AggregatedItemSchema = z.object({
   timeISO: IsoString,
   postSummary: z.string().optional(),
   commentsSummary: z.string().optional(),
+  // Rendered parts for the site fold UI. Populated only on the FS aggregation
+  // path (D1/sqlite loaders intentionally omit this — no migration).
+  commentsInsights: z
+    .object({
+      lead: z.string(),
+      visible: z.string(),
+      folded: z.string(),
+      foldedInsightsCount: z.number().int().min(0),
+      foldedHasQuote: z.boolean(),
+    })
+    .optional(),
   score: z.number().optional(),
   commentsCount: z.number().optional(),
   hnUrl: z
@@ -169,6 +263,7 @@ export type HnItemRaw = z.infer<typeof HnItemRawSchema>;
 export type NormalizedStory = z.infer<typeof NormalizedStorySchema>;
 export type NormalizedComment = z.infer<typeof NormalizedCommentSchema>;
 export type PostSummary = z.infer<typeof PostSummarySchema>;
+export type CommentsInsights = z.infer<typeof CommentsInsightsSchema>;
 export type CommentsSummary = z.infer<typeof CommentsSummarySchema>;
 export type TagsSummary = z.infer<typeof TagsSummarySchema>;
 export type AggregatedItem = z.infer<typeof AggregatedItemSchema>;

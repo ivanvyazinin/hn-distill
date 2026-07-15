@@ -3,15 +3,17 @@ import { readFile } from "node:fs/promises";
 
 import { Miniflare } from "miniflare";
 
-import { parseEnv } from "@config/env";
+import { COMMENTS_POLICY_VERSION, parseEnv } from "@config/env";
 import { pathFor } from "@config/paths";
-import type { NormalizedStory } from "@config/schemas";
+import type { CommentsSummary, NormalizedComment, NormalizedStory } from "@config/schemas";
+import { buildTelegramMessage } from "@utils/telegram";
 
 import { buildScheduleForDate } from "../worker/src/pages-schedule";
 import { createD1MetaStore } from "../worker/src/d1-meta-store";
 import { createWorkerStore } from "../worker/src/store";
 import {
   getTelegramSentIds,
+  getCommentsPolicyState,
   listLegacyExtractionStoryIds,
   listPendingStoryIds,
   markTelegramSent,
@@ -43,6 +45,19 @@ function mockFetchOnce(handler: (url: string, init?: RequestInit) => Promise<Res
   return () => {
     globalThis.fetch = original;
   };
+}
+
+function substantiveComments(storyId: number): NormalizedComment[] {
+  return [1, 2, 3].map((offset) => ({
+    id: storyId * 10 + offset,
+    by: `commenter-${offset}`,
+    parent: storyId,
+    timeISO: new Date(1_700_000_000_000 + offset * 1000).toISOString(),
+    textPlain:
+      `This substantive comment ${offset} explains a distinct migration concern, a concrete validation step, ` +
+      "and the operational trade-offs in enough detail for the comments summarizer.",
+    depth: 0,
+  }));
 }
 
 describe("cloudflare infra", () => {
@@ -213,7 +228,7 @@ describe("cloudflare infra", () => {
       });
 
       const cutoffISO = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-      const ids = await listPendingStoryIds(db, 10, cutoffISO, nowISO);
+      const ids = await listPendingStoryIds(db, 10, cutoffISO, nowISO, COMMENTS_POLICY_VERSION);
 
       expect(ids).toEqual([storyB.id]);
     } finally {
@@ -258,7 +273,7 @@ describe("cloudflare infra", () => {
         )
         .bind(story.id, `data/raw/articles/${story.id}.md`, historyFetchISO)
         .run();
-      expect(await listPendingStoryIds(db, 10, cutoffISO, nowISO)).toEqual([]);
+      expect(await listPendingStoryIds(db, 10, cutoffISO, nowISO, COMMENTS_POLICY_VERSION)).toEqual([]);
 
       expect(await listLegacyExtractionStoryIds(db, 10, cutoffISO)).toEqual([story.id]);
 
@@ -374,13 +389,10 @@ describe("cloudflare infra", () => {
         restore();
       }
 
-      expect(tasks.length).toBe(2);
+      expect(tasks.length).toBe(1);
       expect(
         tasks.map((task) => task as { id?: number; kind?: string })
-      ).toEqual([
-        { kind: "summarize", id: historyStory.id },
-        { kind: "summarize", id: storyId },
-      ]);
+      ).toEqual([{ kind: "summarize", id: storyId }]);
 
       const indexObj = await bucket.get("data/index.json");
       expect(indexObj).not.toBeNull();
@@ -393,6 +405,146 @@ describe("cloudflare infra", () => {
         .bind(storyId)
         .first<{ id: number }>();
       expect(row?.id).toBe(storyId);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  test("worker selector catches current policy/hash changes but skips archive and cooldown", async () => {
+    const mf = new Miniflare({
+      modules: true,
+      script: MINIFLARE_SCRIPT,
+      r2Buckets: ["DATA_BUCKET"],
+      d1Databases: ["DB"],
+    });
+
+    try {
+      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+      const store = createWorkerStore(bucket as never);
+
+      const nowISO = new Date().toISOString();
+      const oldISO = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const archiveISO = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      const oldPolicyId = 4301;
+      const changedHashId = 4302;
+      const cooldownId = 4303;
+      const archiveId = 4399;
+      const currentIds = [oldPolicyId, changedHashId, cooldownId];
+      const normalized = (id: number): NormalizedStory => ({
+        id,
+        title: `Policy story ${id}`,
+        url: null,
+        by: "selector",
+        timeISO: nowISO,
+        commentIds: [],
+        score: 100,
+        descendants: 0,
+      });
+
+      for (const [rank, id] of currentIds.entries()) {
+        await upsertStory(db, normalized(id), rank, archiveISO);
+      }
+      await upsertStory(db, normalized(archiveId), 99, archiveISO);
+      await upsertProcessingState(db, oldPolicyId, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        commentsPolicyVersion: "1",
+        commentsInputHash: "legacy-hash",
+        updatedAt: oldISO,
+        error: null,
+      });
+      await upsertProcessingState(db, changedHashId, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        commentsPolicyVersion: COMMENTS_POLICY_VERSION,
+        commentsInputHash: "stale-hash",
+        updatedAt: oldISO,
+        error: null,
+      });
+      await upsertProcessingState(db, cooldownId, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        commentsPolicyVersion: COMMENTS_POLICY_VERSION,
+        commentsInputHash: "stale-hash",
+        updatedAt: nowISO,
+        error: null,
+      });
+      await upsertProcessingState(db, archiveId, {
+        postStatus: "ok",
+        commentsStatus: "ok",
+        tagsStatus: "ok",
+        commentsPolicyVersion: "1",
+        commentsInputHash: "archive-hash",
+        updatedAt: oldISO,
+        error: null,
+      });
+
+      for (const id of [changedHashId, cooldownId]) {
+        await store.putJson(pathFor.commentsSummary(id), {
+          id,
+          lang: "en",
+          summary: "Existing comments summary",
+          formatVersion: 2,
+          inputHash: "stale-hash",
+          sampleComments: [],
+          createdISO: oldISO,
+        } satisfies CommentsSummary);
+      }
+
+      const tasks: unknown[] = [];
+      const env = {
+        DATA_BUCKET: bucket,
+        DB: db,
+        TASKS: { send: async (message: unknown) => tasks.push(message) },
+        SUMMARY_LANG: "en",
+        TOP_N: "3",
+        MAX_COMMENTS_PER_STORY: "5",
+        MAX_DEPTH: "1",
+        CONCURRENCY: "1",
+        TELEGRAM_ENABLE: "false",
+        TAGS_MAX_PER_STORY: "0",
+        WORKER_RETRY_COOLDOWN_SECONDS: "3600",
+        WORKER_SUMMARIZE_MAX_PER_CRON: "10",
+      };
+
+      const restore = mockFetchOnce((url) => {
+        if (url.endsWith("/topstories.json")) {
+          return new Response(JSON.stringify(currentIds), { status: 200 });
+        }
+        const id = currentIds.find((candidate) => url.includes(`/item/${candidate}.json`));
+        if (id !== undefined) {
+          return new Response(
+            JSON.stringify({
+              id,
+              type: "story",
+              title: `Policy story ${id}`,
+              by: "selector",
+              time: 1_700_000_200,
+              score: 100,
+              descendants: 0,
+              kids: [],
+            }),
+            { status: 200 }
+          );
+        }
+        return new Response("not found", { status: 404 });
+      });
+
+      try {
+        await worker.scheduled({ scheduledTime: Date.now() }, env as never);
+      } finally {
+        restore();
+      }
+
+      expect(tasks).toEqual([
+        { kind: "summarize", id: oldPolicyId },
+        { kind: "summarize", id: changedHashId },
+      ]);
     } finally {
       await mf.dispose();
     }
@@ -415,7 +567,7 @@ describe("cloudflare infra", () => {
         DATA_BUCKET: bucket,
         DB: db,
         SUMMARY_LANG: "en",
-        TOP_N: "1",
+        TOP_N: "2",
         TOP_N_MODE: "daily-top-by-score",
         MAX_COMMENTS_PER_STORY: "5",
         MAX_DEPTH: "1",
@@ -502,6 +654,7 @@ describe("cloudflare infra", () => {
       };
 
       const storyId = 5150;
+      const deferredStoryId = 5151;
       const story = {
         id: storyId,
         type: "story",
@@ -512,13 +665,17 @@ describe("cloudflare infra", () => {
         descendants: 0,
         kids: [],
       };
+      const deferredStory = { ...story, id: deferredStoryId, title: "Deferred inline story" };
 
       const restore = mockFetchOnce((url) => {
         if (url.endsWith("/topstories.json")) {
-          return new Response(JSON.stringify([storyId]), { status: 200 });
+          return new Response(JSON.stringify([storyId, deferredStoryId]), { status: 200 });
         }
         if (url.includes(`/item/${storyId}.json`)) {
           return new Response(JSON.stringify(story), { status: 200 });
+        }
+        if (url.includes(`/item/${deferredStoryId}.json`)) {
+          return new Response(JSON.stringify(deferredStory), { status: 200 });
         }
         return new Response("not found", { status: 404 });
       });
@@ -538,8 +695,23 @@ describe("cloudflare infra", () => {
         .first<{ post_status: string; comments_status: string; tags_status: string }>();
 
       expect(row?.post_status).toBe("missing");
-      expect(row?.comments_status).toBe("missing");
+      expect(row?.comments_status).toBe("ok");
       expect(row?.tags_status).toBe("missing");
+      const policyState = await getCommentsPolicyState(db, storyId);
+      expect(policyState?.commentsPolicyVersion).toBe(COMMENTS_POLICY_VERSION);
+      expect(typeof policyState?.commentsInputHash).toBe("string");
+
+      const deferredRow = await db
+        .prepare("SELECT story_id FROM processing_state WHERE story_id = ?")
+        .bind(deferredStoryId)
+        .first<{ story_id: number }>();
+      expect(deferredRow).toBeNull();
+
+      const commentsSummary = await db
+        .prepare("SELECT kind, summary FROM summaries WHERE story_id = ? AND kind = 'comments'")
+        .bind(storyId)
+        .first<{ kind: string; summary: string }>();
+      expect(commentsSummary).toEqual({ kind: "comments", summary: "" });
     } finally {
       await mf.dispose();
     }
@@ -593,11 +765,168 @@ describe("cloudflare infra", () => {
         .first<{ post_status: string; comments_status: string; tags_status: string }>();
 
       expect(row?.post_status).toBe("missing");
-      expect(row?.comments_status).toBe("missing");
+      expect(row?.comments_status).toBe("ok");
       expect(row?.tags_status).toBe("missing");
+
+      const persistedComments = await store.getJson<CommentsSummary>(pathFor.commentsSummary(storyId));
+      const policyState = await getCommentsPolicyState(db, storyId);
+      expect(policyState?.commentsPolicyVersion).toBe(COMMENTS_POLICY_VERSION);
+      expect(policyState?.commentsInputHash).toBe(persistedComments?.inputHash);
+
+      const commentsSummary = await db
+        .prepare("SELECT kind, summary FROM summaries WHERE story_id = ? AND kind = 'comments'")
+        .bind(storyId)
+        .first<{ kind: string; summary: string }>();
+      expect(commentsSummary).toEqual({ kind: "comments", summary: "" });
+      expect(commentsSummary?.summary).toBe(persistedComments?.summary);
 
       const postObj = await bucket.get(`summaries/${storyId}.post.json`);
       expect(postObj).toBeNull();
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  test("worker leaves legacy comments pending and unstamped after generation failure", async () => {
+    const mf = new Miniflare({
+      modules: true,
+      script: MINIFLARE_SCRIPT,
+      r2Buckets: ["DATA_BUCKET"],
+      d1Databases: ["DB"],
+    });
+
+    try {
+      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+      const store = createWorkerStore(bucket as never);
+      const storyId = 778;
+      const nowISO = new Date().toISOString();
+      const story: NormalizedStory = {
+        id: storyId,
+        title: "Legacy comments retry",
+        url: null,
+        by: "worker",
+        timeISO: nowISO,
+        commentIds: [],
+        score: 80,
+        descendants: 3,
+      };
+      const legacy = {
+        id: storyId,
+        lang: "en",
+        summary: "- A legacy comments summary that must remain readable after a failed v2 attempt.",
+        inputHash: "legacy-hash",
+        sampleComments: [],
+        createdISO: nowISO,
+      } satisfies CommentsSummary;
+      await store.putJson(pathFor.rawItem(storyId), story, { pretty: true });
+      await store.putJson(pathFor.rawComments(storyId), substantiveComments(storyId), { pretty: true });
+      await store.putJson(pathFor.commentsSummary(storyId), legacy, { pretty: true });
+      await upsertStory(db, story, 0, nowISO);
+      await upsertProcessingState(db, storyId, {
+        postStatus: "missing",
+        commentsStatus: "ok",
+        tagsStatus: "missing",
+        commentsPolicyVersion: "1",
+        commentsInputHash: "legacy-hash",
+        updatedAt: nowISO,
+        error: null,
+      });
+
+      let llmCalls = 0;
+      const restore = mockFetchOnce(() => {
+        llmCalls += 1;
+        return new Response(JSON.stringify({ choices: [{ message: { role: "assistant", content: "not-json" } }] }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      });
+      try {
+        await worker.queue(
+          { messages: [{ body: { kind: "summarize", id: storyId } }] },
+          {
+            DATA_BUCKET: bucket,
+            DB: db,
+            SUMMARY_LANG: "en",
+            OPENROUTER_API_KEY: "test-key",
+            TAGS_MAX_PER_STORY: "0",
+            TELEGRAM_ENABLE: "false",
+          } as never
+        );
+      } finally {
+        restore();
+      }
+
+      expect(llmCalls).toBe(3);
+      expect(await store.getJson(pathFor.commentsSummary(storyId))).toEqual(legacy);
+      const policyState = await getCommentsPolicyState(db, storyId);
+      expect(policyState?.commentsPolicyVersion).toBe("1");
+      expect(policyState?.commentsInputHash).toBe("legacy-hash");
+      const state = await db
+        .prepare("SELECT comments_status FROM processing_state WHERE story_id = ?")
+        .bind(storyId)
+        .first<{ comments_status: string }>();
+      expect(state?.comments_status).toBe("missing");
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  test("worker passes an already exhausted comments deadline without starting an LLM request", async () => {
+    const mf = new Miniflare({
+      modules: true,
+      script: MINIFLARE_SCRIPT,
+      r2Buckets: ["DATA_BUCKET"],
+      d1Databases: ["DB"],
+    });
+
+    try {
+      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const db = await mf.getD1Database("DB");
+      await initDb(db);
+      const store = createWorkerStore(bucket as never);
+      const storyId = 779;
+      const nowISO = new Date().toISOString();
+      const story: NormalizedStory = {
+        id: storyId,
+        title: "Deadline-bound comments",
+        url: null,
+        by: "worker",
+        timeISO: nowISO,
+        commentIds: [],
+        score: 79,
+        descendants: 3,
+      };
+      await store.putJson(pathFor.rawItem(storyId), story, { pretty: true });
+      await store.putJson(pathFor.rawComments(storyId), substantiveComments(storyId), { pretty: true });
+      await upsertStory(db, story, 0, nowISO);
+
+      let fetchCalls = 0;
+      const restore = mockFetchOnce(() => {
+        fetchCalls += 1;
+        return new Response("unexpected request", { status: 500 });
+      });
+      try {
+        await worker.queue(
+          { messages: [{ body: { kind: "summarize", id: storyId } }] },
+          {
+            DATA_BUCKET: bucket,
+            DB: db,
+            SUMMARY_LANG: "en",
+            OPENROUTER_API_KEY: "test-key",
+            TAGS_MAX_PER_STORY: "0",
+            TELEGRAM_ENABLE: "false",
+            WORKER_QUEUE_TASK_TIMEOUT_MS: "1000",
+          } as never
+        );
+      } finally {
+        restore();
+      }
+
+      expect(fetchCalls).toBe(0);
+      expect((await getCommentsPolicyState(db, storyId))?.commentsPolicyVersion).toBeUndefined();
+      expect(await store.getJson(pathFor.commentsSummary(storyId))).toBeNull();
     } finally {
       await mf.dispose();
     }
@@ -617,9 +946,15 @@ describe("cloudflare infra", () => {
       await initDb(db);
 
       let calls = 0;
-      const restore = mockFetchOnce((url) => {
+      const sentTexts: string[] = [];
+      const restore = mockFetchOnce((url, init) => {
         calls += 1;
         if (url.startsWith("https://api.telegram.org/botTEST_TOKEN/sendMessage")) {
+          if (typeof init?.body !== "string") {
+            throw new TypeError("Expected Telegram request body to be a string");
+          }
+          const body = JSON.parse(init.body) as { text: string };
+          sentTexts.push(body.text);
           return new Response(JSON.stringify({ ok: true, result: { message_id: 500 } }), { status: 200 });
         }
         return new Response("not found", { status: 404 });
@@ -642,7 +977,7 @@ describe("cloudflare infra", () => {
         url: "https://example.com",
         hnUrl: "https://news.ycombinator.com/item?id=9001",
         postSummary: "hello",
-        commentsSummary: undefined,
+        commentsSummary: "- Operators debate a full cutover versus a gradual canary rollout.",
         timeISO: new Date().toISOString(),
       };
 
@@ -656,6 +991,7 @@ describe("cloudflare infra", () => {
       const sent = await getTelegramSentIds(db, [item.id]);
       expect(sent.has(item.id)).toBe(true);
       expect(calls).toBe(1);
+      expect(sentTexts).toEqual([buildTelegramMessage(item, "https://hckr.top", { language: "en" })]);
     } finally {
       await mf.dispose();
     }
@@ -698,7 +1034,6 @@ describe("cloudflare infra", () => {
         url: "https://example.com",
         hnUrl: "https://news.ycombinator.com/item?id=42",
         postSummary: "hello",
-        commentsSummary: undefined,
         timeISO: new Date().toISOString(),
       };
 

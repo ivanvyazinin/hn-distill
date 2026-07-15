@@ -11,8 +11,8 @@ export type HttpClientOpts = {
 };
 
 export class HttpError extends Error {
-  constructor(public url: string, public status?: number, message?: string) {
-    super(message ?? `HTTP error ${status ?? "unknown"} for ${url}`);
+  constructor(public url: string, public status?: number, message?: string, options?: ErrorOptions) {
+    super(message ?? `HTTP error ${status ?? "unknown"} for ${url}`, options);
     this.name = "HttpError";
   }
 }
@@ -34,36 +34,16 @@ function isDefaultRetriableStatus(s: number): boolean {
 
 export type BodyInitLike = BodyInit;
 type HeadersLike = Record<string, string>;
-type SafeRequestInit = Omit<RequestInit, "body" | "headers" | "signal"> & {
+export type SafeRequestInit = Omit<RequestInit, "body" | "headers" | "signal"> & {
   body?: BodyInitLike;
   headers?: HeadersLike;
+  retries?: number;
+  timeoutMs?: number;
+  baseBackoffMs?: number;
   retryOnStatuses?: number[];
 };
 
 export type BytesResponse = { data: Uint8Array; contentType?: string | undefined; contentLength?: number | undefined };
-
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const t = setTimeout(() => {
-      reject(new Error("TimeoutError"));
-    }, ms);
-
-    const cleanup = (): void => {
-      clearTimeout(t);
-    };
-
-    void (async (): Promise<void> => {
-      try {
-        const result = await promise;
-        cleanup();
-        resolve(result);
-      } catch (error) {
-        cleanup();
-        reject(error);
-      }
-    })();
-  });
-}
 
 export class HttpClient {
   private readonly baseHeaders: Record<string, string>;
@@ -76,7 +56,7 @@ export class HttpClient {
   }
 
   private shouldRetryError(error: Error): boolean {
-    return error.name === "AbortError" || error.name === "TypeError" || error.message === "TimeoutError";
+    return error.name === "AbortError" || error.name === "TimeoutError" || error.name === "TypeError";
   }
 
   private shouldRetryStatus(status: number, retryStatuses: Set<number>): boolean {
@@ -119,26 +99,47 @@ export class HttpClient {
       if (error_ instanceof HttpError) {
         throw error_;
       }
-      throw new HttpError(url, undefined, error_.message || "Request failed");
+      throw new HttpError(url, undefined, error_.message || "Request failed", { cause: error });
     }
   }
 
   private async doFetch(url: string, init: SafeRequestInit | undefined, timeoutMs: number): Promise<Response> {
+    const fetchInit = { ...(init ?? {}) };
+    delete fetchInit.baseBackoffMs;
+    delete fetchInit.retries;
+    delete fetchInit.retryOnStatuses;
+    delete fetchInit.timeoutMs;
     const headers: HeadersInit = {
       ...(init?.headers ?? {}),
       ...this.baseHeaders,
     };
+    const controller = new AbortController();
     const requestInit: RequestInit = {
-      ...init,
+      ...fetchInit,
       headers,
+      signal: controller.signal,
     };
-    const request = fetch(url, requestInit);
-    return await withTimeout(request, timeoutMs);
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const timeoutPromise = new Promise<Response>((_resolve, reject) => {
+      timeout = setTimeout(() => {
+        controller.abort();
+        reject(new DOMException("Request timed out", "TimeoutError"));
+      }, timeoutMs);
+    });
+    try {
+      return await Promise.race([fetch(url, requestInit), timeoutPromise]);
+    } finally {
+      if (timeout !== undefined) {
+        clearTimeout(timeout);
+      }
+    }
   }
 
   async json<T>(url: string, init?: SafeRequestInit): Promise<T> {
     const retryStatuses = new Set([...(init?.retryOnStatuses ?? []), ...this.defaults.retryOnStatuses]);
-    const { retries, timeoutMs, baseBackoffMs } = this.defaults;
+    const retries = init?.retries ?? this.defaults.retries;
+    const timeoutMs = init?.timeoutMs ?? this.defaults.timeoutMs;
+    const baseBackoffMs = init?.baseBackoffMs ?? this.defaults.baseBackoffMs;
 
     const requestInit = {
       ...init,
@@ -171,7 +172,9 @@ export class HttpClient {
 
   async text(url: string, init?: SafeRequestInit): Promise<string> {
     const retryStatuses = new Set([...(init?.retryOnStatuses ?? []), ...this.defaults.retryOnStatuses]);
-    const { retries, timeoutMs, baseBackoffMs } = this.defaults;
+    const retries = init?.retries ?? this.defaults.retries;
+    const timeoutMs = init?.timeoutMs ?? this.defaults.timeoutMs;
+    const baseBackoffMs = init?.baseBackoffMs ?? this.defaults.baseBackoffMs;
 
     const requestInit = {
       ...init,
@@ -203,7 +206,9 @@ export class HttpClient {
 
   async bytes(url: string, init?: SafeRequestInit): Promise<BytesResponse> {
     const retryStatuses = new Set([...(init?.retryOnStatuses ?? []), ...this.defaults.retryOnStatuses]);
-    const { retries, timeoutMs, baseBackoffMs } = this.defaults;
+    const retries = init?.retries ?? this.defaults.retries;
+    const timeoutMs = init?.timeoutMs ?? this.defaults.timeoutMs;
+    const baseBackoffMs = init?.baseBackoffMs ?? this.defaults.baseBackoffMs;
 
     const requestInit = {
       ...init,

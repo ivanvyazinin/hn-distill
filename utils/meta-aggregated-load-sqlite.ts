@@ -4,6 +4,7 @@ import { env } from "@config/env";
 
 import {
   buildAggregatedItemsFromRows,
+  presentCommentsSummary,
   type StoryRow,
   type SummaryMap,
   type TagsMap,
@@ -38,7 +39,7 @@ function loadSummariesForIds(db: DatabaseSync, ids: number[]): SummaryMap {
       if (row.kind === "post") {
         entry.post = row.summary;
       } else if (row.kind === "comments") {
-        entry.comments = row.summary;
+        entry.comments = presentCommentsSummary(row.summary);
       }
     }
   }

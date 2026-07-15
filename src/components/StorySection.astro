@@ -2,6 +2,7 @@
 import { HOT_SCORE_THRESHOLD, LONG_DISCUSSION_THRESHOLD, TAG_MIN_COUNT } from "@config/constants";
 import { LANG } from "@config/lang";
 import type { AggregatedItem } from "@config/schemas";
+import { commentsFoldLabel } from "@utils/comments-render";
 import { formatDateHuman } from "@utils/date";
 import { mdToHtml } from "@utils/md-to-html";
 import { withBase } from "../utils/base";
@@ -51,7 +52,13 @@ const i18n = {
 const t = i18n[lang];
 
 const postHtml = item.postSummary ? mdToHtml(item.postSummary) : "";
-const commentsHtml = item.commentsSummary ? mdToHtml(item.commentsSummary) : "";
+const parts = item.commentsInsights;
+const visibleMd = parts
+  ? [parts.lead.trimEnd(), parts.visible.trimEnd()].filter((chunk) => chunk.length > 0).join("\n\n")
+  : item.commentsSummary ?? "";
+const commentsHtml = visibleMd ? mdToHtml(visibleMd) : "";
+const foldedHtml = parts?.folded ? mdToHtml(parts.folded) : "";
+const foldLabel = parts === undefined ? "" : commentsFoldLabel(parts, lang);
 ---
 
 <section
@@ -92,6 +99,18 @@ const commentsHtml = item.commentsSummary ? mdToHtml(item.commentsSummary) : "";
     <h3 class="title">
       <a href={hnUrl} target="_blank" rel="noopener noreferrer nofollow">{t.comments}{commentsLabel}</a>
     </h3>
-    {commentsHtml ? <div class="md" set:html={commentsHtml} /> : <p>—</p>}
+    {commentsHtml ? (
+      <>
+        <div class="md" set:html={commentsHtml} />
+        {foldedHtml && (
+          <details class="md-fold">
+            <summary>{foldLabel}</summary>
+            <div class="md" set:html={foldedHtml} />
+          </details>
+        )}
+      </>
+    ) : (
+      <p>—</p>
+    )}
   </div>
 </section>

@@ -1,6 +1,7 @@
 import { log } from "@utils/log";
 
-import type { HttpClient } from "./http-client";
+import { HttpError, type HttpClient } from "./http-client";
+
 import type { z } from "zod";
 
 export type ChatMessage = {
@@ -20,6 +21,10 @@ export type StructuredOutputOptions = {
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  jsonExtraction?: "balanced-object" | "strict";
+  transportRetries?: number;
+  requestTimeoutMs?: number;
+  signalUnsupportedResponseFormat?: boolean;
   responseFormat?: {
     type: "json_schema";
     json_schema: {
@@ -30,11 +35,89 @@ export type StructuredOutputOptions = {
   };
 };
 
+export class UnsupportedResponseFormatError extends Error {
+  readonly status: number;
+
+  constructor(error: HttpError) {
+    super(`OpenRouter response_format is unsupported: ${error.message}`, { cause: error });
+    this.name = "UnsupportedResponseFormatError";
+    this.status = error.status ?? 400;
+  }
+}
+
 type StructuredRetryCount = number;
 
 const DEFAULT_STRUCTURED_MAX_RETRIES: StructuredRetryCount = 3;
 
 const DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+
+function extractFirstBalancedJsonObject(content: string): string {
+  for (let start = 0; start < content.length; start++) {
+    if (content[start] !== "{") {
+      continue;
+    }
+
+    let depth = 0;
+    let escaped = false;
+    let inString = false;
+
+    for (let index = start; index < content.length; index++) {
+      const character = content[index];
+      if (character === undefined) {
+        break;
+      }
+
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          inString = false;
+        }
+        continue;
+      }
+
+      switch (character) {
+        case '"':
+          inString = true;
+          break;
+        case "{":
+          depth++;
+          break;
+        case "}":
+          depth--;
+          if (depth === 0) {
+            return content.slice(start, index + 1);
+          }
+          break;
+      }
+    }
+  }
+
+  throw new SyntaxError("No balanced JSON object found in structured response");
+}
+
+function parseStructuredContent(content: string, extraction: StructuredOutputOptions["jsonExtraction"]): unknown {
+  const json = extraction === "balanced-object" ? extractFirstBalancedJsonObject(content) : content;
+  return JSON.parse(json) as unknown;
+}
+
+function isUnsupportedResponseFormatError(error: unknown): error is HttpError {
+  if (!(error instanceof HttpError)) {
+    return false;
+  }
+  const { status } = error;
+  if (status === undefined || status < 400 || status >= 500 || status === 408 || status === 425 || status === 429) {
+    return false;
+  }
+  const message = error.message.toLowerCase();
+  const mentionsFormat =
+    message.includes("response_format") || message.includes("response format") || message.includes("json_schema");
+  const saysUnsupported =
+    message.includes("unsupported") || message.includes("not supported") || message.includes("unknown parameter");
+  return mentionsFormat && saysUnsupported;
+}
 
 export class OpenRouter {
   private readonly http: HttpClient;
@@ -101,7 +184,8 @@ export class OpenRouter {
     url: string,
     requestBody: string,
     zodSchema: z.ZodSchema<T>,
-    attempt: number
+    attempt: number,
+    options: StructuredOutputOptions
   ): Promise<T> {
     type ORResp = {
       choices?: Array<{ message?: { role: string; content?: string } }>;
@@ -117,6 +201,8 @@ export class OpenRouter {
       },
       body: requestBody,
       retryOnStatuses: [429],
+      ...(options.transportRetries === undefined ? {} : { retries: options.transportRetries }),
+      ...(options.requestTimeoutMs === undefined ? {} : { timeoutMs: options.requestTimeoutMs }),
     });
 
     const content = json.choices?.[0]?.message?.content ?? "";
@@ -125,7 +211,7 @@ export class OpenRouter {
     }
 
     const trimmed = content.trim();
-    const parsed = JSON.parse(trimmed) as unknown;
+    const parsed = parseStructuredContent(trimmed, options.jsonExtraction);
     const validated = zodSchema.parse(parsed);
 
     log.debug("openrouter", "structured response parsed", {
@@ -153,8 +239,12 @@ export class OpenRouter {
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        return await this.makeStructuredRequest(this.url, requestBody, zodSchema, attempt);
+        return await this.makeStructuredRequest(this.url, requestBody, zodSchema, attempt, options);
       } catch (error: unknown) {
+        if (options.signalUnsupportedResponseFormat === true && isUnsupportedResponseFormatError(error)) {
+          throw new UnsupportedResponseFormatError(error);
+        }
+
         const isLastAttempt = attempt === maxRetries;
         log.warn("openrouter", `Structured parsing failed (attempt ${attempt}/${maxRetries})`, {
           error: error instanceof Error ? error.message : String(error),
@@ -166,7 +256,8 @@ export class OpenRouter {
           throw new Error(
             `OpenRouter structured output failed after ${maxRetries} attempts: ${
               error instanceof Error ? error.message : String(error)
-            }`
+            }`,
+            { cause: error }
           );
         }
 

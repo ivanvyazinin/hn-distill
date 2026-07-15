@@ -4,6 +4,7 @@ import { env } from "@config/env";
 
 import {
   buildAggregatedItemsFromRows,
+  presentCommentsSummary,
   type StoryRow,
   type SummaryMap,
   type TagsMap,
@@ -47,7 +48,7 @@ async function loadSummariesForIds(db: D1DatabaseLike, ids: number[]): Promise<S
       if (row.kind === "post") {
         entry.post = row.summary;
       } else if (row.kind === "comments") {
-        entry.comments = row.summary;
+        entry.comments = presentCommentsSummary(row.summary);
       }
     }
   }

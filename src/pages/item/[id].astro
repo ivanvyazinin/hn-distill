@@ -4,6 +4,7 @@ import Analytics from "../../components/Analytics.astro";
 import { LANG } from "@config/lang";
 import { PATHS } from "@config/paths";
 import type { AggregatedItem } from "@config/schemas";
+import { commentsFoldLabel } from "@utils/comments-render";
 import { formatDateHuman } from "@utils/date";
 import { loadAggregated } from "@utils/load-aggregated";
 import { mdToHtml } from "@utils/md-to-html";
@@ -36,8 +37,13 @@ function tagHref(tag: string): string {
 
 const postMd = item.postSummary ?? "";
 const commentsMd = item.commentsSummary ?? "";
+const parts = item.commentsInsights;
+const visibleMd = parts
+  ? [parts.lead.trimEnd(), parts.visible.trimEnd()].filter((chunk) => chunk.length > 0).join("\n\n")
+  : commentsMd;
 const postHtml = postMd ? mdToHtml(postMd) : "";
-const commentsHtml = commentsMd ? mdToHtml(commentsMd) : "";
+const commentsHtml = visibleMd ? mdToHtml(visibleMd) : "";
+const foldedHtml = parts?.folded ? mdToHtml(parts.folded) : "";
 const datePretty = formatDateHuman(item.timeISO);
 const hnUrl = item.hnUrl ?? `https://news.ycombinator.com/item?id=${item.id}`;
 
@@ -53,6 +59,7 @@ const i18n = {
 };
 const t = i18n[lang];
 const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.commentsCount})` : "";
+const foldLabel = parts === undefined ? "" : commentsFoldLabel(parts, lang);
 ---
 
 <html lang={lang}>
@@ -93,7 +100,19 @@ const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.comment
           <h3 class="title">
             <a href={hnUrl} target="_blank" rel="noopener noreferrer nofollow">{t.comments}{commentsLabel}</a>
           </h3>
-          {commentsHtml ? <div class="md" set:html={commentsHtml} /> : <p class="meta">No comments summary.</p>}
+          {commentsHtml ? (
+            <>
+              <div class="md" set:html={commentsHtml} />
+              {foldedHtml && (
+                <details class="md-fold">
+                  <summary>{foldLabel}</summary>
+                  <div class="md" set:html={foldedHtml} />
+                </details>
+              )}
+            </>
+          ) : (
+            <p class="meta">No comments summary.</p>
+          )}
         </aside>
       </section>
     </main>
