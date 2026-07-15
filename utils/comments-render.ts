@@ -22,6 +22,8 @@ export type CommentsSummaryParts = {
   visible: string;
   folded: string;
   foldedInsightsCount: number;
+  /** True when a provenance-validated quote is present in `folded` (not inferred from text). */
+  foldedHasQuote: boolean;
 };
 
 const LABELS: Record<
@@ -173,7 +175,30 @@ export function renderCommentsSummaryParts(
     visible: visibleBullets.length === 0 ? "" : `${visibleBullets.join("\n")}\n`,
     folded: joinChunks([foldedBullets.length === 0 ? "" : foldedBullets.join("\n"), quoteMarkdown]),
     foldedInsightsCount: foldedBullets.length,
+    foldedHasQuote: quoteMarkdown.length > 0,
   };
+}
+
+/** Localized fold `<summary>` label for the site UI (shared by list + item pages). */
+export function commentsFoldLabel(
+  parts: Pick<CommentsSummaryParts, "foldedInsightsCount" | "foldedHasQuote">,
+  language: SummaryLanguage
+): string {
+  const n = parts.foldedInsightsCount;
+  if (language === "ru") {
+    if (parts.foldedHasQuote) {
+      if (n === 0) return "цитата из треда";
+      if (n === 1) return "ещё 1 тезис (+ цитата)";
+      return `ещё ${n} тезиса (+ цитата)`;
+    }
+    if (n === 1) return "ещё 1 тезис";
+    return `ещё ${n} тезиса`;
+  }
+  if (parts.foldedHasQuote) {
+    if (n === 0) return "quote from the thread";
+    return `${n} more takeaways (+ quote)`;
+  }
+  return `${n} more takeaways`;
 }
 
 export function renderCommentsSummaryMarkdown(

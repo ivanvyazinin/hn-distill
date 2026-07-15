@@ -223,6 +223,7 @@ export const AggregatedItemSchema = z.object({
       visible: z.string(),
       folded: z.string(),
       foldedInsightsCount: z.number().int().min(0),
+      foldedHasQuote: z.boolean(),
     })
     .optional(),
   score: z.number().optional(),

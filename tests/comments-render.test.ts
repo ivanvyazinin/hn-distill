@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  commentsFoldLabel,
   renderCommentsLead,
   renderCommentsSummaryMarkdown,
   renderCommentsSummaryParts,
@@ -112,6 +113,7 @@ describe("comments summary renderer", () => {
     expect(fiveParts.folded).toContain("тезис номер 4");
     expect(fiveParts.folded).toContain("тезис номер 5");
     expect(fiveParts.foldedInsightsCount).toBe(2);
+    expect(fiveParts.foldedHasQuote).toBeFalse();
   });
 
   test("quote is always folded and has no heading", () => {
@@ -138,6 +140,7 @@ describe("comments summary renderer", () => {
     expect(parts.folded).toContain("_Перевод:_ Точная исходная цитата сохранена отдельно от перевода.");
     expect(parts.folded).not.toContain("###");
     expect(parts.visible).not.toContain("exact source quotation");
+    expect(parts.foldedHasQuote).toBeTrue();
   });
 
   test("quote-only fold when all insights fit in visible", () => {
@@ -154,6 +157,55 @@ describe("comments summary renderer", () => {
     expect(parts.foldedInsightsCount).toBe(0);
     expect(parts.folded).toContain("> exact source quotation is preserved");
     expect(parts.folded).not.toContain("тезис номер");
+    expect(parts.foldedHasQuote).toBeTrue();
+    expect(commentsFoldLabel(parts, "ru")).toBe("цитата из треда");
+    expect(commentsFoldLabel(parts, "en")).toBe("quote from the thread");
+  });
+
+  test("escaped comparison operators in folded bullets do not fake a quote label", () => {
+    // Regression: sniffing folded.includes("> ") matched escaped `\>` from text like `p99 > p95`.
+    const value = makeRuCommentsInsights({
+      insights: [
+        longInsight("advice", 1),
+        longInsight("consensus", 2),
+        longInsight("dispute", 3),
+        {
+          kind: "advice",
+          text: "Смотрите latency p99 > p95 перед cutover, иначе редирект /api -> /v2 спрячет регрессию.",
+        },
+      ],
+      best_quote: null,
+    });
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments: [] });
+    expect(parts.foldedInsightsCount).toBe(1);
+    expect(parts.foldedHasQuote).toBeFalse();
+    // Escaped greater-than still appears in folded markdown body…
+    expect(parts.folded.includes("> ") || parts.folded.includes("\\>")).toBeTrue();
+    // …but the fold label must not claim a quote.
+    expect(commentsFoldLabel(parts, "ru")).toBe("ещё 1 тезис");
+    expect(commentsFoldLabel(parts, "en")).toBe("1 more takeaways");
+  });
+
+  test("fold labels use (+ цитата) without the awkward '+ и'", () => {
+    const comments = [comment()];
+    const value = makeRuCommentsInsights({
+      insights: [
+        longInsight("advice", 1),
+        longInsight("consensus", 2),
+        longInsight("dispute", 3),
+        longInsight("advice", 4),
+      ],
+      best_quote: {
+        comment_id: 101,
+        source_text: "exact source quotation is preserved",
+        translation: null,
+      },
+    });
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments });
+    expect(parts.foldedHasQuote).toBeTrue();
+    expect(parts.foldedInsightsCount).toBe(1);
+    expect(commentsFoldLabel(parts, "ru")).toBe("ещё 1 тезис (+ цитата)");
+    expect(commentsFoldLabel(parts, "en")).toBe("1 more takeaways (+ quote)");
   });
 
   test("markdown equals concatenation of non-empty parts", () => {

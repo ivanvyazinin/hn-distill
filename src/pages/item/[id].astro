@@ -4,6 +4,7 @@ import Analytics from "../../components/Analytics.astro";
 import { LANG } from "@config/lang";
 import { PATHS } from "@config/paths";
 import type { AggregatedItem } from "@config/schemas";
+import { commentsFoldLabel } from "@utils/comments-render";
 import { formatDateHuman } from "@utils/date";
 import { loadAggregated } from "@utils/load-aggregated";
 import { mdToHtml } from "@utils/md-to-html";
@@ -51,33 +52,14 @@ const description = (postMd || commentsMd || `Hacker News discussion for: ${item
 const i18n = {
   ru: {
     comments: "Комментарии",
-    moreTakeaways: (n: number) => {
-      if (n === 0) return "цитата из треда";
-      if (n === 1) return "ещё 1 тезис";
-      return `ещё ${n} тезиса`;
-    },
-    moreWithQuote: (n: number) => {
-      if (n === 0) return "цитата из треда";
-      if (n === 1) return "ещё 1 тезис (+ и цитата)";
-      return `ещё ${n} тезиса (+ и цитата)`;
-    },
   },
   en: {
     comments: "Comments",
-    moreTakeaways: (n: number) => (n === 0 ? "quote from the thread" : `${n} more takeaways`),
-    moreWithQuote: (n: number) =>
-      n === 0 ? "quote from the thread" : `${n} more takeaways (+ quote)`,
   },
 };
 const t = i18n[lang];
 const commentsLabel = typeof item.commentsCount === "number" ? ` (${item.commentsCount})` : "";
-const hasQuoteInFold = Boolean(parts?.folded && parts.folded.includes("> "));
-const foldLabel =
-  parts === undefined
-    ? ""
-    : hasQuoteInFold
-      ? t.moreWithQuote(parts.foldedInsightsCount)
-      : t.moreTakeaways(parts.foldedInsightsCount);
+const foldLabel = parts === undefined ? "" : commentsFoldLabel(parts, lang);
 ---
 
 <html lang={lang}>

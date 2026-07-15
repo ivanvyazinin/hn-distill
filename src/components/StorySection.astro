@@ -2,6 +2,7 @@
 import { HOT_SCORE_THRESHOLD, LONG_DISCUSSION_THRESHOLD, TAG_MIN_COUNT } from "@config/constants";
 import { LANG } from "@config/lang";
 import type { AggregatedItem } from "@config/schemas";
+import { commentsFoldLabel } from "@utils/comments-render";
 import { formatDateHuman } from "@utils/date";
 import { mdToHtml } from "@utils/md-to-html";
 import { withBase } from "../utils/base";
@@ -40,25 +41,12 @@ const i18n = {
     hot: "Горячее",
     long: "Длинная дискуссия",
     original: "Оригинал",
-    moreTakeaways: (n: number) => {
-      if (n === 0) return "цитата из треда";
-      if (n === 1) return "ещё 1 тезис";
-      return `ещё ${n} тезиса`;
-    },
-    moreWithQuote: (n: number) => {
-      if (n === 0) return "цитата из треда";
-      if (n === 1) return "ещё 1 тезис (+ и цитата)";
-      return `ещё ${n} тезиса (+ и цитата)`;
-    },
   },
   en: {
     comments: "Comments",
     hot: "Hot",
     long: "Long discussion",
     original: "Original",
-    moreTakeaways: (n: number) => (n === 0 ? "quote from the thread" : `${n} more takeaways`),
-    moreWithQuote: (n: number) =>
-      n === 0 ? "quote from the thread" : `${n} more takeaways (+ quote)`,
   },
 };
 const t = i18n[lang];
@@ -70,13 +58,7 @@ const visibleMd = parts
   : item.commentsSummary ?? "";
 const commentsHtml = visibleMd ? mdToHtml(visibleMd) : "";
 const foldedHtml = parts?.folded ? mdToHtml(parts.folded) : "";
-const hasQuoteInFold = Boolean(parts?.folded && parts.folded.includes("> "));
-const foldLabel =
-  parts === undefined
-    ? ""
-    : hasQuoteInFold
-      ? t.moreWithQuote(parts.foldedInsightsCount)
-      : t.moreTakeaways(parts.foldedInsightsCount);
+const foldLabel = parts === undefined ? "" : commentsFoldLabel(parts, lang);
 ---
 
 <section
