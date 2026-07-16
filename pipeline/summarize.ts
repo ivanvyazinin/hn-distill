@@ -77,7 +77,7 @@ export type FetchedArticle = { md: string; sourceKind: ArticleSourceKind };
 export type Services = {
   http: HttpClient;
   openrouter: OpenRouter;
-  /** Client for structured-JSON calls (tags + post-guard). Groq when GROQ_API_KEY is set, else same as openrouter. */
+  /** Client for structured-JSON calls (tags, post-guard, comments-v2). Groq when GROQ_API_KEY is set, else same as openrouter. */
   guardTagsClient: OpenRouter;
   fetchArticleMarkdown: (url: string) => Promise<FetchedArticle>;
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
@@ -1204,14 +1204,25 @@ export async function callStructuredWithModelChain(
     sampleIds: number[];
   }
 ): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
-  const modelChain = [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2].filter(
+  // Route comments through the Groq client when one exists: it returns reliable
+  // non-reasoning JSON, unlike the OpenRouter reasoning models that share the post
+  // chain and emit prose instead of JSON. makeServices only builds a distinct
+  // guardTagsClient when GROQ_API_KEY is set; otherwise it is the OpenRouter client
+  // and we keep the legacy chain, so local/dev and no-Groq deployments still work.
+  // Deriving this from the injected client (not ambient env) keeps callers testable.
+  const groqEnabled = services.guardTagsClient !== services.openrouter;
+  const client = groqEnabled ? services.guardTagsClient : services.openrouter;
+  const rawChain = groqEnabled
+    ? [env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]
+    : [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2];
+  const modelChain = rawChain.filter(
     (model, index, all) => model.trim().length > 0 && all.indexOf(model) === index
   );
   let modelIndex = 0;
   let strict = false;
   // Direct Groq rejects json_schema on llama-3.3; starting with response_format only
   // burns a full prompt against TPD. Prefer balanced extraction on that route.
-  const baseUrl = env.OPENROUTER_BASE_URL ?? "";
+  const baseUrl = groqEnabled ? env.GROQ_BASE_URL : env.OPENROUTER_BASE_URL ?? "";
   let useResponseFormat = !baseUrl.includes("api.groq.com");
 
   const moveToFallback = (): boolean => {
@@ -1237,7 +1248,7 @@ export async function callStructuredWithModelChain(
     }
 
     try {
-      const insights = await services.openrouter.chatStructured(
+      const insights = await client.chatStructured(
         commentsV2Messages(input.prompt, strict),
         {
           temperature: 0.2,

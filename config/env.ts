@@ -65,6 +65,15 @@ const EnvironmentSchema = z.object({
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
 
+  // Comments-v2 model chain. When GROQ_API_KEY is set these route through the Groq
+  // client (reliable non-reasoning JSON, no json_schema needed) and MUST be Groq model
+  // ids (e.g. llama-3.3-70b-versatile). Without a Groq key they are ignored and comments
+  // fall back to the OPENROUTER_MODEL chain. Reasoning models (nvidia/nemotron:free) emit
+  // prose instead of JSON here and break structured parsing — keep them out of this chain.
+  COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
+  COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
+
   TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language

@@ -58,6 +58,57 @@ function normalizeInline(value: string): string {
   return value.normalize("NFKC").replaceAll(/\s+/gu, " ").trim();
 }
 
+const SENTENCE_TERMINATORS = new Set([".", "!", "?", "…"]);
+const CLOSING_MARKS = /["'»”)\]]/u;
+const MIN_CLAUSE_CHARS = 20;
+
+/**
+ * Repair a value that a length-capped structured decoder chopped mid-word.
+ * Prefers the last full sentence; if the text is a single run-on sentence with
+ * no internal terminator (the common Groq/OpenRouter cut), drops the trailing
+ * partial word and marks the elision. Values that already end cleanly are
+ * returned untouched, so complete summaries are never altered.
+ */
+export function clampToClause(raw: string): string {
+  const text = raw.trimEnd();
+  if (text.length === 0 || endsCleanly(text)) {
+    return text;
+  }
+  const sentence = trimToLastSentence(text);
+  // Prefer the last complete sentence. Ignore a trivially short leading fragment
+  // (e.g. "Да.") and fall through to the word-boundary path so we keep substance.
+  if (sentence.length >= MIN_CLAUSE_CHARS) {
+    return sentence;
+  }
+  const withoutPartialWord = text.replace(/\s+\S*$/u, "").trimEnd();
+  const base = withoutPartialWord.length >= MIN_CLAUSE_CHARS ? withoutPartialWord : text;
+  return `${base}…`;
+}
+
+function endsCleanly(text: string): boolean {
+  const stripped = text.replace(new RegExp(`${CLOSING_MARKS.source}+$`, "u"), "");
+  const last = stripped.at(-1);
+  return last !== undefined && SENTENCE_TERMINATORS.has(last);
+}
+
+function trimToLastSentence(text: string): string {
+  let cut = -1;
+  for (let index = text.length - 1; index >= 0; index -= 1) {
+    if (SENTENCE_TERMINATORS.has(text[index] as string)) {
+      cut = index;
+      break;
+    }
+  }
+  if (cut < 0) {
+    return "";
+  }
+  let end = cut + 1;
+  while (end < text.length && CLOSING_MARKS.test(text[end] as string)) {
+    end += 1;
+  }
+  return text.slice(0, end);
+}
+
 function normalizeForProvenance(value: string): string {
   return normalizeInline(value);
 }
@@ -111,7 +162,7 @@ export function validateCommentsQuote(
 }
 
 function renderInsightBullet(kind: InsightKind, text: string, language: SummaryLanguage): string {
-  const body = safeInline(text);
+  const body = safeInline(clampToClause(text));
   if (kind === "dispute") {
     return `- **${LABELS[language].dispute}:** ${body}`;
   }
@@ -139,7 +190,7 @@ function joinChunks(chunks: readonly string[]): string {
 }
 
 export function renderCommentsLead(bottomLine: string): string {
-  const lead = safeInline(bottomLine);
+  const lead = safeInline(clampToClause(bottomLine));
   return lead.length === 0 ? "" : `${lead}\n`;
 }
 
@@ -152,7 +203,7 @@ export function renderCommentsSummaryParts(
   options: RenderCommentsSummaryOptions
 ): CommentsSummaryParts {
   const labels = LABELS[options.language];
-  const lead = safeInline(insights.bottom_line);
+  const lead = safeInline(clampToClause(insights.bottom_line));
   const surviving = dedupByContainment(
     insights.bottom_line,
     insights.insights.map((insight) => insight.text)

@@ -158,6 +158,55 @@ describe("comments-v2 request budget and validation", () => {
     });
   });
 
+  test("routes comments through the distinct Groq client and its own model chain", async () => {
+    const story = makeStory({ id: 40, title: "Groq route" });
+    const groqCalls: StructuredCall[] = [];
+    const groqClient = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async <T>(
+        messages: ChatMessage[],
+        options: StructuredOutputOptions,
+        _schema: unknown,
+        maxRetries: number
+      ): Promise<T> => {
+        groqCalls.push({ messages, options, maxRetries });
+        return VALID_INSIGHTS as T;
+      },
+    } as unknown) as Services["openrouter"];
+    // A distinct openrouter client that must never be touched for comments once a Groq client exists.
+    const openrouter = ({
+      chat: async () => {
+        throw new Error("post client must not be used for comments-v2");
+      },
+      chatStructured: async () => {
+        throw new Error("openrouter must not be used when a Groq client is present");
+      },
+    } as unknown) as Services["openrouter"];
+    const services: Services = {
+      http: {} as Services["http"],
+      openrouter,
+      guardTagsClient: groqClient,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+    };
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, {
+        story,
+        comments: threeComments(story.id),
+      });
+
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe(env.COMMENTS_MODEL);
+      expect(groqCalls.length).toBe(1);
+      expect(groqCalls[0]?.options.model).toBe(env.COMMENTS_MODEL);
+      // Groq base URL → skip json_schema (guaranteed 400/TPD burn) and extract balanced object.
+      expect(groqCalls[0]?.options.responseFormat).toBeUndefined();
+      expect(groqCalls[0]?.options.jsonExtraction).toBe("balanced-object");
+    });
+  });
+
   test("transport failure advances to the fallback model", async () => {
     const story = makeStory({ id: 11 });
     const { calls, services } = structuredServices([
