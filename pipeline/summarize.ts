@@ -1171,8 +1171,22 @@ function validateCommentsInsightsCandidate(
   insights: CommentsInsights,
   comments: NormalizedComment[],
   sampleIds: number[]
-): string | undefined {
-  const heuristics = checkCommentsInsightsHeuristics(insights, {
+): { insights: CommentsInsights; summary: string } | undefined {
+  // Quote decision first: best_quote is optional, so a provenance miss drops the
+  // quote and keeps the summary. Heuristics re-run on the quote-less text because
+  // they include best_quote.translation when present.
+  let effective: CommentsInsights = insights;
+  if (insights.best_quote !== null) {
+    const quote = validateCommentsQuote(insights, comments);
+    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 quote failed provenance; dropped quote, keeping summary", {
+        commentId: insights.best_quote.comment_id,
+      });
+      effective = { ...insights, best_quote: null };
+    }
+  }
+
+  const heuristics = checkCommentsInsightsHeuristics(effective, {
     language: env.SUMMARY_LANG,
     minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
   });
@@ -1183,17 +1197,7 @@ function validateCommentsInsightsCandidate(
     return undefined;
   }
 
-  if (insights.best_quote !== null) {
-    const quote = validateCommentsQuote(insights, comments);
-    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
-      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 quote failed provenance", {
-        commentId: insights.best_quote.comment_id,
-      });
-      return undefined;
-    }
-  }
-
-  const summary = renderCommentsSummaryMarkdown(insights, {
+  const summary = renderCommentsSummaryMarkdown(effective, {
     language: env.SUMMARY_LANG,
     comments,
   });
@@ -1204,7 +1208,7 @@ function validateCommentsInsightsCandidate(
     });
     return undefined;
   }
-  return summary;
+  return { insights: effective, summary };
 }
 
 function hasHttpErrorCause(error: unknown): boolean {
@@ -1326,9 +1330,9 @@ export async function callStructuredWithModelChain(
         CommentsInsightsSchema,
         1
       );
-      const summary = validateCommentsInsightsCandidate(insights, input.comments, input.sampleIds);
-      if (summary !== undefined) {
-        return { insights, modelUsed: model, summary };
+      const validated = validateCommentsInsightsCandidate(insights, input.comments, input.sampleIds);
+      if (validated !== undefined) {
+        return { insights: validated.insights, modelUsed: model, summary: validated.summary };
       }
       if (!strict) {
         strict = true;

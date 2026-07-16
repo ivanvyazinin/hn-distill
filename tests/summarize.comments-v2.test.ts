@@ -5,6 +5,7 @@ import { pathFor } from "../config/paths";
 import type { CommentsInsights, CommentsSummary, NormalizedComment } from "../config/schemas";
 import {
   CommentsGenerationBudget,
+  buildCommentsPromptV2,
   computeCommentsChanged,
   generateValidatedCommentsSummaryV2,
   processCommentsSummary,
@@ -339,6 +340,98 @@ describe("comments-v2 request budget and validation", () => {
     expect(calls.length).toBe(0);
     expect(budget.callsUsed).toBe(0);
   });
+
+  test("quote outside sampleIds is dropped while the summary is retained without escalation", async () => {
+    const story = makeStory({ id: 15, title: "Quote provenance soft-fail" });
+    const comments = threeComments(story.id);
+    const outOfSampleId = 103;
+    const outOfSample = comments.find((comment) => comment.id === outOfSampleId);
+    if (outOfSample === undefined) {
+      throw new Error("expected threeComments to include id 103");
+    }
+    const quoteSource = outOfSample.textPlain.slice(0, 80).trim();
+    const insightsWithOutOfSampleQuote: CommentsInsights = {
+      ...VALID_INSIGHTS,
+      best_quote: {
+        comment_id: outOfSampleId,
+        source_text: quoteSource,
+        translation: "Перевод цитаты о допустимом уровне расхождений между системами.",
+      },
+    };
+    const basePrepared = buildCommentsPromptV2({
+      story,
+      comments,
+      language: "ru",
+      maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+    });
+    const prepared = {
+      ...basePrepared,
+      sampleIds: basePrepared.sampleIds.filter((id) => id !== outOfSampleId),
+      droppedIds: [...new Set([...basePrepared.droppedIds, outOfSampleId])],
+    };
+    const { calls, services } = structuredServices([async () => insightsWithOutOfSampleQuote]);
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, {
+        story,
+        comments,
+        prepared,
+      });
+
+      expect(result?.insights.best_quote).toBeNull();
+      expect(result?.summary).not.toContain(quoteSource);
+      expect(result?.summary.length).toBeGreaterThan(0);
+      expect(calls.length).toBe(1);
+      expect(result?.modelUsed).toBe(env.OPENROUTER_MODEL);
+    });
+  });
+
+  test("bad quote does not rescue a synthesis that still fails heuristics", async () => {
+    const story = makeStory({ id: 16, title: "Bad synthesis stays rejected" });
+    const comments = threeComments(story.id);
+    const outOfSampleId = 103;
+    const outOfSample = comments.find((comment) => comment.id === outOfSampleId);
+    if (outOfSample === undefined) {
+      throw new Error("expected threeComments to include id 103");
+    }
+    const insightsWithBadQuote: CommentsInsights = {
+      ...INVALID_LANGUAGE_INSIGHTS,
+      best_quote: {
+        comment_id: outOfSampleId,
+        source_text: outOfSample.textPlain.slice(0, 80).trim(),
+        translation: "A translation that cannot rescue English synthesis.",
+      },
+    };
+    const basePrepared = buildCommentsPromptV2({
+      story,
+      comments,
+      language: "ru",
+      maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+    });
+    const prepared = {
+      ...basePrepared,
+      sampleIds: basePrepared.sampleIds.filter((id) => id !== outOfSampleId),
+      droppedIds: [...new Set([...basePrepared.droppedIds, outOfSampleId])],
+    };
+    const { calls, services } = structuredServices([
+      async () => insightsWithBadQuote,
+      async () => insightsWithBadQuote,
+      async () => insightsWithBadQuote,
+    ]);
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3 },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments,
+          prepared,
+        });
+        expect(result).toBeUndefined();
+        expect(calls.length).toBe(3);
+      }
+    );
+  });
 });
 
 describe("comments-v2 persistence", () => {
@@ -444,6 +537,34 @@ describe("comments-v2 persistence", () => {
       expect(result.reason).toBe("storage-read-failed");
     }
     expect(calls.length).toBe(0);
+  });
+
+  test("good synthesis with unverifiable quote applies non-degraded v2 and nulls best_quote", async () => {
+    const story = makeStory({ id: 25, title: "Prod-style quote provenance soft-fail" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/25.comments.json";
+    // Mirrors prod: model invents a quote comment_id that is not in the sampled set
+    // (and here not even among the story comments), while the synthesis is fine.
+    const insightsWithUnverifiableQuote: CommentsInsights = {
+      ...VALID_INSIGHTS,
+      best_quote: {
+        comment_id: 999_001,
+        source_text: "Первый участник предлагает измерить задержки до переключения пользователей.",
+        translation: "Перевод неверифицируемой цитаты о задержках.",
+      },
+    };
+    const { services } = structuredServices([async () => insightsWithUnverifiableQuote]);
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.degraded).toBeUndefined();
+      expect(persisted?.structured?.best_quote).toBeNull();
+      expect(persisted?.summary.length).toBeGreaterThan(0);
+      expect(persisted?.summary).not.toContain("неверифицируемой цитаты");
+    });
   });
 
   test("selection computes the same policy hash as persistence and notices title/post changes", async () => {
