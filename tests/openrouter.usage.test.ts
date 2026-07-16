@@ -75,6 +75,16 @@ describe("OpenRouter usage accounting", () => {
     ]);
   });
 
+  test("chat whitespace-only content is treated as empty → one error event, not ok", async () => {
+    const http = makeMockHttp(async () => reply("   \n  ", { model: "served", usage: { total_tokens: 9 } }));
+    const { or, events } = makeWithSink(http);
+
+    await expect(or.chat([{ role: "user", content: "hi" }], { label: "post" })).rejects.toThrow("empty content");
+    expect(events).toEqual([
+      { label: "post", gateway: "groq", modelRequested: "primary-model", modelUsed: "served", totalTokens: 9, status: "error" },
+    ]);
+  });
+
   test("chat transport failure emits one error event without tokens", async () => {
     const http = makeMockHttp(async () => {
       throw new HttpError("https://example.test/chat", 503, "HTTP 503 upstream");

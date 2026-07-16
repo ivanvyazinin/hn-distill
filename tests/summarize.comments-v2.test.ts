@@ -239,6 +239,7 @@ describe("comments-v2 request budget and validation", () => {
       openrouter,
       guardTagsClient: groqClient,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
     };
 
     await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3 }, async () => {

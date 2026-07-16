@@ -212,12 +212,13 @@ export class OpenRouter {
         retryOnStatuses: [429],
       });
       usageFields = usageFieldsFromResponse(json);
-      const content = json.choices?.[0]?.message?.content ?? "";
-      if (!content) {
+      // Trim before the emptiness check: a whitespace-only body ("   ") is effectively empty and
+      // must be treated as an error, not recorded as a successful empty-string response.
+      const trimmed = (json.choices?.[0]?.message?.content ?? "").trim();
+      if (!trimmed) {
         log.error("openrouter", "Empty content in response");
         throw new Error("OpenRouter: empty content");
       }
-      const trimmed = content.trim();
       this.recordUsage({ label, modelRequested, ...usageFields, status: "ok" });
       log.debug("openrouter", "chat response", { contentChars: trimmed.length });
       return trimmed;
@@ -271,12 +272,13 @@ export class OpenRouter {
       });
       usageFields = usageFieldsFromResponse(json);
 
-      const content = json.choices?.[0]?.message?.content ?? "";
-      if (!content) {
+      // Trim before the emptiness check so a whitespace-only body is rejected here (as an error
+      // event) rather than reaching the parser as "".
+      const trimmed = (json.choices?.[0]?.message?.content ?? "").trim();
+      if (!trimmed) {
         throw new Error("Empty content in structured response");
       }
 
-      const trimmed = content.trim();
       const parsed = parseStructuredContent(trimmed, options.jsonExtraction);
       const validated = zodSchema.parse(parsed);
 

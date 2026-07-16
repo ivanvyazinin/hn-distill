@@ -1,21 +1,44 @@
 import { describe, expect, test } from "bun:test";
 
+import { pathFor } from "../config/paths";
+import { processSingleStory, type Services } from "../pipeline/summarize";
 import { createUsageCollector } from "../utils/llm-usage";
 import type { LlmUsageRow, MetaStore } from "../utils/meta-store";
+import type { ObjectStore } from "../utils/object-store";
 import type { ChatMessage } from "../utils/openrouter";
-import { comment as makeComment, mockPaths, story as makeStory, withEnvPatch, withTempDir } from "./helpers";
+import { comment as makeComment, story as makeStory, withEnvPatch } from "./helpers";
 
-// NOTE: pipeline/summarize is imported ONLY dynamically (inside seedStory), never statically —
-// not even `import type`. A static import binds @config/paths before mockPaths swaps it, which
-// leaks a stale paths module into other files (e.g. cloudflare.infra) via the process-global
-// mock.module registry. Services is therefore referenced structurally via `as never` casts.
+// This suite deliberately avoids mockPaths()/withTempDir(): a process-global mock.module on
+// @config/paths leaks into later-loaded suites (e.g. cloudflare.infra). Instead it drives
+// processSingleStory against an in-memory ObjectStore keyed on the REAL pathFor, so no module
+// is mocked and there is no cross-file state to leak.
 
-// processSingleStory drives the pipeline, so `pipeline/summarize` and the fs store are imported
-// dynamically inside withTempDir — the same pattern as summarize.no-article.test.ts — so this
-// file's mockPaths mock is established before the module binds config/paths, avoiding the
-// process-global mock.module leakage that a static import would otherwise cause.
+const normKey = (key: string): string => key.replace(/^[./]+/u, "");
 
-type PersistRecorder = { inserted: LlmUsageRow[][]; insertThrows: boolean };
+function createMemoryStore(): ObjectStore {
+  const blobs = new Map<string, string>();
+  return {
+    async getText(key: string): Promise<string | null> {
+      return blobs.get(normKey(key)) ?? null;
+    },
+    async putText(key: string, body: string): Promise<void> {
+      blobs.set(normKey(key), body);
+    },
+    async getJson<T>(key: string): Promise<T | null> {
+      const value = blobs.get(normKey(key));
+      return value === undefined ? null : (JSON.parse(value) as T);
+    },
+    async putJson(key: string, value: unknown): Promise<void> {
+      blobs.set(normKey(key), JSON.stringify(value));
+    },
+    async list(prefix: string): Promise<string[]> {
+      const normalized = normKey(prefix);
+      return [...blobs.keys()].filter((key) => key.startsWith(normalized));
+    },
+  };
+}
+
+type PersistRecorder = { inserted: LlmUsageRow[][]; insertThrows: boolean; upsertStateThrows: boolean };
 
 const metaNoop = async (): Promise<void> => {};
 
@@ -27,7 +50,11 @@ function makeUsageMeta(rec: PersistRecorder): MetaStore {
     upsertArticleExtract: metaNoop,
     getArticleExtract: metaNoop,
     upsertRawBlob: metaNoop,
-    upsertProcessingState: metaNoop,
+    upsertProcessingState: async () => {
+      if (rec.upsertStateThrows) {
+        throw new Error("processing-state write boom");
+      }
+    },
     insertLlmUsage: async (rows: LlmUsageRow[]) => {
       rec.inserted.push(rows);
       if (rec.insertThrows) {
@@ -37,7 +64,7 @@ function makeUsageMeta(rec: PersistRecorder): MetaStore {
   } as unknown as MetaStore;
 }
 
-function makeRecordingServices(usage: ReturnType<typeof createUsageCollector>): never {
+function makeRecordingServices(usage: ReturnType<typeof createUsageCollector>): Services {
   const chat = async (_m: ChatMessage[], options?: { model?: string; label?: string }): Promise<string> => {
     usage.record({
       label: options?.label ?? "unknown",
@@ -61,84 +88,85 @@ function makeRecordingServices(usage: ReturnType<typeof createUsageCollector>): 
     });
     throw new Error("structured unavailable in this harness");
   };
-  const orMock = { chat, chatStructured } as never;
+  const orMock = { chat, chatStructured } as unknown as Services["openrouter"];
   // sourceKind "text" bypasses the no-article detector, so the post LLM always runs.
   const article =
     "Инженеры описывают переход от хрупкого цикла опроса к устойчивой очереди, которая восстанавливает " +
     "работу после перезапусков. Миграция добавляет ограниченные повторы, трассировку задач и идемпотентные " +
     "обработчики, поэтому дублирующая доставка остаётся безопасной для системы и её пользователей.";
   return {
-    http: {} as never,
+    http: {} as unknown as Services["http"],
     openrouter: orMock,
     guardTagsClient: orMock,
     fetchArticleMarkdown: async () => ({ md: article, sourceKind: "text" as const }),
     usage,
-  } as never;
+  } as unknown as Services;
 }
 
-async function seedStory(base: string, id: number) {
-  const { pathFor } = mockPaths(base);
-  const { processSingleStory } = await import("../pipeline/summarize");
-  const { createFsStore } = await import("../utils/fs-store");
-  const store = createFsStore();
-  const s = makeStory({ id, url: "https://example.com/x", commentIds: [1, 2] });
-  await store.putJson(pathFor.rawItem(id), s);
-  await store.putJson(pathFor.rawComments(id), [
+function seedStore(id: number): ObjectStore {
+  const store = createMemoryStore();
+  // Fire-and-forget puts on a sync Map-backed store resolve immediately; no await needed.
+  void store.putJson(pathFor.rawItem(id), makeStory({ id, url: "https://example.com/x", commentIds: [1, 2] }));
+  void store.putJson(pathFor.rawComments(id), [
     makeComment({ id: 1, parent: id, textPlain: "First take on the topic", depth: 1 }),
     makeComment({ id: 2, parent: id, textPlain: "A different opinion here", depth: 1 }),
   ]);
-  return { processSingleStory, store };
+  return store;
 }
+
+const ENV_PATCH = { TAGS_MAX_PER_STORY: 0, POST_GUARD_ENABLE: false, SUMMARY_LANG: "ru" as const };
 
 describe("processSingleStory usage lifecycle", () => {
   test("drains scoped events to insertLlmUsage with the story id and clears scope", async () => {
-    await withTempDir(async (base) => {
-      const { processSingleStory, store } = await seedStory(base, 5001);
-      const usage = createUsageCollector();
-      const services = makeRecordingServices(usage);
-      const rec: PersistRecorder = { inserted: [], insertThrows: false };
+    const usage = createUsageCollector();
+    const rec: PersistRecorder = { inserted: [], insertThrows: false, upsertStateThrows: false };
 
-      await withEnvPatch({ TAGS_MAX_PER_STORY: 0, POST_GUARD_ENABLE: false, SUMMARY_LANG: "ru" }, async () => {
-        await processSingleStory(services, 5001, store, makeUsageMeta(rec));
-      });
-
-      expect(rec.inserted.length).toBe(1);
-      const rows = rec.inserted[0] ?? [];
-      expect(rows.length).toBeGreaterThan(0);
-      expect(rows.every((r) => r.storyId === 5001)).toBeTrue();
-      // Scope cleared and buffer drained after the run.
-      expect(usage.size()).toBe(0);
+    await withEnvPatch(ENV_PATCH, async () => {
+      await processSingleStory(makeRecordingServices(usage), 5001, seedStore(5001), makeUsageMeta(rec));
     });
+
+    expect(rec.inserted.length).toBe(1);
+    const rows = rec.inserted[0] ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.storyId === 5001)).toBeTrue();
+    expect(usage.size()).toBe(0);
   });
 
   test("no meta store → no crash and the scope is cleared", async () => {
-    await withTempDir(async (base) => {
-      const { processSingleStory, store } = await seedStory(base, 5002);
-      const usage = createUsageCollector();
-      const services = makeRecordingServices(usage);
-
-      await withEnvPatch({ TAGS_MAX_PER_STORY: 0, POST_GUARD_ENABLE: false, SUMMARY_LANG: "ru" }, async () => {
-        await processSingleStory(services, 5002, store);
-      });
-
-      expect(usage.size()).toBe(0);
+    const usage = createUsageCollector();
+    await withEnvPatch(ENV_PATCH, async () => {
+      await processSingleStory(makeRecordingServices(usage), 5002, seedStore(5002));
     });
+    expect(usage.size()).toBe(0);
   });
 
   test("a failing insertLlmUsage does not change the outcome (best-effort)", async () => {
-    await withTempDir(async (base) => {
-      const { processSingleStory, store } = await seedStory(base, 5003);
-      const usage = createUsageCollector();
-      const services = makeRecordingServices(usage);
-      const rec: PersistRecorder = { inserted: [], insertThrows: true };
-
-      await withEnvPatch({ TAGS_MAX_PER_STORY: 0, POST_GUARD_ENABLE: false, SUMMARY_LANG: "ru" }, async () => {
-        // Must resolve despite the persistence failure.
-        await processSingleStory(services, 5003, store, makeUsageMeta(rec));
-      });
-
-      expect(rec.inserted.length).toBe(1);
-      expect(usage.size()).toBe(0);
+    const usage = createUsageCollector();
+    const rec: PersistRecorder = { inserted: [], insertThrows: true, upsertStateThrows: false };
+    await withEnvPatch(ENV_PATCH, async () => {
+      // Must resolve despite the persistence failure.
+      await processSingleStory(makeRecordingServices(usage), 5003, seedStore(5003), makeUsageMeta(rec));
     });
+    expect(rec.inserted.length).toBe(1);
+    expect(usage.size()).toBe(0);
+  });
+
+  test("when the body throws, finally still flushes recorded usage (R: drain in finally)", async () => {
+    const usage = createUsageCollector();
+    const rec: PersistRecorder = { inserted: [], insertThrows: false, upsertStateThrows: true };
+
+    await withEnvPatch(ENV_PATCH, async () => {
+      // upsertProcessingState runs inside the try and is not caught locally, so it propagates —
+      // the finally must still have drained the events recorded earlier in the run.
+      await expect(
+        processSingleStory(makeRecordingServices(usage), 5004, seedStore(5004), makeUsageMeta(rec))
+      ).rejects.toThrow("processing-state write boom");
+    });
+
+    expect(rec.inserted.length).toBe(1);
+    const rows = rec.inserted[0] ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.every((r) => r.storyId === 5004)).toBeTrue();
+    expect(usage.size()).toBe(0);
   });
 });
