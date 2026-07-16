@@ -16,6 +16,12 @@ export type ExtractMetrics = {
   linkDensity: number;
   /** 1 - unique(non-empty trimmed lines) / count(non-empty trimmed lines) */
   dupRatio: number;
+  /**
+   * 1 - unique / count over sentence-like phrases (>= PHRASE_MIN_WORDS words).
+   * Catches JS-rendered SPA shells whose extract is one long line repeating a
+   * tagline, which line-based dupRatio misses (it is a single line, so unique=1).
+   */
+  phraseDupRatio: number;
   wordCount: number;
   nonEmptyLines: number;
 };
@@ -33,6 +39,21 @@ export const DEFAULT_EXTRACT_THRESHOLDS: ExtractThresholds = {
 };
 
 const PROSE_MIN_WORDS = 12;
+// Sentences shorter than this are ignored for phrase-dup so incidental short
+// repeats ("Read more.", "We're always listening.") do not skew the ratio.
+const PHRASE_MIN_WORDS = 5;
+
+// Split into sentence-like phrases across the whole extract (ignoring heading
+// lines) so intra-line repetition is visible; line-based dupRatio cannot see it.
+function computePhraseDupRatio(md: string): number {
+  const phrases = (md.replace(/^#.*$/gmu, " ").match(/[^.!?…\n]+[.!?…]+/gu) ?? [])
+    .map((phrase) => phrase.trim())
+    .filter((phrase) => phrase.split(/\s+/u).filter(Boolean).length >= PHRASE_MIN_WORDS);
+  if (phrases.length === 0) {
+    return 0;
+  }
+  return 1 - new Set(phrases).size / phrases.length;
+}
 
 const NO_SPACE_CHARS_PER_WORD = 2;
 // A no-space-script char carries far more information per character than a Latin
@@ -119,6 +140,7 @@ export function computeExtractMetrics(md: string): ExtractMetrics {
     proseChars,
     linkDensity,
     dupRatio,
+    phraseDupRatio: computePhraseDupRatio(md),
     wordCount,
     nonEmptyLines: nonEmpty.length,
   };
@@ -132,6 +154,7 @@ export function assessExtractQuality(
   const isGarbage =
     metrics.proseChars < thresholds.minProseChars ||
     metrics.linkDensity > thresholds.maxLinkDensity ||
-    metrics.dupRatio > thresholds.maxDupRatio;
+    metrics.dupRatio > thresholds.maxDupRatio ||
+    metrics.phraseDupRatio > thresholds.maxDupRatio;
   return { verdict: isGarbage ? "no-article" : "article", metrics };
 }

@@ -12,7 +12,7 @@ const CF_BODY =
 
 const READER_MD = `# The largest available Minecraft world
 
-${"The 2b2t place project hosts a multi-terabyte world archive with public browse tools. ".repeat(6)}`;
+The 2b2t place project hosts a multi-terabyte Minecraft world archive with public browse tools. Visitors can pan across spawn, inspect base coordinates, and download regional snapshots for offline study. The archive documents nearly a decade of anarchy-server history and player-built megastructures in detail. Researchers use it to trace how griefing, diplomacy, and migration reshaped the shared map over time. A rendering pipeline stitches raw chunk data into zoomable tiles served from cheap object storage. The maintainers publish the full ingestion toolchain so other long-lived servers can preserve their worlds too.`;
 
 type HttpCall = { method: "bytes" | "text"; url: string; init?: SafeRequestInit | undefined };
 
@@ -256,6 +256,80 @@ describe("getOrFetchArticleMarkdown reader path", () => {
         } as unknown as MetaStore;
         const second = await getOrFetchArticleMarkdown(servicesThrow, s, store, metaWithExtract);
         expect(second.md).toContain("Minecraft");
+      });
+    });
+  });
+
+  test("recovers a no-article html extract via the reader", async () => {
+    await withTempDir(async (base) => {
+      const { pathFor } = mockPaths(base);
+      const { createFsStore } = await import("../utils/fs-store");
+      const { getOrFetchArticleMarkdown, makeServices } = await import("../pipeline/summarize");
+
+      const store = createFsStore();
+      const id = 48_872_403;
+      const storyUrl = "https://spa.example/article";
+      const s = makeStory({ id, url: storyUrl });
+      rmSync(pathFor.articleMd(id), { force: true });
+
+      const extracts: ArticleExtractRow[] = [];
+      const meta = {
+        migrate: async () => {},
+        upsertArticleExtract: async (row: ArticleExtractRow) => {
+          extracts.push(row);
+        },
+        getArticleExtract: async () => {},
+        upsertRawBlob: async () => {},
+      } as unknown as MetaStore;
+
+      // JS-rendered shell: a 200 whose direct extract is short boilerplate (no
+      // Cloudflare challenge), so it stays on the html path and reads no-article.
+      const spaHtml =
+        "<!DOCTYPE html><html><head><title>SPA</title></head>" +
+        "<body><article><p>Home page tagline shown here now.</p>" +
+        "<p>Another short shell fragment lives here.</p></article></body></html>";
+
+      await withEnvPatch({ ARTICLE_FETCH_READER_FALLBACK: true }, async () => {
+        const { http, calls } = makeHttpStub({
+          origin: { bytes: { data: new TextEncoder().encode(spaHtml), contentType: "text/html; charset=utf-8" } },
+          readerText: READER_MD,
+        });
+        const services = makeServices(env, { http });
+        const res = await getOrFetchArticleMarkdown(services, s, store, meta);
+        expect(res.extractStatus).toBe("ok");
+        expect(res.md).toContain("Minecraft");
+        expect(extracts.at(-1)?.sourceKind).toBe("reader");
+        expect(calls.filter((c) => c.method === "text").length).toBe(1);
+      });
+    });
+  });
+
+  test("keeps no-article when the reader also fails to recover", async () => {
+    await withTempDir(async (base) => {
+      const { pathFor } = mockPaths(base);
+      const { createFsStore } = await import("../utils/fs-store");
+      const { getOrFetchArticleMarkdown, makeServices } = await import("../pipeline/summarize");
+
+      const store = createFsStore();
+      const id = 48_872_404;
+      const storyUrl = "https://spa.example/still-bad";
+      const s = makeStory({ id, url: storyUrl });
+      rmSync(pathFor.articleMd(id), { force: true });
+
+      const spaHtml =
+        "<!DOCTYPE html><html><head><title>SPA</title></head>" +
+        "<body><article><p>Home page tagline shown here now.</p>" +
+        "<p>Another short shell fragment lives here.</p></article></body></html>";
+
+      await withEnvPatch({ ARTICLE_FETCH_READER_FALLBACK: true }, async () => {
+        const { http, calls } = makeHttpStub({
+          origin: { bytes: { data: new TextEncoder().encode(spaHtml), contentType: "text/html; charset=utf-8" } },
+          readerText: "x", // reader too short → no recovery
+        });
+        const services = makeServices(env, { http });
+        const res = await getOrFetchArticleMarkdown(services, s, store);
+        expect(res.extractStatus).toBe("no-article");
+        expect(calls.filter((c) => c.method === "text").length).toBe(1);
       });
     });
   });

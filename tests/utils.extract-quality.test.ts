@@ -156,6 +156,25 @@ describe("assessExtractQuality golden corpus", () => {
     expect(m.linkDensity).toBeGreaterThan(DEFAULT_EXTRACT_THRESHOLDS.maxLinkDensity);
   });
 
+  test("intra-line repeated sentence (SPA shell) trips phrase-dup, not line-dup", () => {
+    // A JS-rendered site's direct extract: a tagline repeated many times on ONE
+    // line. Line-based dupRatio is 0 (a single unique line) and proseChars clears
+    // the floor, so only the phrase-level metric can catch it.
+    const tagline = "Pigeons and Planes is all about music discovery and supporting new artists everywhere. ";
+    const md = `# The Lost Joy of Music Piracy\n\n${tagline.repeat(8)}`;
+    const m = computeExtractMetrics(md);
+    expect(m.dupRatio).toBe(0);
+    expect(m.proseChars).toBeGreaterThan(DEFAULT_EXTRACT_THRESHOLDS.minProseChars);
+    expect(m.phraseDupRatio).toBeGreaterThan(DEFAULT_EXTRACT_THRESHOLDS.maxDupRatio);
+    expect(assessExtractQuality(md).verdict).toBe("no-article");
+  });
+
+  test("a normal article with distinct sentences keeps phrase-dup low", () => {
+    const m = computeExtractMetrics(REAL_ARTICLE);
+    expect(m.phraseDupRatio).toBeLessThanOrEqual(DEFAULT_EXTRACT_THRESHOLDS.maxDupRatio);
+    expect(assessExtractQuality(REAL_ARTICLE).verdict).toBe("article");
+  });
+
   test("thresholds are configurable", () => {
     // With an impossibly high prose floor, even a real article is rejected.
     const strict = assessExtractQuality(REAL_ARTICLE, {

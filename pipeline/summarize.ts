@@ -80,6 +80,8 @@ export type Services = {
   /** Client for structured-JSON calls (tags, post-guard, comments-v2). Groq when GROQ_API_KEY is set, else same as openrouter. */
   guardTagsClient: OpenRouter;
   fetchArticleMarkdown: (url: string) => Promise<FetchedArticle>;
+  /** Force the Jina reader path (JS-rendered pages). Used to recover a no-article html extract. */
+  fetchArticleViaReader?: (url: string) => Promise<FetchedArticle>;
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
 };
 
@@ -250,7 +252,7 @@ export function makeServices(
     model: e.OPENROUTER_MODEL,
   });
 
-  return { http, openrouter, guardTagsClient, fetchArticleMarkdown };
+  return { http, openrouter, guardTagsClient, fetchArticleMarkdown, fetchArticleViaReader };
 }
 
 const TAGS_DEBUG_MESSAGE = "summarize/tags";
@@ -1409,16 +1411,51 @@ export async function getOrFetchArticleMarkdown(
   try {
     log.info(LOG_NAMESPACE_ARTICLE, "Fetching article and processing content", { id: story.id, url: story.url });
     const { md, sourceKind } = await services.fetchArticleMarkdown(story.url);
-    const text = md.trim();
+    let text = md.trim();
     if (!text) {
       log.warn(LOG_NAMESPACE_ARTICLE, "Fetched content is empty", { id: story.id, url: story.url });
       return {};
     }
-    const extractStatus = sourceKindUsesExtractDetector(sourceKind)
+    let finalSourceKind = sourceKind;
+    let extractStatus = sourceKindUsesExtractDetector(sourceKind)
       ? detectHtmlExtractStatus(text)
       : "ok";
     if (extractStatus === "no-article") {
       log.warn(LOG_NAMESPACE_ARTICLE, "Extract flagged as no-article", { id: story.id, url: story.url });
+      // JS-rendered sites (SPA shells) return a 200 whose direct extract is nav /
+      // tagline boilerplate, not the article — no Cloudflare challenge, so the raw
+      // fetch stayed on the html path. Retry once through the JS-rendering reader
+      // before degrading; if it yields a real article, use it instead.
+      if (sourceKind === "html" && env.ARTICLE_FETCH_READER_FALLBACK && services.fetchArticleViaReader) {
+        try {
+          const reader = await services.fetchArticleViaReader(story.url);
+          const readerText = reader.md.trim();
+          const readerStatus = sourceKindUsesExtractDetector(reader.sourceKind)
+            ? detectHtmlExtractStatus(readerText)
+            : "ok";
+          if (readerText && readerStatus === "ok") {
+            log.info(LOG_NAMESPACE_ARTICLE, "Recovered no-article html extract via reader", {
+              id: story.id,
+              url: story.url,
+            });
+            text = readerText;
+            finalSourceKind = reader.sourceKind;
+            extractStatus = "ok";
+          } else {
+            log.warn(LOG_NAMESPACE_ARTICLE, "Reader retry did not recover a usable article", {
+              id: story.id,
+              url: story.url,
+              readerStatus,
+            });
+          }
+        } catch (readerError) {
+          log.warn(LOG_NAMESPACE_ARTICLE, "Reader retry for no-article extract failed", {
+            id: story.id,
+            url: story.url,
+            error: String(readerError),
+          });
+        }
+      }
     }
     await store.putText(path, text, { contentType: "text/markdown" });
     if (meta) {
@@ -1433,7 +1470,7 @@ export async function getOrFetchArticleMarkdown(
       await meta.upsertArticleExtract({
         storyId: story.id,
         status: extractStatus,
-        sourceKind,
+        sourceKind: finalSourceKind,
         charCount: text.length,
         rawArticleRef: path,
         fetchedAt,
@@ -1443,7 +1480,7 @@ export async function getOrFetchArticleMarkdown(
       id: story.id,
       path,
       extractStatus,
-      sourceKind,
+      sourceKind: finalSourceKind,
     });
     return { md: text, extractStatus };
   } catch (error) {

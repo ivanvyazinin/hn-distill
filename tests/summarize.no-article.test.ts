@@ -391,7 +391,14 @@ describe("degraded no-article lifecycle", () => {
       rec.extractById.set(id, { storyId: id, status: "ok" });
 
       let fetchCalls = 0;
-      const fresh = `# Fresh article\n\n${"This is the real Readability-extracted article body with plenty of substantial prose. ".repeat(10)}`;
+      const fresh =
+        "# Fresh article\n\n" +
+        "This is the real Readability-extracted article body with plenty of substantial prose to assess. " +
+        "It opens by framing the problem and why the previous approach no longer scaled for the team. " +
+        "The middle section walks through the redesign, the trade-offs weighed, and the benchmarks that followed. " +
+        "A short detour covers the migration path and how backward compatibility was preserved throughout. " +
+        "The author then reflects on what surprised them and which assumptions turned out to be wrong. " +
+        "It closes with concrete guidance for readers considering a similar change in their own systems.";
       const services = {
         http: {} as never,
         openrouter: {} as never,
