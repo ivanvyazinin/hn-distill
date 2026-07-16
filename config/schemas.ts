@@ -77,11 +77,15 @@ export const PostSummarySchema = z.object({
 });
 
 const CommentsInsightTextSchema = z.string().min(20).max(300);
+// bottom_line is the card lead and wants ~2 sentences; a 300-char cap makes
+// constrained decoders (Groq/OpenRouter json_schema) chop it mid-word. Give it
+// more room and rely on clampToClause() for a clean tail on the rare overflow.
+const CommentsBottomLineSchema = z.string().min(20).max(400);
 const CommentsInsightKindSchema = z.enum(["consensus", "dispute", "advice"]);
 
 export const CommentsInsightsSchema = z
   .object({
-    bottom_line: CommentsInsightTextSchema,
+    bottom_line: CommentsBottomLineSchema,
     insights: z
       .array(
         z
@@ -111,7 +115,7 @@ export const CommentsInsightsSchema = z
 export const CommentsInsightsJsonSchema = {
   type: "object",
   properties: {
-    bottom_line: { type: "string", minLength: 20, maxLength: 300 },
+    bottom_line: { type: "string", minLength: 20, maxLength: 400 },
     insights: {
       type: "array",
       items: {

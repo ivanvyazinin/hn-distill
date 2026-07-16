@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
+  clampToClause,
   commentsFoldLabel,
   renderCommentsLead,
   renderCommentsSummaryMarkdown,
@@ -306,5 +307,35 @@ describe("comments summary renderer", () => {
     expect(markdown).toContain("### Из обсуждения");
     expect(markdown).toContain("@alice");
     expect(markdown).toContain("@bob");
+  });
+});
+
+describe("clampToClause (mid-word truncation repair)", () => {
+  test("leaves a cleanly terminated value untouched", () => {
+    const clean = "Тред добавляет практический опыт эксплуатации в проде.";
+    expect(clampToClause(clean)).toBe(clean);
+    expect(clampToClause('Он сказал: «готово».')).toBe('Он сказал: «готово».');
+  });
+
+  test("trims to the last full sentence when the tail sentence is cut", () => {
+    const cut = "Первый вывод понятен. Второй тезис обрывается на середине сло";
+    expect(clampToClause(cut)).toBe("Первый вывод понятен.");
+  });
+
+  test("drops the partial trailing word and marks elision for a run-on cut", () => {
+    const cut = "Пользователи считают клавиатуру слишком дорогой и предлагаю";
+    const result = clampToClause(cut);
+    expect(result.endsWith("…")).toBe(true);
+    expect(result).not.toContain("предлагаю");
+    expect(result).toBe("Пользователи считают клавиатуру слишком дорогой и…");
+  });
+
+  test("repairs the lead so the rendered card never ends mid-word", () => {
+    const bottomLine =
+      "Многие считают, что клавиатура не стоит своих 230 долларов, и советуют дешёвые макропады или самодельные альтернативы вместо неё, потому что реальной пользы для агентной работы почти н";
+    const lead = renderCommentsLead(bottomLine);
+    // safeInline runs NFKC, so the "…" the repair adds renders as three dots.
+    expect(/(?:…|\.\.\.)$/u.test(lead.trimEnd())).toBe(true);
+    expect(lead).not.toContain("работы почти н");
   });
 });
