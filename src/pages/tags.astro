@@ -4,6 +4,7 @@ import Analytics from '../components/Analytics.astro';
 import { LANG } from '@config/lang';
 import { PATHS } from '@config/paths';
 import { loadAggregated } from '@utils/load-aggregated';
+import { countTags } from '@utils/tag-counts';
 import { TAG_MIN_COUNT } from '@config/constants';
 import { withBase } from '../utils/base';
 
@@ -11,15 +12,8 @@ const lang = LANG;
 
 const { items: allItems } = loadAggregated(PATHS.aggregated);
 
-// Collect all tags with their counts
-const tagCounts = new Map<string, number>();
-for (const item of allItems) {
-  if (item.tags) {
-    for (const tag of item.tags) {
-      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1);
-    }
-  }
-}
+// Collect all tags with their counts (shared, memoised implementation)
+const tagCounts = countTags(allItems);
 
 // Sort tags by count (descending), then alphabetically
 const sortedTags = Array.from(tagCounts.entries())
