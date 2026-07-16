@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { env } from "../config/env";
+import { createUsageCollector } from "../utils/llm-usage";
 import type { ArticleExtractRow, MetaStore, SummaryRow } from "../utils/meta-store";
 import type { ChatMessage } from "../utils/openrouter";
 import { comment as makeComment, mockPaths, story as makeStory, withEnvPatch, withTempDir } from "./helpers";
@@ -86,6 +87,7 @@ describe("degraded no-article lifecycle", () => {
         http: {} as never,
         openrouter: orMock,
         guardTagsClient: orMock,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => ({ md: GARBAGE_HTML_MD, sourceKind: "html" as const }),
       } as never;
 
@@ -154,6 +156,7 @@ describe("degraded no-article lifecycle", () => {
         http: {} as never,
         openrouter: orMock,
         guardTagsClient: orMock,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => ({ md: GARBAGE_HTML_MD, sourceKind: "html" as const }),
       } as never;
       const meta = makeMeta(rec);
@@ -210,6 +213,7 @@ describe("degraded no-article lifecycle", () => {
         http: {} as never,
         openrouter: orMock,
         guardTagsClient: orMock,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => ({ md: GARBAGE_HTML_MD, sourceKind: "html" as const }),
       } as never;
 
@@ -257,6 +261,7 @@ describe("degraded no-article lifecycle", () => {
           chatStructured: async () => "{}",
         } as never,
         guardTagsClient: {} as never,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => {
           throw new Error("cached extract must not be fetched again");
         },
@@ -328,6 +333,7 @@ describe("degraded no-article lifecycle", () => {
           chatStructured: async () => "{}",
         } as never,
         guardTagsClient: {} as never,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => {
           throw new Error("cached extract must not be fetched again");
         },
@@ -403,6 +409,7 @@ describe("degraded no-article lifecycle", () => {
         http: {} as never,
         openrouter: {} as never,
         guardTagsClient: {} as never,
+        usage: createUsageCollector(),
         fetchArticleMarkdown: async () => {
           fetchCalls += 1;
           return { md: fresh, sourceKind: "html" as const };

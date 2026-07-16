@@ -11,6 +11,7 @@ import {
   type Services,
 } from "../pipeline/summarize";
 import { HttpError } from "../utils/http-client";
+import { createUsageCollector } from "../utils/llm-usage";
 import type { MetaStore, SummaryRow } from "../utils/meta-store";
 import type { ObjectStore } from "../utils/object-store";
 import {
@@ -122,6 +123,7 @@ function structuredServices(
       openrouter,
       guardTagsClient: openrouter,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
     },
   };
 }
@@ -189,6 +191,7 @@ describe("comments-v2 request budget and validation", () => {
       openrouter,
       guardTagsClient: groqClient,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
     };
 
     await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {

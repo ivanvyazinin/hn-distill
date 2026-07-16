@@ -5,6 +5,7 @@ import type { CommentsSummary, NormalizedStory, PostSummary } from "@config/sche
 import { buildTelegramMessage } from "@utils/telegram";
 
 import { processSingleStory, type Services } from "../pipeline/summarize";
+import { createUsageCollector } from "../utils/llm-usage";
 import type { MetaStore, ProcessingStateUpdate } from "../utils/meta-store";
 import type { ObjectStore } from "../utils/object-store";
 import { withEnvPatch } from "./helpers";
@@ -139,6 +140,7 @@ describe("local comments-to-Telegram integration", () => {
       openrouter,
       guardTagsClient: openrouter,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
+      usage: createUsageCollector(),
     } as unknown as Services;
 
     await withEnvPatch(
@@ -265,6 +267,7 @@ describe("local comments-to-Telegram integration", () => {
       openrouter,
       guardTagsClient: openrouter,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
+      usage: createUsageCollector(),
     } as unknown as Services;
 
     await withEnvPatch(

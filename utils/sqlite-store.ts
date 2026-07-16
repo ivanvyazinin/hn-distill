@@ -11,6 +11,8 @@ import {
 import type {
   ArticleExtractRow,
   DailyRankingRow,
+  LlmUsageRow,
+  LlmUsageSummaryRow,
   MetaStore,
   ProcessingStateUpdate,
   RawBlobRow,
@@ -350,6 +352,80 @@ export function createSqliteStore(dbPath: string): MetaStore & { close: () => vo
 
     async deleteStoriesBelowScore(minScore: number): Promise<number[]> {
       return deleteStoriesBelowScoreSqlite(db, minScore);
+    },
+
+    async insertLlmUsage(rows: LlmUsageRow[]): Promise<void> {
+      if (rows.length === 0) {
+        return;
+      }
+      // SQLite binds SQL NULL for absent optional fields.
+      // eslint-disable-next-line unicorn/no-null
+      const databaseNull = null;
+      const ins = db.prepare(
+        "INSERT INTO llm_usage (created_at, story_id, label, gateway, model_requested, model_used, attempt, prompt_tokens, completion_tokens, total_tokens, status) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      );
+      db.exec("BEGIN");
+      try {
+        for (const row of rows) {
+          ins.run(
+            row.createdAt,
+            row.storyId ?? databaseNull,
+            row.label,
+            row.gateway,
+            row.modelRequested,
+            row.modelUsed ?? databaseNull,
+            row.attempt ?? databaseNull,
+            row.promptTokens ?? databaseNull,
+            row.completionTokens ?? databaseNull,
+            row.totalTokens ?? databaseNull,
+            row.status
+          );
+        }
+        db.exec("COMMIT");
+      } catch (error) {
+        db.exec("ROLLBACK");
+        throw error;
+      }
+    },
+
+    async getLlmUsageSummary(): Promise<LlmUsageSummaryRow[]> {
+      const rows = db
+        .prepare(
+          "SELECT date(created_at) AS day, gateway, label, model_requested, model_used, " +
+            "COUNT(*) AS calls, " +
+            "SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS errors, " +
+            "SUM(COALESCE(prompt_tokens,0)) AS prompt_tokens, " +
+            "SUM(COALESCE(completion_tokens,0)) AS completion_tokens, " +
+            "SUM(COALESCE(total_tokens,0)) AS total_tokens " +
+            "FROM llm_usage " +
+            "GROUP BY day, gateway, label, model_requested, model_used " +
+            "ORDER BY day DESC, total_tokens DESC"
+        )
+        .all() as Array<{
+        day: string;
+        gateway: string;
+        label: string;
+        model_requested: string;
+        model_used: string | null;
+        calls: number;
+        errors: number;
+        prompt_tokens: number;
+        completion_tokens: number;
+        total_tokens: number;
+      }>;
+      return rows.map((row) => ({
+        day: row.day,
+        gateway: row.gateway,
+        label: row.label,
+        modelRequested: row.model_requested,
+        modelUsed: row.model_used ?? null,
+        calls: row.calls,
+        errors: row.errors,
+        promptTokens: row.prompt_tokens,
+        completionTokens: row.completion_tokens,
+        totalTokens: row.total_tokens,
+      }));
     },
   };
 }

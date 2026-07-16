@@ -12,9 +12,11 @@ import type { D1DatabaseLike } from "./bindings";
 import {
   acquireRunLock,
   getAggregateState,
+  getLlmUsageSummary,
   getPagesDeployState,
   getProcessingUpdatedMax,
   getTelegramSentIds,
+  insertLlmUsage,
   listPendingStoryIds,
   markTelegramSent,
   setAggregateState,
@@ -162,5 +164,8 @@ export function createD1MetaStore(db: D1DatabaseLike): MetaStore {
     },
 
     deleteStoriesBelowScore: (minScore) => deleteStoriesBelowScoreD1(db, minScore),
+
+    insertLlmUsage: (rows) => insertLlmUsage(db, rows),
+    getLlmUsageSummary: () => getLlmUsageSummary(db),
   };
 }

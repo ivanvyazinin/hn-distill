@@ -7,6 +7,7 @@ import {
 } from "../eval/comments-services.ts";
 
 import type { CommentsInsights, NormalizedComment } from "../config/schemas.ts";
+import { createUsageCollector } from "../utils/llm-usage.ts";
 import type { CommentsGenerationInput, CommentsJudgeVerdict } from "../eval/score-comments.ts";
 import type { Services } from "../pipeline/summarize.ts";
 
@@ -73,7 +74,7 @@ function testEnvironment() {
 }
 
 function inertServices(): Services {
-  return { marker: "offline" } as unknown as Services;
+  return { marker: "offline", usage: createUsageCollector() } as unknown as Services;
 }
 
 describe("comments evaluation production adapter", () => {

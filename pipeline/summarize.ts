@@ -39,6 +39,7 @@ import { extractArticleMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
 import { readJsonSafeOrStore } from "@utils/object-store";
+import { createUsageCollector, type UsageCollector } from "@utils/llm-usage";
 import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
 import {
@@ -83,6 +84,8 @@ export type Services = {
   /** Force the Jina reader path (JS-rendered pages). Used to recover a no-article html extract. */
   fetchArticleViaReader?: (url: string) => Promise<FetchedArticle>;
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
+  /** Per-attempt LLM usage collector, scoped per story by processSingleStory. */
+  usage: UsageCollector;
 };
 
 export function makeServices(
@@ -107,17 +110,25 @@ export function makeServices(
         headers: {},
       }
     );
+  const usage = createUsageCollector();
+  // The usage sink is wired only behind the flag (R4): keeps write-path and wiring off until
+  // the D1 migration is applied --remote, decoupling this from Pages/Worker deploy order.
+  const onUsage = e.LLM_USAGE_ENABLED ? usage.record : undefined;
   const openrouter = new OpenRouter(
     http,
     e.OPENROUTER_API_KEY ?? "",
     e.OPENROUTER_MODEL,
-    e.OPENROUTER_BASE_URL
+    e.OPENROUTER_BASE_URL,
+    { gateway: "openrouter", ...(onUsage === undefined ? {} : { onUsage }) }
   );
   // Route tags + post-guard (structured JSON) to Groq when a key is set; otherwise reuse OpenRouter.
-  const guardTagsClient =
-    e.GROQ_API_KEY !== undefined && e.GROQ_API_KEY.length > 0
-      ? new OpenRouter(http, e.GROQ_API_KEY, e.TAGS_MODEL, e.GROQ_BASE_URL)
-      : openrouter;
+  const groqEnabled = e.GROQ_API_KEY !== undefined && e.GROQ_API_KEY.length > 0;
+  const guardTagsClient = groqEnabled
+    ? new OpenRouter(http, e.GROQ_API_KEY ?? "", e.TAGS_MODEL, e.GROQ_BASE_URL, {
+        gateway: "groq",
+        ...(onUsage === undefined ? {} : { onUsage }),
+      })
+    : openrouter;
 
   async function fetchArticleMarkdown(url: string): Promise<FetchedArticle> {
     const youtubeText = await tryFetchYouTubeContent(url);
@@ -252,7 +263,7 @@ export function makeServices(
     model: e.OPENROUTER_MODEL,
   });
 
-  return { http, openrouter, guardTagsClient, fetchArticleMarkdown, fetchArticleViaReader };
+  return { http, openrouter, guardTagsClient, fetchArticleMarkdown, fetchArticleViaReader, usage };
 }
 
 const TAGS_DEBUG_MESSAGE = "summarize/tags";
@@ -713,7 +724,8 @@ async function callOpenRouterAttempt(
   messages: ChatMessage[],
   model: string,
   attempt: "fallback" | "primary",
-  context: LlmLogContext
+  context: LlmLogContext,
+  label: string
 ): Promise<LlmResult> {
   const logContext = { model, ...context };
   const logMessage = attempt === "primary" ? "Calling LLM" : "Calling fallback LLM";
@@ -723,6 +735,7 @@ async function callOpenRouterAttempt(
       temperature: 0.3,
       maxTokens: env.OPENROUTER_MAX_TOKENS,
       model,
+      label,
     });
     const cleaned = sanitizeLlmContent(content);
     if (attempt === "primary") {
@@ -751,6 +764,7 @@ async function callOpenRouterWithRetry(
   services: Services,
   messages: ChatMessage[],
   context: LlmLogContext,
+  label: string,
   models?: string[]
 ): Promise<LlmResult> {
   const chain = models === undefined || models.length === 0 ? defaultModelChain() : models;
@@ -759,7 +773,7 @@ async function callOpenRouterWithRetry(
   for (const [index, model] of chain.entries()) {
     const attempt = index === 0 ? "primary" : "fallback";
     try {
-      return await callOpenRouterAttempt(services, messages, model, attempt, context);
+      return await callOpenRouterAttempt(services, messages, model, attempt, context, label);
     } catch (error) {
       if (!(error instanceof RateLimitError) && !(error instanceof LlmCallError)) {
         throw error;
@@ -814,10 +828,11 @@ async function callLLMWithMessages(
   services: Services,
   messages: ChatMessage[],
   context: LlmLogContext = {},
+  label: string,
   models?: string[]
 ): Promise<LlmResult> {
   const ctx: LlmLogContext = { messages: messages.length, ...context };
-  return await callOpenRouterWithRetry(services, messages, ctx, models);
+  return await callOpenRouterWithRetry(services, messages, ctx, label, models);
 }
 
 export function buildPostChatMessages(articleSlice: string, options: { strict?: boolean } = {}): ChatMessage[] {
@@ -839,7 +854,7 @@ export async function summarizePost(
   if (options.strictSystem !== undefined) {
     context["strict"] = options.strictSystem;
   }
-  const { content, modelUsed } = await callLLMWithMessages(services, messages, context, options.models);
+  const { content, modelUsed } = await callLLMWithMessages(services, messages, context, "post", options.models);
   return { id: story.id, lang: env.SUMMARY_LANG, summary: content, model: modelUsed };
 }
 
@@ -961,7 +976,13 @@ export async function summarizeComments(
     { role: "system", content: buildCommentsSystemInstruction() },
     { role: "user", content: prompt },
   ];
-  const { content, modelUsed } = await callLLMWithMessages(services, messages, options.context ?? {}, options.models);
+  const { content, modelUsed } = await callLLMWithMessages(
+    services,
+    messages,
+    options.context ?? {},
+    "comments",
+    options.models
+  );
   return {
     id: storyId,
     lang: env.SUMMARY_LANG,
@@ -1284,6 +1305,7 @@ export async function callStructuredWithModelChain(
           temperature: 0.2,
           maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
           model,
+          label: "comments",
           jsonExtraction: useResponseFormat ? "strict" : "balanced-object",
           transportRetries: 0,
           requestTimeoutMs,
@@ -2112,95 +2134,108 @@ export async function processSingleStory(
     return;
   }
 
-  const postPath = pathFor.postSummary(id);
-  const commentsPath = pathFor.commentsSummary(id);
-
-  await processPostSummary(services, story, postPath, store, meta);
-  const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
-  let comments: NormalizedComment[] | undefined;
+  // Scope the usage collector to this story; drain + persist in finally so events flush
+  // even when the body throws, and the scope is always cleared (record() drops out-of-scope
+  // events — R3). The Worker calls this same function, so there is no separate wiring.
+  services.usage.setStory(id);
   try {
-    comments =
-      (await readJsonSafeOrStore<NormalizedComment[]>(
-        store,
-        pathFor.rawComments(id),
-        NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
-        []
-      )) ?? [];
-    log.debug(LOG_NAMESPACE_COMMENTS, "Comments loaded", { id: story.id, count: comments.length });
-  } catch (error) {
-    log.error(LOG_NAMESPACE_COMMENTS, "Comments input load failed; continuing with legacy Telegram summary", {
-      id: story.id,
-      error: String(error),
-    });
-  }
+    const postPath = pathFor.postSummary(id);
+    const commentsPath = pathFor.commentsSummary(id);
 
-  let commentsSummary: CommentsSummary | undefined;
-  try {
-    commentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
-  } catch (error) {
-    log.error(LOG_NAMESPACE_COMMENTS, "Comments summary snapshot failed; continuing without Telegram teaser", {
-      id: story.id,
-      error: String(error),
-    });
-  }
-
-  let commentsResult: CommentsProcessingResult | undefined;
-  if (comments !== undefined) {
+    await processPostSummary(services, story, postPath, store, meta);
+    const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
+    let comments: NormalizedComment[] | undefined;
     try {
-      commentsResult = await processCommentsSummary(services, story, comments, post, commentsPath, store, meta, {
-        ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
-      });
+      comments =
+        (await readJsonSafeOrStore<NormalizedComment[]>(
+          store,
+          pathFor.rawComments(id),
+          NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
+          []
+        )) ?? [];
+      log.debug(LOG_NAMESPACE_COMMENTS, "Comments loaded", { id: story.id, count: comments.length });
     } catch (error) {
-      log.error(LOG_NAMESPACE_COMMENTS, "Comments processing failed; continuing with Telegram publication", {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments input load failed; continuing with legacy Telegram summary", {
         id: story.id,
         error: String(error),
       });
     }
-  }
 
-  if (commentsResult?.status === "applied") {
-    commentsSummary = commentsResult.summary;
-  } else {
+    let commentsSummary: CommentsSummary | undefined;
     try {
-      commentsSummary =
-        (await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema)) ?? commentsSummary;
+      commentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
     } catch (error) {
-      log.error(LOG_NAMESPACE_COMMENTS, "Comments summary refresh failed; using pre-processing snapshot", {
+      log.error(LOG_NAMESPACE_COMMENTS, "Comments summary snapshot failed; continuing without Telegram teaser", {
         id: story.id,
         error: String(error),
       });
     }
-  }
 
-  const telegramLead =
-    commentsSummary?.structured?.bottom_line === undefined
-      ? undefined
-      : { lead: renderCommentsLead(commentsSummary.structured.bottom_line) };
-  await publishTelegramAfterSummary(
-    services,
-    story,
-    post?.summary,
-    commentsSummary?.summary,
-    meta,
-    telegramLead
-  );
-  await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
+    let commentsResult: CommentsProcessingResult | undefined;
+    if (comments !== undefined) {
+      try {
+        commentsResult = await processCommentsSummary(services, story, comments, post, commentsPath, store, meta, {
+          ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+        });
+      } catch (error) {
+        log.error(LOG_NAMESPACE_COMMENTS, "Comments processing failed; continuing with Telegram publication", {
+          id: story.id,
+          error: String(error),
+        });
+      }
+    }
 
-  if (meta) {
-    const now = new Date().toISOString();
-    await meta.upsertProcessingState(story.id, {
-      postStatus: post ? "ok" : "missing",
-      commentsStatus: commentsResult?.status === "applied" ? "ok" : "missing",
-      ...(commentsResult?.status === "applied"
-        ? {
-            commentsPolicyVersion: commentsResult.policyVersion,
-            commentsInputHash: commentsResult.inputHash,
-          }
-        : {}),
-      tagsStatus: (await readJsonSafeOrStore(store, pathFor.tagsSummary(story.id), TagsSummarySchema)) ? "ok" : "missing",
-      updatedAt: now,
-      error: null,
-    });
+    if (commentsResult?.status === "applied") {
+      commentsSummary = commentsResult.summary;
+    } else {
+      try {
+        commentsSummary =
+          (await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema)) ??
+          commentsSummary;
+      } catch (error) {
+        log.error(LOG_NAMESPACE_COMMENTS, "Comments summary refresh failed; using pre-processing snapshot", {
+          id: story.id,
+          error: String(error),
+        });
+      }
+    }
+
+    const telegramLead =
+      commentsSummary?.structured?.bottom_line === undefined
+        ? undefined
+        : { lead: renderCommentsLead(commentsSummary.structured.bottom_line) };
+    await publishTelegramAfterSummary(services, story, post?.summary, commentsSummary?.summary, meta, telegramLead);
+    await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
+
+    if (meta) {
+      const now = new Date().toISOString();
+      await meta.upsertProcessingState(story.id, {
+        postStatus: post ? "ok" : "missing",
+        commentsStatus: commentsResult?.status === "applied" ? "ok" : "missing",
+        ...(commentsResult?.status === "applied"
+          ? {
+              commentsPolicyVersion: commentsResult.policyVersion,
+              commentsInputHash: commentsResult.inputHash,
+            }
+          : {}),
+        tagsStatus: (await readJsonSafeOrStore(store, pathFor.tagsSummary(story.id), TagsSummarySchema))
+          ? "ok"
+          : "missing",
+        updatedAt: now,
+        error: null,
+      });
+    }
+  } finally {
+    const rows = services.usage.drain();
+    services.usage.setStory(undefined);
+    if (meta && rows.length > 0) {
+      // Best-effort, off the critical path: a persistence failure must not fail the story.
+      try {
+        await meta.insertLlmUsage(rows);
+      } catch (error) {
+        log.error("summarize", "persist llm usage failed", { id, error: String(error) });
+      }
+    }
   }
 }
 

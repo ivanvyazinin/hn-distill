@@ -220,6 +220,14 @@ const EnvironmentSchema = z.object({
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(false),
 
+  // Gate per-attempt LLM usage accounting (tokens + model/gateway/task/status → llm_usage).
+  // Default false decouples this from deploy order (Pages and the Worker ship independently):
+  // ship the code off, apply the D1 migration --remote, then flip on. Off → no wiring, no writes.
+  LLM_USAGE_ENABLED: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
+
   // Offline model scoring (eval/score-models.mts) — writes only under data/bench/
   // Empty by default so a real (paid) run without an explicit judge id fails fast
   // instead of silently calling a wrong/nonexistent model. Set to your flagship id.
