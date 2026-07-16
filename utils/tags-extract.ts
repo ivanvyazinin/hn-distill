@@ -63,8 +63,7 @@ type TagsResponse = z.infer<ReturnType<typeof TagsResponseSchema>>;
 
 export function buildTagsPrompt(
   story: { title: string; url: string | null },
-  postSummary?: string,
-  commentsSummary?: string
+  postSummary?: string
 ): string {
   const { title, url } = story;
   const hasUrl = typeof url === "string" && url.length > 0;
@@ -80,12 +79,21 @@ export function buildTagsPrompt(
     lines.push(`\nArticle summary:\n${postSummary}`);
   }
 
-  const hasComments = typeof commentsSummary === "string" && commentsSummary.length > 0;
-  if (hasComments) {
-    lines.push(`\nComments summary:\n${commentsSummary}`);
-  }
-
   return lines.join("\n");
+}
+
+// Shared cache material for the tags input hash. Both the production pipeline
+// (async `hashString`) and the bulk script (sync crypto SHA-256) hash EXACTLY this
+// string, so the two paths can never drift into different cache contracts. The
+// helper does not hash — each caller keeps its own existing hashing.
+//
+// `commentsSummary` is deliberately absent from BOTH the prompt and this material
+// (see docs/followup-tags-recompute-churn.md): the comments summary is regenerated
+// almost every hourly run, so including it churned the tag `inputHash` and forced a
+// wasted LLM re-extract for every story every run. Tags now depend only on the
+// stable signal (title, URL, domain, optional article summary) plus `TAGS_MODEL`.
+export function buildTagsCacheMaterial(prompt: string, model: string): string {
+  return `tags|${prompt}|${model}`;
 }
 
 const TAGS_DEBUG_MESSAGE = "tags-extract";

@@ -9,7 +9,6 @@ import { env, type Env } from "@config/env";
 import { TAGS_FALLBACK_MODELS } from "@config/openrouter";
 import { PATHS, pathFor } from "@config/paths";
 import {
-  CommentsSummarySchema,
   NormalizedStorySchema,
   PostSummarySchema,
   TagsSummarySchema,
@@ -17,7 +16,7 @@ import {
 } from "@config/schemas";
 import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
-import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
+import { buildTagsCacheMaterial, buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 
 import { makeServices, type Services } from "./summarize.mts";
 
@@ -36,10 +35,9 @@ async function processTagsOnly(services: Services, story: NormalizedStory, custo
 
   // Get existing summaries if they exist
   const post = await readJsonSafeOr(pathFor.postSummary(story.id), PostSummarySchema);
-  const commentsSummary = await readJsonSafeOr(pathFor.commentsSummary(story.id), CommentsSummarySchema);
 
-  const prompt = buildTagsPrompt(story, post?.summary, commentsSummary?.summary);
-  const inputHash = hashString(`tags|${prompt}|${customEnv.TAGS_MODEL}`);
+  const prompt = buildTagsPrompt(story, post?.summary);
+  const inputHash = hashString(buildTagsCacheMaterial(prompt, customEnv.TAGS_MODEL));
   const existing = await readJsonSafeOr(p, TagsSummarySchema);
 
   if (existing?.inputHash === inputHash) {

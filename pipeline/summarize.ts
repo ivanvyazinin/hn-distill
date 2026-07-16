@@ -47,7 +47,7 @@ import {
   checkSummaryHeuristics,
   languageGateFromEnv,
 } from "@utils/summary-heuristics";
-import { buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
+import { buildTagsCacheMaterial, buildTagsPrompt, combineAndCanon, summarizeTagsStructured } from "@utils/tags-extract";
 import {
   Telegram,
   buildTelegramMessage,
@@ -2044,7 +2044,6 @@ async function processTags(
   services: Services,
   story: NormalizedStory,
   postSummary: string | undefined,
-  commentsSummary: string | undefined,
   store: ObjectStore,
   meta?: MetaStore
 ): Promise<void> {
@@ -2054,8 +2053,8 @@ async function processTags(
     return;
   }
   const p = pathFor.tagsSummary(story.id);
-  const prompt = buildTagsPrompt(story, postSummary, commentsSummary);
-  const inputHash = await hashString(`tags|${prompt}|${env.TAGS_MODEL}`);
+  const prompt = buildTagsPrompt(story, postSummary);
+  const inputHash = await hashString(buildTagsCacheMaterial(prompt, env.TAGS_MODEL));
   const existing = await readJsonSafeOrStore(store, p, TagsSummarySchema);
   if (existing?.inputHash === inputHash) {
     log.debug(TAGS_DEBUG_MESSAGE, "up-to-date", { id: story.id });
@@ -2205,7 +2204,7 @@ export async function processSingleStory(
         ? undefined
         : { lead: renderCommentsLead(commentsSummary.structured.bottom_line) };
     await publishTelegramAfterSummary(services, story, post?.summary, commentsSummary?.summary, meta, telegramLead);
-    await processTags(services, story, post?.summary, commentsSummary?.summary, store, meta);
+    await processTags(services, story, post?.summary, store, meta);
 
     if (meta) {
       const now = new Date().toISOString();

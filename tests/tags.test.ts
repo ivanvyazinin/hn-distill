@@ -2,6 +2,7 @@ import { describe, expect, test, mock } from "bun:test";
 
 import { env } from "@config/env";
 import {
+  buildTagsCacheMaterial,
   buildTagsPrompt,
   CAT_ENUM,
   combineAndCanon,
@@ -14,20 +15,80 @@ import type { OpenRouter } from "@utils/openrouter";
 import type { NormalizedStory } from "@config/schemas";
 
 describe("Tags extraction & canonicalization", () => {
-  test("buildTagsPrompt includes domain and summaries when provided", () => {
+  test("buildTagsPrompt includes title, URL, domain and article summary", () => {
     const story: Pick<NormalizedStory, "title" | "url"> = {
       title: "Test Story",
       url: "https://sub.example.com/x",
     };
     const postSummary = "This is the post summary.";
-    const commentsSummary = "This is the comments summary.";
 
-    const prompt = buildTagsPrompt(story, postSummary, commentsSummary);
+    const prompt = buildTagsPrompt(story, postSummary);
 
+    expect(prompt).toContain("Title: Test Story");
     expect(prompt).toContain(`URL: ${story.url}`);
     expect(prompt).toContain("Domain: sub.example.com");
     expect(prompt).toContain(postSummary);
-    expect(prompt).toContain(commentsSummary);
+  });
+
+  test("buildTagsPrompt excludes the comments summary — stable across comment drift", () => {
+    // The tag prompt must depend only on the STABLE signal (title/url/domain/article
+    // summary). The comments summary drifts almost every hourly run; embedding it
+    // churned the tag inputHash and forced a wasted LLM re-extract every run.
+    const story: Pick<NormalizedStory, "title" | "url"> = {
+      title: "Test Story",
+      url: "https://sub.example.com/x",
+    };
+    const postSummary = "This is the post summary.";
+    const commentsSentinelA = "COMMENTS_SENTINEL_ALPHA_should_never_appear";
+    const commentsSentinelB = "COMMENTS_SENTINEL_BRAVO_should_never_appear";
+
+    const prompt = buildTagsPrompt(story, postSummary);
+
+    // buildTagsPrompt no longer accepts a comments argument, so no drifting comment
+    // text can reach the prompt (and neither sentinel is present regardless).
+    expect(prompt).not.toContain(commentsSentinelA);
+    expect(prompt).not.toContain(commentsSentinelB);
+    expect(prompt).not.toContain("Comments summary");
+  });
+
+  test("buildTagsPrompt is identical for the same story + article summary", () => {
+    const story: Pick<NormalizedStory, "title" | "url"> = {
+      title: "Stable Story",
+      url: "https://example.com/a",
+    };
+    const postSummary = "Stable article summary.";
+
+    // Two independent builds with the same stable inputs must be byte-identical,
+    // regardless of any (now-excluded) comments context that varied between runs.
+    expect(buildTagsPrompt(story, postSummary)).toBe(buildTagsPrompt(story, postSummary));
+  });
+
+  test("buildTagsPrompt changes when title, URL/domain or article summary changes", () => {
+    const story: Pick<NormalizedStory, "title" | "url"> = {
+      title: "Original Title",
+      url: "https://example.com/a",
+    };
+    const postSummary = "Original article summary.";
+    const base = buildTagsPrompt(story, postSummary);
+
+    expect(buildTagsPrompt({ ...story, title: "Changed Title" }, postSummary)).not.toBe(base);
+    expect(buildTagsPrompt({ ...story, url: "https://other.example.org/b" }, postSummary)).not.toBe(base);
+    expect(buildTagsPrompt(story, "Changed article summary.")).not.toBe(base);
+  });
+
+  test("buildTagsCacheMaterial changes only when the prompt or TAGS_MODEL changes", () => {
+    const prompt = buildTagsPrompt(
+      { title: "T", url: "https://example.com/a" },
+      "Article summary."
+    );
+
+    const withModelA = buildTagsCacheMaterial(prompt, "model-a");
+    const withModelB = buildTagsCacheMaterial(prompt, "model-b");
+
+    expect(withModelA).toBe(buildTagsCacheMaterial(prompt, "model-a"));
+    expect(withModelA).not.toBe(withModelB);
+    // A prompt change must also change the material (the other cache-invalidation axis).
+    expect(buildTagsCacheMaterial(`${prompt} extra`, "model-a")).not.toBe(withModelA);
   });
 
   test("combineAndCanon merges LLM + heuristics, dedupes, keeps order", () => {
