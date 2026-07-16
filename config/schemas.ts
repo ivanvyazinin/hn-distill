@@ -76,11 +76,13 @@ export const PostSummarySchema = z.object({
     .optional(),
 });
 
-const CommentsInsightTextSchema = z.string().min(20).max(300);
-// bottom_line is the card lead and wants ~2 sentences; a 300-char cap makes
-// constrained decoders (Groq/OpenRouter json_schema) chop it mid-word. Give it
-// more room and rely on clampToClause() for a clean tail on the rare overflow.
-const CommentsBottomLineSchema = z.string().min(20).max(400);
+// Groq's strict json_schema validates length AFTER generation and REJECTS the
+// whole response with HTTP 400 (json_validate_failed) when the model overshoots a
+// maxLength — it does not truncate. So the provider schema below carries NO
+// maxLength, and these Zod caps are generous sanity bounds only; display tidiness
+// is handled by clampToClause() and clampForDisplay() at render time.
+const CommentsInsightTextSchema = z.string().min(20).max(600);
+const CommentsBottomLineSchema = z.string().min(20).max(1000);
 const CommentsInsightKindSchema = z.enum(["consensus", "dispute", "advice"]);
 
 export const CommentsInsightsSchema = z
@@ -99,8 +101,9 @@ export const CommentsInsightsSchema = z
     best_quote: z
       .object({
         comment_id: z.number().int().positive(),
-        source_text: z.string().min(20).max(300),
-        translation: z.string().min(20).max(300).nullable(),
+        // Verbatim excerpt; a single long comment can run past any small cap.
+        source_text: z.string().min(20).max(4000),
+        translation: z.string().min(20).max(2000).nullable(),
       })
       .strict()
       .nullable(),
@@ -115,7 +118,10 @@ export const CommentsInsightsSchema = z
 export const CommentsInsightsJsonSchema = {
   type: "object",
   properties: {
-    bottom_line: { type: "string", minLength: 20, maxLength: 400 },
+    // No maxLength on any string: Groq strict validation rejects (HTTP 400) rather
+    // than truncates on overflow. Length is bounded by the prompt and trimmed for
+    // display at render time (clampToClause / clampForDisplay).
+    bottom_line: { type: "string", minLength: 20 },
     insights: {
       type: "array",
       items: {
@@ -123,7 +129,7 @@ export const CommentsInsightsJsonSchema = {
         properties: {
           // Nested enum is allowed (Groq/OpenAI reject enum only at schema root).
           kind: { type: "string", enum: ["consensus", "dispute", "advice"] },
-          text: { type: "string", minLength: 20, maxLength: 300 },
+          text: { type: "string", minLength: 20 },
         },
         required: ["kind", "text"],
         additionalProperties: false,
@@ -138,10 +144,10 @@ export const CommentsInsightsJsonSchema = {
           type: "object",
           properties: {
             comment_id: { type: "integer", minimum: 1 },
-            source_text: { type: "string", minLength: 20, maxLength: 300 },
+            source_text: { type: "string", minLength: 20 },
             translation: {
               anyOf: [
-                { type: "string", minLength: 20, maxLength: 300 },
+                { type: "string", minLength: 20 },
                 { type: "null" },
               ],
             },

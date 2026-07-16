@@ -144,6 +144,23 @@ describe("comments summary renderer", () => {
     expect(parts.foldedHasQuote).toBeTrue();
   });
 
+  test("a verbatim quote longer than the display cap is trimmed with an ellipsis", () => {
+    const longSource = "Длинная дословная цитата из комментария, которую нужно обрезать при показе. ".repeat(6).trim();
+    expect(longSource.length).toBeGreaterThan(300);
+    const comments = [comment({ by: "quoter", textPlain: longSource })];
+    const value = makeRuCommentsInsights({
+      best_quote: { comment_id: 101, source_text: longSource, translation: null },
+    });
+
+    const parts = renderCommentsSummaryParts(value, { language: "ru", comments });
+    const quoteLine = parts.folded.split("\n").find((line) => line.startsWith("> Длинная"));
+    expect(quoteLine).toBeDefined();
+    expect(quoteLine?.endsWith("…")).toBeTrue();
+    // "> " prefix + <=300 chars + ellipsis, far shorter than the ~450-char source.
+    expect((quoteLine?.length ?? 0)).toBeLessThan(longSource.length);
+    expect(parts.foldedHasQuote).toBeTrue();
+  });
+
   test("quote-only fold when all insights fit in visible", () => {
     const comments = [comment()];
     const value = makeRuCommentsInsights({

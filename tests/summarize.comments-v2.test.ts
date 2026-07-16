@@ -207,6 +207,52 @@ describe("comments-v2 request budget and validation", () => {
     });
   });
 
+  test("Groq TPD 429 falls back cross-provider to the paid OpenRouter model", async () => {
+    const story = makeStory({ id: 41, title: "TPD exhausted" });
+    const groqCalls: StructuredCall[] = [];
+    const openRouterCalls: StructuredCall[] = [];
+    const groqClient = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async (messages: ChatMessage[], options: StructuredOutputOptions, _schema: unknown, maxRetries: number) => {
+        groqCalls.push({ messages, options, maxRetries });
+        throw new Error("rate limited", {
+          cause: new HttpError("https://api.groq.com/openai/v1", 429, "tokens per day (TPD)"),
+        });
+      },
+    } as unknown) as Services["openrouter"];
+    const openrouter = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async <T>(messages: ChatMessage[], options: StructuredOutputOptions, _schema: unknown, maxRetries: number): Promise<T> => {
+        openRouterCalls.push({ messages, options, maxRetries });
+        return VALID_INSIGHTS as T;
+      },
+    } as unknown) as Services["openrouter"];
+    const services: Services = {
+      http: {} as Services["http"],
+      openrouter,
+      guardTagsClient: groqClient,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+    };
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3 }, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, {
+        story,
+        comments: threeComments(story.id),
+      });
+
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+      // Both Groq models were tried and 429'd before the cross-provider hop.
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL]);
+      expect(openRouterCalls.length).toBe(1);
+      expect(openRouterCalls[0]?.options.model).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+    });
+  });
+
   test("transport failure advances to the fallback model", async () => {
     const story = makeStory({ id: 11 });
     const { calls, services } = structuredServices([

@@ -1213,32 +1213,60 @@ export async function callStructuredWithModelChain(
   // and we keep the legacy chain, so local/dev and no-Groq deployments still work.
   // Deriving this from the injected client (not ambient env) keeps callers testable.
   const groqEnabled = services.guardTagsClient !== services.openrouter;
-  const client = groqEnabled ? services.guardTagsClient : services.openrouter;
-  const rawChain = groqEnabled
-    ? [env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]
-    : [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2];
-  const modelChain = rawChain.filter(
-    (model, index, all) => model.trim().length > 0 && all.indexOf(model) === index
-  );
-  let modelIndex = 0;
+  const groqBaseUrl = env.GROQ_BASE_URL;
+  const openRouterBaseUrl = env.OPENROUTER_BASE_URL ?? "";
+
+  // Each step carries its own client so the chain can cross providers: the Groq
+  // models first, then a paid OpenRouter model that survives Groq's per-model daily
+  // token cap (HTTP 429 TPD) which would otherwise dead-end the whole Groq chain.
+  type ChainStep = { client: OpenRouter; model: string; baseUrl: string };
+  const steps: ChainStep[] = [];
+  const seenSteps = new Set<string>();
+  const pushStep = (stepClient: OpenRouter, model: string, stepBaseUrl: string): void => {
+    const trimmed = model.trim();
+    if (trimmed.length === 0) {
+      return;
+    }
+    const key = `${stepBaseUrl}::${trimmed}`;
+    if (seenSteps.has(key)) {
+      return;
+    }
+    seenSteps.add(key);
+    steps.push({ client: stepClient, model: trimmed, baseUrl: stepBaseUrl });
+  };
+
+  if (groqEnabled) {
+    for (const model of [env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
+      pushStep(services.guardTagsClient, model, groqBaseUrl);
+    }
+    pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl);
+  } else {
+    for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {
+      pushStep(services.openrouter, model, openRouterBaseUrl);
+    }
+  }
+
+  let stepIndex = 0;
   let strict = false;
   // Direct Groq rejects json_schema on llama-3.3; starting with response_format only
   // burns a full prompt against TPD. Prefer balanced extraction on that route.
-  const baseUrl = groqEnabled ? env.GROQ_BASE_URL : env.OPENROUTER_BASE_URL ?? "";
-  let useResponseFormat = !baseUrl.includes("api.groq.com");
+  let useResponseFormat = steps[0] !== undefined && !steps[0].baseUrl.includes("api.groq.com");
 
   const moveToFallback = (): boolean => {
-    modelIndex += 1;
+    stepIndex += 1;
     strict = true;
+    // A fresh model starts strict with json_schema; the UnsupportedResponseFormat
+    // catch below flips it off for Groq ids (llama-3.3) that reject the keyword.
     useResponseFormat = true;
-    return modelIndex < modelChain.length;
+    return stepIndex < steps.length;
   };
 
-  while (modelIndex < modelChain.length) {
-    const model = modelChain[modelIndex];
-    if (model === undefined) {
+  while (stepIndex < steps.length) {
+    const step = steps[stepIndex];
+    if (step === undefined) {
       return undefined;
     }
+    const { client, model } = step;
 
     const requestTimeoutMs = input.budget.claimRequestTimeoutMs();
     if (requestTimeoutMs === undefined) {

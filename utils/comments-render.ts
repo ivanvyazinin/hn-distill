@@ -85,6 +85,23 @@ export function clampToClause(raw: string): string {
   return `${base}…`;
 }
 
+// A verbatim quote can be long: the provider schema no longer caps its length
+// (Groq rejects on overflow rather than truncating), so we trim it for display
+// here. Clamping to a prefix keeps it a substring of the original comment.
+const QUOTE_DISPLAY_MAX_CHARS = 300;
+
+export function clampForDisplay(raw: string, maxChars: number): string {
+  const text = raw.trimEnd();
+  if (text.length <= maxChars) {
+    return text;
+  }
+  const slice = text.slice(0, maxChars);
+  const lastSpace = slice.lastIndexOf(" ");
+  const atWordBoundary = lastSpace > 0 ? slice.slice(0, lastSpace).trimEnd() : "";
+  const base = atWordBoundary.length >= MIN_CLAUSE_CHARS ? atWordBoundary : slice.trimEnd();
+  return `${base}…`;
+}
+
 function endsCleanly(text: string): boolean {
   const stripped = text.replace(new RegExp(`${CLOSING_MARKS.source}+$`, "u"), "");
   const last = stripped.at(-1);
@@ -173,13 +190,13 @@ function renderInsightBullet(kind: InsightKind, text: string, language: SummaryL
 }
 
 function renderQuote(translationLabel: string, quote: ValidatedCommentsQuote): string {
-  const quoteLines = escapeMarkdownLiteral(quote.sourceText).split("\n");
+  const quoteLines = escapeMarkdownLiteral(clampForDisplay(quote.sourceText, QUOTE_DISPLAY_MAX_CHARS)).split("\n");
   const lines = [
     ...quoteLines.map((line) => (line.length === 0 ? ">" : `> ${line}`)),
     `> — @${safeAuthor(quote.author)}`,
   ];
   if (quote.translation !== null && normalizeInline(quote.translation).length > 0) {
-    lines.push("", `_${translationLabel}:_ ${safeInline(quote.translation)}`);
+    lines.push("", `_${translationLabel}:_ ${safeInline(clampForDisplay(quote.translation, QUOTE_DISPLAY_MAX_CHARS))}`);
   }
   return lines.join("\n");
 }
