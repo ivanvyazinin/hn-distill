@@ -56,6 +56,21 @@ function hasType(schema: JsonSchemaNode, type: string): boolean {
   return Array.isArray(schema.type) ? schema.type.includes(type) : schema.type === type;
 }
 
+function collectMaxLengths(schema: JsonSchemaNode, path: string, out: string[]): void {
+  if (schema.maxLength !== undefined) {
+    out.push(path);
+  }
+  for (const [key, child] of Object.entries(schema.properties ?? {})) {
+    collectMaxLengths(child, `${path}.${key}`, out);
+  }
+  if (schema.items !== undefined) {
+    collectMaxLengths(schema.items, `${path}[]`, out);
+  }
+  for (const [index, candidate] of (schema.anyOf ?? []).entries()) {
+    collectMaxLengths(candidate, `${path}|anyOf[${index}]`, out);
+  }
+}
+
 function matchesJsonSchema(value: unknown, schema: JsonSchemaNode): boolean {
   if (schema.const !== undefined && value !== schema.const) {
     return false;
@@ -147,6 +162,26 @@ describe("CommentsInsights schema contract", () => {
     expect(insight?.properties?.["kind"]?.enum).toEqual(["consensus", "dispute", "advice"]);
     expect(quote?.additionalProperties).toBeFalse();
     expect(quote?.required).toEqual(["comment_id", "source_text", "translation"]);
+  });
+
+  test("carries no maxLength on any string: Groq rejects overflow instead of truncating", () => {
+    const found: string[] = [];
+    collectMaxLengths(CommentsInsightsJsonSchema as JsonSchemaNode, "root", found);
+    expect(found).toEqual([]);
+  });
+
+  test("accepts a verbatim quote longer than the former 300-char cap", () => {
+    const longQuote = "x".repeat(500);
+    const value = {
+      ...validComplete,
+      best_quote: {
+        comment_id: 41_850_701,
+        source_text: longQuote,
+        translation: "Перевод достаточной длины для прохождения нижней границы схемы.",
+      },
+    };
+    expect(CommentsInsightsSchema.safeParse(value).success).toBeTrue();
+    expect(matchesJsonSchema(value, CommentsInsightsJsonSchema as JsonSchemaNode)).toBeTrue();
   });
 
   test("Zod and JSON Schema agree on a shared valid/invalid matrix", () => {

@@ -61,6 +61,10 @@ const EnvironmentSchema = z.object({
   COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
   COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1200),
+  // Default 3 covers the Groq TPD dead-end path (llama-3.3 → scout → OpenRouter
+  // hop): a 429 fails fast and jumps straight to the next step, so the paid
+  // OpenRouter fallback (COMMENTS_OPENROUTER_FALLBACK_MODEL) is reached within
+  // budget without breaching the worker task timeout (3 × 7s ≤ 25s − 2s buffer).
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(3),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
@@ -75,6 +79,12 @@ const EnvironmentSchema = z.object({
   // A reasoning model here (qwen3/gpt-oss thinking) would emit prose, not JSON.
   COMMENTS_FALLBACK_MODEL: z.string().default("meta-llama/llama-4-scout-17b-16e-instruct"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
+  // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
+  // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
+  // which otherwise dead-ends comment generation into a persisted fallback. A PAID
+  // OpenRouter model is required: :free models emit prose, not clean structured JSON
+  // (the original reason comments moved to Groq). Empty string disables the hop.
+  COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
 
   TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
