@@ -26,6 +26,10 @@ const { tag } = Astro.params;
 const { items: allItems } = loadAggregated(PATHS.aggregated);
 const filteredItems = allItems.filter(it => it.tags?.includes(tag!));
 
+// Pass tag counts so StorySection routes popular tags to /tag/ (not /search/).
+// countTags is memoised, so this reuses the per-build cache.
+const tagCountsObj = Object.fromEntries(countTags(allItems));
+
 const i18n = {
   ru: {
     title: 'Тег',
@@ -66,7 +70,7 @@ const description = `Hacker News Digest for tag #${tag}. ${filteredItems.length}
       {filteredItems.length === 0 ? (
         <p class="meta">{t.noData}</p>
       ) : (
-        filteredItems.map((it) => <StorySection item={it} />)
+        filteredItems.map((it) => <StorySection item={it} tagCounts={tagCountsObj} />)
       )}
     </main>
     <script is:inline src={withBase("js/keyboard-nav.js")}></script>

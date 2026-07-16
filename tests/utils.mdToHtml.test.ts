@@ -56,4 +56,9 @@ describe("utils/mdToHtml", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain('<a href="https://example.com" target="_blank" rel="noopener noreferrer nofollow">link</a>');
   });
+
+  test("is stable (memoised) for identical input", () => {
+    const md = "Some **bold** text with `code`.";
+    expect(mdToHtml(md)).toBe(mdToHtml(md));
+  });
 });
