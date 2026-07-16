@@ -71,7 +71,9 @@ const EnvironmentSchema = z.object({
   // fall back to the OPENROUTER_MODEL chain. Reasoning models (nvidia/nemotron:free) emit
   // prose instead of JSON here and break structured parsing — keep them out of this chain.
   COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
-  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
+  // Fallback: non-reasoning llama (proven on this Groq account via POST_GUARD_MODEL).
+  // A reasoning model here (qwen3/gpt-oss thinking) would emit prose, not JSON.
+  COMMENTS_FALLBACK_MODEL: z.string().default("meta-llama/llama-4-scout-17b-16e-instruct"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
 
   TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
