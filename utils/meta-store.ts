@@ -1,4 +1,5 @@
 import type { AggregatedItem, NormalizedStory } from "@config/schemas";
+import type { LlmUsageEvent } from "@utils/llm-usage";
 
 import type { D1DatabaseLike } from "../worker/src/bindings";
 
@@ -47,6 +48,23 @@ export type DailyRankingRow = {
 export type TelegramLedgerSnapshot = {
   sentIds: number[];
   lastUpdatedISO?: string;
+};
+
+/** One persisted per-attempt LLM usage row (mirrors the in-memory event 1:1). */
+export type LlmUsageRow = LlmUsageEvent;
+
+/** Aggregated per-day/gateway/label/model usage for the CLI report. */
+export type LlmUsageSummaryRow = {
+  day: string;
+  gateway: string;
+  label: string;
+  modelRequested: string;
+  modelUsed: string | null;
+  calls: number;
+  errors: number;
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
 };
 
 export type ProcessingStateUpdate = {
@@ -108,6 +126,11 @@ export interface MetaStore {
   ): Promise<void>;
 
   deleteStoriesBelowScore(minScore: number): Promise<number[]>;
+
+  /** Append per-attempt LLM usage rows (best-effort; off the critical path). */
+  insertLlmUsage(rows: LlmUsageRow[]): Promise<void>;
+  /** Aggregated usage per day/gateway/label/model for the CLI report. */
+  getLlmUsageSummary(): Promise<LlmUsageSummaryRow[]>;
 }
 
 export type { D1DatabaseLike };

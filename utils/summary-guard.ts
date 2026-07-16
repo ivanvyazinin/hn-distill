@@ -111,6 +111,7 @@ export async function runSummaryGuard(openrouter: OpenRouter, input: SummaryGuar
       temperature: 0.1,
       maxTokens: envLike.POST_GUARD_MAX_TOKENS,
       model: envLike.POST_GUARD_MODEL,
+      label: "guard",
       responseFormat: {
         type: "json_schema",
         json_schema: {

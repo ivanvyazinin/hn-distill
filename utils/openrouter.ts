@@ -2,6 +2,7 @@ import { log } from "@utils/log";
 
 import { HttpError, type HttpClient } from "./http-client";
 
+import type { UsageInput, UsageSink } from "./llm-usage";
 import type { z } from "zod";
 
 export type ChatMessage = {
@@ -21,6 +22,8 @@ export type StructuredOutputOptions = {
   temperature?: number;
   maxTokens?: number;
   model?: string;
+  /** Task attribution for usage accounting ("post" | "comments" | "tags" | "guard"). */
+  label?: string;
   jsonExtraction?: "balanced-object" | "strict";
   transportRetries?: number;
   requestTimeoutMs?: number;
@@ -123,55 +126,106 @@ function isUnsupportedResponseFormatError(error: unknown): error is HttpError {
   return mentionsFormat && saysUnsupported;
 }
 
+/** Shape of the `usage`/`model` fields the OpenAI-compatible response carries alongside `choices`. */
+type UsageResponseFields = {
+  usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
+  model?: string;
+};
+
+/** Fold response usage/model into the partial usage event (only defined fields). */
+function usageFieldsFromResponse(
+  response: UsageResponseFields
+): Pick<UsageInput, "completionTokens" | "modelUsed" | "promptTokens" | "totalTokens"> {
+  const { usage, model } = response;
+  return {
+    ...(model === undefined ? {} : { modelUsed: model }),
+    ...(usage?.prompt_tokens === undefined ? {} : { promptTokens: usage.prompt_tokens }),
+    ...(usage?.completion_tokens === undefined ? {} : { completionTokens: usage.completion_tokens }),
+    ...(usage?.total_tokens === undefined ? {} : { totalTokens: usage.total_tokens }),
+  };
+}
+
 export class OpenRouter {
   private readonly http: HttpClient;
   private readonly apiKey: string;
   private readonly model: string;
   private readonly url: string;
+  private readonly gateway: string;
+  private readonly onUsage: UsageSink | undefined;
 
-  constructor(http: HttpClient, apiKey: string, model: string, baseUrl?: string) {
+  constructor(
+    http: HttpClient,
+    apiKey: string,
+    model: string,
+    baseUrl?: string,
+    options?: { gateway?: string; onUsage?: UsageSink }
+  ) {
     this.http = http;
     this.apiKey = apiKey;
     this.model = model;
     this.url = baseUrl !== undefined && baseUrl.length > 0 ? baseUrl : DEFAULT_OPENROUTER_URL;
+    // gateway is fixed at construction (the endpoint); the actually-served model is modelUsed.
+    this.gateway = options?.gateway ?? "openrouter";
+    this.onUsage = options?.onUsage;
+  }
+
+  /** Emit exactly one usage event per upstream attempt; no-op unless a sink is wired. */
+  private recordUsage(event: Omit<UsageInput, "gateway">): void {
+    if (this.onUsage === undefined) {
+      return;
+    }
+    this.onUsage({ gateway: this.gateway, ...event });
   }
 
   async chat(
     messages: ChatMessage[],
-    options?: { temperature?: number; maxTokens?: number; model?: string }
+    options?: { temperature?: number; maxTokens?: number; model?: string; label?: string }
   ): Promise<string> {
-    type ORResp = {
+    type ORResp = UsageResponseFields & {
       choices?: Array<{ message?: { role: string; content?: string } }>;
     };
+    const modelRequested = options?.model ?? this.model;
+    const label = options?.label ?? "unknown";
     log.debug("openrouter", "chat request", {
-      model: options?.model ?? this.model,
+      model: modelRequested,
       messages: messages.length,
       hasKey: !!this.apiKey,
     });
-    const json: ORResp = await this.http.json<ORResp>(this.url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://hckr.top/",
-        "X-Title": "hn-distill",
-      },
-      body: JSON.stringify({
-        model: options?.model ?? this.model,
-        messages,
-        ...(options?.temperature === undefined ? {} : { temperature: options.temperature }),
-        ...(options?.maxTokens === undefined ? {} : { max_tokens: options.maxTokens }),
-      }),
-      retryOnStatuses: [429],
-    });
-    const content = json.choices?.[0]?.message?.content ?? "";
-    if (!content) {
-      log.error("openrouter", "Empty content in response");
-      throw new Error("OpenRouter: empty content");
+    // One emit per call: success → ok; empty content → error with tokens (response was read);
+    // any throw before the response is read → error without tokens.
+    let usageFields: ReturnType<typeof usageFieldsFromResponse> = {};
+    try {
+      const json: ORResp = await this.http.json<ORResp>(this.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://hckr.top/",
+          "X-Title": "hn-distill",
+        },
+        body: JSON.stringify({
+          model: modelRequested,
+          messages,
+          ...(options?.temperature === undefined ? {} : { temperature: options.temperature }),
+          ...(options?.maxTokens === undefined ? {} : { max_tokens: options.maxTokens }),
+        }),
+        retryOnStatuses: [429],
+      });
+      usageFields = usageFieldsFromResponse(json);
+      // Trim before the emptiness check: a whitespace-only body ("   ") is effectively empty and
+      // must be treated as an error, not recorded as a successful empty-string response.
+      const trimmed = (json.choices?.[0]?.message?.content ?? "").trim();
+      if (!trimmed) {
+        log.error("openrouter", "Empty content in response");
+        throw new Error("OpenRouter: empty content");
+      }
+      this.recordUsage({ label, modelRequested, ...usageFields, status: "ok" });
+      log.debug("openrouter", "chat response", { contentChars: trimmed.length });
+      return trimmed;
+    } catch (error) {
+      this.recordUsage({ label, modelRequested, ...usageFields, status: "error" });
+      throw error;
     }
-    const trimmed = content.trim();
-    log.debug("openrouter", "chat response", { contentChars: trimmed.length });
-    return trimmed;
   }
 
   private buildStructuredRequestBody(messages: ChatMessage[], options: StructuredOutputOptions): string {
@@ -191,38 +245,53 @@ export class OpenRouter {
     attempt: number,
     options: StructuredOutputOptions
   ): Promise<T> {
-    type ORResp = {
+    type ORResp = UsageResponseFields & {
       choices?: Array<{ message?: { role: string; content?: string } }>;
     };
 
-    const json: ORResp = await this.http.json<ORResp>(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://hckr.top/",
-        "X-Title": "hn-distill",
-      },
-      body: requestBody,
-      retryOnStatuses: [429],
-      ...(options.transportRetries === undefined ? {} : { retries: options.transportRetries }),
-      ...(options.requestTimeoutMs === undefined ? {} : { timeoutMs: options.requestTimeoutMs }),
-    });
+    const modelRequested = options.model ?? this.model;
+    const label = options.label ?? "unknown";
+    // Exactly one emit per method call (= one upstream attempt): success → ok; any throw
+    // (transport / HTTP / empty content / JSON.parse / Zod) → error, carrying tokens only
+    // if the response was already read. The chatStructured retry loop never emits — this
+    // is the single choke point, so N loop iterations produce exactly N events.
+    let usageFields: ReturnType<typeof usageFieldsFromResponse> = {};
+    try {
+      const json: ORResp = await this.http.json<ORResp>(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://hckr.top/",
+          "X-Title": "hn-distill",
+        },
+        body: requestBody,
+        retryOnStatuses: [429],
+        ...(options.transportRetries === undefined ? {} : { retries: options.transportRetries }),
+        ...(options.requestTimeoutMs === undefined ? {} : { timeoutMs: options.requestTimeoutMs }),
+      });
+      usageFields = usageFieldsFromResponse(json);
 
-    const content = json.choices?.[0]?.message?.content ?? "";
-    if (!content) {
-      throw new Error("Empty content in structured response");
+      // Trim before the emptiness check so a whitespace-only body is rejected here (as an error
+      // event) rather than reaching the parser as "".
+      const trimmed = (json.choices?.[0]?.message?.content ?? "").trim();
+      if (!trimmed) {
+        throw new Error("Empty content in structured response");
+      }
+
+      const parsed = parseStructuredContent(trimmed, options.jsonExtraction);
+      const validated = zodSchema.parse(parsed);
+
+      this.recordUsage({ label, modelRequested, attempt, ...usageFields, status: "ok" });
+      log.debug("openrouter", "structured response parsed", {
+        contentChars: trimmed.length,
+        attempt,
+      });
+      return validated;
+    } catch (error) {
+      this.recordUsage({ label, modelRequested, attempt, ...usageFields, status: "error" });
+      throw error;
     }
-
-    const trimmed = content.trim();
-    const parsed = parseStructuredContent(trimmed, options.jsonExtraction);
-    const validated = zodSchema.parse(parsed);
-
-    log.debug("openrouter", "structured response parsed", {
-      contentChars: trimmed.length,
-      attempt,
-    });
-    return validated;
   }
 
   async chatStructured<T>(

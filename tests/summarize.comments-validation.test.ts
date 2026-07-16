@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { env } from "../config/env.ts";
 import type { Services } from "../scripts/summarize.mts";
 import { generateValidatedCommentsSummary } from "../scripts/summarize.mts";
+import { createUsageCollector } from "../utils/llm-usage.ts";
 
 import type { ChatMessage } from "../utils/openrouter";
 
@@ -55,6 +56,7 @@ function makeServices(chatHandlers: ChatHandler[]) {
     openrouter: orMock,
     guardTagsClient: orMock,
     fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
+    usage: createUsageCollector(),
   };
 
   return { services, calls };

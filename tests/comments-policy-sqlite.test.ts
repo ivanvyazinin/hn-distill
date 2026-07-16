@@ -136,7 +136,7 @@ describe("comments policy SQLite state", () => {
     const result = await runNode(path, "migrate");
     expect(result.columns).toContain("comments_policy_version");
     expect(result.columns).toContain("comments_input_hash");
-    expect(result.versions).toEqual([1, 2, 3, 4]);
+    expect(result.versions).toEqual([1, 2, 3, 4, 5]);
   });
 
   test("applies both split migrations to a legacy processing_state table", async () => {
@@ -144,7 +144,7 @@ describe("comments policy SQLite state", () => {
     const result = await runNode(path, "legacy-migrate");
     expect(result.columns).toContain("comments_policy_version");
     expect(result.columns).toContain("comments_input_hash");
-    expect(result.versions).toEqual([1, 2, 3, 4]);
+    expect(result.versions).toEqual([1, 2, 3, 4, 5]);
   });
 
   test("persists successful comments policy and input hash", async () => {

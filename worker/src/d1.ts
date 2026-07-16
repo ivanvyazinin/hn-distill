@@ -1,5 +1,6 @@
 import type { D1DatabaseLike } from "./bindings";
 import type { NormalizedStory } from "@config/schemas";
+import type { LlmUsageRow, LlmUsageSummaryRow } from "@utils/meta-store";
 
 export type ProcessingStatus = "error" | "missing" | "ok";
 
@@ -278,6 +279,81 @@ export async function setAggregateState(
     )
     .bind(key, indexUpdatedISO, processingUpdatedISO, updatedAtISO)
     .run();
+}
+
+export async function insertLlmUsage(db: D1DatabaseLike, rows: LlmUsageRow[]): Promise<void> {
+  if (rows.length === 0) {
+    return;
+  }
+  // D1 binds SQL NULL for absent optional fields.
+  // eslint-disable-next-line unicorn/no-null
+  const databaseNull = null;
+  const statements = rows.map((row) =>
+    db
+      .prepare(
+        "INSERT INTO llm_usage (created_at, story_id, label, gateway, model_requested, model_used, attempt, prompt_tokens, completion_tokens, total_tokens, status) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+      )
+      .bind(
+        row.createdAt,
+        row.storyId ?? databaseNull,
+        row.label,
+        row.gateway,
+        row.modelRequested,
+        row.modelUsed ?? databaseNull,
+        row.attempt ?? databaseNull,
+        row.promptTokens ?? databaseNull,
+        row.completionTokens ?? databaseNull,
+        row.totalTokens ?? databaseNull,
+        row.status
+      )
+  );
+  if (db.batch) {
+    await db.batch(statements);
+    return;
+  }
+  for (const statement of statements) {
+    await statement.run();
+  }
+}
+
+export async function getLlmUsageSummary(db: D1DatabaseLike): Promise<LlmUsageSummaryRow[]> {
+  const result = await db
+    .prepare(
+      "SELECT date(created_at) AS day, gateway, label, model_requested, model_used, " +
+        "COUNT(*) AS calls, " +
+        "SUM(CASE WHEN status='error' THEN 1 ELSE 0 END) AS errors, " +
+        "SUM(COALESCE(prompt_tokens,0)) AS prompt_tokens, " +
+        "SUM(COALESCE(completion_tokens,0)) AS completion_tokens, " +
+        "SUM(COALESCE(total_tokens,0)) AS total_tokens " +
+        "FROM llm_usage " +
+        "GROUP BY day, gateway, label, model_requested, model_used " +
+        "ORDER BY day DESC, total_tokens DESC"
+    )
+    .all<{
+      day: string;
+      gateway: string;
+      label: string;
+      model_requested: string;
+      model_used: string | null;
+      calls: number;
+      errors: number;
+      prompt_tokens: number;
+      completion_tokens: number;
+      total_tokens: number;
+    }>();
+  return result.results.map((row) => ({
+    day: row.day,
+    gateway: row.gateway,
+    label: row.label,
+    modelRequested: row.model_requested,
+    modelUsed: row.model_used ?? null,
+    calls: row.calls,
+    errors: row.errors,
+    promptTokens: row.prompt_tokens,
+    completionTokens: row.completion_tokens,
+    totalTokens: row.total_tokens,
+  }));
 }
 
 export async function getPagesDeployState(

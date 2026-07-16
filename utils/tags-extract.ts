@@ -222,6 +222,7 @@ export async function summarizeTagsStructured(
         temperature: 0.5,
         maxTokens: envLike.TAGS_MAX_TOKENS,
         model: envLike.TAGS_MODEL,
+        label: "tags",
         responseFormat: {
           type: "json_schema",
           json_schema: {
@@ -257,6 +258,7 @@ export async function summarizeTagsStructured(
         temperature: 0.5,
         maxTokens: envLike.TAGS_MAX_TOKENS,
         model: envLike.TAGS_MODEL,
+        label: "tags",
       }
     );
 

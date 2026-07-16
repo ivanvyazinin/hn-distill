@@ -4,6 +4,7 @@ import { env } from "../config/env.ts";
 import type { Services } from "../scripts/summarize.mts";
 import { RateLimitError, summarizeComments } from "../scripts/summarize.mts";
 import { HttpError } from "../utils/http-client.ts";
+import { createUsageCollector } from "../utils/llm-usage.ts";
 import type { ChatMessage } from "../utils/openrouter";
 
 type Handler = (req: { model: string; messages: ChatMessage[] }) => Promise<string>;
@@ -37,6 +38,7 @@ function makeServices(handlers: Handler[]): { services: Services; calls: CallRec
     openrouter: orMock,
     guardTagsClient: orMock,
     fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
+    usage: createUsageCollector(),
   };
 
   return { services, calls };
