@@ -157,6 +157,7 @@ describe("CommentsInsights schema contract", () => {
     expect(schema.additionalProperties).toBeFalse();
     expect(schema.required).toEqual(["bottom_line", "insights", "best_quote"]);
     expect(schema.properties?.["insights"]?.minItems).toBeUndefined();
+    expect(schema.properties?.["insights"]?.maxItems).toBeUndefined();
     expect(insight?.additionalProperties).toBeFalse();
     expect(insight?.required).toEqual(["kind", "text"]);
     expect(insight?.properties?.["kind"]?.enum).toEqual(["consensus", "dispute", "advice"]);
@@ -168,6 +169,20 @@ describe("CommentsInsights schema contract", () => {
     const found: string[] = [];
     collectMaxLengths(CommentsInsightsJsonSchema as JsonSchemaNode, "root", found);
     expect(found).toEqual([]);
+  });
+
+  test("accepts 6–15 insights (dynamic ceiling; provider schema has no maxItems)", () => {
+    const manyInsights = Array.from({ length: 12 }, (_, index) => ({
+      kind: "advice" as const,
+      text: `Практический тезис номер ${index + 1}: измерьте эффект перед полным переключением трафика.`,
+    }));
+    const value = {
+      bottom_line: validAdviceOnly.bottom_line,
+      insights: manyInsights,
+      best_quote: null,
+    };
+    expect(CommentsInsightsSchema.safeParse(value).success).toBeTrue();
+    expect(matchesJsonSchema(value, CommentsInsightsJsonSchema as JsonSchemaNode)).toBeTrue();
   });
 
   test("accepts a verbatim quote longer than the former 300-char cap", () => {

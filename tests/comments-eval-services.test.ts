@@ -139,7 +139,7 @@ describe("comments evaluation production adapter", () => {
       requestedModel: "requested-model",
       resolvedModel: "resolved-structured-model",
       provider: "openrouter",
-      policyVersion: "3",
+      policyVersion: "4",
       promptVersion: "comments-structured-v2",
     });
     expect(v1.validationPassed).toBeTrue();

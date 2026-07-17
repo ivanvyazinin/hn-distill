@@ -179,7 +179,14 @@ export class OpenRouter {
 
   async chat(
     messages: ChatMessage[],
-    options?: { temperature?: number; maxTokens?: number; model?: string; label?: string }
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      model?: string;
+      label?: string;
+      requestTimeoutMs?: number;
+      transportRetries?: number;
+    }
   ): Promise<string> {
     type ORResp = UsageResponseFields & {
       choices?: Array<{ message?: { role: string; content?: string } }>;
@@ -210,6 +217,8 @@ export class OpenRouter {
           ...(options?.maxTokens === undefined ? {} : { max_tokens: options.maxTokens }),
         }),
         retryOnStatuses: [429],
+        ...(options?.transportRetries === undefined ? {} : { retries: options.transportRetries }),
+        ...(options?.requestTimeoutMs === undefined ? {} : { timeoutMs: options.requestTimeoutMs }),
       });
       usageFields = usageFieldsFromResponse(json);
       // Trim before the emptiness check: a whitespace-only body ("   ") is effectively empty and

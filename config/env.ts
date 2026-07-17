@@ -60,7 +60,13 @@ const EnvironmentSchema = z.object({
   COMMENTS_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(1000).default(200),
   COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
   COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
-  COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1200),
+  // Room for up to 15 RU insights (dynamic ceiling); ~3k tokens worst case.
+  COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(2500),
+  // Second-pass compression of structured comments. Empty string disables.
+  // Changing the model does NOT invalidate existing compressed results — bump
+  // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
+  COMMENTS_COMPRESS_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
   // Default 3 covers the Groq TPD dead-end path (llama-3.3 → scout → OpenRouter
   // hop): a 429 fails fast and jumps straight to the next step, so the paid
   // OpenRouter fallback (COMMENTS_OPENROUTER_FALLBACK_MODEL) is reached within
@@ -274,7 +280,10 @@ const EnvironmentSchema = z.object({
 export const EXTRACT_POLICY_VERSION = "1";
 
 /** Bump to invalidate persisted comments summaries after a policy change. */
-export const COMMENTS_POLICY_VERSION = "3";
+export const COMMENTS_POLICY_VERSION = "4";
+
+/** Bump to invalidate compressed paragraphs after a compress-policy/model change. */
+export const COMMENTS_COMPRESS_POLICY_VERSION = "1";
 
 export type Env = z.infer<typeof EnvironmentSchema>;
 

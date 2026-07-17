@@ -10,7 +10,7 @@
 export type LlmUsageEvent = {
   createdAt: string; // ISO, stamped in record()
   storyId?: number; // from scope, stamped in record()
-  label: string; // "post" | "comments" | "tags" | "guard"
+  label: string; // "post" | "comments" | "comments-compress" | "tags" | "guard"
   gateway: string; // "openrouter" | "groq"
   modelRequested: string;
   modelUsed?: string; // response.model (fallback-aware)

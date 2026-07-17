@@ -25,6 +25,7 @@ export type BuildCommentsPromptV2Input = {
 
 export type CommentsPromptV2Result = CommentsThreadResult & {
   prompt: string;
+  maxInsights: number;
 };
 
 type ThreadNode = {
@@ -41,7 +42,45 @@ const TOP_REPLY_MAX_CHARS = 500;
 const OTHER_ROOT_MAX_CHARS = 400;
 const OTHER_REPLY_MAX_CHARS = 250;
 const POST_SUMMARY_CONTEXT_MAX_CHARS = 400;
-const COMMENTS_JSON_CONTRACT = JSON.stringify(CommentsInsightsJsonSchema);
+const SUBSTANTIVE_COMMENT_MIN_CHARS = 80;
+/** Hard ceiling for insights after dynamic tiering (S≥30 → 15). Shared with pipeline slice. */
+export const COMMENTS_INSIGHTS_HARD_CEILING = 15;
+
+/** True when a comment has enough non-whitespace content to count toward the insights ceiling. */
+export function isSubstantiveComment(comment: Pick<NormalizedComment, "textPlain">): boolean {
+  return comment.textPlain.replaceAll(/\s+/gu, " ").trim().length >= SUBSTANTIVE_COMMENT_MIN_CHARS;
+}
+
+export function countSubstantiveComments(comments: readonly Pick<NormalizedComment, "textPlain">[]): number {
+  return comments.reduce((count, comment) => count + (isSubstantiveComment(comment) ? 1 : 0), 0);
+}
+
+/**
+ * Dynamic insights ceiling from substantive-comment count (S):
+ * 3–9 → 5, 10–19 → 8, 20–29 → 12, ≥30 → 15.
+ * S < 3 is handled by the too-few-comments gate before prompt build.
+ */
+export function commentsInsightsCeiling(substantiveCount: number): number {
+  if (substantiveCount >= 30) return COMMENTS_INSIGHTS_HARD_CEILING;
+  if (substantiveCount >= 20) return 12;
+  if (substantiveCount >= 10) return 8;
+  return 5;
+}
+
+/** Inject maxItems into the provider-facing contract text (provider schema itself has no maxItems). */
+export function commentsJsonContract(maxInsights: number): string {
+  const schema = {
+    ...CommentsInsightsJsonSchema,
+    properties: {
+      ...CommentsInsightsJsonSchema.properties,
+      insights: {
+        ...CommentsInsightsJsonSchema.properties.insights,
+        maxItems: maxInsights,
+      },
+    },
+  };
+  return JSON.stringify(schema);
+}
 
 function singleLine(value: string): string {
   return value.replaceAll(/\s+/gu, " ").trim();
@@ -222,7 +261,7 @@ export function buildCommentsThread(
   return { text: blocks.join("\n\n"), sampleIds, droppedIds };
 }
 
-export function buildCommentsSystemInstructionV2(language: CommentsLanguage): string {
+export function buildCommentsSystemInstructionV2(language: CommentsLanguage, maxInsights: number): string {
   if (language === "en") {
     return [
       "Analyze Hacker News discussions accurately and concisely.",
@@ -231,7 +270,7 @@ export function buildCommentsSystemInstructionV2(language: CommentsLanguage): st
       "Preserve usernames and technical terms, and never invent claims, consensus, disputes, advice, or quotes.",
       'Use kind="dispute" only for genuine disagreements with substantive arguments from both sides, and put both sides inside text.',
       "Attribute experience when present (e.g. 'per @user in production…'); prefer voices with direct operational experience.",
-      "Rank densest insights first. Five is a ceiling, not a quota. One fact = one insight; two dense items beat five vague ones.",
+      `Rank densest insights first. ${maxInsights} is a ceiling, not a quota. One fact = one insight; two dense items beat five vague ones.`,
     ].join("\n");
   }
   return [
@@ -240,17 +279,21 @@ export function buildCommentsSystemInstructionV2(language: CommentsLanguage): st
     "Сохраняй ники и технические термины; не выдумывай тезисы, консенсус, споры, советы и цитаты.",
     'kind="dispute" только при настоящем споре с содержательными аргументами обеих сторон — обе стороны внутри text.',
     "Атрибутируй опыт, когда он есть (например: «по опыту @ник в проде…»); предпочитай голоса с прямым опытом.",
-    "Ранжируй: самое ценное первым. 5 — потолок, не план. Один факт = один insight; 2 плотных лучше 5 общих.",
+    `Ранжируй: самое ценное первым. ${maxInsights} — потолок, не план. Один факт = один insight; 2 плотных лучше 5 общих.`,
   ].join("\n");
 }
 
-function promptParts(input: BuildCommentsPromptV2Input): { prefix: string; suffix: string } {
+function promptParts(
+  input: BuildCommentsPromptV2Input,
+  maxInsights: number
+): { prefix: string; suffix: string } {
   const title = singleLine(input.story.title);
   const postSummary =
     input.postSummary?.degraded === "no-article"
       ? ""
       : singleLine(input.postSummary?.summary ?? "").slice(0, POST_SUMMARY_CONTEXT_MAX_CHARS);
   const hasGist = postSummary.length > 0;
+  const contract = commentsJsonContract(maxInsights);
   const contextLines =
     input.language === "ru"
       ? [`Тема поста: ${title}`, ...(hasGist ? [`Суть статьи: ${postSummary}`] : []), "Обсуждение:"]
@@ -271,14 +314,14 @@ function promptParts(input: BuildCommentsPromptV2Input): { prefix: string; suffi
     input.language === "ru"
       ? [
           "Верни только один JSON-объект по этой точной JSON Schema:",
-          COMMENTS_JSON_CONTRACT,
+          contract,
           quoteRule,
           deltaRule,
           "Не добавляй сведения, которых нет во включённых комментариях.",
         ]
       : [
           "Return exactly one JSON object matching this JSON Schema:",
-          COMMENTS_JSON_CONTRACT,
+          contract,
           quoteRule,
           deltaRule,
           "Do not add information absent from the included comments.",
@@ -288,14 +331,21 @@ function promptParts(input: BuildCommentsPromptV2Input): { prefix: string; suffi
 
 export function buildCommentsPromptV2(input: BuildCommentsPromptV2Input): CommentsPromptV2Result {
   assertMaxChars(input.maxChars);
-  const { prefix, suffix } = promptParts(input);
+  const maxInsights = commentsInsightsCeiling(countSubstantiveComments(input.comments));
+  const { prefix, suffix } = promptParts(input, maxInsights);
   const fixedChars = prefix.length + suffix.length;
   if (fixedChars > input.maxChars) {
     throw new RangeError(`maxChars is too small for the comments prompt contract: ${fixedChars}`);
   }
   const thread = buildCommentsThread(input.story, input.comments, { maxChars: input.maxChars - fixedChars });
   const prompt = `${prefix}${thread.text}${suffix}`;
-  return { prompt, text: thread.text, sampleIds: thread.sampleIds, droppedIds: thread.droppedIds };
+  return {
+    prompt,
+    text: thread.text,
+    sampleIds: thread.sampleIds,
+    droppedIds: thread.droppedIds,
+    maxInsights,
+  };
 }
 
 export async function commentsInputHash(

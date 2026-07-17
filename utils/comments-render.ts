@@ -142,6 +142,11 @@ function safeInline(value: string): string {
   return escapeMarkdownLiteral(normalizeInline(value));
 }
 
+/** Escape a compressed paragraph for card rendering (shared by aggregate + meta). */
+export function renderCompressedParagraphMarkdown(text: string): string {
+  return safeInline(text);
+}
+
 function safeAuthor(value: string): string {
   return safeInline(value.replace(/^@+/u, ""));
 }

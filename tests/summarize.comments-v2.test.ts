@@ -92,14 +92,36 @@ function longComment(id: number, parent: number, text: string): NormalizedCommen
   });
 }
 
+type ChatCall = {
+  messages: ChatMessage[];
+  options: {
+    label?: string;
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+    requestTimeoutMs?: number;
+    transportRetries?: number;
+  };
+};
+
 function structuredServices(
-  handlers: Array<(call: StructuredCall) => Promise<CommentsInsights>>
-): { calls: StructuredCall[]; services: Services } {
+  handlers: Array<(call: StructuredCall) => Promise<CommentsInsights>>,
+  chatHandlers: Array<(call: ChatCall) => Promise<string>> = []
+): { calls: StructuredCall[]; chatCalls: ChatCall[]; services: Services } {
   const calls: StructuredCall[] = [];
+  const chatCalls: ChatCall[] = [];
   let index = 0;
+  let chatIndex = 0;
   const openrouter = ({
-    chat: async () => {
-      throw new Error("legacy chat must not be called by comments-v2");
+    chat: async (messages: ChatMessage[], options: ChatCall["options"] = {}) => {
+      const call = { messages, options };
+      chatCalls.push(call);
+      const handler = chatHandlers[chatIndex];
+      chatIndex += 1;
+      if (handler === undefined) {
+        throw new Error(`unexpected chat call ${chatIndex}`);
+      }
+      return await handler(call);
     },
     chatStructured: async <T>(
       messages: ChatMessage[],
@@ -119,6 +141,7 @@ function structuredServices(
   } as unknown) as Services["openrouter"];
   return {
     calls,
+    chatCalls,
     services: {
       http: {} as Services["http"],
       openrouter,
@@ -128,6 +151,12 @@ function structuredServices(
     },
   };
 }
+
+const COMPRESS_OFF = { COMMENTS_COMPRESS_MODEL: "" } as const;
+
+// ≥25 words so checkSummaryHeuristics (MIN_WORDS) accepts the compress output.
+const VALID_COMPRESSED_RU =
+  "Тред добавляет практический опыт эксплуатации: перед миграцией измерьте задержки и проверьте восстановление после сбоев, зеркалируйте запросы, сравнивайте ответы между системами и включайте запись только после устранения всех найденных расхождений и согласования критериев отката.";
 
 function threeComments(storyId: number): NormalizedComment[] {
   return [
@@ -145,7 +174,7 @@ describe("comments-v2 request budget and validation", () => {
       async () => VALID_INSIGHTS,
     ]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -195,7 +224,7 @@ describe("comments-v2 request budget and validation", () => {
       usage: createUsageCollector(),
     };
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -243,7 +272,7 @@ describe("comments-v2 request budget and validation", () => {
       usage: createUsageCollector(),
     };
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -267,7 +296,7 @@ describe("comments-v2 request budget and validation", () => {
       async () => VALID_INSIGHTS,
     ]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru" }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -289,7 +318,7 @@ describe("comments-v2 request budget and validation", () => {
       async () => VALID_INSIGHTS,
     ]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru" }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -310,7 +339,7 @@ describe("comments-v2 request budget and validation", () => {
       async () => INVALID_LANGUAGE_INSIGHTS,
     ]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_MAX_LLM_CALLS: 3 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -371,7 +400,7 @@ describe("comments-v2 request budget and validation", () => {
     };
     const { calls, services } = structuredServices([async () => insightsWithOutOfSampleQuote]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments,
@@ -420,7 +449,7 @@ describe("comments-v2 request budget and validation", () => {
     ]);
 
     await withEnvPatch(
-      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3 },
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "" },
       async () => {
         const result = await generateValidatedCommentsSummaryV2(services, {
           story,
@@ -448,7 +477,7 @@ describe("comments-v2 persistence", () => {
     const { services } = structuredServices([]);
     const path = "data/summaries/20.comments.json";
 
-    await withEnvPatch({ SUMMARY_LANG: "ru" }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const first = await processCommentsSummary(services, story, comments, undefined, path, store, meta);
       expect(first.status).toBe("applied");
       const persisted = await store.getJson<CommentsSummary>(path);
@@ -468,21 +497,23 @@ describe("comments-v2 persistence", () => {
     const story = makeStory({ id: 21, title: "No discussion" });
     const store = new MemoryStore();
     const { services } = structuredServices([]);
-    const result = await processCommentsSummary(
-      services,
-      story,
-      [makeComment({ id: 211, parent: story.id, textPlain: "short" })],
-      undefined,
-      "data/summaries/21.comments.json",
-      store
-    );
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      const result = await processCommentsSummary(
+        services,
+        story,
+        [makeComment({ id: 211, parent: story.id, textPlain: "short" })],
+        undefined,
+        "data/summaries/21.comments.json",
+        store
+      );
 
-    expect(result.status).toBe("applied");
-    if (result.status === "applied") {
-      expect(result.summary.summary).toBe("");
-      expect(result.summary.formatVersion).toBe(2);
-      expect(result.summary.degraded).toBe("too-few-comments");
-    }
+      expect(result.status).toBe("applied");
+      if (result.status === "applied") {
+        expect(result.summary.summary).toBe("");
+        expect(result.summary.formatVersion).toBe(2);
+        expect(result.summary.degraded).toBe("too-few-comments");
+      }
+    });
   });
 
   test("all-fail generation persists a retryable fallback and remains pending", async () => {
@@ -505,14 +536,16 @@ describe("comments-v2 persistence", () => {
       },
     ]);
 
-    const result = await processCommentsSummary(services, story, comments, undefined, path, store);
-    expect(result.status).toBe("pending");
-    const fallback = await store.getJson<CommentsSummary>(path);
-    expect(fallback?.degraded).toBe("generation-failed");
-    expect(fallback?.formatVersion).toBe(2);
-    expect(fallback?.summary.length).toBeGreaterThan(0);
-    expect(fallback?.summary).not.toBe(legacy.summary);
-    expect(await computeCommentsChanged(story, fallback, "ru", 60_000, Date.now(), store)).toBeTrue();
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("pending");
+      const fallback = await store.getJson<CommentsSummary>(path);
+      expect(fallback?.degraded).toBe("generation-failed");
+      expect(fallback?.formatVersion).toBe(2);
+      expect(fallback?.summary.length).toBeGreaterThan(0);
+      expect(fallback?.summary).not.toBe(legacy.summary);
+      expect(await computeCommentsChanged(story, fallback, "ru", 60_000, Date.now(), store)).toBeTrue();
+    });
   });
 
   test("storage read failure returns pending without starting generation", async () => {
@@ -523,20 +556,22 @@ describe("comments-v2 persistence", () => {
     };
     const { calls, services } = structuredServices([async () => VALID_INSIGHTS]);
 
-    const result = await processCommentsSummary(
-      services,
-      story,
-      threeComments(story.id),
-      undefined,
-      "data/summaries/24.comments.json",
-      store
-    );
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      const result = await processCommentsSummary(
+        services,
+        story,
+        threeComments(story.id),
+        undefined,
+        "data/summaries/24.comments.json",
+        store
+      );
 
-    expect(result.status).toBe("pending");
-    if (result.status === "pending") {
-      expect(result.reason).toBe("storage-read-failed");
-    }
-    expect(calls.length).toBe(0);
+      expect(result.status).toBe("pending");
+      if (result.status === "pending") {
+        expect(result.reason).toBe("storage-read-failed");
+      }
+      expect(calls.length).toBe(0);
+    });
   });
 
   test("good synthesis with unverifiable quote applies non-degraded v2 and nulls best_quote", async () => {
@@ -556,7 +591,7 @@ describe("comments-v2 persistence", () => {
     };
     const { services } = structuredServices([async () => insightsWithUnverifiableQuote]);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200 }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const result = await processCommentsSummary(services, story, comments, undefined, path, store);
       expect(result.status).toBe("applied");
       const persisted = await store.getJson<CommentsSummary>(path);
@@ -577,7 +612,7 @@ describe("comments-v2 persistence", () => {
     await store.putJson(pathFor.rawComments(story.id), comments);
     await store.putJson(pathFor.postSummary(story.id), postSummary);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru" }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: ""}, async () => {
       const applied = await processCommentsSummary(services, story, comments, postSummary, path, store);
       expect(applied.status).toBe("applied");
       if (applied.status !== "applied") {
@@ -598,5 +633,275 @@ describe("comments-v2 persistence", () => {
         await computeCommentsChanged(story, applied.summary, "ru", 0, Date.now(), store)
       ).toBeTrue();
     });
+  });
+});
+
+describe("comments compress integration", () => {
+  test("success writes compressed and meta uses the compressed paragraph", async () => {
+    const story = makeStory({ id: 30, title: "Compress success" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/30.comments.json";
+    const summaries: SummaryRow[] = [];
+    const meta = {
+      upsertSummary: async (row: SummaryRow) => {
+        summaries.push(row);
+      },
+    } as MetaStore;
+    const { calls, chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => VALID_COMPRESSED_RU]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store, meta);
+        expect(result.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+        expect(persisted?.compressed?.model).toBe("qwen/qwen3-next-80b-a3b-instruct");
+        expect(persisted?.compressed?.sourceHash).toMatch(/^[0-9a-f]{64}$/u);
+        expect(summaries[0]?.summary).toContain("Тред добавляет");
+        expect(summaries[0]?.summary).not.toContain("- **Спор:**");
+        expect(calls.length).toBe(1);
+        expect(chatCalls.length).toBe(1);
+        expect(chatCalls[0]?.options.label).toBe("comments-compress");
+      }
+    );
+  });
+
+  test("semantic reject writes text:\"\" marker and a second pass does not call LLM again", async () => {
+    const story = makeStory({ id: 31, title: "Compress reject" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/31.comments.json";
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => "This is entirely English and must be rejected by the cyrillic gate after compression."]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe("");
+        expect(persisted?.compressed?.sourceHash).toMatch(/^[0-9a-f]{64}$/u);
+        expect(chatCalls.length).toBe(1);
+
+        const second = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(chatCalls.length).toBe(1);
+      }
+    );
+  });
+
+  test("transport error leaves compressed absent, returns applied, lazy path retries", async () => {
+    const story = makeStory({ id: 32, title: "Compress transport" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/32.comments.json";
+    let chatAttempts = 0;
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          chatAttempts += 1;
+          throw new Error("upstream timeout");
+        },
+        async () => VALID_COMPRESSED_RU,
+      ]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        // Stage-1 is applied even when compress is still pending — processing_state
+        // must not flip commentsStatus to "missing" for a healthy structured blob.
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed).toBeUndefined();
+        expect(persisted?.structured).toEqual(VALID_INSIGHTS);
+        expect(chatAttempts).toBe(1);
+
+        const second = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        const after = await store.getJson<CommentsSummary>(path);
+        expect(after?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+        expect(chatCalls.length).toBe(2);
+      }
+    );
+  });
+
+  test("shared budget exhausted by stage-1 skips compress (no fourth call) but still applies", async () => {
+    const story = makeStory({ id: 33, title: "Budget exhaust" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/33.comments.json";
+    const { calls, chatCalls, services } = structuredServices(
+      [
+        async () => INVALID_LANGUAGE_INSIGHTS,
+        async () => INVALID_LANGUAGE_INSIGHTS,
+        async () => VALID_INSIGHTS,
+      ],
+      [async () => VALID_COMPRESSED_RU]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_MAX_LLM_CALLS: 3,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        expect(calls.length).toBe(3);
+        expect(chatCalls.length).toBe(0);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.structured).toEqual(VALID_INSIGHTS);
+        expect(persisted?.compressed).toBeUndefined();
+      }
+    );
+  });
+
+  test("permanent 4xx compress error writes reject marker and is not retried", async () => {
+    const story = makeStory({ id: 35, title: "Compress 404" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/35.comments.json";
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          throw new HttpError("https://openrouter.ai/api/v1/chat/completions", 404, "model not found");
+        },
+      ]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "typo/model-id",
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe("");
+        expect(chatCalls.length).toBe(1);
+
+        const second = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(chatCalls.length).toBe(1);
+      }
+    );
+  });
+
+  test("compress retry with drifted inputHash does not escalate into stage-1", async () => {
+    const story = makeStory({ id: 36, title: "No stage-1 on compress retry" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/36.comments.json";
+    // Seed a structured blob whose inputHash is intentionally stale relative to
+    // the current prompt — compress is still retryable, so the path must do a
+    // one-call compress only, not a full stage-1 regen.
+    await store.putJson(path, {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "stale-hash-not-matching-current-prompt",
+      createdISO: new Date().toISOString(),
+    } satisfies CommentsSummary);
+
+    const { calls, chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => VALID_COMPRESSED_RU]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        expect(calls.length).toBe(0);
+        expect(chatCalls.length).toBe(1);
+        const after = await store.getJson<CommentsSummary>(path);
+        expect(after?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+        // Stage-1 fields stay as seeded (inputHash not rewritten).
+        expect(after?.inputHash).toBe("stale-hash-not-matching-current-prompt");
+      }
+    );
+  });
+
+  test("computeCommentsChanged is true for retryable compress inside cooldown and false for reject marker", async () => {
+    const story = makeStory({ id: 34, title: "Cooldown compress" });
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), threeComments(story.id));
+
+    const base: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "hash",
+      createdISO: new Date().toISOString(),
+    };
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct" }, async () => {
+      // absent compressed → retryable even inside cooldown
+      expect(await computeCommentsChanged(story, base, "ru", 60_000, Date.now(), store)).toBeTrue();
+
+      const { compressSourceHash, renderCommentsInsightsPlainText } = await import("../utils/comments-compress");
+      const sourceHash = compressSourceHash("ru", renderCommentsInsightsPlainText(VALID_INSIGHTS));
+      const rejected: CommentsSummary = {
+        ...base,
+        compressed: { text: "", model: "m", createdISO: base.createdISO!, sourceHash },
+      };
+      expect(await computeCommentsChanged(story, rejected, "ru", 60_000, Date.now(), store)).toBeFalse();
+
+      const usable: CommentsSummary = {
+        ...base,
+        compressed: { text: VALID_COMPRESSED_RU, model: "m", createdISO: base.createdISO!, sourceHash },
+      };
+      expect(await computeCommentsChanged(story, usable, "ru", 60_000, Date.now(), store)).toBeFalse();
+    });
+
+    // Compress disabled: absent compressed must NOT bypass cooldown.
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      expect(await computeCommentsChanged(story, base, "ru", 60_000, Date.now(), store)).toBeFalse();
+    });
+
+    // EN deploy: compress gated off even if model is set.
+    await withEnvPatch(
+      { SUMMARY_LANG: "en", COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct" },
+      async () => {
+        expect(await computeCommentsChanged(story, base, "en", 60_000, Date.now(), store)).toBeFalse();
+      }
+    );
   });
 });
