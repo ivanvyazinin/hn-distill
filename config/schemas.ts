@@ -97,7 +97,9 @@ export const CommentsInsightsSchema = z
           })
           .strict()
       )
-      .max(5),
+      // Sanitary upper bound only — the pipeline slices to the dynamic ceiling
+      // (≤15). A loose Zod max keeps over-generation from failing the parse.
+      .max(30),
     best_quote: z
       .object({
         comment_id: z.number().int().positive(),
@@ -134,7 +136,9 @@ export const CommentsInsightsJsonSchema = {
         required: ["kind", "text"],
         additionalProperties: false,
       },
-      maxItems: 5,
+      // No maxItems: Groq strict rejects overflow (HTTP 400) instead of truncating.
+      // The dynamic ceiling is injected into the prompt contract text and enforced
+      // by a post-parse slice in validateCommentsInsightsCandidate.
       // No minItems: the "at least one insight" rule lives in the Zod refine only
       // so we do not expand the provider surface with keywords they reject at root.
     },
@@ -166,11 +170,33 @@ export const CommentsInsightsJsonSchema = {
   // enforced by CommentsInsightsSchema's Zod refine on every parse.
 } as const;
 
+/**
+ * Optional second-pass compression of the structured comments summary.
+ *
+ * State table (sourceHash = hash of policy+language+plainText from structured):
+ * - field absent → transport error / not tried yet → retry lazily
+ * - sourceHash matches, text === "" → terminal semantic reject of this source → no retry
+ * - sourceHash matches, text non-empty → usable result → render the paragraph
+ * - sourceHash mismatches → structured or compress-policy changed → retry
+ *
+ * Model swaps do not enter sourceHash; bump COMMENTS_COMPRESS_POLICY_VERSION instead.
+ */
+export const CommentsCompressedSchema = z
+  .object({
+    text: z.string(),
+    model: z.string(),
+    createdISO: z.string(),
+    sourceHash: z.string(),
+  })
+  .strict();
+
 export const CommentsSummarySchema = z.object({
   id: z.number(),
   lang: LangSchema,
   summary: z.string(),
   structured: CommentsInsightsSchema.optional(),
+  /** Second-pass compressed paragraph; see CommentsCompressedSchema state table. */
+  compressed: CommentsCompressedSchema.optional(),
   formatVersion: z.literal(2).optional(),
   degraded: z.enum(["too-few-comments", "generation-failed"]).optional(),
   sampleComments: z.array(z.number()).optional(),
@@ -274,6 +300,7 @@ export type NormalizedStory = z.infer<typeof NormalizedStorySchema>;
 export type NormalizedComment = z.infer<typeof NormalizedCommentSchema>;
 export type PostSummary = z.infer<typeof PostSummarySchema>;
 export type CommentsInsights = z.infer<typeof CommentsInsightsSchema>;
+export type CommentsCompressed = z.infer<typeof CommentsCompressedSchema>;
 export type CommentsSummary = z.infer<typeof CommentsSummarySchema>;
 export type TagsSummary = z.infer<typeof TagsSummarySchema>;
 export type AggregatedItem = z.infer<typeof AggregatedItemSchema>;

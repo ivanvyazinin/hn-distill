@@ -30,4 +30,31 @@ describe("CommentsSummary v2 backward compatibility", () => {
 
     expect(CommentsSummarySchema.parse(legacy)).toEqual(legacy);
   });
+
+  test("round-trips a v2 blob that includes compressed", () => {
+    const blob = {
+      id: 99,
+      lang: "ru" as const,
+      summary: "Структурная сводка.",
+      formatVersion: 2 as const,
+      structured: {
+        bottom_line: "Тред добавляет практический опыт эксплуатации и оговорки.",
+        insights: [
+          {
+            kind: "advice" as const,
+            text: "Сначала прогоните на маленьком наборе, потом масштабируйте.",
+          },
+        ],
+        best_quote: null,
+      },
+      compressed: {
+        text: "Тред добавляет опыт эксплуатации: сначала маленький набор, потом масштаб.",
+        model: "qwen/qwen3-next-80b-a3b-instruct",
+        createdISO: "2026-07-16T12:00:00.000Z",
+        sourceHash: "abc123",
+      },
+    };
+
+    expect(CommentsSummarySchema.parse(blob)).toEqual(blob);
+  });
 });

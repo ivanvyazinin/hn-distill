@@ -4,7 +4,11 @@ import {
   buildCommentsPromptV2,
   buildCommentsSystemInstructionV2,
   buildCommentsThread,
+  commentsInsightsCeiling,
   commentsInputHash,
+  commentsJsonContract,
+  countSubstantiveComments,
+  isSubstantiveComment,
 } from "../utils/comments-thread.ts";
 
 import type { NormalizedComment } from "../config/schemas.ts";
@@ -164,17 +168,57 @@ describe("comments prompt v2", () => {
   });
 
   test("provides distinct RU and EN system instructions with dispute/ranking rules", () => {
-    const ru = buildCommentsSystemInstructionV2("ru");
-    const en = buildCommentsSystemInstructionV2("en");
+    const ru = buildCommentsSystemInstructionV2("ru", 5);
+    const en = buildCommentsSystemInstructionV2("en", 5);
     expect(ru).toContain("русском");
     expect(en).toContain("Analyze Hacker News");
     expect(en).toContain("generated semantic field in English");
     expect(en).toContain("translation to null");
     expect(en).toContain('kind="dispute"');
     expect(ru).toContain('kind="dispute"');
-    expect(en).toContain("Five is a ceiling");
+    expect(en).toContain("5 is a ceiling");
     expect(ru).toContain("5 — потолок");
     expect(ru).not.toBe(en);
+  });
+
+  test("system instructions inject the dynamic insights ceiling", () => {
+    expect(buildCommentsSystemInstructionV2("en", 12)).toContain("12 is a ceiling");
+    expect(buildCommentsSystemInstructionV2("ru", 15)).toContain("15 — потолок");
+  });
+
+  test("counts substantive comments and maps them to the insights ceiling tiers", () => {
+    const short = comment(1, STORY.id, "too short");
+    const long = comment(2, STORY.id, "x".repeat(80));
+    expect(isSubstantiveComment(short)).toBeFalse();
+    expect(isSubstantiveComment(long)).toBeTrue();
+    expect(countSubstantiveComments([short, long, comment(3, STORY.id, "y".repeat(100))])).toBe(2);
+    expect(commentsInsightsCeiling(3)).toBe(5);
+    expect(commentsInsightsCeiling(9)).toBe(5);
+    expect(commentsInsightsCeiling(10)).toBe(8);
+    expect(commentsInsightsCeiling(19)).toBe(8);
+    expect(commentsInsightsCeiling(20)).toBe(12);
+    expect(commentsInsightsCeiling(29)).toBe(12);
+    expect(commentsInsightsCeiling(30)).toBe(15);
+    expect(commentsInsightsCeiling(40)).toBe(15);
+  });
+
+  test("embeds the dynamic maxItems in the prompt JSON contract and returns maxInsights", () => {
+    const comments = Array.from({ length: 12 }, (_, index) =>
+      comment(
+        index + 1,
+        STORY.id,
+        `Substantive comment number ${index + 1} with enough text to count toward the dynamic insights ceiling for this story.`
+      )
+    );
+    const result = buildCommentsPromptV2({
+      story: STORY,
+      comments,
+      language: "en",
+      maxChars: 20_000,
+    });
+    expect(result.maxInsights).toBe(8);
+    expect(result.prompt).toContain('"maxItems":8');
+    expect(commentsJsonContract(12)).toContain('"maxItems":12');
   });
 
   test("folds story title and post summary changes into the prompt hash", async () => {

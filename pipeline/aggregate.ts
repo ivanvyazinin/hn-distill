@@ -20,7 +20,12 @@ import {
 import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
-import { renderCommentsSummaryParts } from "@utils/comments-render";
+import {
+  compressSourceHash,
+  renderCommentsInsightsPlainText,
+  resolveCompressedState,
+} from "@utils/comments-compress";
+import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@utils/comments-render";
 import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
@@ -145,6 +150,7 @@ export function buildAggregatedItem(
   const cleanedPostSummary = sanitizePostSummary(rawPostSummary, postGuard, { id: story.id });
 
   let commentsInsights: AggregatedItem["commentsInsights"];
+  let compressedCommentsSummary: string | undefined;
   if (
     commentsSummaryRecord?.formatVersion === 2 &&
     commentsSummaryRecord.degraded === undefined &&
@@ -154,10 +160,16 @@ export function buildAggregatedItem(
     const parsed = CommentsSummarySchema.safeParse(commentsSummaryRecord);
     if (parsed.success && parsed.data.structured !== undefined) {
       const language = parsed.data.lang === "en" ? "en" : "ru";
-      commentsInsights = renderCommentsSummaryParts(parsed.data.structured, {
-        language,
-        comments,
-      });
+      const plainText = renderCommentsInsightsPlainText(parsed.data.structured);
+      const expectedSourceHash = compressSourceHash(parsed.data.lang, plainText);
+      if (resolveCompressedState(parsed.data, expectedSourceHash) === "usable" && parsed.data.compressed) {
+        compressedCommentsSummary = renderCompressedParagraphMarkdown(parsed.data.compressed.text);
+      } else {
+        commentsInsights = renderCommentsSummaryParts(parsed.data.structured, {
+          language,
+          comments,
+        });
+      }
     }
   }
 
@@ -168,7 +180,9 @@ export function buildAggregatedItem(
     by: story.by,
     timeISO: story.timeISO,
     postSummary: cleanedPostSummary,
-    commentsSummary: resolveCommentsSummary(persistedCommentsSummary, fb.commentsSummary),
+    commentsSummary:
+      compressedCommentsSummary ??
+      resolveCommentsSummary(persistedCommentsSummary, fb.commentsSummary),
     ...(commentsInsights === undefined ? {} : { commentsInsights }),
     score: story.score,
     commentsCount: story.descendants ?? comments.length,

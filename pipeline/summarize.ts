@@ -21,8 +21,17 @@ import {
   looksLikeCloudflareChallenge,
 } from "@utils/article-fetch";
 import {
+  buildCommentsCompressUserPrompt,
+  compressSourceHash,
+  renderCommentsInsightsPlainText,
+  resolveCompressedState,
+  sanitizeCompressedOutput,
+  validateCompressedText,
+} from "@utils/comments-compress";
+import {
   renderCommentsLead,
   renderCommentsSummaryMarkdown,
+  renderCompressedParagraphMarkdown,
   renderTooFewCommentsFallback,
   validateCommentsQuote,
 } from "@utils/comments-render";
@@ -31,6 +40,7 @@ import {
   buildCommentsPromptV2,
   buildCommentsSystemInstructionV2,
   commentsInputHash,
+  isSubstantiveComment,
 } from "@utils/comments-thread";
 import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
 import { assessExtractQuality } from "@utils/extract-quality";
@@ -1153,24 +1163,28 @@ export type GenerateCommentsSummaryV2Input = {
   story: Pick<NormalizedStory, "id" | "title">;
 };
 
-function commentsV2Messages(prompt: string, strict: boolean): ChatMessage[] {
+function commentsV2Messages(prompt: string, strict: boolean, maxInsights: number): ChatMessage[] {
   const strictInstruction =
     env.SUMMARY_LANG === "ru"
       ? "Строго соблюдай JSON-схему, не отказывайся от анализа и не добавляй вымышленных фактов."
       : "Follow the JSON schema exactly, do not refuse the analysis, and do not invent facts.";
-  const system = [buildCommentsSystemInstructionV2(env.SUMMARY_LANG), ...(strict ? [strictInstruction] : [])].join(
-    "\n"
-  );
+  const system = [
+    buildCommentsSystemInstructionV2(env.SUMMARY_LANG, maxInsights),
+    ...(strict ? [strictInstruction] : []),
+  ].join("\n");
   return [
     { role: "system", content: system },
     { role: "user", content: prompt },
   ];
 }
 
+const COMMENTS_INSIGHTS_SLICE_CEILING = 15;
+
 function validateCommentsInsightsCandidate(
   insights: CommentsInsights,
   comments: NormalizedComment[],
-  sampleIds: number[]
+  sampleIds: number[],
+  maxInsights: number
 ): { insights: CommentsInsights; summary: string } | undefined {
   // Quote decision first: best_quote is optional, so a provenance miss drops the
   // quote and keeps the summary. Heuristics re-run on the quote-less text because
@@ -1184,6 +1198,15 @@ function validateCommentsInsightsCandidate(
       });
       effective = { ...insights, best_quote: null };
     }
+  }
+
+  const sliceTo = Math.min(maxInsights, COMMENTS_INSIGHTS_SLICE_CEILING);
+  if (effective.insights.length > sliceTo) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 insights over ceiling; slicing", {
+      produced: effective.insights.length,
+      sliceTo,
+    });
+    effective = { ...effective, insights: effective.insights.slice(0, sliceTo) };
   }
 
   const heuristics = checkCommentsInsightsHeuristics(effective, {
@@ -1227,6 +1250,7 @@ export async function callStructuredWithModelChain(
   input: {
     budget: CommentsGenerationBudget;
     comments: NormalizedComment[];
+    maxInsights: number;
     prompt: string;
     sampleIds: number[];
   }
@@ -1304,7 +1328,7 @@ export async function callStructuredWithModelChain(
 
     try {
       const insights = await client.chatStructured(
-        commentsV2Messages(input.prompt, strict),
+        commentsV2Messages(input.prompt, strict, input.maxInsights),
         {
           temperature: 0.2,
           maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
@@ -1330,7 +1354,12 @@ export async function callStructuredWithModelChain(
         CommentsInsightsSchema,
         1
       );
-      const validated = validateCommentsInsightsCandidate(insights, input.comments, input.sampleIds);
+      const validated = validateCommentsInsightsCandidate(
+        insights,
+        input.comments,
+        input.sampleIds,
+        input.maxInsights
+      );
       if (validated !== undefined) {
         return { insights: validated.insights, modelUsed: model, summary: validated.summary };
       }
@@ -1386,6 +1415,7 @@ export async function generateValidatedCommentsSummaryV2(
   const result = await callStructuredWithModelChain(services, {
     budget,
     comments: input.comments,
+    maxInsights: prepared.maxInsights,
     prompt: prepared.prompt,
     sampleIds: prepared.sampleIds,
   });
@@ -1680,18 +1710,141 @@ export type CommentsProcessingResult =
       reason: string;
     };
 
+function expectedCompressSourceHash(summary: CommentsSummary): string | undefined {
+  if (summary.structured === undefined) {
+    return undefined;
+  }
+  return compressSourceHash(summary.lang, renderCommentsInsightsPlainText(summary.structured));
+}
+
+function metaSummaryText(summary: CommentsSummary, expectedSourceHash: string | undefined): string {
+  if (
+    expectedSourceHash !== undefined &&
+    resolveCompressedState(summary, expectedSourceHash) === "usable" &&
+    summary.compressed !== undefined
+  ) {
+    return renderCompressedParagraphMarkdown(summary.compressed.text);
+  }
+  return summary.summary;
+}
+
 async function upsertCommentsSummaryMeta(meta: MetaStore | undefined, summary: CommentsSummary): Promise<void> {
   if (meta === undefined) {
     return;
   }
+  const expectedSourceHash = expectedCompressSourceHash(summary);
   await meta.upsertSummary({
     storyId: summary.id,
     kind: "comments",
     lang: summary.lang,
     ...(summary.model === undefined ? {} : { model: summary.model }),
-    summary: summary.summary,
+    summary: metaSummaryText(summary, expectedSourceHash),
     createdAt: summary.createdISO ?? new Date().toISOString(),
   });
+}
+
+export type CompressCommentsResult =
+  | { status: "usable" | "rejected" | "skipped"; summary: CommentsSummary }
+  | { status: "pending"; summary: CommentsSummary; reason: "compress-pending" };
+
+/**
+ * Second-pass compression of a structured comments summary.
+ * Shared budget with stage-1 on the fresh path; lazy path creates a one-call budget.
+ * Transport failures leave `compressed` absent (retryable); semantic rejects write text:"".
+ */
+export async function compressCommentsSummaryIfNeeded(
+  services: Services,
+  summary: CommentsSummary,
+  budget: CommentsGenerationBudget
+): Promise<CompressCommentsResult> {
+  if (
+    env.SUMMARY_LANG !== "ru" ||
+    env.COMMENTS_COMPRESS_MODEL.trim() === "" ||
+    summary.formatVersion !== 2 ||
+    summary.structured === undefined ||
+    summary.degraded !== undefined
+  ) {
+    return { status: "skipped", summary };
+  }
+
+  const plainText = renderCommentsInsightsPlainText(summary.structured);
+  const sourceHash = compressSourceHash(summary.lang, plainText);
+  const state = resolveCompressedState(summary, sourceHash);
+  if (state === "usable" || state === "rejected") {
+    return { status: state, summary };
+  }
+
+  const requestTimeoutMs = budget.claimRequestTimeoutMs();
+  if (requestTimeoutMs === undefined) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress skipped: budget/deadline exhausted", {
+      id: summary.id,
+      callsUsed: budget.callsUsed,
+      maxCalls: budget.maxCalls,
+    });
+    return { status: "pending", summary, reason: "compress-pending" };
+  }
+
+  try {
+    const raw = await services.openrouter.chat(
+      [{ role: "user", content: buildCommentsCompressUserPrompt(plainText) }],
+      {
+        temperature: 0.2,
+        maxTokens: env.COMMENTS_COMPRESS_MAX_TOKENS,
+        model: env.COMMENTS_COMPRESS_MODEL,
+        label: "comments-compress",
+        transportRetries: 0,
+        requestTimeoutMs,
+      }
+    );
+    const sanitized = sanitizeCompressedOutput(raw);
+    const validated = validateCompressedText(sanitized, plainText, {
+      language: "ru",
+      minChars: env.COMMENTS_SUMMARY_MIN_CHARS,
+      minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
+    });
+    if (!validated.ok) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject", {
+        id: summary.id,
+        reason: validated.reason,
+      });
+      return {
+        status: "rejected",
+        summary: {
+          ...summary,
+          compressed: {
+            text: "",
+            model: env.COMMENTS_COMPRESS_MODEL,
+            createdISO: new Date().toISOString(),
+            sourceHash,
+          },
+        },
+      };
+    }
+    return {
+      status: "usable",
+      summary: {
+        ...summary,
+        compressed: {
+          text: validated.text,
+          model: env.COMMENTS_COMPRESS_MODEL,
+          createdISO: new Date().toISOString(),
+          sourceHash,
+        },
+      },
+    };
+  } catch (error) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress transport error; leaving field absent", {
+      id: summary.id,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    // Ensure a previously-stale compressed blob does not stick around after a failed retry.
+    const { compressed: _drop, ...withoutCompressed } = summary;
+    return {
+      status: "pending",
+      summary: withoutCompressed,
+      reason: "compress-pending",
+    };
+  }
 }
 
 export async function processCommentsSummary(
@@ -1731,8 +1884,61 @@ export async function processCommentsSummary(
     existingCommentsSummary.formatVersion === 2 &&
     !retryableFallback
   ) {
+    // Lazy compress path: one-call budget only when state is retryable.
+    let summaryForMeta = existingCommentsSummary;
+    if (
+      existingCommentsSummary.structured !== undefined &&
+      existingCommentsSummary.degraded === undefined
+    ) {
+      const plainText = renderCommentsInsightsPlainText(existingCommentsSummary.structured);
+      const sourceHash = compressSourceHash(existingCommentsSummary.lang, plainText);
+      if (resolveCompressedState(existingCommentsSummary, sourceHash) === "retryable") {
+        const lazyBudget = new CommentsGenerationBudget({
+          maxCalls: 1,
+          ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+        });
+        const compressed = await compressCommentsSummaryIfNeeded(
+          services,
+          existingCommentsSummary,
+          lazyBudget
+        );
+        summaryForMeta = compressed.summary;
+        if (compressed.status !== "skipped") {
+          try {
+            await store.putJson(commentsPath, summaryForMeta, {
+              pretty: true,
+              contentType: "application/json",
+            });
+          } catch (error) {
+            log.error(LOG_NAMESPACE_COMMENTS, "Comments compress lazy persistence failed", {
+              id: story.id,
+              error: String(error),
+            });
+            return {
+              status: "pending",
+              desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+              inputHash,
+              reason: "persistence-failed",
+            };
+          }
+        }
+        if (compressed.status === "pending") {
+          try {
+            await upsertCommentsSummaryMeta(meta, summaryForMeta);
+          } catch {
+            // Meta repair is best-effort when compress is still pending.
+          }
+          return {
+            status: "pending",
+            desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+            inputHash,
+            reason: "compress-pending",
+          };
+        }
+      }
+    }
     try {
-      await upsertCommentsSummaryMeta(meta, existingCommentsSummary);
+      await upsertCommentsSummaryMeta(meta, summaryForMeta);
       log.debug(LOG_NAMESPACE_COMMENTS, "Comments-v2 summary up-to-date; repaired meta if needed", {
         id: story.id,
       });
@@ -1740,7 +1946,7 @@ export async function processCommentsSummary(
         status: "applied",
         policyVersion: COMMENTS_POLICY_VERSION,
         inputHash,
-        summary: existingCommentsSummary,
+        summary: summaryForMeta,
       };
     } catch (error) {
       log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 meta repair failed", { id: story.id, error: String(error) });
@@ -1753,8 +1959,13 @@ export async function processCommentsSummary(
     }
   }
 
-  const substantiveComments = comments.filter((comment) => comment.textPlain.replaceAll(/\s+/gu, " ").trim().length >= 80);
+  // Fresh path: one shared budget for stage-1 + compress.
+  const sharedBudget = new CommentsGenerationBudget({
+    ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+  });
+  const substantiveComments = comments.filter((comment) => isSubstantiveComment(comment));
   let commentsSummary: CommentsSummary;
+  let compressPending = false;
   if (substantiveComments.length < 3) {
     const now = new Date().toISOString();
     commentsSummary = {
@@ -1773,6 +1984,7 @@ export async function processCommentsSummary(
       comments,
       ...(postSummary === undefined ? {} : { postSummary }),
       prepared,
+      budget: sharedBudget,
       ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
     });
     if (validated === undefined) {
@@ -1821,6 +2033,9 @@ export async function processCommentsSummary(
       sampleComments: validated.sampleIds,
       createdISO: new Date().toISOString(),
     };
+    const compressed = await compressCommentsSummaryIfNeeded(services, commentsSummary, sharedBudget);
+    commentsSummary = compressed.summary;
+    compressPending = compressed.status === "pending";
   }
 
   try {
@@ -1831,7 +2046,16 @@ export async function processCommentsSummary(
       chars: commentsSummary.summary.length,
       model: commentsSummary.model,
       degraded: commentsSummary.degraded,
+      compressed: commentsSummary.compressed === undefined ? "absent" : commentsSummary.compressed.text === "" ? "rejected" : "usable",
     });
+    if (compressPending) {
+      return {
+        status: "pending",
+        desiredPolicyVersion: COMMENTS_POLICY_VERSION,
+        inputHash,
+        reason: "compress-pending",
+      };
+    }
     return {
       status: "applied",
       policyVersion: COMMENTS_POLICY_VERSION,
@@ -2303,6 +2527,20 @@ export async function computeCommentsChanged(
   // cooldown: it exists only to keep the card visible until generation works.
   if (existingComments.degraded === "generation-failed") {
     return true;
+  }
+  // Compress retry must run even inside cooldown: a fresh stage-1 blob that
+  // lost its compress call (budget/transport) would otherwise sit silent until
+  // the cooldown expires. Rejected/usable compress states fall through.
+  if (
+    existingComments.formatVersion === 2 &&
+    existingComments.structured !== undefined &&
+    existingComments.degraded === undefined
+  ) {
+    const plainText = renderCommentsInsightsPlainText(existingComments.structured);
+    const sourceHash = compressSourceHash(existingComments.lang, plainText);
+    if (resolveCompressedState(existingComments, sourceHash) === "retryable") {
+      return true;
+    }
   }
   if (isInsideCooldown(existingComments.createdISO, now, cooldownMs)) {
     return false;

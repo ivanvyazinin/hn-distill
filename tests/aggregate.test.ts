@@ -137,6 +137,90 @@ describe("Aggregation & grouping", () => {
     });
   });
 
+  test("buildAggregatedItem prefers usable compressed paragraph and falls back otherwise", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const { buildAggregatedItem } = await import("@scripts/aggregate.mts");
+      const { makeRuCommentsInsights } = await import("./helpers/comments-insights.ts");
+      const {
+        compressSourceHash,
+        renderCommentsInsightsPlainText,
+      } = await import("../utils/comments-compress.ts");
+
+      const s: NormalizedStory = makeStory({ id: 77, url: null, score: 50, commentIds: [1] });
+      const comments: NormalizedComment[] = [
+        makeComment({
+          id: 1,
+          parent: s.id,
+          textPlain: "Достаточно длинный комментарий для provenance, если понадобится фолд.",
+        }),
+      ];
+      const structured = makeRuCommentsInsights();
+      const sourceHash = compressSourceHash("ru", renderCommentsInsightsPlainText(structured));
+      const compressedText =
+        "Тред добавляет практический опыт: измерьте задержки перед миграцией и оставьте путь отката.";
+
+      const usable = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 77,
+          lang: "ru",
+          summary: "rendered structured markdown",
+          structured,
+          formatVersion: 2,
+          compressed: {
+            text: compressedText,
+            model: "qwen/qwen3-next-80b-a3b-instruct",
+            createdISO: "2026-07-16T12:00:00.000Z",
+            sourceHash,
+          },
+        },
+        void 0
+      );
+      expect(usable.commentsInsights).toBeUndefined();
+      expect(usable.commentsSummary).toContain("Тред добавляет");
+      expect(usable.commentsSummary).not.toContain("- ");
+
+      const rejected = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 77,
+          lang: "ru",
+          summary: "rendered structured markdown",
+          structured,
+          formatVersion: 2,
+          compressed: {
+            text: "",
+            model: "qwen/qwen3-next-80b-a3b-instruct",
+            createdISO: "2026-07-16T12:00:00.000Z",
+            sourceHash,
+          },
+        },
+        void 0
+      );
+      expect(rejected.commentsInsights !== undefined).toBeTrue();
+
+      const absent = buildAggregatedItem(
+        s,
+        comments,
+        void 0,
+        {
+          id: 77,
+          lang: "ru",
+          summary: "rendered structured markdown",
+          structured,
+          formatVersion: 2,
+        },
+        void 0
+      );
+      expect(absent.commentsInsights !== undefined).toBeTrue();
+    });
+  });
+
   test("Domain extraction strips www and handles bad URLs gracefully", async () => {
     await withTempDir(async (base) => {
       mockPaths(base);
