@@ -43,7 +43,8 @@ const OTHER_ROOT_MAX_CHARS = 400;
 const OTHER_REPLY_MAX_CHARS = 250;
 const POST_SUMMARY_CONTEXT_MAX_CHARS = 400;
 const SUBSTANTIVE_COMMENT_MIN_CHARS = 80;
-const COMMENTS_INSIGHTS_HARD_CEILING = 15;
+/** Hard ceiling for insights after dynamic tiering (S≥30 → 15). Shared with pipeline slice. */
+export const COMMENTS_INSIGHTS_HARD_CEILING = 15;
 
 /** True when a comment has enough non-whitespace content to count toward the insights ceiling. */
 export function isSubstantiveComment(comment: Pick<NormalizedComment, "textPlain">): boolean {

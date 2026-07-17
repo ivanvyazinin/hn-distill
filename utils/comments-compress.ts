@@ -5,6 +5,11 @@ import { checkSummaryHeuristics, cyrillicRatio } from "@utils/summary-heuristics
 
 import type { CommentsInsights, CommentsSummary } from "@config/schemas";
 
+/** True when the second-pass compress route is active for this deploy. */
+export function isCommentsCompressEnabled(): boolean {
+  return env.SUMMARY_LANG === "ru" && env.COMMENTS_COMPRESS_MODEL.trim().length > 0;
+}
+
 /** Exact compress prompt — do not rephrase; the plan freezes this wording. */
 export const COMMENTS_COMPRESS_PROMPT =
   "Сожми текст: убери повторы, канцелярит и лишние пояснения, объедини близкие мысли. Сохрани факты, смысл и важные оговорки. Ничего не добавляй от себя. Верни только итоговый текст.";
@@ -44,25 +49,32 @@ export function compressSourceHash(language: string, plainText: string): string 
 }
 
 /**
- * Strip common model wrappers (code fences, surrounding quotes, "Итоговый текст:"
- * labels) and collapse to a single paragraph, then clamp mid-word cuts.
+ * Peel a single outer quote pair only when the interior cannot itself be a
+ * multi-span quote (e.g. «X» … «Y» must NOT become X» … «Y).
  */
 function stripSurroundingQuotes(value: string): string {
-  let text = value.trim();
-  if (
-    (text.startsWith('"') && text.endsWith('"')) ||
-    (text.startsWith("«") && text.endsWith("»")) ||
-    (text.startsWith("'") && text.endsWith("'"))
-  ) {
-    text = text.slice(1, -1).trim();
+  const text = value.trim();
+  if (text.length < 2) {
+    return text;
+  }
+  const interior = text.slice(1, -1);
+  if (text.startsWith('"') && text.endsWith('"') && !interior.includes('"')) {
+    return interior.trim();
+  }
+  if (text.startsWith("«") && text.endsWith("»") && !interior.includes("«") && !interior.includes("»")) {
+    return interior.trim();
+  }
+  if (text.startsWith("'") && text.endsWith("'") && !interior.includes("'")) {
+    return interior.trim();
   }
   return text;
 }
 
 function stripLeadingResultLabel(value: string): string {
+  // Simple anchored prefixes only — avoid nested quantifiers (ReDoS-prone).
   return value
-    .replace(/^(?:\*{0,2}|_{0,2})?итоговый\s+текст(?:\*{0,2}|_{0,2})?\s*[:—-]\s*/iu, "")
-    .replace(/^(?:\*{0,2}|_{0,2})?итог(?:\*{0,2}|_{0,2})?\s*[:—-]\s*/iu, "")
+    .replace(/^\*{0,2}_{0,2}итоговый\s+текст\*{0,2}_{0,2}\s*[:—-]\s*/iu, "")
+    .replace(/^\*{0,2}_{0,2}итог\*{0,2}_{0,2}\s*[:—-]\s*/iu, "")
     .trim();
 }
 
@@ -150,4 +162,43 @@ export function resolveCompressedState(
     return "rejected";
   }
   return "usable";
+}
+
+/** Expected compress sourceHash for a structured summary, or undefined when nothing to compress. */
+export function expectedCompressSourceHash(
+  summary: Pick<CommentsSummary, "lang" | "structured">
+): string | undefined {
+  if (summary.structured === undefined) {
+    return undefined;
+  }
+  return compressSourceHash(summary.lang, renderCommentsInsightsPlainText(summary.structured));
+}
+
+/** resolveCompressedState against the summary's own structured payload. */
+export function compressedStateFor(
+  summary: Pick<CommentsSummary, "lang" | "structured" | "compressed">
+): CompressedState | undefined {
+  const expected = expectedCompressSourceHash(summary);
+  if (expected === undefined) {
+    return undefined;
+  }
+  return resolveCompressedState(summary, expected);
+}
+
+/** Permanent HTTP client errors that must not be retried every cron (bad model id, auth, …). */
+export function isPermanentCompressHttpError(error: unknown): boolean {
+  let current = error;
+  for (let depth = 0; depth < 6; depth += 1) {
+    if (current instanceof Error && "status" in current) {
+      const status = (current as { status?: number }).status;
+      if (typeof status === "number" && status >= 400 && status < 500 && status !== 408 && status !== 425 && status !== 429) {
+        return true;
+      }
+    }
+    if (!(current instanceof Error) || current.cause === undefined) {
+      break;
+    }
+    current = current.cause;
+  }
+  return false;
 }

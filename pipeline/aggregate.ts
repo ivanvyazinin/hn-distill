@@ -20,11 +20,7 @@ import {
 import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { log } from "@utils/log";
-import {
-  compressSourceHash,
-  renderCommentsInsightsPlainText,
-  resolveCompressedState,
-} from "@utils/comments-compress";
+import { compressedStateFor } from "@utils/comments-compress";
 import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@utils/comments-render";
 import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
@@ -160,9 +156,7 @@ export function buildAggregatedItem(
     const parsed = CommentsSummarySchema.safeParse(commentsSummaryRecord);
     if (parsed.success && parsed.data.structured !== undefined) {
       const language = parsed.data.lang === "en" ? "en" : "ru";
-      const plainText = renderCommentsInsightsPlainText(parsed.data.structured);
-      const expectedSourceHash = compressSourceHash(parsed.data.lang, plainText);
-      if (resolveCompressedState(parsed.data, expectedSourceHash) === "usable" && parsed.data.compressed) {
+      if (compressedStateFor(parsed.data) === "usable" && parsed.data.compressed) {
         compressedCommentsSummary = renderCompressedParagraphMarkdown(parsed.data.compressed.text);
       } else {
         commentsInsights = renderCommentsSummaryParts(parsed.data.structured, {

@@ -12,6 +12,11 @@ describe("backfill-comments-v2 args and compress-only gates", () => {
   test("parseArgs requires ids or all-structured for compress-only", () => {
     expect(() => parseArgs(["--compress-only"])).toThrow("--compress-only requires");
     expect(() => parseArgs([])).toThrow("Provide at least one story id");
+    expect(() => parseArgs(["--all-structured"])).toThrow("only supported with --compress-only");
+    expect(() => parseArgs(["--all-structured", "--ids", "1"])).toThrow("mutually exclusive");
+    expect(() => parseArgs(["--all-structured", "--ids", "1", "--compress-only"])).toThrow(
+      "mutually exclusive"
+    );
     const ok = parseArgs(["--ids", "1,2", "--compress-only", "--dry-run"]);
     expect(ok.ids).toEqual([1, 2]);
     expect(ok.compressOnly).toBeTrue();

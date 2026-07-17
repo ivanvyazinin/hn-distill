@@ -70,6 +70,33 @@ describe("comments-compress pure helpers", () => {
     expect(sanitizeCompressedOutput('```\n«Итоговый текст:  "Раз  два."  »\n```')).toBe("Раз два.");
     expect(sanitizeCompressedOutput("Итог — Короткий абзац.")).toBe("Короткий абзац.");
     expect(sanitizeCompressedOutput("  строка один. \n\n строка  два.  ")).toBe("строка один. строка два.");
+    // Multi-span quotes must not be peeled as a single outer pair.
+    expect(sanitizeCompressedOutput("«Первый.» … «Второй.»")).toBe("«Первый.» … «Второй.»");
+  });
+
+  test("isCommentsCompressEnabled gates on lang + model", async () => {
+    const { isCommentsCompressEnabled } = await import("../utils/comments-compress.ts");
+    const { withEnvPatch } = await import("./helpers");
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "m" }, async () => {
+      expect(isCommentsCompressEnabled()).toBeTrue();
+    });
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      expect(isCommentsCompressEnabled()).toBeFalse();
+    });
+    await withEnvPatch({ SUMMARY_LANG: "en", COMMENTS_COMPRESS_MODEL: "m" }, async () => {
+      expect(isCommentsCompressEnabled()).toBeFalse();
+    });
+  });
+
+  test("isPermanentCompressHttpError treats 4xx (except 408/425/429) as terminal", async () => {
+    const { isPermanentCompressHttpError } = await import("../utils/comments-compress.ts");
+    const { HttpError } = await import("../utils/http-client.ts");
+    expect(isPermanentCompressHttpError(new HttpError("u", 404, "missing"))).toBeTrue();
+    expect(isPermanentCompressHttpError(new HttpError("u", 401, "auth"))).toBeTrue();
+    expect(isPermanentCompressHttpError(new HttpError("u", 429, "rate"))).toBeFalse();
+    expect(isPermanentCompressHttpError(new HttpError("u", 503, "down"))).toBeFalse();
+    expect(isPermanentCompressHttpError(new Error("plain"))).toBeFalse();
+    expect(isPermanentCompressHttpError(new Error("wrap", { cause: new HttpError("u", 400, "bad") }))).toBeTrue();
   });
 
   test("validateCompressedText rejects empty, short, expanded, and non-cyrillic text", () => {

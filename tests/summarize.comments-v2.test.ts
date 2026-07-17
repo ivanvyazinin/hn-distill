@@ -706,7 +706,7 @@ describe("comments compress integration", () => {
     );
   });
 
-  test("transport error leaves compressed absent, returns compress-pending, lazy path retries", async () => {
+  test("transport error leaves compressed absent, returns applied, lazy path retries", async () => {
     const story = makeStory({ id: 32, title: "Compress transport" });
     const comments = threeComments(story.id);
     const store = new MemoryStore();
@@ -730,11 +730,10 @@ describe("comments compress integration", () => {
         COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
       },
       async () => {
+        // Stage-1 is applied even when compress is still pending — processing_state
+        // must not flip commentsStatus to "missing" for a healthy structured blob.
         const first = await processCommentsSummary(services, story, comments, undefined, path, store);
-        expect(first.status).toBe("pending");
-        if (first.status === "pending") {
-          expect(first.reason).toBe("compress-pending");
-        }
+        expect(first.status).toBe("applied");
         const persisted = await store.getJson<CommentsSummary>(path);
         expect(persisted?.compressed).toBeUndefined();
         expect(persisted?.structured).toEqual(VALID_INSIGHTS);
@@ -749,7 +748,7 @@ describe("comments compress integration", () => {
     );
   });
 
-  test("shared budget exhausted by stage-1 skips compress (no fourth call)", async () => {
+  test("shared budget exhausted by stage-1 skips compress (no fourth call) but still applies", async () => {
     const story = makeStory({ id: 33, title: "Budget exhaust" });
     const comments = threeComments(story.id);
     const store = new MemoryStore();
@@ -772,15 +771,88 @@ describe("comments compress integration", () => {
       },
       async () => {
         const result = await processCommentsSummary(services, story, comments, undefined, path, store);
-        expect(result.status).toBe("pending");
-        if (result.status === "pending") {
-          expect(result.reason).toBe("compress-pending");
-        }
+        expect(result.status).toBe("applied");
         expect(calls.length).toBe(3);
         expect(chatCalls.length).toBe(0);
         const persisted = await store.getJson<CommentsSummary>(path);
         expect(persisted?.structured).toEqual(VALID_INSIGHTS);
         expect(persisted?.compressed).toBeUndefined();
+      }
+    );
+  });
+
+  test("permanent 4xx compress error writes reject marker and is not retried", async () => {
+    const story = makeStory({ id: 35, title: "Compress 404" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/35.comments.json";
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          throw new HttpError("https://openrouter.ai/api/v1/chat/completions", 404, "model not found");
+        },
+      ]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "typo/model-id",
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe("");
+        expect(chatCalls.length).toBe(1);
+
+        const second = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(chatCalls.length).toBe(1);
+      }
+    );
+  });
+
+  test("compress retry with drifted inputHash does not escalate into stage-1", async () => {
+    const story = makeStory({ id: 36, title: "No stage-1 on compress retry" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/36.comments.json";
+    // Seed a structured blob whose inputHash is intentionally stale relative to
+    // the current prompt — compress is still retryable, so the path must do a
+    // one-call compress only, not a full stage-1 regen.
+    await store.putJson(path, {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "stale-hash-not-matching-current-prompt",
+      createdISO: new Date().toISOString(),
+    } satisfies CommentsSummary);
+
+    const { calls, chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => VALID_COMPRESSED_RU]
+    );
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+      },
+      async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        expect(calls.length).toBe(0);
+        expect(chatCalls.length).toBe(1);
+        const after = await store.getJson<CommentsSummary>(path);
+        expect(after?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+        // Stage-1 fields stay as seeded (inputHash not rewritten).
+        expect(after?.inputHash).toBe("stale-hash-not-matching-current-prompt");
       }
     );
   });
@@ -818,5 +890,18 @@ describe("comments compress integration", () => {
       };
       expect(await computeCommentsChanged(story, usable, "ru", 60_000, Date.now(), store)).toBeFalse();
     });
+
+    // Compress disabled: absent compressed must NOT bypass cooldown.
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      expect(await computeCommentsChanged(story, base, "ru", 60_000, Date.now(), store)).toBeFalse();
+    });
+
+    // EN deploy: compress gated off even if model is set.
+    await withEnvPatch(
+      { SUMMARY_LANG: "en", COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct" },
+      async () => {
+        expect(await computeCommentsChanged(story, base, "en", 60_000, Date.now(), store)).toBeFalse();
+      }
+    );
   });
 });

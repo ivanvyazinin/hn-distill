@@ -127,15 +127,18 @@ function parseArgs(args: string[]): Options {
     throw new Error(`Unknown argument: ${arg}`);
   }
 
+  if (allStructured && ids.length > 0) {
+    throw new Error("--all-structured and --ids are mutually exclusive");
+  }
+  if (allStructured && !compressOnly) {
+    // Stage-1 mass regen must never be implied by a discovery flag alone.
+    throw new Error("--all-structured is only supported with --compress-only");
+  }
   if (compressOnly && ids.length === 0 && !allStructured) {
     throw new Error("--compress-only requires --ids or --all-structured");
   }
-  if (!compressOnly && ids.length === 0 && !allStructured) {
-    throw new Error("Provide at least one story id via --ids (or --all-structured with --compress-only)");
-  }
-  if (allStructured && !compressOnly && ids.length === 0) {
-    // Stage-1 path with --all-structured is allowed but unusual; require explicit intent.
-    throw new Error("--all-structured is only supported with --compress-only");
+  if (!compressOnly && ids.length === 0) {
+    throw new Error("Provide at least one story id via --ids");
   }
 
   return { ids, allStructured, compressOnly, dryRun, throttleMs, force };
@@ -175,6 +178,10 @@ async function discoverStructuredIds(): Promise<number[]> {
 
 async function resolveIds(options: Options): Promise<number[]> {
   if (options.allStructured) {
+    if (options.ids.length > 0) {
+      // Belt-and-suspenders: parseArgs already rejects the combo.
+      throw new Error("--all-structured and --ids are mutually exclusive");
+    }
     return await discoverStructuredIds();
   }
   return options.ids;
@@ -251,40 +258,46 @@ async function runCompressOnly(
         continue;
       }
 
-      // Never unlink in compress-only mode. Work on a copy without compressed when forcing.
-      let summary = existing as CommentsSummary;
-      if (options.force && summary.compressed !== undefined) {
-        const { compressed: _drop, ...rest } = summary;
-        summary = rest;
+      // Never unlink in compress-only mode. On --force, strip compressed only in
+      // the in-memory request so compressCommentsSummaryIfNeeded re-runs; the
+      // on-disk blob is rewritten ONLY on usable/rejected so a transport miss or
+      // env gate cannot destroy a previously good compressed field.
+      const onDisk = existing as CommentsSummary;
+      let requestSummary = onDisk;
+      if (options.force && requestSummary.compressed !== undefined) {
+        const { compressed: _drop, ...rest } = requestSummary;
+        requestSummary = rest;
       }
 
       try {
         const budget = new CommentsGenerationBudget({ maxCalls: 1 });
-        const result = await compressCommentsSummaryIfNeeded(services, summary, budget);
-        await store.putJson(commentsPath, result.summary, {
-          pretty: true,
-          contentType: "application/json",
-        });
-        // Reuse process path's meta write by going through a tiny local upsert via process? No —
-        // call the same meta path by re-reading through processCommentsSummary's applied path is
-        // heavy. Write meta via open store using the same shape process uses: putJson already
-        // done; meta is optional and best-effort via processCommentsSummary pattern.
-        if (meta !== undefined) {
-          const metaText =
-            result.status === "usable" && result.summary.compressed !== undefined
-              ? renderCompressedParagraphMarkdown(result.summary.compressed.text)
-              : result.summary.summary;
-          await meta.upsertSummary({
-            storyId: result.summary.id,
-            kind: "comments",
-            lang: result.summary.lang,
-            ...(result.summary.model === undefined ? {} : { model: result.summary.model }),
-            summary: metaText,
-            createdAt: result.summary.createdISO ?? new Date().toISOString(),
+        const result = await compressCommentsSummaryIfNeeded(services, requestSummary, budget);
+
+        if (result.status === "usable" || result.status === "rejected") {
+          await store.putJson(commentsPath, result.summary, {
+            pretty: true,
+            contentType: "application/json",
           });
+          if (meta !== undefined) {
+            const metaText =
+              result.status === "usable" && result.summary.compressed !== undefined
+                ? renderCompressedParagraphMarkdown(result.summary.compressed.text)
+                : result.summary.summary;
+            await meta.upsertSummary({
+              storyId: result.summary.id,
+              kind: "comments",
+              lang: result.summary.lang,
+              ...(result.summary.model === undefined ? {} : { model: result.summary.model }),
+              summary: metaText,
+              createdAt: result.summary.createdISO ?? new Date().toISOString(),
+            });
+          }
         }
+
         if (result.status === "pending") {
-          log.warn(LOG_NAMESPACE, "Compress pending (transport/budget)", { id });
+          log.warn(LOG_NAMESPACE, "Compress pending (transport/budget); left on-disk blob untouched", {
+            id,
+          });
           failed += 1;
         } else if (result.status === "rejected") {
           log.warn(LOG_NAMESPACE, "Compress rejected (semantic marker written)", { id });
@@ -297,7 +310,7 @@ async function runCompressOnly(
           });
           succeeded += 1;
         } else {
-          log.info(LOG_NAMESPACE, "Compress skipped by gates", { id });
+          log.info(LOG_NAMESPACE, "Compress skipped by gates; left on-disk blob untouched", { id });
           skipped += 1;
         }
       } catch (error) {
