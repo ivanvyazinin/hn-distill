@@ -67,7 +67,7 @@ const EnvironmentSchema = z.object({
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
-  // Default 3 covers the Groq TPD dead-end path (llama-3.3 → scout → OpenRouter
+  // Default 3 covers the Groq dead-end path (scout → llama-3.3 → OpenRouter
   // hop): a 429 fails fast and jumps straight to the next step, so the paid
   // OpenRouter fallback (COMMENTS_OPENROUTER_FALLBACK_MODEL) is reached within
   // budget without breaching the worker task timeout (3 × 7s ≤ 25s − 2s buffer).
@@ -80,10 +80,15 @@ const EnvironmentSchema = z.object({
   // ids (e.g. llama-3.3-70b-versatile). Without a Groq key they are ignored and comments
   // fall back to the OPENROUTER_MODEL chain. Reasoning models (nvidia/nemotron:free) emit
   // prose instead of JSON here and break structured parsing — keep them out of this chain.
-  COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
-  // Fallback: non-reasoning llama (proven on this Groq account via POST_GUARD_MODEL).
-  // A reasoning model here (qwen3/gpt-oss thinking) would emit prose, not JSON.
-  COMMENTS_FALLBACK_MODEL: z.string().default("meta-llama/llama-4-scout-17b-16e-instruct"),
+  // Primary is scout, not llama-3.3-70b: the llm_usage ledger (2026-07-16/17) showed
+  // llama-3.3-70b rate-limited by Groq (429) on ~64% of large threads, while scout — which
+  // has more headroom on this account — never failed. Comments use plain-JSON extraction on
+  // the Groq primary (see summarize.ts), so scout's json_schema support is irrelevant here.
+  COMMENTS_MODEL: z.string().default("meta-llama/llama-4-scout-17b-16e-instruct"),
+  // Fallback: llama-3.3-70b kept as an overflow net for when scout itself hits TPM — it
+  // still succeeds on smaller threads. A reasoning model here (qwen3/gpt-oss thinking) would
+  // emit prose, not JSON, so keep it non-reasoning.
+  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.3-70b-versatile"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
   // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
   // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
