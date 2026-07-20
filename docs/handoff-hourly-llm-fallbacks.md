@@ -1,15 +1,22 @@
 # Handoff: восстановить LLM fallback-и hourly pipeline
 
-**Статус:** фазы 1–2 сделаны локально 2026-07-20. Hourly/production data **не** гонялись — нужен согласованный rollout.
+**Статус:** фазы 1–2 + ship + первый prod rollout 2026-07-20. Главная цель (`model_not_found=0`) закрыта. Открыт follow-up: comments budget не всегда доходит до OpenRouter после Groq TPD/413.
 
-**Аудитория:** разработчик, который продолжит исправление `hourly-build`.
-**Цель:** убрать скрытую деградацию pipeline: GitHub Actions завершается успешно, но tags и post guard регулярно переходят на эвристики, а comments теряют устойчивый путь после Groq TPD.
+**Аудитория:** разработчик, который продолжит hardening comments/tags/guard после rollout.
+**Цель (исходная):** убрать скрытую деградацию pipeline из‑за мёртвого scout и drift конфигов.
+**Цель (текущая):** при Groq rate-limit comments гарантированно доходить до paid OpenRouter; снизить tags/guard `json_validate_failed`/TPM noise на `gpt-oss-20b`.
 
 ## Краткий вывод
 
-За 10 последних `hourly-build` запусков от 2026-07-18 до 2026-07-20 не было упавших jobs. Однако pipeline работал в degraded-режиме. Главная причина — недоступный model ID `meta-llama/llama-4-scout-17b-16e-instruct` в фактическом runtime-конфиге и расхождение между workflow и `config/env.ts`.
+До фикса hourly был зелёным, но tags/guard/comments деградировали: `meta-llama/llama-4-scout-17b-16e-instruct` отсутствует в Groq catalog (`model_not_found`), плюс drift `config/env.ts` ↔ workflow ↔ GitHub variables.
 
-Не исправляйте только GitHub variables. Сначала выберите и проверьте доступные модели по каждому provider/role, затем сделайте `config/env.ts` единственным источником defaults и удалите устаревшие workflow overrides.
+Сделано:
+- model defaults только в [`config/env.ts`](../config/env.ts);
+- scout убран; routes из local probe;
+- `model_not_found` без retry того же id;
+- commit `868e1695ad` на `main`, ручной hourly [run 29733829540](https://github.com/ivanvyazinin/hn-distill/actions/runs/29733829540) = **success**, `model_not_found=0`.
+
+Осталось: comments chain часто сжигает `COMMENTS_MAX_LLM_CALLS=3` на Groq (`70b` TPD + `8b` unsupported-format retry + `8b` 413/TPM) и **не доходит** до `COMMENTS_OPENROUTER_FALLBACK_MODEL`.
 
 ## Доказательства из логов
 
@@ -159,28 +166,14 @@ Probe comments prompt исправлен: обязан перечислять en
 
 ### 2. Убрать drift конфигурации
 
-**Done (2026-07-20).** `config/env.ts` + `.env.example` defaults обновлены. Hourly workflow больше **не** задаёт model env (`OPENROUTER_*`, `COMMENTS_*`, `TAGS_*`, `POST_GUARD_*`, `SUMMARY_CONTENT_REJECT_MODEL`) — только secrets + runtime flags. Repository model variables удалены (оставлены `SITE`/`BASE`/`TOP_N`/`SUMMARY_LANG`/`LLM_USAGE_ENABLED`/`GOATCOUNTER_CODE`).
+**Done + shipped (2026-07-20, `868e1695ad`).**
 
-Focused re-probe runner exit was **1**: tags+guard `openai/gpt-oss-20b` **3/3 pass**; comments-groq `llama-3.3-70b` was `fail_1_of_3` in the same concurrent (`Promise.all`) batch — not a serial tags/guard-only gate. Do not call the whole probe “full pass.”
+- defaults: [`config/env.ts`](../config/env.ts), [`.env.example`](../.env.example);
+- [`.github/workflows/hourly-build.yml`](../.github/workflows/hourly-build.yml) — **без** model env (`OPENROUTER_*` / `COMMENTS_*` / `TAGS_*` / `POST_GUARD_*` / `SUMMARY_CONTENT_REJECT_MODEL`); только secrets + runtime flags;
+- repository model variables удалены; остались `SITE`, `BASE`, `TOP_N`, `SUMMARY_LANG`, `LLM_USAGE_ENABLED`, `GOATCOUNTER_CODE`;
+- contract test: [`tests/model-config-contract.test.ts`](../tests/model-config-contract.test.ts).
 
-Inventory GitHub repository variables от 2026-07-20:
-
-- присутствуют stale overrides: `TAGS_MODEL=meta-llama/llama-4-scout-17b-16e-instruct`, `POST_GUARD_MODEL=meta-llama/llama-4-scout-17b-16e-instruct`, `POST_GUARD_FALLBACK_MODEL=openai/gpt-oss-20b`;
-- `COMMENTS_*` repository variables отсутствуют;
-- другие runtime-флаги и summary-model overrides пока не менялись.
-
-После выбора моделей:
-
-1. Обновите defaults в [`config/env.ts`](../config/env.ts).
-2. Удалите model defaults из [`.github/workflows/hourly-build.yml`](../.github/workflows/hourly-build.yml), чтобы workflow не дублировал и не переставлял model chain.
-3. Удалите stale GitHub repository variables:
-   - `TAGS_MODEL`
-   - `POST_GUARD_MODEL`
-   - `POST_GUARD_FALLBACK_MODEL`
-   - старые `COMMENTS_*` overrides
-4. Оставьте secrets и безопасные runtime-флаги в workflow.
-
-Изменение model defaults должно проходить через review в репозитории. Не возвращайте mutable Actions variables как второй источник model configuration.
+Focused re-probe перед phase 2: runner exit **1** (concurrent `Promise.all`). tags+guard `openai/gpt-oss-20b` **3/3 pass**; comments-groq `llama-3.3-70b` `fail_1_of_3` в том же batch — не «full pass».
 
 ### 3. Обрабатывать permanent model errors
 
@@ -195,32 +188,89 @@ Inventory GitHub repository variables от 2026-07-20:
 - empty guard fallback → 1 call + heuristics-only — `tests/summarize.escalation.test.ts`
 - tags `model_not_found` skips plain JSON — `tests/tags.test.ts`
 
-## Rollout и критерии успеха
+## Ship и первый prod rollout (2026-07-20)
 
-1. Запустите probe без изменения данных.
-2. После успешного probe выполните `workflow_dispatch` с `TOP_N=10`.
-3. Не перезаписывайте production state без подтверждения владельца данных.
-4. Наблюдайте один ручной запуск и восемь scheduled запусков за сутки.
+| Item | Value |
+|---|---|
+| Commit | [`868e1695ad`](https://github.com/ivanvyazinin/hn-distill/commit/868e1695ad) on `main` |
+| Manual hourly | [run 29733829540](https://github.com/ivanvyazinin/hn-distill/actions/runs/29733829540) |
+| Conclusion | **success** (~4 min build + deploy) |
+| `TOP_N` | 10 (repo var) |
+| Log snapshot | `/tmp/hourly-29733829540.log` (local) |
 
-Сравните с baseline выше. Минимальные критерии:
+### Счётчики первого ручного прогона vs baseline (10 runs)
 
-- `model_not_found=0`;
-- нет `tags_heuristics_fallback` и `guard_heuristics_only`, вызванных 404;
-- при Groq TPD comments доходят до проверенного OpenRouter fallback;
-- `json_validate_failed` ниже baseline 137 на 10 запусков;
-- aggregate и backup state продолжают завершаться успешно.
+| Метрика | Baseline (10 runs) | Run 29733829540 | Статус |
+|---|---:|---:|---|
+| Job success | 10/10 | success | ok |
+| `model_not_found` / scout | 445 | **0** | **closed** |
+| tags written on live model | n/a (scout 404) | 10 × `openai/gpt-oss-20b` | ok |
+| `fallback tags written` | 41 heuristics-driven | 3 | partial |
+| `guard_heuristics_only` | 34 | 1 | partial |
+| `json_validate_failed` | 137 / 10 runs | 15 / 1 run | still noisy on oss-20b |
+| HTTP 429 | 96 TPD-ish | 43 (70b TPD + 8b/oss TPM) | expected pressure |
+| HTTP 413 (8b TPM/size) | n/a | 6 | new |
+| comments summary written | n/a | 1 (`llama-3.1-8b-instant`) | weak |
+| comments `generation-failed` fallback | n/a | 5 | open |
+| OpenRouter qwen reached | desired on TPD | **0** | **open** |
 
-## Команды проверки после реализации
+### Что подтвердил rollout
+
+- Новые defaults реально в Actions (нет scout, tags/guard = `gpt-oss-20b`, comments = `70b`→`8b`).
+- 404-driven degradation убрана.
+- Empty `POST_GUARD_FALLBACK_MODEL` ведёт себя как задумано: один guard model, при fail → heuristics-only.
+
+### Что вскрылось (follow-up)
+
+1. **Comments budget burn before OpenRouter**  
+   Типичный path при TPD:
+   - call1: `llama-3.3-70b` → 429 TPD;
+   - call2: `llama-3.1-8b` + `response_format` → unsupported → same-model retry without format (ещё один physical call);
+   - call3: `8b` plain → 413 (TPM 6000 / large thread) или 429 TPM;
+   - `COMMENTS_MAX_LLM_CALLS=3` исчерпан → deterministic comments fallback;  
+   - `qwen/qwen3-next-80b-a3b-instruct` **не вызывается**.
+
+2. **`llama-3.1-8b-instant` weak on large threads**  
+   Free-tier TPM 6000; big prompts → HTTP 413. Availability probe на synthetic JSON этого не ловил.
+
+3. **`openai/gpt-oss-20b` tags/guard noise**  
+   TPM 8000 + `json_validate_failed` → часть tags уходит в heuristics, редкий guard heuristics-only. Это уже не 404, а quality/rate-limit.
+
+## Критерии успеха (обновлённые)
+
+### Closed
+- `model_not_found=0` / no scout;
+- model IDs single-sourced from `config/env.ts`;
+- hourly job + backup/deploy success on new config.
+
+### Still open (phase 3)
+- при Groq TPD/413 comments **доходят** до OpenRouter qwen в пределах budget;
+- `comments generation-failed` не доминирует на TOP_N=10;
+- `json_validate_failed` и tags/guard heuristics на oss-20b ниже первого rollout snapshot на суточном окне;
+- 8 scheduled hourly runs без регресса `model_not_found`.
+
+## Phase 3 — план
+
+1. **Comments chain accounting**  
+   Не считать unsupported-`response_format` retry отдельным burn budget *или* стартовать Groq comments сразу с `balanced-object` (без json_schema) для 8b/70b. Цель: `70b 429 → 8b fail → OpenRouter` ≤ 3 calls.
+2. **Large-thread path**  
+   На 413/TPM от 8b сразу `moveToFallback` на OpenRouter; рассмотреть `qwen/qwen3.6-27b` как Groq fallback вместо/рядом с 8b (уже pass в probe, медленнее).
+3. **Tags/guard hardening** (отдельно)  
+   Retry/spacing на oss-20b TPM; не возвращать 120b guard fallback без нового probe.
+4. **Наблюдение**  
+   8 scheduled runs; сравнивать те же счётчики, что в таблице rollout.
+
+## Команды проверки
 
 ```bash
 make lint
-make typecheck
+# make typecheck  # known pre-existing failures outside this work (~36 tsc errors)
 make test
 git diff --check
 ```
 
-После локальной проверки используйте `workflow_dispatch` только после согласования запуска, поскольку обычный job восстанавливает и сохраняет `data/` через VPS.
+Targeted suite used at ship time: probe/log/openrouter/comments-v2/tags/escalation/model-config-contract (59 pass).
 
 ## Следующий запрос для агента
 
-> Phase 2 code/config done. Review diff, commit if ok, then optional coordinated `workflow_dispatch` hourly with `TOP_N=10` after owner confirms data backup path. Watch `model_not_found=0`, no 404-driven tags/guard heuristics, comments TPD→OpenRouter. Do not rewrite production state without confirmation.
+> Phase 3: fix comments budget so Groq TPD/413 reaches `COMMENTS_OPENROUTER_FALLBACK_MODEL` within `COMMENTS_MAX_LLM_CALLS`. Prefer starting Groq comments on balanced-object (no json_schema) and/or not billing unsupported-format retries against the call budget. Add a regression test: 70b 429 → 8b 413 → OpenRouter success in ≤3 calls. Do not reintroduce workflow model env vars. After tests, one manual hourly and compare counters to run 29733829540.

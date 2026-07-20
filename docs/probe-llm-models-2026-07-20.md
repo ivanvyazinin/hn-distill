@@ -63,7 +63,7 @@ Concurrent runner (`Promise.all` over all four roles), `PROBE_ATTEMPTS=3`, proce
 
 Not a serial tags/guard-only probe. Prior separate 3/3 pass on comments 70b still stands; do not label this batch a full focused pass.
 
-## Selected and applied in phase 2
+## Selected and applied in phase 2 / shipped
 
 ```text
 TAGS_MODEL=openai/gpt-oss-20b
@@ -79,12 +79,26 @@ Decisions locked:
 
 - guard fallback empty (120b rejected; heuristics-only on guard fail)
 - tags: no second model → deterministic heuristics
+- model IDs only in `config/env.ts` (no workflow/repo model vars)
+
+Shipped: commit `868e1695ad`. First prod hourly: [run 29733829540](https://github.com/ivanvyazinin/hn-distill/actions/runs/29733829540) success, `model_not_found=0`.
+
+### Prod caveat (not visible in synthetic probe)
+
+Availability probe ≠ production load:
+
+- `llama-3.1-8b-instant` hits HTTP 413 on large comment threads (TPM 6000).
+- Unsupported `response_format` on 8b burns an extra physical call before plain JSON.
+- With `COMMENTS_MAX_LLM_CALLS=3`, path `70b TPD → 8b format-retry → 8b 413/429` often **never reaches** OpenRouter qwen (0 qwen hits in run 29733829540).
+- `openai/gpt-oss-20b` still emits intermittent `json_validate_failed` / TPM 429 under TOP_N=10 concurrency.
+
+See rollout counters and phase 3 plan in [`handoff-hourly-llm-fallbacks.md`](./handoff-hourly-llm-fallbacks.md).
 
 Notes:
 
 - `POST_GUARD_*` models must be Groq ids while `guardTagsClient` uses the Groq gateway.
-- Keep `COMMENTS_MAX_LLM_CALLS=3` → no third Groq comments model.
-- `openai/gpt-oss-20b` is good for tags/guard primary and bad for comments-groq plain JSON.
+- Keep `COMMENTS_MAX_LLM_CALLS=3` unless budget accounting changes.
+- `openai/gpt-oss-20b` is good enough for tags/guard primary availability and bad for comments-groq plain JSON.
 
 ## Probe prompt fix
 
