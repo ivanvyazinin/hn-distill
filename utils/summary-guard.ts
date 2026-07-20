@@ -46,7 +46,7 @@ type SummaryGuardInput = {
 
 const GUARD_DEBUG_NAMESPACE = "summary-guard" as const;
 
-const SummaryGuardSchema = z.object({
+export const SummaryGuardSchema = z.object({
   ok: z.boolean(),
   is_article: z.boolean().optional(),
   refusal: z.boolean().optional(),
@@ -55,33 +55,36 @@ const SummaryGuardSchema = z.object({
   confidence: z.number().min(0).max(1).optional(),
 });
 
+/** Provider-facing schema used by production guard calls and model probes. */
+export const SummaryGuardStrictJsonSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    ok: { type: "boolean" },
+    is_article: { type: "boolean", description: "true if the summary clearly matches the article" },
+    refusal: { type: "boolean", description: "true if the summary is a refusal or policy response" },
+    verdict: {
+      type: "string",
+      enum: ["nonsense", "not_article", "ok", "other", "refusal", "too_generic", "too_short"],
+    },
+    reasons: {
+      type: "array",
+      items: { type: "string" },
+    },
+    confidence: {
+      type: "number",
+    },
+  },
+  // Groq structured outputs (strict) require every declared property in `required` and reject
+  // maxItems/minimum/maximum. The zod schema still enforces those bounds after parsing.
+  required: ["ok", "is_article", "refusal", "verdict", "reasons", "confidence"],
+  additionalProperties: false,
+};
+
 export async function runSummaryGuard(openrouter: OpenRouter, input: SummaryGuardInput): Promise<SummaryGuardResult> {
   const { articleSlice, summary, envLike } = input;
   const snippet = truncate(articleSlice, envLike.POST_GUARD_ARTICLE_MAX_CHARS);
 
-  const schema: JsonSchema = {
-    type: "object",
-    properties: {
-      ok: { type: "boolean" },
-      is_article: { type: "boolean", description: "true if the summary clearly matches the article" },
-      refusal: { type: "boolean", description: "true if the summary is a refusal or policy response" },
-      verdict: {
-        type: "string",
-        enum: ["nonsense", "not_article", "ok", "other", "refusal", "too_generic", "too_short"],
-      },
-      reasons: {
-        type: "array",
-        items: { type: "string" },
-      },
-      confidence: {
-        type: "number",
-      },
-    },
-    // Groq structured outputs (strict) require every declared property in `required` and reject
-    // maxItems/minimum/maximum. The zod schema still enforces those bounds after parsing.
-    required: ["ok", "is_article", "refusal", "verdict", "reasons", "confidence"],
-    additionalProperties: false,
-  };
+  const schema = SummaryGuardStrictJsonSchema;
 
   const messages = [
     {

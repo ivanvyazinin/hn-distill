@@ -126,6 +126,33 @@ function isUnsupportedResponseFormatError(error: unknown): error is HttpError {
   return mentionsFormat && saysUnsupported;
 }
 
+function httpErrorFromUnknown(error: unknown): HttpError | undefined {
+  if (error instanceof HttpError) {
+    return error;
+  }
+  if (error instanceof Error && error.cause instanceof HttpError) {
+    return error.cause;
+  }
+  return undefined;
+}
+
+/** True for permanent missing-model responses that will not recover on the same model id. */
+export function isModelNotFoundError(error: unknown): boolean {
+  const root = httpErrorFromUnknown(error);
+  const message = (root?.message ?? (error instanceof Error ? error.message : String(error))).toLowerCase();
+  const status = root?.status;
+  const mentionsMissingModel =
+    message.includes("model_not_found") ||
+    message.includes("does not exist") ||
+    message.includes("model not found") ||
+    (message.includes("invalid model") && message.includes("model"));
+  if (!mentionsMissingModel) {
+    return false;
+  }
+  // Prefer 404, but some gateways surface the same code under 400.
+  return status === undefined || status === 404 || status === 400;
+}
+
 /** Shape of the `usage`/`model` fields the OpenAI-compatible response carries alongside `choices`. */
 type UsageResponseFields = {
   usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number };
@@ -325,6 +352,22 @@ export class OpenRouter {
       } catch (error: unknown) {
         if (options.signalUnsupportedResponseFormat === true && isUnsupportedResponseFormatError(error)) {
           throw new UnsupportedResponseFormatError(error);
+        }
+
+        // 404/model_not_found never recovers on the same id — skip remaining retries so
+        // callers can advance the model chain immediately.
+        if (isModelNotFoundError(error)) {
+          log.warn("openrouter", "model_not_found; skipping remaining structured retries", {
+            model: options.model ?? this.model,
+            attempt,
+            maxRetries,
+          });
+          throw new Error(
+            `OpenRouter structured output failed after ${attempt} attempts: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            { cause: error }
+          );
         }
 
         const isLastAttempt = attempt === maxRetries;

@@ -3,8 +3,9 @@ import { env } from "@config/env";
 type Level = "debug" | "error" | "info" | "warn";
 type LevelCfg = Level | "silent";
 
+// Higher number = more verbose. silent is below every emit level so nothing prints.
 const order: Record<LevelCfg, number> = {
-  silent: 99,
+  silent: -1,
   error: 0,
   warn: 1,
   info: 2,
@@ -14,6 +15,9 @@ const order: Record<LevelCfg, number> = {
 const currentLevel: LevelCfg = env.LOG_LEVEL;
 
 function shouldLog(level: Level): boolean {
+  if (currentLevel === "silent") {
+    return false;
+  }
   return order[level] <= order[currentLevel];
 }
 

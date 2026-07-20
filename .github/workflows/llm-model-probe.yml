@@ -1,0 +1,57 @@
+name: LLM model probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      tags_model:
+        description: "Groq model ID to probe for tags (strict JSON schema)"
+        required: true
+        type: string
+      guard_model:
+        description: "Groq model ID to probe for the post guard (strict JSON schema)"
+        required: true
+        type: string
+      comments_groq_model:
+        description: "Groq model ID to probe for comments (balanced-object extraction)"
+        required: true
+        type: string
+      comments_openrouter_model:
+        description: "OpenRouter model ID to probe as comments last resort (strict JSON schema)"
+        required: true
+        type: string
+      attempts:
+        description: "Requests per route, 1-3. Use 1 for the minimal availability probe."
+        required: false
+        default: "1"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Probe selected LLM routes
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun and Install Dependencies
+        uses: ./.github/actions/setup-bun
+
+      - name: Probe models without pipeline data
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          PROBE_TAGS_MODEL: ${{ inputs.tags_model }}
+          PROBE_GUARD_MODEL: ${{ inputs.guard_model }}
+          PROBE_COMMENTS_GROQ_MODEL: ${{ inputs.comments_groq_model }}
+          PROBE_COMMENTS_OPENROUTER_MODEL: ${{ inputs.comments_openrouter_model }}
+          PROBE_ATTEMPTS: ${{ inputs.attempts }}
+          # The script writes the intentionally minimal safe surface to Job Summary.
+          LOG_LEVEL: silent
+        run: bun run tsx scripts/probe-llm-models.mts

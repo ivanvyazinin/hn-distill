@@ -190,3 +190,55 @@ describe("generateValidatedPostSummary escalation", () => {
     expect(calls[1]?.model).toBe(env.OPENROUTER_MODEL);
   });
 });
+
+
+describe("generateValidatedPostSummary empty guard fallback", () => {
+  let savedGuardEnable: boolean;
+  let savedGuardModel: string;
+  let savedGuardFallback: string;
+  let savedLang: typeof env.SUMMARY_LANG;
+  let savedRejectModel: string;
+
+  beforeEach(() => {
+    savedGuardEnable = env.POST_GUARD_ENABLE;
+    savedGuardModel = env.POST_GUARD_MODEL;
+    savedGuardFallback = env.POST_GUARD_FALLBACK_MODEL;
+    savedLang = env.SUMMARY_LANG;
+    savedRejectModel = env.SUMMARY_CONTENT_REJECT_MODEL;
+    env.POST_GUARD_ENABLE = true;
+    env.POST_GUARD_MODEL = "groq-guard-primary";
+    env.POST_GUARD_FALLBACK_MODEL = "";
+    env.SUMMARY_LANG = "ru";
+    env.SUMMARY_CONTENT_REJECT_MODEL = "";
+  });
+
+  afterEach(() => {
+    env.POST_GUARD_ENABLE = savedGuardEnable;
+    env.POST_GUARD_MODEL = savedGuardModel;
+    env.POST_GUARD_FALLBACK_MODEL = savedGuardFallback;
+    env.SUMMARY_LANG = savedLang;
+    env.SUMMARY_CONTENT_REJECT_MODEL = savedRejectModel;
+  });
+
+  test("empty fallback yields one guard call then heuristics-only acceptance", async () => {
+    let guardCalls = 0;
+    const chat = async (): Promise<string> => GOOD_RU_SUMMARY;
+    const chatStructured = async (): Promise<GuardPayload> => {
+      guardCalls += 1;
+      throw new Error("guard unavailable");
+    };
+    const orMock = { chat, chatStructured } as unknown as Services["openrouter"];
+    const services: Services = {
+      http: {} as Services["http"],
+      openrouter: orMock,
+      guardTagsClient: orMock,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),
+      usage: createUsageCollector(),
+    };
+
+    const result = await generateValidatedPostSummary(services, STORY, "article body ".repeat(40));
+    expect(result?.summary).toBe(GOOD_RU_SUMMARY);
+    expect(result?.guard).toBeUndefined();
+    expect(guardCalls).toBe(1);
+  });
+});

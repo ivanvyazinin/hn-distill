@@ -80,15 +80,12 @@ const EnvironmentSchema = z.object({
   // ids (e.g. llama-3.3-70b-versatile). Without a Groq key they are ignored and comments
   // fall back to the OPENROUTER_MODEL chain. Reasoning models (nvidia/nemotron:free) emit
   // prose instead of JSON here and break structured parsing — keep them out of this chain.
-  // Primary is scout, not llama-3.3-70b: the llm_usage ledger (2026-07-16/17) showed
-  // llama-3.3-70b rate-limited by Groq (429) on ~64% of large threads, while scout — which
-  // has more headroom on this account — never failed. Comments use plain-JSON extraction on
-  // the Groq primary (see summarize.ts), so scout's json_schema support is irrelevant here.
-  COMMENTS_MODEL: z.string().default("meta-llama/llama-4-scout-17b-16e-instruct"),
-  // Fallback: llama-3.3-70b kept as an overflow net for when scout itself hits TPM — it
-  // still succeeds on smaller threads. A reasoning model here (qwen3/gpt-oss thinking) would
-  // emit prose, not JSON, so keep it non-reasoning.
-  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  // 2026-07-20 local probe (docs/probe-llm-models-2026-07-20.md): scout is absent from the
+  // current Groq catalog (model_not_found). Primary is llama-3.3-70b; on TPD spill the next
+  // Groq hop is llama-3.1-8b-instant (separate free-tier bucket), then paid OpenRouter.
+  COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
+  // Second Groq hop after 70b TPD/TPM. Keep non-reasoning; plain-JSON extraction on Groq.
+  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
   // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
   // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
@@ -97,7 +94,9 @@ const EnvironmentSchema = z.object({
   // (the original reason comments moved to Groq). Empty string disables the hop.
   COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
 
-  TAGS_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"), // try structured outputs, fallback to JSON
+  // Groq strict json_schema (when GROQ_API_KEY set). Probe winner: openai/gpt-oss-20b.
+  // No second tags model — LLM fail falls back to deterministic heuristics in processTags.
+  TAGS_MODEL: z.string().default("openai/gpt-oss-20b"),
   TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
@@ -106,8 +105,11 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
-  POST_GUARD_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"),
-  POST_GUARD_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct:free"),
+  // Same Groq strict-JSON route as tags. Empty fallback → one guard attempt then
+  // heuristics-only acceptance (see generateValidatedPostSummary). Do not put an
+  // OpenRouter id here while guardTagsClient is the Groq gateway.
+  POST_GUARD_MODEL: z.string().default("openai/gpt-oss-20b"),
+  POST_GUARD_FALLBACK_MODEL: z.string().default(""),
   POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
   POST_GUARD_ARTICLE_MAX_CHARS: z.coerce

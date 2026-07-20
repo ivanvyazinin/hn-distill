@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { log } from "@utils/log";
+import { isModelNotFoundError, type JsonSchema, type OpenRouter } from "@utils/openrouter";
 import { canonicalize, dedupeKeepOrder, heuristicTags } from "@utils/tags";
 
 import type { Env } from "@config/env";
-import type { JsonSchema, OpenRouter } from "@utils/openrouter";
 
 
 // Single source of truth for the allowed `cat` values. Referenced by the zod
@@ -60,6 +60,36 @@ export const TagsResponseSchema = (max: number): z.ZodObject<{ tags: z.ZodArray<
   });
 
 type TagsResponse = z.infer<ReturnType<typeof TagsResponseSchema>>;
+
+/** Provider-facing schema used by production tags extraction and model probes. */
+export const TagsStrictJsonSchema: JsonSchema = {
+  type: "object",
+  properties: {
+    tags: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: {
+            type: "string",
+            description: "Tag name, normalized and lowercase",
+          },
+          cat: {
+            type: "string",
+            enum: [...CAT_ENUM],
+            description: "Optional category for the tag",
+          },
+        },
+        // Groq structured outputs (strict) require every declared property in `required`.
+        // cat stays semantically optional via the zod schema, which tolerates it either way.
+        required: ["name", "cat"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["tags"],
+  additionalProperties: false,
+};
 
 export function buildTagsPrompt(
   story: { title: string; url: string | null },
@@ -185,34 +215,7 @@ export async function summarizeTagsStructured(
     promptChars: prompt.length,
   });
 
-  const schema: JsonSchema = {
-    type: "object",
-    properties: {
-      tags: {
-        type: "array",
-        items: {
-          type: "object",
-          properties: {
-            name: {
-              type: "string",
-              description: "Tag name, normalized and lowercase",
-            },
-            cat: {
-              type: "string",
-              enum: [...CAT_ENUM],
-              description: "Optional category for the tag",
-            },
-          },
-          // Groq structured outputs (strict) require every declared property in `required`.
-          // cat stays semantically optional via the zod schema, which tolerates it either way.
-          required: ["name", "cat"],
-          additionalProperties: false,
-        },
-      },
-    },
-    required: ["tags"],
-    additionalProperties: false,
-  };
+  const schema = TagsStrictJsonSchema;
 
   const zodSchema = TagsResponseSchema(envLike.TAGS_MAX_PER_STORY);
   const rules = buildTagsRules(envLike.TAGS_MAX_PER_STORY);
@@ -249,6 +252,12 @@ export async function summarizeTagsStructured(
       cat: tag.cat,
     }));
   } catch (error) {
+    // Same model id will keep 404'ing — surface to processTags heuristics instead of
+    // burning a second plain-JSON call on a missing route.
+    if (isModelNotFoundError(error)) {
+      throw error instanceof Error ? error : new Error(String(error));
+    }
+
     log.warn(TAGS_DEBUG_MESSAGE, "structured outputs failed, falling back to regular JSON", {
       model: envLike.TAGS_MODEL,
       error: error instanceof Error ? error.message : String(error),

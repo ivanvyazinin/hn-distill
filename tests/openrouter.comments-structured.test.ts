@@ -191,4 +191,27 @@ describe("OpenRouter comments structured output", () => {
 
     expect(getCalls()).toBe(1);
   });
+
+  test("model_not_found does not retry the same model id", async () => {
+    const missing = new HttpError(
+      "https://api.groq.com/openai/v1/chat/completions",
+      404,
+      'HTTP 404 {"error":{"message":"The model `meta-llama/llama-4-scout-17b-16e-instruct` does not exist or you do not have access to it.","type":"invalid_request_error","code":"model_not_found"}}'
+    );
+    const { http, getCalls } = makeMockHttp(async () => {
+      throw missing;
+    });
+    const openrouter = makeOpenRouter(http);
+
+    await expect(
+      openrouter.chatStructured(
+        [{ role: "user", content: "tags" }],
+        { model: "meta-llama/llama-4-scout-17b-16e-instruct", transportRetries: 0 },
+        ValueSchema,
+        3
+      )
+    ).rejects.toThrow(/structured output failed after 1 attempts/u);
+
+    expect(getCalls()).toBe(1);
+  });
 });

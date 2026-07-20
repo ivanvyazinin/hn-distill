@@ -1,4 +1,4 @@
-import { describe, expect, test, mock } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 
 import { env } from "@config/env";
 import {
@@ -9,10 +9,11 @@ import {
   stripJsonFence,
   summarizeTagsStructured,
 } from "@utils/tags-extract";
-import { canonicalize, slugify, heuristicTags } from "@utils/tags";
+import { HttpError } from "@utils/http-client";
+import { canonicalize, heuristicTags, slugify } from "@utils/tags";
 
-import type { OpenRouter } from "@utils/openrouter";
 import type { NormalizedStory } from "@config/schemas";
+import type { OpenRouter } from "@utils/openrouter";
 
 describe("Tags extraction & canonicalization", () => {
   test("buildTagsPrompt includes title, URL, domain and article summary", () => {
@@ -149,6 +150,28 @@ describe("Tags extraction & canonicalization", () => {
     ]);
     expect(mockOr.chatStructured).toHaveBeenCalledTimes(1);
     expect(mockOr.chat).toHaveBeenCalledTimes(1);
+  });
+
+  test("summarizeTagsStructured model_not_found skips plain-JSON fallback on same id", async () => {
+    const missing = new HttpError(
+      "https://api.groq.com/openai/v1/chat/completions",
+      404,
+      'HTTP 404 {"error":{"message":"The model does not exist","code":"model_not_found"}}'
+    );
+    const mockOr = {
+      chatStructured: mock(async () => {
+        throw new Error("OpenRouter structured output failed after 1 attempts: model_not_found", {
+          cause: missing,
+        });
+      }),
+      chat: mock(async () => {
+        throw new Error("plain JSON fallback must not run for model_not_found");
+      }),
+    } as unknown as OpenRouter;
+
+    await expect(summarizeTagsStructured(mockOr, "prompt", env)).rejects.toThrow(/does not exist|model_not_found/u);
+    expect(mockOr.chatStructured).toHaveBeenCalledTimes(1);
+    expect(mockOr.chat).toHaveBeenCalledTimes(0);
   });
 
   test("summarizeTagsStructured hard-bad JSON → error surfaced (negative)", () => {
