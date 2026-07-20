@@ -287,6 +287,84 @@ describe("comments-v2 request budget and validation", () => {
     });
   });
 
+  test("70b HTTP 429 then 8b HTTP 413 reaches OpenRouter Qwen within 3 calls", async () => {
+    const story = makeStory({ id: 43, title: "Budget reaches Qwen" });
+    const groqCalls: StructuredCall[] = [];
+    const openRouterCalls: StructuredCall[] = [];
+    const groqClient = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async (messages: ChatMessage[], options: StructuredOutputOptions, _schema: unknown, maxRetries: number) => {
+        groqCalls.push({ messages, options, maxRetries });
+        if (options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com/openai/v1", 429, "tokens per day (TPD)"),
+          });
+        }
+        if (options.model === env.COMMENTS_FALLBACK_MODEL) {
+          if (options.responseFormat !== undefined) {
+            throw new UnsupportedResponseFormatError(
+              new HttpError("https://api.groq.com/openai/v1", 400, "response_format is not supported")
+            );
+          }
+          throw new Error("request too large", {
+            cause: new HttpError("https://api.groq.com/openai/v1", 413, "Request too large for model"),
+          });
+        }
+        throw new Error(`unexpected Groq model ${options.model ?? "<none>"}`);
+      },
+    } as unknown) as Services["openrouter"];
+    const openrouter = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async <T>(messages: ChatMessage[], options: StructuredOutputOptions, _schema: unknown, maxRetries: number): Promise<T> => {
+        openRouterCalls.push({ messages, options, maxRetries });
+        return VALID_INSIGHTS as T;
+      },
+    } as unknown) as Services["openrouter"];
+    const services: Services = {
+      http: {} as Services["http"],
+      openrouter,
+      guardTagsClient: groqClient,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
+    };
+    const budget = new CommentsGenerationBudget({ maxCalls: 3 });
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "" },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+          budget,
+        });
+
+        expect(result?.insights).toEqual(VALID_INSIGHTS);
+        expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(groqCalls.map((call) => call.options.model)).toEqual([
+          env.COMMENTS_MODEL,
+          env.COMMENTS_FALLBACK_MODEL,
+        ]);
+        expect(groqCalls.length).toBe(2);
+        for (const call of groqCalls) {
+          expect(call.options.responseFormat).toBeUndefined();
+          expect(call.options.jsonExtraction).toBe("balanced-object");
+        }
+        expect(openRouterCalls.length).toBe(1);
+        expect(openRouterCalls[0]?.options.model).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(openRouterCalls[0]?.options.responseFormat?.type).toBe("json_schema");
+        expect(openRouterCalls[0]?.options.responseFormat?.json_schema.name).toBe("comments_insights_v2");
+        expect(openRouterCalls[0]?.options.responseFormat?.json_schema.strict).toBe(true);
+        expect(typeof openRouterCalls[0]?.options.responseFormat?.json_schema.schema).toBe("object");
+        expect(openRouterCalls[0]?.options.jsonExtraction).toBe("strict");
+        expect(budget.callsUsed).toBe(3);
+      }
+    );
+  });
+
   test("Groq model_not_found advances chain without repeating the missing id", async () => {
     const story = makeStory({ id: 42, title: "Missing model" });
     const groqCalls: StructuredCall[] = [];

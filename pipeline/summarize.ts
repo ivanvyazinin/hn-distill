@@ -1272,10 +1272,19 @@ export async function callStructuredWithModelChain(
   // Each step carries its own client so the chain can cross providers: the Groq
   // models first, then a paid OpenRouter model that survives Groq's per-model daily
   // token cap (HTTP 429 TPD) which would otherwise dead-end the whole Groq chain.
-  type ChainStep = { client: OpenRouter; model: string; baseUrl: string };
+  type ChainStep = {
+    client: OpenRouter;
+    model: string;
+    prefersResponseFormat: boolean;
+  };
   const steps: ChainStep[] = [];
   const seenSteps = new Set<string>();
-  const pushStep = (stepClient: OpenRouter, model: string, stepBaseUrl: string): void => {
+  const pushStep = (
+    stepClient: OpenRouter,
+    model: string,
+    stepBaseUrl: string,
+    prefersResponseFormat: boolean
+  ): void => {
     const trimmed = model.trim();
     if (trimmed.length === 0) {
       return;
@@ -1285,33 +1294,35 @@ export async function callStructuredWithModelChain(
       return;
     }
     seenSteps.add(key);
-    steps.push({ client: stepClient, model: trimmed, baseUrl: stepBaseUrl });
+    steps.push({ client: stepClient, model: trimmed, prefersResponseFormat });
   };
 
   if (groqEnabled) {
     for (const model of [env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
-      pushStep(services.guardTagsClient, model, groqBaseUrl);
+      pushStep(services.guardTagsClient, model, groqBaseUrl, false);
     }
-    pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl);
+    pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, true);
   } else {
     for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {
-      pushStep(services.openrouter, model, openRouterBaseUrl);
+      pushStep(services.openrouter, model, openRouterBaseUrl, true);
     }
   }
 
   let stepIndex = 0;
   let strict = false;
-  // Direct Groq rejects json_schema on llama-3.3; starting with response_format only
-  // burns a full prompt against TPD. Prefer balanced extraction on that route.
-  let useResponseFormat = steps[0] !== undefined && !steps[0].baseUrl.includes("api.groq.com");
+  // Provider-derived per step: Groq llama rejects json_schema (400) and a same-model
+  // no-format retry would burn a second physical call against COMMENTS_MAX_LLM_CALLS.
+  // Start Groq on balanced-object; OpenRouter (Qwen) keeps strict json_schema.
+  // UnsupportedResponseFormat may still flip the flag off for a same-model retry on
+  // non-Groq providers that advertise schema support incorrectly.
+  let useResponseFormat = steps[0]?.prefersResponseFormat ?? false;
 
   const moveToFallback = (): boolean => {
     stepIndex += 1;
     strict = true;
-    // A fresh model starts strict with json_schema; the UnsupportedResponseFormat
-    // catch below flips it off for Groq ids (llama-3.3) that reject the keyword.
-    useResponseFormat = true;
-    return stepIndex < steps.length;
+    const next = steps[stepIndex];
+    useResponseFormat = next?.prefersResponseFormat ?? false;
+    return next !== undefined;
   };
 
   while (stepIndex < steps.length) {
