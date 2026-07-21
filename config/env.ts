@@ -163,6 +163,17 @@ const EnvironmentSchema = z.object({
     .min(0)
     .max(24 * 60)
     .default(0),
+  // Engagement gate for LLM spend. A story is only processed by the LLM stages
+  // (post summary, comments, tags, guard, Telegram publish) when it clears this
+  // gate; otherwise ALL LLM work is skipped. Semantics: 0 = criterion disabled. A
+  // story passes if NO criterion is enabled, OR any enabled criterion is met (OR):
+  //   passes = !(minScore > 0 || minComments > 0)
+  //     || (minScore > 0 && (story.score ?? 0) >= minScore)
+  //     || (minComments > 0 && (story.descendants ?? 0) >= minComments)
+  // Boundary values pass (score === minScore → pass). Missing score/descendants
+  // count as 0. Defaults 0/0 keep current behavior (gate off).
+  SUMMARIZE_MIN_SCORE: z.coerce.number().int().min(0).default(0),
+  SUMMARIZE_MIN_COMMENTS: z.coerce.number().int().min(0).default(0),
 
   // Posts: skip regeneration entirely if a post summary already exists
   POST_SUMMARY_ONLY_IF_MISSING: z

@@ -2377,6 +2377,25 @@ export async function processSingleStory(
     return;
   }
 
+  // Engagement gate (defense-in-depth: also enforced in evaluateCandidate for the
+  // local workflow, but this function is called directly by the Cloudflare worker
+  // path). Skip ALL LLM + state writes below threshold, before any usage scope.
+  if (
+    !passesEngagementGate(story, {
+      minScore: env.SUMMARIZE_MIN_SCORE,
+      minComments: env.SUMMARIZE_MIN_COMMENTS,
+    })
+  ) {
+    log.info("summarize", "Skipping LLM: below engagement threshold", {
+      id,
+      score: story.score,
+      descendants: story.descendants,
+      minScore: env.SUMMARIZE_MIN_SCORE,
+      minComments: env.SUMMARIZE_MIN_COMMENTS,
+    });
+    return;
+  }
+
   // Scope the usage collector to this story; drain + persist in finally so events flush
   // even when the body throws, and the scope is always cleared (record() drops out-of-scope
   // events — R3). The Worker calls this same function, so there is no separate wiring.
@@ -2493,6 +2512,7 @@ type CandidateSelectionConfig = {
   summaryLang: string;
   postSummaryOnlyIfMissing: boolean;
   detectorPolicy: ExtractDetectorPolicy;
+  gate: { minScore: number; minComments: number };
 };
 
 function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: number): boolean {
@@ -2501,6 +2521,27 @@ function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: numb
   }
   const ts = Date.parse(iso);
   return Number.isFinite(ts) && now - ts < cooldownMs;
+}
+
+/**
+ * Engagement gate for LLM spend (SUMMARIZE_MIN_SCORE / SUMMARIZE_MIN_COMMENTS).
+ * A story qualifies for LLM processing when NO criterion is enabled (both
+ * thresholds 0 → gate off), OR any enabled criterion is met (OR semantics).
+ * Boundary values pass (score === minScore → pass). Missing score/descendants
+ * count as 0.
+ */
+export function passesEngagementGate(
+  story: Pick<NormalizedStory, "descendants" | "score">,
+  thresholds: { minScore: number; minComments: number }
+): boolean {
+  const { minScore, minComments } = thresholds;
+  if (!(minScore > 0 || minComments > 0)) {
+    return true;
+  }
+  return (
+    (minScore > 0 && (story.score ?? 0) >= minScore) ||
+    (minComments > 0 && (story.descendants ?? 0) >= minComments)
+  );
 }
 
 async function computePostChanged(
@@ -2585,7 +2626,7 @@ async function evaluateCandidate(
   id: number,
   config: CandidateSelectionConfig,
   store: ObjectStore
-): Promise<Candidate | undefined> {
+): Promise<Candidate | "gate-skipped" | undefined> {
   const story = await readJsonSafeOrStore<NormalizedStory>(
     store,
     pathFor.rawItem(id),
@@ -2593,6 +2634,19 @@ async function evaluateCandidate(
   );
   if (!story) {
     return undefined;
+  }
+
+  // Engagement gate: skip ALL LLM work below threshold, before the expensive
+  // hashing/reads in computePostChanged/computeCommentsChanged.
+  if (!passesEngagementGate(story, config.gate)) {
+    log.info("summarize", "Skipping LLM: below engagement threshold", {
+      id,
+      score: story.score,
+      descendants: story.descendants,
+      minScore: config.gate.minScore,
+      minComments: config.gate.minComments,
+    });
+    return "gate-skipped";
   }
 
   const [existingPost, existingComments] = await Promise.all([
@@ -2623,12 +2677,15 @@ async function collectCandidates(
   ids: number[],
   config: CandidateSelectionConfig,
   store: ObjectStore
-): Promise<Candidate[]> {
+): Promise<{ candidates: Candidate[]; gateSkipped: number }> {
   const candidates: Candidate[] = [];
+  let gateSkipped = 0;
   for (const id of ids) {
     try {
       const candidate = await evaluateCandidate(id, config, store);
-      if (candidate) {
+      if (candidate === "gate-skipped") {
+        gateSkipped += 1;
+      } else if (candidate) {
         candidates.push(candidate);
       }
     } catch (error) {
@@ -2636,7 +2693,7 @@ async function collectCandidates(
       candidates.push({ id, priority: 1 });
     }
   }
-  return candidates;
+  return { candidates, gateSkipped };
 }
 
 export async function summarizeWorkflow(services: Services, e: Env, store: ObjectStore, meta?: MetaStore): Promise<void> {
@@ -2651,6 +2708,8 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
     SUMMARIZE_MAX_STORIES_PER_RUN,
     POST_SUMMARY_ONLY_IF_MISSING,
     SUMMARY_LANG,
+    SUMMARIZE_MIN_SCORE,
+    SUMMARIZE_MIN_COMMENTS,
   } = e;
   if (!OPENROUTER_API_KEY) {
     log.warn("summarize", "OPENROUTER_API_KEY missing; skipping summarize step");
@@ -2660,11 +2719,12 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
   // Pre-select candidates to limit token burn per run
   const cooldownMins = Math.max(0, SUMMARIZE_COOLDOWN_MINUTES);
   const maxPerRun = Math.max(1, SUMMARIZE_MAX_STORIES_PER_RUN);
-  const candidates = await collectCandidates(index.storyIds, {
+  const { candidates, gateSkipped } = await collectCandidates(index.storyIds, {
     cooldownMs: cooldownMins * 60_000,
     summaryLang: SUMMARY_LANG,
     postSummaryOnlyIfMissing: POST_SUMMARY_ONLY_IF_MISSING,
     detectorPolicy: e,
+    gate: { minScore: SUMMARIZE_MIN_SCORE, minComments: SUMMARIZE_MIN_COMMENTS },
   }, store);
 
   // Sort: higher priority first; then newest by timeISO desc; then id desc
@@ -2690,6 +2750,12 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
 
   const selected = candidates.slice(0, maxPerRun);
   const skipped = Math.max(0, candidates.length - selected.length);
+  log.info("summarize", "Candidate selection complete", {
+    candidates: candidates.length,
+    gateSkipped,
+    selected: selected.length,
+    maxPerRun,
+  });
   if (skipped > 0) {
     log.info("summarize", "Cap reached; skipping some stories this run", {
       candidates: candidates.length,
