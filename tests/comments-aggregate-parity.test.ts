@@ -166,6 +166,15 @@ describe("comments summary aggregation parity", () => {
       for (const [index, fixture] of fixtures.entries()) {
         await store.putJson(pathFor.rawItem(fixture.story.id), fixture.story);
         await store.putJson(pathFor.rawComments(fixture.story.id), fixture.comments);
+        // Publish bar requires a non-empty post summary that clears RU heuristics
+        // (SUMMARY_LANG=ru in test env: min ~25 words + cyrillic purity).
+        // This test is about comments parity once the item is publishable.
+        await store.putJson(pathFor.postSummary(fixture.story.id), {
+          id: fixture.story.id,
+          lang: "ru",
+          summary:
+            `Эта подробная сводка статьи номер ${fixture.story.id} рассказывает о ключевых тезисах материала, приводит важные цифры и выводы автора, объясняет контекст проблемы и почему тема важна для читателей прямо сейчас, без пустых карточек на главной странице сайта.`,
+        });
         await store.putJson(pathFor.commentsSummary(fixture.story.id), {
           id: fixture.story.id,
           lang: "en",

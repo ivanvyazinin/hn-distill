@@ -163,10 +163,12 @@ const EnvironmentSchema = z.object({
     .min(0)
     .max(24 * 60)
     .default(0),
-  // Engagement gate for LLM spend. A story is only processed by the LLM stages
-  // (post summary, comments, tags, guard, Telegram publish) when it clears this
-  // gate; otherwise ALL LLM work is skipped. Semantics: 0 = criterion disabled. A
-  // story passes if NO criterion is enabled, OR any enabled criterion is met (OR):
+  // Engagement gate for LLM spend AND site publish. A story is only processed by
+  // the LLM stages (post summary, comments, tags, guard) when it clears this gate;
+  // otherwise ALL LLM work is skipped. Aggregate/site also drop stories without a
+  // publishable postSummary, so below-threshold items never become empty cards.
+  // Semantics: 0 = criterion disabled. A story passes if NO criterion is enabled,
+  // OR any enabled criterion is met (OR):
   //   passes = !(minScore > 0 || minComments > 0)
   //     || (minScore > 0 && (story.score ?? 0) >= minScore)
   //     || (minComments > 0 && (story.descendants ?? 0) >= minComments)

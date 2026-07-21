@@ -12,36 +12,36 @@ describe("passesEngagementGate", () => {
   const off = { minScore: 0, minComments: 0 };
 
   test("both thresholds 0 → everything passes (including score 0/undefined)", () => {
-    expect(passesEngagementGate({ score: 0, descendants: 0 }, off)).toBeTrue();
+    expect(passesEngagementGate({ score: 0, comments: 0 }, off)).toBeTrue();
     expect(passesEngagementGate({}, off)).toBeTrue();
-    expect(passesEngagementGate({ score: 1000, descendants: 1000 }, off)).toBeTrue();
+    expect(passesEngagementGate({ score: 1000, comments: 1000 }, off)).toBeTrue();
   });
 
   test("only minScore=300: below fails, boundary and above pass", () => {
     const t = { minScore: 300, minComments: 0 };
-    expect(passesEngagementGate({ score: 299, descendants: 9999 }, t)).toBeFalse();
-    expect(passesEngagementGate({ score: 300, descendants: 0 }, t)).toBeTrue();
+    expect(passesEngagementGate({ score: 299, comments: 9999 }, t)).toBeFalse();
+    expect(passesEngagementGate({ score: 300, comments: 0 }, t)).toBeTrue();
     expect(passesEngagementGate({ score: 301 }, t)).toBeTrue();
   });
 
   test("only minComments=100: below fails, boundary and above pass", () => {
     const t = { minScore: 0, minComments: 100 };
-    expect(passesEngagementGate({ score: 9999, descendants: 99 }, t)).toBeFalse();
-    expect(passesEngagementGate({ descendants: 100 }, t)).toBeTrue();
-    expect(passesEngagementGate({ descendants: 101 }, t)).toBeTrue();
+    expect(passesEngagementGate({ score: 9999, comments: 99 }, t)).toBeFalse();
+    expect(passesEngagementGate({ comments: 100 }, t)).toBeTrue();
+    expect(passesEngagementGate({ comments: 101 }, t)).toBeTrue();
   });
 
   test("both set: OR semantics", () => {
     const t = { minScore: 300, minComments: 100 };
     // low score but high comments → passes
-    expect(passesEngagementGate({ score: 50, descendants: 150 }, t)).toBeTrue();
+    expect(passesEngagementGate({ score: 50, comments: 150 }, t)).toBeTrue();
     // high score but low comments → passes
-    expect(passesEngagementGate({ score: 400, descendants: 3 }, t)).toBeTrue();
+    expect(passesEngagementGate({ score: 400, comments: 3 }, t)).toBeTrue();
     // both below → fails
-    expect(passesEngagementGate({ score: 299, descendants: 99 }, t)).toBeFalse();
+    expect(passesEngagementGate({ score: 299, comments: 99 }, t)).toBeFalse();
   });
 
-  test("missing score/descendants are treated as 0", () => {
+  test("missing score/comments are treated as 0", () => {
     expect(passesEngagementGate({}, { minScore: 300, minComments: 0 })).toBeFalse();
     expect(passesEngagementGate({}, { minScore: 0, minComments: 100 })).toBeFalse();
     expect(passesEngagementGate({}, { minScore: 300, minComments: 100 })).toBeFalse();

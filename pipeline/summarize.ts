@@ -20,6 +20,7 @@ import {
   isCloudflareChallengeError,
   looksLikeCloudflareChallenge,
 } from "@utils/article-fetch";
+import { passesEngagementGate } from "@utils/engagement-gate";
 import {
   buildCommentsCompressUserPrompt,
   compressedStateFor,
@@ -2381,10 +2382,13 @@ export async function processSingleStory(
   // local workflow, but this function is called directly by the Cloudflare worker
   // path). Skip ALL LLM + state writes below threshold, before any usage scope.
   if (
-    !passesEngagementGate(story, {
-      minScore: env.SUMMARIZE_MIN_SCORE,
-      minComments: env.SUMMARIZE_MIN_COMMENTS,
-    })
+    !passesEngagementGate(
+      { score: story.score, comments: story.descendants },
+      {
+        minScore: env.SUMMARIZE_MIN_SCORE,
+        minComments: env.SUMMARIZE_MIN_COMMENTS,
+      }
+    )
   ) {
     log.info("summarize", "Skipping LLM: below engagement threshold", {
       id,
@@ -2523,26 +2527,8 @@ function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: numb
   return Number.isFinite(ts) && now - ts < cooldownMs;
 }
 
-/**
- * Engagement gate for LLM spend (SUMMARIZE_MIN_SCORE / SUMMARIZE_MIN_COMMENTS).
- * A story qualifies for LLM processing when NO criterion is enabled (both
- * thresholds 0 → gate off), OR any enabled criterion is met (OR semantics).
- * Boundary values pass (score === minScore → pass). Missing score/descendants
- * count as 0.
- */
-export function passesEngagementGate(
-  story: Pick<NormalizedStory, "descendants" | "score">,
-  thresholds: { minScore: number; minComments: number }
-): boolean {
-  const { minScore, minComments } = thresholds;
-  if (!(minScore > 0 || minComments > 0)) {
-    return true;
-  }
-  return (
-    (minScore > 0 && (story.score ?? 0) >= minScore) ||
-    (minComments > 0 && (story.descendants ?? 0) >= minComments)
-  );
-}
+// Re-export shared gate (also used by aggregate/site publish filters).
+export { passesEngagementGate } from "@utils/engagement-gate";
 
 async function computePostChanged(
   story: NormalizedStory,
@@ -2638,7 +2624,7 @@ async function evaluateCandidate(
 
   // Engagement gate: skip ALL LLM work below threshold, before the expensive
   // hashing/reads in computePostChanged/computeCommentsChanged.
-  if (!passesEngagementGate(story, config.gate)) {
+  if (!passesEngagementGate({ score: story.score, comments: story.descendants }, config.gate)) {
     log.info("summarize", "Skipping LLM: below engagement threshold", {
       id,
       score: story.score,
