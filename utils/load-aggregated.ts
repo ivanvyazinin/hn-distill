@@ -1,7 +1,9 @@
 import { readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { env } from "@config/env";
 import type { AggregatedItem } from "@config/schemas";
+import { isSitePublishable } from "@utils/engagement-gate";
 
 export type AggregatedData = {
   items: AggregatedItem[];
@@ -74,7 +76,14 @@ export function loadAggregated(pathname: string): AggregatedData {
       return "—";
     }
 
-    const items = getItems(parsed);
+    // Defense-in-depth: never surface empty/below-threshold cards even if an older
+    // aggregated.json still contains gate-skipped rows. Uses the same publish bar
+    // as aggregate (engagement gate + non-empty postSummary).
+    const gate = {
+      minScore: env.SUMMARIZE_MIN_SCORE,
+      minComments: env.SUMMARIZE_MIN_COMMENTS,
+    };
+    const items = getItems(parsed).filter((it) => isSitePublishable(it, gate));
     const updatedISO = getUpdatedISO(parsed);
     const data: AggregatedData = { items, updatedISO };
     aggregatedCache.set(key, { mtimeMs, data });

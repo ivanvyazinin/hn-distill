@@ -5,6 +5,12 @@ import { SCORE_MIN_AGGREGATE } from "@config/constants";
 import { env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
+  hasPublishablePostSummary,
+  isSitePublishable,
+  passesEngagementGate,
+  type EngagementThresholds,
+} from "@utils/engagement-gate";
+import {
   AggregatedFileSchema,
   AggregatedItemSchema,
   CommentsSummarySchema,
@@ -53,52 +59,55 @@ export function makeServices(): Services {
   return {};
 }
 
-async function loadStoryData(
+// Relaxed schema sufficient for aggregation; matches what tests write.
+const AggregationStorySchema = z.object({
+  id: z.number(),
+  title: z.string(),
+  // Explicitly allow null and use null as a fallback default for invalid values.
+  // eslint-disable-next-line unicorn/no-null
+  url: z.union([z.string(), z.null()]).optional().catch(null),
+  by: z.string(),
+  timeISO: z.string(), // accept any string; invalid dates handled later
+  score: z.number().optional(),
+  descendants: z.number().optional(),
+  // commentIds not required for aggregation
+});
+
+function engagementThresholdsFromEnv(): EngagementThresholds {
+  return {
+    minScore: env.SUMMARIZE_MIN_SCORE,
+    minComments: env.SUMMARIZE_MIN_COMMENTS,
+  };
+}
+
+async function loadStoryOnly(
+  id: number,
+  store: ObjectStore
+): Promise<NormalizedStory | undefined> {
+  const storyLoose = await readJsonSafeOrStore(store, pathFor.rawItem(id), AggregationStorySchema.nullable());
+  if (!storyLoose) {
+    return undefined;
+  }
+  // Cast to NormalizedStory for downstream use; fields we read are present.
+  return storyLoose as unknown as NormalizedStory;
+}
+
+async function loadStoryPayload(
   id: number,
   store: ObjectStore
 ): Promise<{
-  story: NormalizedStory | undefined;
   comments: NormalizedComment[];
   postSummary: unknown;
   commentsSummary: unknown;
   tagsSummary: unknown;
 }> {
-  // Relaxed schema sufficient for aggregation; matches what tests write.
-  const AggregationStorySchema = z.object({
-    id: z.number(),
-    title: z.string(),
-    // Explicitly allow null and use null as a fallback default for invalid values.
-    // eslint-disable-next-line unicorn/no-null
-    url: z.union([z.string(), z.null()]).optional().catch(null),
-    by: z.string(),
-    timeISO: z.string(), // accept any string; invalid dates handled later
-    score: z.number().optional(),
-    descendants: z.number().optional(),
-    // commentIds not required for aggregation
-  });
-
-  const storyLoose = await readJsonSafeOrStore(store, pathFor.rawItem(id), AggregationStorySchema.nullable());
-  if (!storyLoose) {
-    return {
-      story: undefined,
-      comments: [],
-      postSummary: undefined,
-      commentsSummary: undefined,
-      tagsSummary: undefined,
-    };
-  }
-
-  // Cast to NormalizedStory for downstream use; fields we read are present.
-  const story = storyLoose as unknown as NormalizedStory;
-
   const [comments, postSummary, commentsSummary, tagsSummary] = await Promise.all([
     readJsonSafeOrStore<NormalizedComment[]>(store, pathFor.rawComments(id), NormalizedCommentSchema.array(), []),
     readJsonSafeOrStore(store, pathFor.postSummary(id), PostSummarySchema.nullable()),
     readJsonSafeOrStore(store, pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
     readJsonSafeOrStore(store, pathFor.tagsSummary(id), TagsSummarySchema.nullable()),
   ]);
-
-  return { story, comments, postSummary, commentsSummary, tagsSummary };
+  return { comments, postSummary, commentsSummary, tagsSummary };
 }
 
 export function extractDomain(url?: string): string | undefined {
@@ -243,11 +252,13 @@ function sanitizePostSummary(
 }
 
 export async function readAggregates(storyIds: number[], store: ObjectStore): Promise<AggregatedItem[]> {
+  const gate = engagementThresholdsFromEnv();
   const results = await Promise.all(
     storyIds.map(async (id) => {
       log.debug("aggregate", "Aggregating story", { id });
 
-      const { story, comments, postSummary, commentsSummary, tagsSummary } = await loadStoryData(id, store);
+      // Cheap prefilter: load raw story first and skip before comments/summaries/tags I/O.
+      const story = await loadStoryOnly(id, store);
       if (!story) {
         log.warn("aggregate", "Missing story; skipping", { id });
         return;
@@ -259,9 +270,28 @@ export async function readAggregates(storyIds: number[], store: ObjectStore): Pr
         return;
       }
 
+      if (
+        !passesEngagementGate(
+          { score: story.score, comments: story.descendants },
+          gate
+        )
+      ) {
+        log.info("aggregate", "Skipping story below engagement threshold", {
+          id: story.id,
+          score: story.score,
+          descendants: story.descendants,
+          minScore: gate.minScore,
+          minComments: gate.minComments,
+        });
+        return;
+      }
+
+      const { comments, postSummary, commentsSummary, tagsSummary } = await loadStoryPayload(id, store);
       const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);
-      if (!item.postSummary) {
-        log.info("aggregate", "No postSummary for story (will render placeholder)", { id: story.id });
+      // Threshold-pass but empty/guard-dropped post body must not become an empty card.
+      if (!hasPublishablePostSummary(item)) {
+        log.info("aggregate", "Skipping story without publishable postSummary", { id: story.id });
+        return;
       }
       return item;
     })
@@ -333,6 +363,8 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
   let sorted: AggregatedItem[];
   const changedIds = new Set<number>();
 
+  const gate = engagementThresholdsFromEnv();
+
   if (fromDb && meta) {
     const storyIds = await meta.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
     const latestItems = await meta.getAggregatedItems(storyIds);
@@ -342,7 +374,8 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
         changedIds.add(it.id);
       }
     }
-    sorted = latestItems.sort(sortItemsDesc);
+    // Drop gate-skipped / empty-summary rows (and stale previous DB materializations).
+    sorted = latestItems.filter((it) => isSitePublishable(it, gate)).sort(sortItemsDesc);
   } else {
     const index = await readJsonSafeOrStore<{ updatedISO: string; storyIds: number[] }>(store, PATHS.index, IndexSchema, {
       updatedISO: new Date(0).toISOString(),
@@ -361,14 +394,19 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
       byId.set(it.id, it);
       changedIds.add(it.id);
     }
+    // Re-filter previous.items too: a once-published row that later falls below the
+    // engagement bar (or lost its summary) must leave the site on the next run.
     const merged = [...byId.values()].filter((it) => {
       const s = typeof it.score === "number" ? it.score : 0;
-      return s >= SCORE_MIN_AGGREGATE;
+      return s >= SCORE_MIN_AGGREGATE && isSitePublishable(it, gate);
     });
     sorted = merged.sort(sortItemsDesc);
   }
 
   const safeItems = sorted.filter((it) => {
+    if (!isSitePublishable(it, gate)) {
+      return false;
+    }
     try {
       AggregatedItemSchema.parse(it);
       return true;
