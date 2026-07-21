@@ -18,18 +18,11 @@ export type SummaryGuardResult = {
   ok: boolean;
   verdict: SummaryGuardVerdictLabel;
   reasons: string[];
-  confidence?: number | undefined;
+  confidence: number;
   raw: SummaryGuardStructured;
 };
 
-type SummaryGuardStructured = {
-  ok: boolean;
-  verdict?: SummaryGuardVerdictLabel | undefined;
-  reasons?: string[] | undefined;
-  confidence?: number | undefined;
-  is_article?: boolean | undefined;
-  refusal?: boolean | undefined;
-};
+type SummaryGuardStructured = z.infer<typeof SummaryGuardSchema>;
 
 type SummaryGuardInput = {
   summary: string;
@@ -46,13 +39,25 @@ type SummaryGuardInput = {
 
 const GUARD_DEBUG_NAMESPACE = "summary-guard" as const;
 
+const GUARD_VERDICTS = [
+  "nonsense",
+  "not_article",
+  "ok",
+  "other",
+  "refusal",
+  "too_generic",
+  "too_short",
+] as const;
+
 export const SummaryGuardSchema = z.object({
   ok: z.boolean(),
-  is_article: z.boolean().optional(),
-  refusal: z.boolean().optional(),
-  verdict: z.enum(["nonsense", "not_article", "ok", "other", "refusal", "too_generic", "too_short"]).optional(),
-  reasons: z.array(z.string()).max(8).optional(),
-  confidence: z.number().min(0).max(1).optional(),
+  is_article: z.boolean(),
+  refusal: z.boolean(),
+  verdict: z.enum(GUARD_VERDICTS),
+  // Prompt requests ≤2; permissive local cap avoids rejecting a usable verdict
+  // solely because the provider gave one extra explanation.
+  reasons: z.array(z.string()).max(8),
+  confidence: z.number().min(0).max(1),
 });
 
 /** Provider-facing schema used by production guard calls and model probes. */
@@ -64,7 +69,7 @@ export const SummaryGuardStrictJsonSchema: JsonSchema = {
     refusal: { type: "boolean", description: "true if the summary is a refusal or policy response" },
     verdict: {
       type: "string",
-      enum: ["nonsense", "not_article", "ok", "other", "refusal", "too_generic", "too_short"],
+      enum: [...GUARD_VERDICTS],
     },
     reasons: {
       type: "array",
@@ -89,8 +94,16 @@ export async function runSummaryGuard(openrouter: OpenRouter, input: SummaryGuar
   const messages = [
     {
       role: "system" as const,
-      content:
-        "You are a strict content quality gate for article summaries. Decide if the candidate summary accurately and safely represents the article excerpt. Respond ONLY in JSON.",
+      content: `You are a strict quality gate for article summaries.
+Return exactly one JSON object and always include every key:
+{"ok":true,"is_article":true,"refusal":false,"verdict":"ok","reasons":[],"confidence":0.95}
+
+Rules:
+- "ok", "is_article", and "refusal" are booleans.
+- "verdict" must be one of: nonsense, not_article, ok, other, refusal, too_generic, too_short.
+- "confidence" is a number from 0 to 1; never omit it.
+- "reasons" is always an array of at most two short strings; use [] when no reason is needed.
+- Output JSON only, without Markdown or commentary.`,
     },
     {
       role: "user" as const,
@@ -108,7 +121,7 @@ export async function runSummaryGuard(openrouter: OpenRouter, input: SummaryGuar
     articleChars: snippet.length,
   });
 
-  const structured = await openrouter.chatStructured<z.infer<typeof SummaryGuardSchema>>(
+  const structured = await openrouter.chatStructured<SummaryGuardStructured>(
     messages,
     {
       temperature: 0.1,
@@ -168,27 +181,26 @@ function buildGuardPrompt(payload: { language: string; summary: string; articleS
 function normalizeGuard(raw: SummaryGuardStructured, minConfidence: number): SummaryGuardResult {
   const { ok: rawOk, is_article: isArticle, refusal, verdict: rawVerdict, reasons: rawReasons, confidence } = raw;
 
-  const reasons = Array.isArray(rawReasons) ? rawReasons.filter((reason) => reason.trim().length > 0) : [];
+  // Semantic rejection reasons take precedence, but the rendered contract stays
+  // bounded to two distinct short reasons even when the model supplied its own list.
+  const reasons = [
+    ...(isArticle ? [] : ["not_article"]),
+    ...(refusal ? ["refusal"] : []),
+    ...rawReasons,
+  ]
+    .map((reason) => reason.trim())
+    .filter((reason, index, all) => reason.length > 0 && all.indexOf(reason) === index)
+    .slice(0, 2);
 
-  if (isArticle === false && !reasons.includes("not_article")) {
-    reasons.push("not_article");
-  }
+  const meetsConfidence = confidence >= minConfidence;
+  const guardOk = rawOk && isArticle && !refusal && meetsConfidence;
 
-  if (refusal === true && !reasons.includes("refusal")) {
-    reasons.push("refusal");
-  }
-
-  const meetsConfidence = confidence === undefined || confidence >= minConfidence;
-  const guardOk = rawOk && isArticle !== false && refusal !== true && meetsConfidence;
-
-  let verdict: SummaryGuardVerdictLabel = rawVerdict ?? "other";
+  let verdict: SummaryGuardVerdictLabel = rawVerdict;
   if (!guardOk) {
-    if (isArticle === false) {
+    if (!isArticle) {
       verdict = "not_article";
-    } else if (refusal === true) {
+    } else if (refusal) {
       verdict = "refusal";
-    } else if (rawVerdict === undefined) {
-      verdict = "other";
     }
   }
 
