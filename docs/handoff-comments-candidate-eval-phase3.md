@@ -48,9 +48,16 @@ bun test tests/summarize.comments-v2.test.ts   # 36 pass
 - Treat this as Phase 2 PASS.
 - Change paid freshness SLA here without an explicit product decision.
 
-## Next (Phase 4 when ready)
+## Phase 4 controls (landed, still default-safe)
 
-1. Optional: finish Phase 2 when 70b TPD available, or document permanent waiver.
-2. Enable flag on a small medium-story share only.
-3. Watch 8 scheduled runs: validated rate, provenance, RU, p95, paid tokens.
-4. Rollback triggers per `docs/plan-cheap-groq-comments-route.md` Phase 4.
+- `COMMENTS_QWEN27B_ROUTE_SHARE` default **0** — ENABLE alone does nothing.
+- Deterministic sample: `storyId % 100 < share` (`isCommentsQwen27bShareHit`).
+- Runbook: `docs/runbook-comments-qwen27b-rollout.md` (8-run table, rollback triggers).
+- To start limited rollout in prod: deploy + set `ENABLE=true` and `SHARE=10` (or agreed %).
+
+## Next (actual prod flip)
+
+1. Baseline 8h metrics (usage + failures).
+2. Set ENABLE=true SHARE=10 on Worker; deploy.
+3. Fill runbook table for 8 crons; rollback on triggers.
+4. Only then raise share / consider default.
