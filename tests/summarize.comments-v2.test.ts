@@ -1068,6 +1068,80 @@ describe("comments-v2 descendants regen gate", () => {
     );
   });
 
+  test("too-few-comments is not pinned by the count gate and upgrades on hash change", async () => {
+    // Early thin thread writes degraded too-few with processedDescendants. Growth
+    // within threshold must NOT freeze the fallback — hash path must still fire so
+    // a later substantive sample can produce a real structured summary.
+    const story = makeStory({ id: 58, title: "Too few upgrade", descendants: 5 });
+    const thin = [longComment(581, story.id, "Один короткий ответ без достаточной дискуссии.")];
+    const rich = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/58.comments.json";
+    const { calls, services } = structuredServices([async () => VALID_INSIGHTS]);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, thin, undefined, path, store);
+        expect(first.status).toBe("applied");
+        if (first.status !== "applied") {
+          return;
+        }
+        expect(first.summary.degraded).toBe("too-few-comments");
+        expect(first.summary.processedDescendants).toBe(5);
+        expect(calls.length).toBe(0);
+
+        const grown = { ...story, descendants: 90 }; // +85 ≤ 100
+        await store.putJson(pathFor.rawComments(story.id), rich);
+        // Count gate must not short-circuit degraded blobs.
+        expect(await computeCommentsChanged(grown, first.summary, "ru", 0, Date.now(), store)).toBeTrue();
+
+        const second = await processCommentsSummary(services, grown, rich, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(calls.length).toBe(1);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.degraded).toBeUndefined();
+        expect(persisted?.structured).toEqual(VALID_INSIGHTS);
+        expect(persisted?.processedDescendants).toBe(90);
+      }
+    );
+  });
+
+  test("gate-fire above threshold is still blocked by cooldown", async () => {
+    const story = makeStory({ id: 59, title: "Cooldown wins", descendants: 300 });
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), threeComments(story.id));
+
+    const fresh: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "hash",
+      createdISO: new Date().toISOString(),
+      processedDescendants: 100,
+      policyVersion: COMMENTS_POLICY_VERSION,
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 100 },
+      async () => {
+        // +200 > 100 would fire the gate, but cooldown short-circuits first.
+        expect(await computeCommentsChanged(story, fresh, "ru", 60_000, Date.now(), store)).toBeFalse();
+        // Outside cooldown the same delta forces regen.
+        expect(
+          await computeCommentsChanged(story, fresh, "ru", 0, Date.now(), store)
+        ).toBeTrue();
+      }
+    );
+  });
+
   test("compress-retry still fires under the count gate inside cooldown", async () => {
     const story = makeStory({ id: 57, title: "Compress under gate", descendants: 90 });
     const store = new MemoryStore();

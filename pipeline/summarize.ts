@@ -2210,10 +2210,15 @@ export async function processCommentsSummary(
   // Trade-off (intentional): postSummary/title prompt drift alone no longer forces
   // comments regen — only +N growth or a COMMENTS_POLICY_VERSION bump does.
   // 0 disables the gate (legacy hash-only). Missing snapshots → hash behavior.
+  // Only healthy (non-degraded) blobs are gated: too-few-comments must keep the
+  // hash path so a thin early thread can still upgrade once real comments arrive
+  // with growth ≤ threshold. Negative delta (moderated shrink) counts as "within
+  // threshold" and keeps the existing summary — rare on HN, inherent to count gating.
   let descendantsDelta: number | undefined;
   if (
     existingCommentsSummary !== undefined &&
     existingCommentsSummary.formatVersion === 2 &&
+    existingCommentsSummary.degraded === undefined &&
     !retryableFallback &&
     env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
     existingCommentsSummary.policyVersion === COMMENTS_POLICY_VERSION &&
@@ -2939,11 +2944,16 @@ export async function computeCommentsChanged(
   // Cheap short-circuit on full HN thread size (story.descendants), not the capped
   // fetch sample. Trade-off (intentional): postSummary/title drift alone no longer
   // triggers comments regen — only +N growth or a policy bump. Threshold 0 disables.
-  // Blobs without processedDescendants, or stories without descendants, fall through
-  // to the legacy inputHash check (one regen backfills the field).
+  // Only non-degraded blobs are gated (too-few-comments keeps hash path so thin
+  // early threads can still upgrade). Blobs without processedDescendants, or stories
+  // without descendants, fall through to inputHash (one regen backfills the field).
+  // Negative delta (moderated shrink) is "within threshold" → keep summary.
+  // Policy bump above is evaluated only after cooldown — same as the hash path
+  // ("forces regen" = next non-cooldown run).
   if (
     env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
     existingComments.formatVersion === 2 &&
+    existingComments.degraded === undefined &&
     existingComments.policyVersion === COMMENTS_POLICY_VERSION &&
     existingComments.processedDescendants !== undefined &&
     story.descendants !== undefined
