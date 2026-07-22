@@ -234,6 +234,9 @@ async function processInlineSummaries(
   }
 
   const taskTimeoutBase = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+  // One TPD breaker set for the whole inline pass — a per-story makeServices() would
+  // re-hit models already proven exhausted earlier in this cron run.
+  const commentsTpdExhaustedModels = new Set<string>();
   for (const id of ids) {
     const elapsed = Date.now() - startedAt;
     const remaining = cronTimeout - elapsed - TIMEOUT_BUFFER_MS;
@@ -243,7 +246,11 @@ async function processInlineSummaries(
     }
     const taskTimeout = Math.min(taskTimeoutBase, remaining);
     try {
-      await withTimeout(handleSummarizeTask(env, parsedEnv, store, id, meta, taskTimeout), taskTimeout, `summarize:${id}`);
+      await withTimeout(
+        handleSummarizeTask(env, parsedEnv, store, id, meta, taskTimeout, commentsTpdExhaustedModels),
+        taskTimeout,
+        `summarize:${id}`
+      );
     } catch (error) {
       log.error("worker/cron", "Inline summarize failed", { id, error: String(error) });
     }
@@ -298,14 +305,17 @@ async function handleSummarizeTask(
   store: ReturnType<typeof createWorkerStore>,
   storyId: number,
   meta: ReturnType<typeof createD1MetaStore>,
-  taskTimeoutMs: number
+  taskTimeoutMs: number,
+  commentsTpdExhaustedModels?: Set<string>
 ): Promise<void> {
   const deadlineAt = Date.now() + taskTimeoutMs - TIMEOUT_BUFFER_MS;
   if (!parsedEnv.OPENROUTER_API_KEY) {
     log.warn("worker/summarize", "OPENROUTER_API_KEY missing; skipping", { id: storyId });
     return;
   }
-  const services = makeSummarizeServices(parsedEnv);
+  const services = makeSummarizeServices(parsedEnv, {
+    ...(commentsTpdExhaustedModels === undefined ? {} : { commentsTpdExhaustedModels }),
+  });
   try {
     await processSingleStory(services, storyId, store, meta, { deadlineAt });
   } catch (error) {
@@ -499,6 +509,10 @@ export default {
     const store = createWorkerStore(env.DATA_BUCKET);
     const meta = createD1MetaStore(env.DB);
     const taskTimeout = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+    // Share TPD breaker across every summarize message in this queue batch. Cross-batch
+    // persistence would need Durable Object / D1 state (out of Phase 3 scope); a new
+    // batch still starts clean, matching "new run starts clean".
+    const commentsTpdExhaustedModels = new Set<string>();
 
     for (const message of batch.messages) {
       const body = message.body;
@@ -507,7 +521,7 @@ export default {
       }
       if (body.kind === "summarize") {
         await withTimeout(
-          handleSummarizeTask(env, parsedEnv, store, body.id, meta, taskTimeout),
+          handleSummarizeTask(env, parsedEnv, store, body.id, meta, taskTimeout, commentsTpdExhaustedModels),
           taskTimeout,
           `summarize:${body.id}`
         );

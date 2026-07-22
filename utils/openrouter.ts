@@ -28,6 +28,11 @@ export type StructuredOutputOptions = {
   transportRetries?: number;
   requestTimeoutMs?: number;
   signalUnsupportedResponseFormat?: boolean;
+  /**
+   * Provider-specific reasoning control (Groq Qwen/gpt-oss). Omit on non-reasoning
+   * models. Qwen3.6 accepts "none" (disables <think>); gpt-oss accepts low|medium|high only.
+   */
+  reasoningEffort?: "high" | "low" | "medium" | "none";
   responseFormat?: {
     type: "json_schema";
     json_schema: {
@@ -270,6 +275,7 @@ export class OpenRouter {
       messages,
       ...(options.temperature === undefined ? {} : { temperature: options.temperature }),
       ...(options.maxTokens === undefined ? {} : { max_tokens: options.maxTokens }),
+      ...(options.reasoningEffort === undefined ? {} : { reasoning_effort: options.reasoningEffort }),
       ...(options.responseFormat ? { response_format: options.responseFormat } : {}),
     });
   }

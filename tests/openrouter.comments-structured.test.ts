@@ -83,6 +83,26 @@ describe("OpenRouter comments structured output", () => {
     const parsedBody = JSON.parse(body ?? "{}") as Record<string, unknown>;
     expect(parsedBody["response_format"]).toEqual(responseFormat);
     expect(parsedBody["model"]).toBe("test-model");
+    expect(parsedBody["reasoning_effort"]).toBeUndefined();
+  });
+
+  test("reasoningEffort is forwarded as reasoning_effort when set", async () => {
+    let body: string | undefined;
+    const { http } = makeMockHttp(async (init) => {
+      body = typeof init?.body === "string" ? init.body : undefined;
+      return response('{"value":"ok"}');
+    });
+    const openrouter = makeOpenRouter(http);
+
+    await openrouter.chatStructured(
+      [{ role: "user", content: "guard" }],
+      { reasoningEffort: "none", jsonExtraction: "balanced-object" },
+      ValueSchema,
+      1
+    );
+
+    const parsedBody = JSON.parse(body ?? "{}") as Record<string, unknown>;
+    expect(parsedBody["reasoning_effort"]).toBe("none");
   });
 
   test("transportRetries zero prevents nested transport retry multiplication", async () => {

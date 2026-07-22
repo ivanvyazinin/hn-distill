@@ -1,0 +1,249 @@
+{
+  "story": {
+    "id": 48912812,
+    "title": "How to pack ternary numbers in 8-bit bytes",
+    "url": "https://compilade.net/blog/ternary-packing"
+  },
+  "comments": [
+    {
+      "id": 48912951,
+      "by": "JoshTriplett",
+      "timeISO": "2026-07-14T21:06:29.000Z",
+      "textPlain": "It's impressive how close to optimal this is.You can beat the efficiency of 5 trits in 8 bits (1.6) with as few as 17 trits in 27 bits (~1.588), but once you account for rounding up to a whole number of bytes for practical reasons, then beating the efficiency requires going to at least 111 trits in 176 bits (~1.586), or perhaps more practically for fast unpacking, 161 trits in 256 bits (~1.59).At that level, even if you have, say, 27B trits, the more efficient encodings would save something like 38-45MB (theoretical limit ~48MB), likely at the cost of some slowdown.",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48991394,
+      "by": "lioeters",
+      "timeISO": "2026-07-21T12:25:37.000Z",
+      "textPlain": "Amusing that the link to an article on ternary numbers was posted by Mr Triplett. (:The article is well-written and illustrated. The technique described is used in llama.cpp for running language models like BitNet b1.58 whose weights are stored as ternary types.> ..in which every single parameter (or weight) of the LLM is ternary {-1, 0, 1}> significantly more cost-effective in terms of latency, memory, throughput, and energy consumptionThe original paper on this technique was published in Feb 2024. (Also linked from the article)The Era of 1-bit LLMs: All Large Language Models are in 1.58 Bits - https://arxiv.org/abs/2402.17764However, since then there have only been a few other models using ternary weights. I get the impression that there are factors not considered in the paper which make it less practical than it seemed.",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48992394,
+      "by": "JKCalhoun",
+      "timeISO": "2026-07-21T13:53:55.000Z",
+      "textPlain": "Despite my ignorance on what would be involved, I like to fantasize that companies like Apple (who own their own chip design and hardware) can put these ternary pack/unpack operations in hardware with a single instruction for each (and also instructions for performing the various matrix convolutions using ternary numbers) so that we can get on-device LLMs.I suppose with the recent quantized Bonsai models we're already seeing on-device LLMs for phones and the like… But I (again, forgive my ignorance) assume that there is an order of magnitude or more in performance sitting out there if we get custom hardware instructions.",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48990915,
+      "by": "Diggsey",
+      "timeISO": "2026-07-21T11:36:57.000Z",
+      "textPlain": "How does this packing/unpacking scheme compare to just using a lookup table?",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48989768,
+      "by": "jjgreen",
+      "timeISO": "2026-07-21T08:55:28.000Z",
+      "textPlain": "Possible application: https://thedailywtf.com/articles/What_Is_Truth_0x3f_",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48992297,
+      "by": "JKCalhoun",
+      "timeISO": "2026-07-21T13:46:31.000Z",
+      "textPlain": "\"I'll be calling a \"ternary digit\" a \"trit\", like a \"binary digit\" is called a \"bit\".\"And missed it by one letter. <jk>",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48994180,
+      "by": "ralferoo",
+      "timeISO": "2026-07-21T16:06:04.000Z",
+      "textPlain": "One way to beat this in terms of coding efficiency would be to use something like rANS (explanation [1], code [2]).You would have a more complicated decoder with rANS though, even if you removed the frequency table lookup (because always 1/3) and you'd only produce one output at a time instead of 5 doing this with a lookup table.It might be possible to use a combination of both techniques with e.g. a 16 bit accumulator, multiplying by 243 to get the value to lookup into bits 23-16 and then bias and shift the incoming 8 bits into the accumulator.[1] https://fgiesen.wordpress.com/2014/02/18/rans-with-static-pr...[2] https://github.com/rygorous/ryg_rans",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48994819,
+      "by": "newpavlov",
+      "timeISO": "2026-07-21T16:46:19.000Z",
+      "textPlain": "I wonder if NNs could be trained well enough with 1 bit weights (i.e. 0 and 1) with some layers doing addition, while others substraction (i.e. weight sign would be \"hardcoded\" into the network architecture). Or with zero-less weights (e.g. -1, -0.5, 0.5, 1).",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48989731,
+      "by": "kleton",
+      "timeISO": "2026-07-21T08:48:27.000Z",
+      "textPlain": "Would this imply that the matrices should have dimensions of multiples of 40?",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48990764,
+      "by": "evrimoztamur",
+      "timeISO": "2026-07-21T11:19:11.000Z",
+      "textPlain": "Would having 16 bits to pack a tuple of ternary numbers have a potential to give even better efficiency?",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48989859,
+      "by": "Joker_vD",
+      "timeISO": "2026-07-21T09:10:20.000Z",
+      "textPlain": "> Fixed point numbers to the rescue!    > a diagram that shows that dividing 0x7F (127) by 243 and then multiplying by 256 results in 0x86 (134)\n\n> Tada!How... how does that help with anything?> Now digits can be easily extracted from the top two bits of the resulting 10-bit number when multiplying this 8-bit byte by 3.What? Why? How? This is supposed to be the most insightful part of the post, and it's literally just \"Behold!\" from that one proof of Pythagorean theorem. Could someone please elaborate it for a non-genius like me?",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48994299,
+      "by": "RajT88",
+      "timeISO": "2026-07-21T16:13:10.000Z",
+      "textPlain": "enum bool FALSE, TRUE, FILENOTFOUND",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48991382,
+      "by": "Razengan",
+      "timeISO": "2026-07-21T12:24:59.000Z",
+      "textPlain": "I was actually mucking with ChatGPT about possible \"post-binary\" architectures.I ended up feeling that ternary is just icky, because the \"middle value\" doesn't have an \"opposite\"Maybe we should do what quaternions did to complex numbers and just jump from 2 to 4: Quaternary CPUsI couldn't understand half of the words it spat out but it turns out that using pairs of \"quits\" as the atomic computation unit to represent complex numbers and/or 2x2 matrices could be ideal for AI etc.",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48991622,
+      "by": "yoshitha2010",
+      "timeISO": "2026-07-21T12:46:19.000Z",
+      "textPlain": "[flagged]",
+      "parent": 48912812,
+      "depth": 1
+    },
+    {
+      "id": 48994653,
+      "by": "gopalv",
+      "timeISO": "2026-07-21T16:35:53.000Z",
+      "textPlain": "> You can beat the efficiency of 5 trits in 8 bitsThe single trit packing is a commonly optimized DBNULL structure for booleans.Bits/trit approaches the 1.5 asymptote, because that is the fundamental packing limit.The trick is to use it when you have a trit to start with, like when you have a set which is a tiny bit over a power of two.There are places where you end up with odd numbers in set sizes, for example when storing a poker hand.Read Cactus Kev's trick[1] which I think needs a 27 bit section & optimizing it was where I first ran into trit packing.[1] - http://suffe.cool/poker/evaluator.html",
+      "parent": 48912951,
+      "depth": 2
+    },
+    {
+      "id": 48991840,
+      "by": "edflsafoiewq",
+      "timeISO": "2026-07-21T13:08:39.000Z",
+      "textPlain": "PrismML released a ternary model recently. However AFAICT they don't use this packing, instead packing trits as 2 bits each (as least for the GGUF).Hy-MT2 also came out with a 1.25bit model using a technique called Sherry, where weights are trits with the additional constraint that exactly one trit in a group of four is 0. Four possible positions for the 0 times 2^3 possibility for the other three positions = 32 possibilities, so it fits in 5 bits exactly. You can also exploit the sign symmetry by factoring out a sign bit and you have sixteen possibilities for a group where the first non-zero trit is +1. Unpacking can then be done with a 16 bytes lookup table, which is small enough to do really fast with SIMD.",
+      "parent": 48991394,
+      "depth": 2
+    },
+    {
+      "id": 48991409,
+      "by": "akoboldfrying",
+      "timeISO": "2026-07-21T12:26:50.000Z",
+      "textPlain": "A 256x3=768-byte lookup table will almost certainly be faster on a CPU. It will fit easily in L1 cache, and can extract 3 bytes at a time.Ironically, x86 has an instruction, XLATB, that does almost exactly this (looking up a byte in a 256-byte table) -- but using it is actually slower than using an equivalent MOVZX RAX,AL; MOV AL,[RBX+RAX] sequence on modern CPUs.",
+      "parent": 48990915,
+      "depth": 2
+    },
+    {
+      "id": 48991206,
+      "by": "zephen",
+      "timeISO": "2026-07-21T12:10:09.000Z",
+      "textPlain": "I was wondering the same thing.Obviously, it partly depends on the implementation machine, how big a hole the tables blow in your cache, how fast the multiplies are, etc.But it probably also hugely depends on the format that you want your trits in.  If you use them unpacked, e.g. one trit per byte, then even if you're using tables, you still have to do a lot of manipulation (e.g. either shifting and oring, or having different tables, and a table lookup per trit and adding together to get the binary).",
+      "parent": 48990915,
+      "depth": 2
+    },
+    {
+      "id": 48991502,
+      "by": "woadwarrior01",
+      "timeISO": "2026-07-21T12:33:25.000Z",
+      "textPlain": "I've seen this pattern repeated in a number of large production codebases using optional booleans.",
+      "parent": 48989768,
+      "depth": 2
+    },
+    {
+      "id": 48991870,
+      "by": "hahahaa",
+      "timeISO": "2026-07-21T13:12:28.000Z",
+      "textPlain": "I want an LLM trained on dailywtf code",
+      "parent": 48989768,
+      "depth": 2
+    },
+    {
+      "id": 48989789,
+      "by": "benj111",
+      "timeISO": "2026-07-21T08:59:18.000Z",
+      "textPlain": "Off the top of my head. Compilers. You may know that a value has known 1s and 0s and unknowns. This would allow you to represent that for optimisation purposes.",
+      "parent": 48989768,
+      "depth": 2
+    },
+    {
+      "id": 48989819,
+      "by": "mi_lk",
+      "timeISO": "2026-07-21T09:04:52.000Z",
+      "textPlain": "Had a good chuckle",
+      "parent": 48989768,
+      "depth": 2
+    },
+    {
+      "id": 48996530,
+      "by": "meatmanek",
+      "timeISO": "2026-07-21T18:55:51.000Z",
+      "textPlain": "There are 1-bit* LLMs (+1/-1, usually), though they often come with an additional scaling parameter:https://huggingface.co/prism-ml/Bonsai-27B-gguf#weight-repre...> Weight Representation: Q1_0_g128\nEach weight is a single sign bit: 0 maps to −scale, 1 maps to +scale. Every group of 128 weights shares one FP16 scale factor.\n> Effective bits per weight: 1.125 (1 sign bit + 16-bit scale amortized over 128 weights)The Bonsai ternary model also uses this group-wise scaling, so the theoretical bits per parameter is 1.71 instead of ~1.58; additionally, they actually store trits as 2 bits; with the group scaling factor it becomes 2.125 bits/weight: https://huggingface.co/prism-ml/Ternary-Bonsai-27B-gguf#memo...",
+      "parent": 48994819,
+      "depth": 2
+    },
+    {
+      "id": 48991304,
+      "by": "quietbritishjim",
+      "timeISO": "2026-07-21T12:18:50.000Z",
+      "textPlain": "No.The article suggests using 8 bits (=256 values) to pack 5 trits (=243 values).If you use 16 bits (=65536 values) then you can pack at most 10 whole trits (=59049 values). 11 trits (=177147 values) won't fit.The current top comment, by JoshTriplett, analyses what you would need to beat the efficiency.",
+      "parent": 48990764,
+      "depth": 2
+    },
+    {
+      "id": 48990060,
+      "by": "Tepix",
+      "timeISO": "2026-07-21T09:41:53.000Z",
+      "textPlain": "If your pack_number function builds the number up, the standard way to break it down is by extracting the least significant digit first using modulo and division.\nTo get something that works well with SIMD we need a different approach.\nInstead of extracting the least significant digit from the bottom of an integer, we extract the most significant digit from the top of a fraction.1. Convert to a fixed-point fraction: We scale our integer N into a fixed-point representation (e.g., using a 32-bit integer to represent the fraction). We do this by multiplying N by a precomputed reciprocal of 243.2. Multiply by the base: Multiply the fraction by 3.3. Extract: The integer portion of the result is your most significant trit.4. Mask: Keep only the fractional remainder, and repeat.The only operations here are multiplication, bitwise shift, and bitwise AND, i.e. perfectly suited for SIMD.(in step 1 we replace the division with a multiplication by using the reciprocal. SIMD uses fixed-point integer arithmetic, not floating-point decimals)",
+      "parent": 48989859,
+      "depth": 2
+    },
+    {
+      "id": 48990044,
+      "by": "marginalia_nu",
+      "timeISO": "2026-07-21T09:38:50.000Z",
+      "textPlain": "If it's any consolation, I spent like two years of my life immersed in this field[1] and can still recite powers of three in the same way most nerds can only tell you powers of two, yet I still can't follow this floating point black magic.[1] behold my misspent youth: https://tunguska.sf.net/",
+      "parent": 48989859,
+      "depth": 2
+    },
+    {
+      "id": 48990794,
+      "by": "zokier",
+      "timeISO": "2026-07-21T11:23:16.000Z",
+      "textPlain": "I think the key insight here is that 243 is 100000 in base3. So dividing by 243 essentially converts any 5 digit base 3 number to [0,1) interval. Multiplying by 256 converts it to [0,256) interval which conveniently fits into a byte.",
+      "parent": 48989859,
+      "depth": 2
+    },
+    {
+      "id": 48992592,
+      "by": "entrope",
+      "timeISO": "2026-07-21T14:10:07.000Z",
+      "textPlain": "Base 4 isn't substantially different from base 2 except in granularity.There's a somewhat famous result that base e gives the best expected density for representing numbers, but fractional (and especially irrational) bases are inconvenient for real-world quantities.  So ternary is theoretically the best integer choice, but binary has practical advantages for electronic logic.",
+      "parent": 48991382,
+      "depth": 2
+    },
+    {
+      "id": 48991735,
+      "by": "anagnost",
+      "timeISO": "2026-07-21T12:57:28.000Z",
+      "textPlain": "I have the opposite feeling: balanced ternary naturally removes the ickiness of twos-complement arithmetic and the unbalanced MIN_INT.",
+      "parent": 48991382,
+      "depth": 2
+    },
+    {
+      "id": 48993349,
+      "by": "reaperducer",
+      "timeISO": "2026-07-21T15:12:44.000Z",
+      "textPlain": "I was actually mucking with ChatGPT about possible \"post-binary\" architectures.Ternary computers were around almost 70 years ago, and first posited well over 100 years ago.Maybe ChatGPT isn't the best place to do research.",
+      "parent": 48991382,
+      "depth": 2
+    }
+  ]
+}
