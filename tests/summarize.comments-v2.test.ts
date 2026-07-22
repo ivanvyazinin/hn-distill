@@ -10,6 +10,7 @@ import {
   computeCommentsChanged,
   estimateCommentsPromptTokens,
   generateValidatedCommentsSummaryV2,
+  isCommentsQwen27bShareHit,
   isGroqTpdExhaustionError,
   makeServices,
   processCommentsSummary,
@@ -1116,6 +1117,7 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
     COMMENTS_COMPRESS_MODEL: "",
     COMMENTS_MAX_LLM_CALLS: 3,
     COMMENTS_QWEN27B_ROUTE_ENABLE: true,
+    COMMENTS_QWEN27B_ROUTE_SHARE: 100,
     COMMENTS_QWEN27B_MODEL: QWEN,
     COMMENTS_SUMMARY_MAX_TOKENS: 2500,
     COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 5500,
@@ -1128,7 +1130,9 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
       maxOutputTokens: 2500,
       qwen27bMaxReservedTokens: 8000,
       qwen27bModel: QWEN,
+      qwen27bSharePercent: 100,
       shortMaxReservedTokens: 5500,
+      storyId: 42,
     };
     expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: false, estimateTokens: 1000 }).kind).toBe("legacy");
     // reserved = 2000+2500 = 4500 < 5500 → short
@@ -1140,6 +1144,7 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
       model: QWEN,
       reason: "medium-reserved-fits-qwen",
       reservedTokens: 6500,
+      shareBucket: 42,
     });
     // reserved = 6000+2500 = 8500 > 8000 → large skip
     expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: true, estimateTokens: 6000 }).kind).toBe("large-skip");
@@ -1161,6 +1166,36 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
         tpdExhaustedModels: new Set([QWEN]),
       }).kind
     ).toBe("medium-qwen");
+  });
+
+  test("medium share: enable+share0 is legacy; share hit is deterministic by story id", () => {
+    expect(isCommentsQwen27bShareHit(10, 0)).toBe(false);
+    expect(isCommentsQwen27bShareHit(10, 100)).toBe(true);
+    expect(isCommentsQwen27bShareHit(10, 10)).toBe(false); // 10 % 100 = 10, not < 10
+    expect(isCommentsQwen27bShareHit(9, 10)).toBe(true);
+    expect(isCommentsQwen27bShareHit(109, 10)).toBe(true); // 109 % 100 = 9
+
+    const base = {
+      enableQwen27b: true,
+      estimateTokens: 4000,
+      fallbackModel: "llama-3.1-8b-instant",
+      maxOutputTokens: 2500,
+      qwen27bMaxReservedTokens: 8000,
+      qwen27bModel: QWEN,
+      shortMaxReservedTokens: 5500,
+    };
+    // ENABLE alone with SHARE=0 must not flip medium to Qwen (safe deploy).
+    const shareZero = selectCommentsSecondaryRoute({ ...base, qwen27bSharePercent: 0, storyId: 9 });
+    expect(shareZero.kind).toBe("legacy");
+    expect(shareZero.reason).toBe("share-zero-legacy-8b");
+
+    const miss = selectCommentsSecondaryRoute({ ...base, qwen27bSharePercent: 10, storyId: 10 });
+    expect(miss.kind).toBe("legacy");
+    expect(miss.reason).toBe("share-miss-legacy-8b");
+
+    const hit = selectCommentsSecondaryRoute({ ...base, qwen27bSharePercent: 10, storyId: 9 });
+    expect(hit.kind).toBe("medium-qwen");
+    expect(hit.shareBucket).toBe(9);
   });
 
   test("isGroqTpdExhaustionError matches only explicit TPD 429 bodies", () => {
@@ -1488,7 +1523,9 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
       maxOutputTokens: 2500,
       qwen27bMaxReservedTokens: 8000,
       qwen27bModel: QWEN,
+      qwen27bSharePercent: 100,
       shortMaxReservedTokens: 5500,
+      storyId: 1,
     });
     expect(decision.kind).toBe("large-skip");
     expect(decision.reservedTokens).toBeGreaterThan(8000);

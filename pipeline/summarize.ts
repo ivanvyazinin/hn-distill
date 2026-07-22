@@ -1325,11 +1325,29 @@ export type CommentsSecondaryRouteDecision = {
   model: string;
   reason: string;
   reservedTokens: number;
+  /** 0–99 bucket used for medium share sampling; undefined when share N/A. */
+  shareBucket?: number;
 };
 
 /**
- * Pure secondary free-route picker (after primary 70b). Flag off → legacy 8b hop.
- * Flag on → short→8b, medium→Qwen 27b, large→skip both (paid hop still available later).
+ * Deterministic medium-share gate: storyId % 100 < sharePercent.
+ * share 0 → never; share 100 → always (when enable is on).
+ */
+export function isCommentsQwen27bShareHit(storyId: number, sharePercent: number): boolean {
+  if (sharePercent <= 0) {
+    return false;
+  }
+  if (sharePercent >= 100) {
+    return true;
+  }
+  const id = Number.isFinite(storyId) ? Math.trunc(Math.abs(storyId)) : 0;
+  return id % 100 < sharePercent;
+}
+
+/**
+ * Pure secondary free-route picker (after primary 70b).
+ * - enable off OR medium share miss → legacy 8b hop (flag-off path).
+ * - enable on + share hit → short→8b, medium→Qwen 27b, large→skip both.
  */
 export function selectCommentsSecondaryRoute(input: {
   enableQwen27b: boolean;
@@ -1338,22 +1356,40 @@ export function selectCommentsSecondaryRoute(input: {
   maxOutputTokens: number;
   qwen27bMaxReservedTokens: number;
   qwen27bModel: string;
+  /** 0–100; only applied when enableQwen27b is true. */
+  qwen27bSharePercent: number;
   shortMaxReservedTokens: number;
+  storyId: number;
   /** Gateway-prefixed keys from commentsTpdExhaustionKey("groq", model). */
   tpdExhaustedModels?: ReadonlySet<string>;
 }): CommentsSecondaryRouteDecision {
   const reservedTokens = input.estimateTokens + input.maxOutputTokens;
   const exhausted = input.tpdExhaustedModels ?? new Set<string>();
   const groqExhausted = (model: string): boolean => exhausted.has(commentsTpdExhaustionKey("groq", model));
+  const shareBucket = Number.isFinite(input.storyId)
+    ? Math.trunc(Math.abs(input.storyId)) % 100
+    : 0;
+  const shareHit =
+    input.enableQwen27b && isCommentsQwen27bShareHit(input.storyId, input.qwen27bSharePercent);
 
-  if (!input.enableQwen27b) {
+  // Flag off, or medium rollout sample miss → identical legacy chain (8b second hop).
+  if (!shareHit) {
     const model = input.fallbackModel.trim();
+    let reason = "flag-off-legacy-8b";
+    if (!input.enableQwen27b) {
+      reason = model.length === 0 ? "legacy-fallback-empty" : "flag-off-legacy-8b";
+    } else if (input.qwen27bSharePercent <= 0) {
+      reason = "share-zero-legacy-8b";
+    } else {
+      reason = "share-miss-legacy-8b";
+    }
     return {
       estimateTokens: input.estimateTokens,
       kind: "legacy",
       model,
-      reason: model.length === 0 ? "legacy-fallback-empty" : "flag-off-legacy-8b",
+      reason: model.length === 0 && input.enableQwen27b ? "legacy-fallback-empty" : reason,
       reservedTokens,
+      shareBucket,
     };
   }
 
@@ -1366,6 +1402,7 @@ export function selectCommentsSecondaryRoute(input: {
         model: "",
         reason: model.length === 0 ? "short-8b-empty" : "short-8b-tpd-exhausted",
         reservedTokens,
+        shareBucket,
       };
     }
     return {
@@ -1374,6 +1411,7 @@ export function selectCommentsSecondaryRoute(input: {
       model,
       reason: "short-reserved-under-cap",
       reservedTokens,
+      shareBucket,
     };
   }
 
@@ -1386,6 +1424,7 @@ export function selectCommentsSecondaryRoute(input: {
         model: "",
         reason: model.length === 0 ? "medium-qwen-empty" : "medium-qwen-tpd-exhausted",
         reservedTokens,
+        shareBucket,
       };
     }
     return {
@@ -1394,6 +1433,7 @@ export function selectCommentsSecondaryRoute(input: {
       model,
       reason: "medium-reserved-fits-qwen",
       reservedTokens,
+      shareBucket,
     };
   }
 
@@ -1403,6 +1443,7 @@ export function selectCommentsSecondaryRoute(input: {
     model: "",
     reason: "reserved-over-qwen-cap",
     reservedTokens,
+    shareBucket,
   };
 }
 
@@ -1421,7 +1462,8 @@ type CommentsChainStep = {
 
 function buildCommentsModelChain(
   services: Services,
-  prompt: string
+  prompt: string,
+  storyId: number
 ): { decision: CommentsSecondaryRouteDecision | undefined; steps: CommentsChainStep[] } {
   // Route comments through the Groq client when one exists: it returns reliable
   // non-reasoning JSON, unlike the OpenRouter reasoning models that share the post
@@ -1496,7 +1538,9 @@ function buildCommentsModelChain(
       maxOutputTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
       qwen27bMaxReservedTokens: env.COMMENTS_QWEN27B_MAX_RESERVED_TOKENS,
       qwen27bModel: env.COMMENTS_QWEN27B_MODEL,
+      qwen27bSharePercent: env.COMMENTS_QWEN27B_ROUTE_SHARE,
       shortMaxReservedTokens: env.COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS,
+      storyId,
       ...(services.commentsTpdExhaustedModels === undefined
         ? {}
         : { tpdExhaustedModels: services.commentsTpdExhaustedModels }),
@@ -1525,6 +1569,9 @@ function buildCommentsModelChain(
       estimateTokens: decision.estimateTokens,
       reservedTokens: decision.reservedTokens,
       qwenRouteEnabled: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
+      qwenRouteShare: env.COMMENTS_QWEN27B_ROUTE_SHARE,
+      shareBucket: decision.shareBucket,
+      storyId,
     });
 
     // Paid OpenRouter last resort — timing/SLA intentionally unchanged in this scaffold.
@@ -1547,9 +1594,10 @@ export async function callStructuredWithModelChain(
     maxInsights: number;
     prompt: string;
     sampleIds: number[];
+    storyId: number;
   }
 ): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
-  const { steps } = buildCommentsModelChain(services, input.prompt);
+  const { steps } = buildCommentsModelChain(services, input.prompt, input.storyId);
 
   let stepIndex = 0;
   let strict = false;
@@ -1688,6 +1736,7 @@ export async function generateValidatedCommentsSummaryV2(
     maxInsights: prepared.maxInsights,
     prompt: prepared.prompt,
     sampleIds: prepared.sampleIds,
+    storyId: input.story.id,
   });
   if (result === undefined) {
     return undefined;

@@ -96,6 +96,10 @@ const EnvironmentSchema = z.object({
     .union([z.literal("true"), z.literal("false"), z.boolean()])
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(false),
+  // Phase 4 limited rollout: percent of *medium* stories (0–100) that may use Qwen 27b
+  // when ENABLE is true. Deterministic by story id (id % 100 < share). Short/large unaffected.
+  // Default 0 = enable alone is a no-op until share is raised (safe deploy).
+  COMMENTS_QWEN27B_ROUTE_SHARE: z.coerce.number().int().min(0).max(100).default(0),
   COMMENTS_QWEN27B_MODEL: z.string().default("qwen/qwen3.6-27b"),
   // Secondary free-route size gates: prompt-token estimate + COMMENTS_SUMMARY_MAX_TOKENS.
   // Short: reserved < this → 8b-instant. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
