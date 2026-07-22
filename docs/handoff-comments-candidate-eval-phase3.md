@@ -16,12 +16,19 @@
 | Flag | `COMMENTS_QWEN27B_ROUTE_ENABLE=false` (opt-in) |
 | Model | `COMMENTS_QWEN27B_MODEL=qwen/qwen3.6-27b` |
 | Caps | `COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS=5500`, `COMMENTS_QWEN27B_MAX_RESERVED_TOKENS=8000` |
-| Estimate | `ceil(promptChars / 4) + COMMENTS_SUMMARY_MAX_TOKENS` |
+| Estimate | `ceil((system+user chars)/4) + COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN(600)` + maxOut |
 | Chain (flag off) | 70b → 8b → paid OpenRouter (unchanged) |
 | Chain (flag on) | 70b → size-pick(8b \| qwen \| skip) → paid OpenRouter |
-| Qwen call | `reasoningEffort: "none"`, balanced-object JSON (no json_schema) |
-| TPD breaker | `services.commentsTpdExhaustedModels` — only explicit TPD 429 body; per `makeServices()` run |
+| Qwen call | `reasoningEffort: "none"`, **temperature 0** (smoke parity), balanced-object JSON |
+| TPD breaker | gateway-prefixed keys `groq::modelId` on shared `Set`; Worker injects one Set per inline run / queue batch |
 | SLA | **Not invented.** Paid hop timing unchanged. |
+
+### Review fixes (post-scaffold)
+
+1. **P1 Worker scope:** `handleSummarizeTask` no longer relies on per-story `makeServices()` isolation for TPD — inline cron + queue batch pass a shared `commentsTpdExhaustedModels` Set into `makeServices({ commentsTpdExhaustedModels })`. Cross-batch persistence still out of scope (new batch starts clean).
+2. **P2 Gateway key:** breaker keys are `groq::${model}`; OpenRouter steps never read/write them — colliding paid model ids stay reachable.
+3. **P2 Temperature:** medium-qwen hop uses `temperature: 0` (Phase 1 smoke); llama hops keep `0.2`.
+4. **P2 Estimate margin:** system prompt counted + `COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN=600`; borderline 5k-user fixture now large-skips under 8k cap.
 
 ## Files
 
@@ -32,7 +39,7 @@
 ## Verify
 
 ```bash
-bun test tests/summarize.comments-v2.test.ts   # 33 pass
+bun test tests/summarize.comments-v2.test.ts   # 36 pass
 ```
 
 ## Do NOT

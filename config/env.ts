@@ -101,6 +101,9 @@ const EnvironmentSchema = z.object({
   // Short: reserved < this → 8b-instant. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
   COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(20_000).default(5500),
   COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(32_000).default(8000),
+  // Added on top of ceil((system+user)/4). Smoke saw real prompt tokens 86–499 above chars/4
+  // on user-only estimates; margin covers system prompt drift + tokenizer variance near 8k TPM.
+  COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN: z.coerce.number().int().min(0).max(4000).default(600),
   // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
   // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
   // which otherwise dead-ends comment generation into a persisted fallback. A PAID

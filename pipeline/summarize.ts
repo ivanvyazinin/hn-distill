@@ -102,9 +102,11 @@ export type Services = {
   /** Per-attempt LLM usage collector, scoped per story by processSingleStory. */
   usage: UsageCollector;
   /**
-   * Run-scoped Groq model ids proven exhausted via TPD 429. Shared across stories in one
-   * makeServices() lifetime so a later story skips the dead model without a module global.
-   * Fresh Services (new run) starts empty. TPM/timeout/transport must NOT populate this.
+   * Run-/batch-scoped TPD exhaustion keys (`groq::modelId`). Share one Set across every
+   * story in an inline cron pass or queue batch (Worker must inject the same Set into
+   * makeServices — a fresh Set per story would re-hit exhausted models). Keys are
+   * gateway-prefixed so a Groq TPD trip never disables the paid OpenRouter hop even when
+   * model ids collide. TPM/timeout/transport must NOT populate this.
    */
   commentsTpdExhaustedModels?: Set<string>;
 };
@@ -115,6 +117,11 @@ export function makeServices(
     pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
     /** Test-only: inject a stub HttpClient (bytes/text) instead of the real one. */
     http?: HttpClient;
+    /**
+     * Optional shared TPD breaker set. Worker/batch callers pass one Set for the whole
+     * batch; omit to get an isolated empty Set (single-story scripts).
+     */
+    commentsTpdExhaustedModels?: Set<string>;
   }
 ): Services {
   const http =
@@ -291,7 +298,7 @@ export function makeServices(
     fetchArticleMarkdown,
     fetchArticleViaReader,
     usage,
-    commentsTpdExhaustedModels: new Set<string>(),
+    commentsTpdExhaustedModels: options?.commentsTpdExhaustedModels ?? new Set<string>(),
   };
 }
 
@@ -1275,9 +1282,25 @@ function findHttpErrorCause(error: unknown): HttpError | undefined {
   return undefined;
 }
 
-/** Deterministic prompt-size estimate used for free-route selection (no tokenizer). */
-export function estimateCommentsPromptTokens(prompt: string): number {
-  return Math.ceil(prompt.length / 4);
+/** Gateway-prefixed TPD breaker key so Groq exhaustion cannot shadow OpenRouter ids. */
+export function commentsTpdExhaustionKey(gateway: "groq" | "openrouter", model: string): string {
+  return `${gateway}::${model.trim()}`;
+}
+
+/**
+ * Deterministic request-size estimate for free-route selection (no tokenizer).
+ * Counts system + user chars (the full chat payload), then applies a safety margin for
+ * tokenizer drift. Smoke saw real prompt_tokens 86–499 above user-only chars/4.
+ */
+export function estimateCommentsPromptTokens(
+  prompt: string,
+  options?: { marginTokens?: number; maxInsights?: number; strict?: boolean }
+): number {
+  const maxInsights = options?.maxInsights ?? COMMENTS_INSIGHTS_HARD_CEILING;
+  const messages = commentsV2Messages(prompt, options?.strict === true, maxInsights);
+  const totalChars = messages.reduce((sum, message) => sum + message.content.length, 0);
+  const margin = options?.marginTokens ?? env.COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN;
+  return Math.ceil(totalChars / 4) + margin;
 }
 
 /**
@@ -1316,10 +1339,12 @@ export function selectCommentsSecondaryRoute(input: {
   qwen27bMaxReservedTokens: number;
   qwen27bModel: string;
   shortMaxReservedTokens: number;
+  /** Gateway-prefixed keys from commentsTpdExhaustionKey("groq", model). */
   tpdExhaustedModels?: ReadonlySet<string>;
 }): CommentsSecondaryRouteDecision {
   const reservedTokens = input.estimateTokens + input.maxOutputTokens;
   const exhausted = input.tpdExhaustedModels ?? new Set<string>();
+  const groqExhausted = (model: string): boolean => exhausted.has(commentsTpdExhaustionKey("groq", model));
 
   if (!input.enableQwen27b) {
     const model = input.fallbackModel.trim();
@@ -1334,7 +1359,7 @@ export function selectCommentsSecondaryRoute(input: {
 
   if (reservedTokens < input.shortMaxReservedTokens) {
     const model = input.fallbackModel.trim();
-    if (model.length === 0 || exhausted.has(model)) {
+    if (model.length === 0 || groqExhausted(model)) {
       return {
         estimateTokens: input.estimateTokens,
         kind: "large-skip",
@@ -1354,7 +1379,7 @@ export function selectCommentsSecondaryRoute(input: {
 
   if (reservedTokens <= input.qwen27bMaxReservedTokens) {
     const model = input.qwen27bModel.trim();
-    if (model.length === 0 || exhausted.has(model)) {
+    if (model.length === 0 || groqExhausted(model)) {
       return {
         estimateTokens: input.estimateTokens,
         kind: "large-skip",
@@ -1383,11 +1408,14 @@ export function selectCommentsSecondaryRoute(input: {
 
 type CommentsChainStep = {
   client: OpenRouter;
+  gateway: "groq" | "openrouter";
   model: string;
   prefersResponseFormat: boolean;
   /** Groq Qwen3.6 needs reasoning_effort=none or the budget burns inside <think>. */
   reasoningEffort?: "high" | "low" | "medium" | "none";
-  /** When true, a proven TPD 429 on this step is recorded on services.commentsTpdExhaustedModels. */
+  /** Match smoke / reduce quote-rewrite variance on the candidate hop. */
+  temperature: number;
+  /** When true, a proven TPD 429 on this Groq step is recorded under gateway-prefixed key. */
   trackTpdExhaustion: boolean;
 };
 
@@ -1411,27 +1439,43 @@ function buildCommentsModelChain(
     stepClient: OpenRouter,
     model: string,
     stepBaseUrl: string,
+    gateway: "groq" | "openrouter",
     prefersResponseFormat: boolean,
-    options?: { reasoningEffort?: CommentsChainStep["reasoningEffort"]; trackTpdExhaustion?: boolean }
+    options?: {
+      reasoningEffort?: CommentsChainStep["reasoningEffort"];
+      temperature?: number;
+      trackTpdExhaustion?: boolean;
+    }
   ): void => {
     const trimmed = model.trim();
     if (trimmed.length === 0) {
       return;
     }
-    if (services.commentsTpdExhaustedModels?.has(trimmed) === true) {
-      log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 skipping TPD-exhausted model", { model: trimmed });
-      return;
+    // Only Groq steps participate in the TPD breaker. OpenRouter paid hop is never keyed
+    // under groq::, so a matching model id on paid cannot be disabled by Groq TPD.
+    if (gateway === "groq") {
+      const exhaustionKey = commentsTpdExhaustionKey("groq", trimmed);
+      if (services.commentsTpdExhaustedModels?.has(exhaustionKey) === true) {
+        log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 skipping TPD-exhausted model", {
+          gateway,
+          model: trimmed,
+          exhaustionKey,
+        });
+        return;
+      }
     }
-    const key = `${stepBaseUrl}::${trimmed}`;
+    const key = `${gateway}::${stepBaseUrl}::${trimmed}`;
     if (seenSteps.has(key)) {
       return;
     }
     seenSteps.add(key);
     steps.push({
       client: stepClient,
+      gateway,
       model: trimmed,
       prefersResponseFormat,
-      trackTpdExhaustion: options?.trackTpdExhaustion === true,
+      temperature: options?.temperature ?? 0.2,
+      trackTpdExhaustion: gateway === "groq" && options?.trackTpdExhaustion === true,
       ...(options?.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
     });
   };
@@ -1440,9 +1484,11 @@ function buildCommentsModelChain(
 
   if (groqEnabled) {
     // Primary high-value hop always stays 70b (flag does not touch it).
-    pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, false, { trackTpdExhaustion: true });
+    pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
+      trackTpdExhaustion: true,
+    });
 
-    const estimateTokens = estimateCommentsPromptTokens(prompt);
+    const estimateTokens = estimateCommentsPromptTokens(prompt, { maxInsights: COMMENTS_INSIGHTS_HARD_CEILING });
     decision = selectCommentsSecondaryRoute({
       enableQwen27b: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
       estimateTokens,
@@ -1459,12 +1505,16 @@ function buildCommentsModelChain(
     if (decision.kind === "legacy") {
       // Flag off: preserve the historical ordered list (fallback + optional fallback_2).
       for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
-        pushStep(services.guardTagsClient, model, groqBaseUrl, false, { trackTpdExhaustion: true });
+        pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
       }
     } else if (decision.model.length > 0) {
-      pushStep(services.guardTagsClient, decision.model, groqBaseUrl, false, {
+      // Qwen: temperature 0 matches the Phase 1 smoke that validated the candidate policy.
+      // Llama secondary keeps the historical 0.2.
+      pushStep(services.guardTagsClient, decision.model, groqBaseUrl, "groq", false, {
         trackTpdExhaustion: true,
-        ...(decision.kind === "medium-qwen" ? { reasoningEffort: "none" as const } : {}),
+        ...(decision.kind === "medium-qwen"
+          ? { reasoningEffort: "none" as const, temperature: 0 }
+          : {}),
       });
     }
 
@@ -1478,10 +1528,11 @@ function buildCommentsModelChain(
     });
 
     // Paid OpenRouter last resort — timing/SLA intentionally unchanged in this scaffold.
-    pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, true);
+    // gateway "openrouter" → never written/read against the Groq TPD breaker set.
+    pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, "openrouter", true);
   } else {
     for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {
-      pushStep(services.openrouter, model, openRouterBaseUrl, true);
+      pushStep(services.openrouter, model, openRouterBaseUrl, "openrouter", true);
     }
   }
 
@@ -1522,7 +1573,7 @@ export async function callStructuredWithModelChain(
     if (step === undefined) {
       return undefined;
     }
-    const { client, model, reasoningEffort, trackTpdExhaustion } = step;
+    const { client, gateway, model, reasoningEffort, temperature, trackTpdExhaustion } = step;
 
     const requestTimeoutMs = input.budget.claimRequestTimeoutMs();
     if (requestTimeoutMs === undefined) {
@@ -1537,7 +1588,7 @@ export async function callStructuredWithModelChain(
       const insights = await client.chatStructured(
         commentsV2Messages(input.prompt, strict, input.maxInsights),
         {
-          temperature: 0.2,
+          temperature,
           maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
           model,
           label: "comments",
@@ -1585,11 +1636,16 @@ export async function callStructuredWithModelChain(
         });
         continue;
       }
-      if (trackTpdExhaustion && isGroqTpdExhaustionError(error)) {
+      if (trackTpdExhaustion && gateway === "groq" && isGroqTpdExhaustionError(error)) {
         const exhausted = services.commentsTpdExhaustedModels ?? new Set<string>();
-        exhausted.add(model);
+        const exhaustionKey = commentsTpdExhaustionKey("groq", model);
+        exhausted.add(exhaustionKey);
         services.commentsTpdExhaustedModels = exhausted;
-        log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 marking model TPD-exhausted for this run", { model });
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 marking model TPD-exhausted for this run", {
+          gateway,
+          model,
+          exhaustionKey,
+        });
       }
       log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 structured attempt failed", {
         model,

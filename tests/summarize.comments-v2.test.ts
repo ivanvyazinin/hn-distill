@@ -6,10 +6,12 @@ import type { CommentsInsights, CommentsSummary, NormalizedComment } from "../co
 import {
   CommentsGenerationBudget,
   buildCommentsPromptV2,
+  commentsTpdExhaustionKey,
   computeCommentsChanged,
   estimateCommentsPromptTokens,
   generateValidatedCommentsSummaryV2,
   isGroqTpdExhaustionError,
+  makeServices,
   processCommentsSummary,
   selectCommentsSecondaryRoute,
   type Services,
@@ -1141,15 +1143,24 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
     });
     // reserved = 6000+2500 = 8500 > 8000 → large skip
     expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: true, estimateTokens: 6000 }).kind).toBe("large-skip");
-    // TPD-exhausted qwen → skip secondary
+    // TPD-exhausted qwen uses gateway-prefixed key → skip secondary
+    expect(
+      selectCommentsSecondaryRoute({
+        ...base,
+        enableQwen27b: true,
+        estimateTokens: 4000,
+        tpdExhaustedModels: new Set([commentsTpdExhaustionKey("groq", QWEN)]),
+      }).reason
+    ).toBe("medium-qwen-tpd-exhausted");
+    // Bare model id (no gateway prefix) must NOT match — prevents accidental cross-provider trips.
     expect(
       selectCommentsSecondaryRoute({
         ...base,
         enableQwen27b: true,
         estimateTokens: 4000,
         tpdExhaustedModels: new Set([QWEN]),
-      }).reason
-    ).toBe("medium-qwen-tpd-exhausted");
+      }).kind
+    ).toBe("medium-qwen");
   });
 
   test("isGroqTpdExhaustionError matches only explicit TPD 429 bodies", () => {
@@ -1238,6 +1249,8 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
         expect(openRouterCalls.length).toBe(0);
         const qwenCall = groqCalls[1];
         expect(qwenCall?.options.reasoningEffort).toBe("none");
+        // Temperature 0 matches the Phase 1 smoke policy (not the legacy llama 0.2).
+        expect(qwenCall?.options.temperature).toBe(0);
         expect(qwenCall?.options.jsonExtraction).toBe("balanced-object");
         expect(qwenCall?.options.responseFormat).toBeUndefined();
         // System+user messages still carry the production V2 prompt shape.
@@ -1245,6 +1258,8 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
         expect(qwenCall?.messages[0]?.role).toBe("system");
         expect(qwenCall?.messages[1]?.role).toBe("user");
         expect(qwenCall?.messages[1]?.content.length).toBeGreaterThan(0);
+        // Primary llama hop keeps historical temperature.
+        expect(groqCalls[0]?.options.temperature).toBe(0.2);
       }
     );
   });
@@ -1384,8 +1399,11 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
         });
         expect(a?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
         expect(qwenHits).toBe(1);
-        expect(services.commentsTpdExhaustedModels?.has(QWEN)).toBe(true);
-        expect(services.commentsTpdExhaustedModels?.has(env.COMMENTS_MODEL)).toBe(true);
+        expect(services.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("groq", QWEN))).toBe(true);
+        expect(services.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("groq", env.COMMENTS_MODEL))).toBe(true);
+        // Paid OpenRouter key must never be written from a Groq TPD trip.
+        expect(services.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("openrouter", env.COMMENTS_OPENROUTER_FALLBACK_MODEL))).toBe(false);
+        expect(services.commentsTpdExhaustedModels?.has(QWEN)).toBe(false);
 
         const callsAfterA = groqCalls.length;
 
@@ -1447,9 +1465,86 @@ describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
     );
   });
 
-  test("estimateCommentsPromptTokens is deterministic ceil(chars/4)", () => {
-    expect(estimateCommentsPromptTokens("abcd")).toBe(1);
-    expect(estimateCommentsPromptTokens("abcde")).toBe(2);
-    expect(estimateCommentsPromptTokens("")).toBe(0);
+  test("estimateCommentsPromptTokens includes system prompt + margin and is deterministic", () => {
+    const user = "abcd";
+    const withMargin = estimateCommentsPromptTokens(user, { marginTokens: 600, maxInsights: 5 });
+    const bare = estimateCommentsPromptTokens(user, { marginTokens: 0, maxInsights: 5 });
+    expect(withMargin - bare).toBe(600);
+    expect(bare).toBeGreaterThan(Math.ceil(user.length / 4)); // system instruction counted
+    expect(estimateCommentsPromptTokens(user, { marginTokens: 600, maxInsights: 5 })).toBe(withMargin);
+  });
+
+  test("near Qwen 8k cap, margin pushes borderline reserved into large-skip", () => {
+    // Without margin a user-only chars/4 estimate of 5000 + 2500 out = 7500 would look safe.
+    // With system+margin the same user prompt must reserve over 8000 → large-skip.
+    const userChars = 5000 * 4; // 5000 tokens if user-only chars/4
+    const user = "x".repeat(userChars);
+    const estimate = estimateCommentsPromptTokens(user, { marginTokens: 600, maxInsights: 5 });
+    expect(estimate).toBeGreaterThan(5000); // system + margin
+    const decision = selectCommentsSecondaryRoute({
+      enableQwen27b: true,
+      estimateTokens: estimate,
+      fallbackModel: "llama-3.1-8b-instant",
+      maxOutputTokens: 2500,
+      qwen27bMaxReservedTokens: 8000,
+      qwen27bModel: QWEN,
+      shortMaxReservedTokens: 5500,
+    });
+    expect(decision.kind).toBe("large-skip");
+    expect(decision.reservedTokens).toBeGreaterThan(8000);
+  });
+
+  test("Groq TPD on a model id cannot disable paid OpenRouter hop with the same id", async () => {
+    const collidingId = "same-model-id";
+    const story = makeStory({ id: 309, title: "Gateway isolation" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async () => {
+        throw new Error("rate limited", {
+          cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+        });
+      },
+      openrouter: async () => VALID_INSIGHTS,
+    });
+
+    await withEnvPatch(
+      {
+        ...FLAG_ON,
+        COMMENTS_MODEL: collidingId,
+        COMMENTS_FALLBACK_MODEL: "",
+        COMMENTS_QWEN27B_MODEL: "",
+        COMMENTS_OPENROUTER_FALLBACK_MODEL: collidingId,
+        COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 1,
+        COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: 1,
+      },
+      async () => {
+        const first = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+        });
+        expect(first?.modelUsed).toBe(collidingId);
+        expect(groqCalls.length).toBe(1);
+        expect(openRouterCalls.length).toBe(1);
+        expect(services.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("groq", collidingId))).toBe(true);
+
+        // Second story: Groq primary skipped; paid OpenRouter with same bare id still runs.
+        const second = await generateValidatedCommentsSummaryV2(services, {
+          story: makeStory({ id: 310, title: "Still paid" }),
+          comments: threeComments(310),
+        });
+        expect(second?.modelUsed).toBe(collidingId);
+        expect(groqCalls.length).toBe(1); // no new Groq call
+        expect(openRouterCalls.length).toBe(2);
+      }
+    );
+  });
+
+  test("makeServices reuses an injected TPD set across instances (worker batch contract)", () => {
+    const shared = new Set<string>([commentsTpdExhaustionKey("groq", "llama-3.3-70b-versatile")]);
+    const a = makeServices(env, { commentsTpdExhaustedModels: shared });
+    const b = makeServices(env, { commentsTpdExhaustedModels: shared });
+    expect(a.commentsTpdExhaustedModels).toBe(shared);
+    expect(b.commentsTpdExhaustedModels).toBe(shared);
+    a.commentsTpdExhaustedModels?.add(commentsTpdExhaustionKey("groq", QWEN));
+    expect(b.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("groq", QWEN))).toBe(true);
   });
 });
