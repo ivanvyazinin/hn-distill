@@ -1,0 +1,129 @@
+{
+  "story": {
+    "id": 48993637,
+    "title": "Apple Fixes Hide My Email Vulnerability After 404 Media Coverage",
+    "url": "https://www.404media.co/apple-fixes-hide-my-email-vulnerability-after-404-media-coverage/"
+  },
+  "comments": [
+    {
+      "id": 48996463,
+      "by": "satvikpendem",
+      "timeISO": "2026-07-21T18:51:18.000Z",
+      "textPlain": "But Apple did not yet walk back that they wanted a single dedicated domain for private emails, privacy.icloud.com, such that it'd be easy for any host to block them.",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48998543,
+      "by": "js2",
+      "timeISO": "2026-07-21T21:22:14.000Z",
+      "textPlain": "> Now Apple says it has been fixed, we can add that, in simple terms, it required sending a target Hide My Email user a message that got rejected as spam.Frustratingly vague. I was unable to reproduce when the original article was posted. I did not test exhaustively, but I was able to get HME to reject messages in various ways (mostly by sending oversize messages) and none disclosed my real address because they were rejected before any rewriting to the final address occurred. And in looking at messages that were delivered, I didn't see any additional SMTP servers in the path that would reject the message.The most I was able to leak was a DMARC header showing my real domain, but even that only occurred when I replied to an HME email from my real (non-icloud.com) domain. When I updated HME to use my icloud.com address, even that leak went away (but it did make it clear that HME was not sanitizing message headers).Maybe if you have HME setup to forward to a non-icloud.com domain and that domain's SMTP servers rejected the message as spam, I can see how this could occur. But if forwarding to an icloud.com address, no way this should've been able to happen in the first place.I wish they'd included a sample message including full headers to see the vulnerability in action. Where in the delivery path was the bounce being generated?I want more details.",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48995117,
+      "by": "argee",
+      "timeISO": "2026-07-21T17:06:59.000Z",
+      "textPlain": "I have a question I wasn’t sure how to ask HN that is tangentially related to this. I’m the developer of an app where people can add other users to their workspaces, via email. The way this currently works is that your email gets added to the workspace and then when you log in with that email, you get access.Now, this of course fails with “hide my email”. What’s the appropriate/standard way to handle this? Should I be using urls with invite codes instead of associating the email itself with access? I’m a little hesitant to do that since the code would have to persist in session and the business logic would have to occur on the login portal, since the mobile/desktop apps don’t share web cookies. Is deep linking the answer?",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 49003376,
+      "by": "hulitu",
+      "timeISO": "2026-07-22T08:16:14.000Z",
+      "textPlain": "> Apple Fixes ... After ... Media CoverageLike always. Apple fixes vulnerabilities _if_ and _after_ they are publicly published.",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48995232,
+      "by": "a9ex",
+      "timeISO": "2026-07-21T17:15:09.000Z",
+      "textPlain": "So how did the vulnerability work exactly?",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48994549,
+      "by": "lapcat",
+      "timeISO": "2026-07-21T16:28:54.000Z",
+      "textPlain": "> Apple told 404 Media it deployed a patch for the issue on July 3, which the company says has fully resolved the issue.> Now Apple says it has been fixed, we can add that, in simple terms, it required sending a target Hide My Email user a message that got rejected as spam.I would note that Mac Mail app (I haven't tested iOS Mail) still has an Apple Account email address disclosure vulnerability, though this requires the user to reply to a maliciously crafted email. The vulnerability affects all users of Mail app, even if they don't use Hide My Email! https://lapcatsoftware.com/articles/2026/7/9.html",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48999352,
+      "by": "sitzkrieg",
+      "timeISO": "2026-07-21T22:42:33.000Z",
+      "textPlain": "apple privacy is mostly marketing proven again",
+      "parent": 48993637,
+      "depth": 1
+    },
+    {
+      "id": 48997463,
+      "by": "halJordan",
+      "timeISO": "2026-07-21T20:02:58.000Z",
+      "textPlain": "I'm honestly getting tired of us requiring big corps to do everything for us. Use the private domain. Dont have the account if they block it. End users and consumers need to bite the bullet.",
+      "parent": 48996463,
+      "depth": 2
+    },
+    {
+      "id": 48998807,
+      "by": "tjames7000",
+      "timeISO": "2026-07-21T21:45:35.000Z",
+      "textPlain": "We'll publish more details soon. In short, emails that triggered 550 5.7.1 or 552 5.7.0 were what we saw the most. 550 5.1.1 was also a problem in the real world, but not possible to exploit. The error message contained the meant-to-be-hidden address.We don't know whether attachment-related rejections or other rejections, e.g. for a full inbox, were a problem. Apple fixed most of the issues on July 2 or July 3, so if you were testing after that, you may have been too late.These are basically the reproduction instructions we provided with our initial report:\n1. Send a spammy email to the Hide My Email address. Or send an email that doesn't strike you as spammy and hope that the email is rejected as spam anyway.\n2. If the email is rejected SMTP code 550, look at the long description field and observe the real email address.\n3. If the email wasn't rejected by the email server as spam, try again with a spammier email or different email. I think that once you've identified a message that's rejected as spam consistently, you can keep using it.Post-fix, we're realizing that it seems like emails forwarded via Hide My Email bounce as spam at higher rates than the same emails sent directly. Which could explain why we were getting bounces for non-spam transactional emails sent only to paying customers, and why the bounces were only happening for icloud addresses. The issue may have been more prevalent than someone might assume, given typical bounce rates.",
+      "parent": 48998543,
+      "depth": 2
+    },
+    {
+      "id": 48996216,
+      "by": "layer8",
+      "timeISO": "2026-07-21T18:31:25.000Z",
+      "textPlain": "In general it's bad practice for a user to expose someone else's email address to an application provider without consent (email providers being the one necessary exeception, of course), therefore I would abandon that approach in any case.You could implement read-only access to a workspace via a generated link (containing a UUID or similar), like e.g. a Dropbox link. You would store the link IDs with the workspace, and you can implement (user-configurable) link expiration and such. Since links are shareable, these wouldn't be personalized to the recipient. A recipient who wants more than read-only access would still have to create an account with you and ask the workspace owner for write access.",
+      "parent": 48995117,
+      "depth": 2
+    },
+    {
+      "id": 48996814,
+      "by": "WorldMaker",
+      "timeISO": "2026-07-21T19:14:47.000Z",
+      "textPlain": "I've seen this kind of thing fail in so many ways just as a user with a custom domain. Someone adds my real email (the custom domain) to a Google invite and my primary Google Account uses its own email (a Gmail account) that is in no way my primary email address and Google gets confused and won't let me access the thing sent to my real email because I'm trying to access it from my Google Account. (Plus additional variations where my custom domain was briefly hosted on what today is called Google Workspace and some things still seem to be misconfigured to point to shutdown accounts for my real primary address still apparently ghosts in Google Workspace.)That's eternally a frustrating experience. It ranks among the reasons I groan every time someone asks if we can meet in Google Meeting instead of other options.That's just dealing with one large giant of a company who you would think if anyone would have the software resources to truly untangle email addresses from account assumptions, they would have more than enough resources available.Lots of little papercuts like that exist everywhere else. I have multiple accounts with various \"Pledge Managers\" because I gave Kickstarter a specific filtered address but still tend to respond to surveys and other things sent more directly to me with my primary email address. \"For my convenience\" most of these \"Pledge Managers\" tie their accounts to whatever email address they get from a Kickstarter export spreadsheet and then assume that each email address is 1:1 useful for marking an account as mine. It's often easier to juggle a bunch of reminder notes in my Password Manager which campaign is with which account with which \"Pledge Manager\" than to unify accounts. It becomes the opposite of convenience.I've seen the same thing happen with + addresses, not just custom addresses at custom domain addresses. Add a + to a signup to get autofiltering when you sign up for a service and most services see `accountname+filter@gmail.com` as a",
+      "parent": 48995117,
+      "depth": 2
+    },
+    {
+      "id": 48995248,
+      "by": "Rumudiez",
+      "timeISO": "2026-07-21T17:16:19.000Z",
+      "textPlain": "email addresses are not good primary or foreign keys, so yes you should be using IDs of one form or another. this shouldn't affect your authentication scheme (cookies vs bearer tokens or what have you), just authorization. if you've muddied the two, you'll have some debt to resolve and this issue could just be a valuable tip-off to that",
+      "parent": 48995117,
+      "depth": 2
+    },
+    {
+      "id": 48995365,
+      "by": "culi",
+      "timeISO": "2026-07-21T17:25:18.000Z",
+      "textPlain": "https://archive.ph/O4pKL",
+      "parent": 48995232,
+      "depth": 2
+    },
+    {
+      "id": 48996207,
+      "by": "philipwhiuk",
+      "timeISO": "2026-07-21T18:30:44.000Z",
+      "textPlain": "> The vulnerability affects all users of Mail app, even if they don't use Hide My Email!If they don't use \"Hide My Email\" trivially replying discloses their email?",
+      "parent": 48994549,
+      "depth": 2
+    },
+    {
+      "id": 49003194,
+      "by": "dzhiurgis",
+      "timeISO": "2026-07-22T07:52:02.000Z",
+      "textPlain": "Kinda. Whenever I try to use hide my email on any more of a serious service - it never registers me.",
+      "parent": 48999352,
+      "depth": 2
+    }
+  ]
+}

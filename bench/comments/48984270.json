@@ -1,0 +1,329 @@
+{
+  "story": {
+    "id": 48984270,
+    "title": "I wrote an bash enumerator because I was sick of xargs",
+    "url": "https://numerlab.org/2025/07/20/bashumerate-enumerator/"
+  },
+  "comments": [
+    {
+      "id": 48988983,
+      "by": "account42",
+      "timeISO": "2026-07-21T06:58:37.000Z",
+      "textPlain": "> Consistent syntax — same {} placeholder for files, lines, ranges, or listsInconsistent syntax native bash methods so its an additional syntax to learn.> Template mode — single-quoted commands work as shell templates: enumerate -f '*' -- 'cat {} | head -5'Passing commands a a single string is BAD. Now you have to think about escaping and quoting. What does {} get replaced with if the enumerant contains unsafe characters? Can it be used as part of a larger argument or only on its own? Who knows, it's not bash. Compared to a bash loop its also always a subshell with all the implications that has - even find can be piped into a normal bash loop.> Filters — --include and --exclude with glob patternsA fraction of what find or native loops provide. And since this can't replace them in general enumerate is an additional thing to learn on top.> Extensible — drop a file in lib/enumerators/ to add custom sourcesTo extend bash loops you don't even need root access, you just add the code to the loop.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988699,
+      "by": "zxexz",
+      "timeISO": "2026-07-21T06:15:11.000Z",
+      "textPlain": "I don’t want to be a downer here, but the structure of this repo and the verbosity+language of the docs feel 80% vibecoded. Not that that’s wrong; I just feel kinda gullible for even clicking on this.One uses xargs or parallel only a few times before they remember some of the quirks that but them. And then they become cautious. And then it’s muscle memory. And if it’s not an often occurrence, they learn to check the man page.Anyways, in a world of “vibecoding” why add another “tool” to the mix when the LLMs have been trained on all our stackoverflow-posted grievances to begin with?",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48990145,
+      "by": "giov4",
+      "timeISO": "2026-07-21T09:54:06.000Z",
+      "textPlain": "I lol'd, but do you think this is valid?https://github.com/wallach-game/bashumerate/pull/1/filesto me looks like a right solution, even if I was also tired of writing for loops by hand usually",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988812,
+      "by": "IdiotSavage",
+      "timeISO": "2026-07-21T06:31:57.000Z",
+      "textPlain": "In this thread: bash experts with arcane knowledge, unintentionally demonstrating how awful bash is.The obvious solution would be to use something more sane, like PowerShell or nushell, but instead old experts will always defend the skills they have honed for years, while criticizing anything that's different.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48985522,
+      "by": "eqvinox",
+      "timeISO": "2026-07-20T22:11:15.000Z",
+      "textPlain": "Not sure I see the point of this. Remembering a bunch of options on one tool is no better than a bunch of tools/constructs? Especially if the latter are useful elsewhere. And it can't be used for scripts unless you start shipping it alongside, which… nah.Just go with  foo | while read X; do bar \"$X\"; done",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988767,
+      "by": "dundarious",
+      "timeISO": "2026-07-21T06:25:37.000Z",
+      "textPlain": "If you want a shell to interact with the results, you can of course just use a (sub)shell.    ls -1 ./*.sh | xargs -rd\\\\n sh -c 'for i in \"$@\" ; do ... ; done' sh\n\n1. not strictly necessary to use -1 as I believe all common ls detect !isatty(stdout) and produce line-by-line output anyway.2. xargs -r just doesn't run the command if there's no input, also not strictly necessary but I'm addicted to using it because it's the sensible default to me.3. xargs -d\\\\n makes it collect fields as full lines, which is what you typically want, unless you're able to generate NULs.4. use whatever shell you want of course, but I don't use bashisms, etc., by default, /bin/sh is fine for me, even if it's dash.5. the trailing \"sh\" at the end is due to a quirk of `sh -c` usage, where $0 is the first non option argument, so `printf %s\\\\n 1 2 3 | xargs -rd\\\\n sh -c 'for i in \"$@\" ; do printf \"%s \" \"$i\" ; done ; echo'` (note the lack of trailing \"sh\") would only print \"2 3 \" as $0 is not included in \"$@\" ($0 is 1, $1 is 2, $2 is 3). It's very easy to just always give the shell name itself manually as $0 instead of trying to ingest \"$0\" into your logic.Of course, you could `find . -maxdepth 1 -type f -name '*.sh' -print0 | xargs -r0 ...` instead, depending on what you're up to, that may be the easiest. It's definitely the simplest -- as long as your xargs has -0 support.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987643,
+      "by": "db48x",
+      "timeISO": "2026-07-21T03:18:26.000Z",
+      "textPlain": "> Or maybe you pipe into xargs and pray your filenames don’t have spaces…Always use -0. Most gnu utilities support it. It makes them put a null byte after every filename instead of a newline. Completely eliminates the problem of dealing with whitespace in the filenames.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48985747,
+      "by": "tester457",
+      "timeISO": "2026-07-20T22:37:22.000Z",
+      "textPlain": "On the topic of xargs replacements, I love gnu parallel.The --dry-run flag of parallel made me confident to do more batch processing than I ever did with xargs.Parallel has an option for almost everything, it's almost too much.But I have shopped around for alternatives.\nThe creator Ole Tange maintains a painstakingly long article of the alternatives and their differences. [0]The gnu parallel book and reading materials [1] are excellent too.[0] https://www.gnu.org/software/parallel/parallel_alternatives....[1] https://www.gnu.org/software/parallel/#Tutorial",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988840,
+      "by": "pjmlp",
+      "timeISO": "2026-07-21T06:37:11.000Z",
+      "textPlain": "One thing with classical UNIX commands, is that you can expect to find them into random computers besides one's own laptop.Not everyone has the luxury to only work with their own computer, or run random software on IT/customer managed systems.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48985353,
+      "by": "ggm",
+      "timeISO": "2026-07-20T21:54:18.000Z",
+      "textPlain": "find -print0 | xargs -0 -I {} \"the {} iterated command\"",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48989471,
+      "by": "jllyhill",
+      "timeISO": "2026-07-21T08:08:22.000Z",
+      "textPlain": "Did you write it or did Claude code slopcoded it for you? Claude is the contributor to all your other repositories. There is a world of difference between \"here's a problem that I'm really concerned with and poured all my expertise to solve it\" and \"I told Claude to fix it for me and now I'm gonna abandon it as soon as I'm done with the HN advertising\".",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988962,
+      "by": "kfsone",
+      "timeISO": "2026-07-21T06:55:24.000Z",
+      "textPlain": "Careful - you start from the POSIX terminal spec, you think maybe it would be interesting having objects instead of raw text streams, and next thing you've reinvented powershell...(*35 years living and loving sh/ksh/bash/dash etc, only tried pwsh so I could write some comparisons and slag off MS a bit; now it's my default shell on everything)",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991360,
+      "by": "inigyou",
+      "timeISO": "2026-07-21T12:23:38.000Z",
+      "textPlain": "There's room for so much more innovation in the shell space. Microsoft did it with PowerShell - Linux seems to be stuck in the 1980s. You do have newer shells like fish, but they seem to only mess with the on-screen layout of the command prompt (while being stupid enough to still run within a terminal) and not the commands themselves.I wonder if the generation one or two before mine grew up without shells and then had to make them and had no particular preconceptions, but my generation grew up treating the way shells work as a law of physics and thus doesn't innovate. Actually I wonder how much ossification is explained by this in general.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991157,
+      "by": "tom_alexander",
+      "timeISO": "2026-07-21T12:05:33.000Z",
+      "textPlain": "> Or maybe you pipe into xargs and pray your filenames don’t have spaces:>   find . -name '*.log' | xargs rmNo need for prayer:  find . -name '*.log' -print0 | xargs --null rm\n\nThat uses null as a delimiter instead of linebreaks.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991719,
+      "by": "pif",
+      "timeISO": "2026-07-21T12:55:09.000Z",
+      "textPlain": "> Or maybe you pipe into xargs and pray your filenames don’t have spacesSo they wrote a new tool and posted it on HN before checking the manual about null character termination... Not trustable at all, what a waste of time!",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987362,
+      "by": "teo_zero",
+      "timeISO": "2026-07-21T02:28:29.000Z",
+      "textPlain": "Good idea but strange syntax. It would be more idiomatic if the command came first and the list of globs last.Additionally the use of \"--\" is not what everybody expects: here it is used to introduce one argument, the command, while it's usually meant to introduce multiple arguments without worrying if they have a leading \"-\".A possible revised syntax with command as the first argument followed by a list of globs optionally introduced by \"--\" would allow to enumerate all files with a leading \"-\", which the current syntax cannot:  enumerate 'whatever {}' -- '-*'\n\nI'm assuming \"-f\" for simplicity, but the same reasoning holds for \"-L\" too.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48995771,
+      "by": "martinflack",
+      "timeISO": "2026-07-21T17:56:14.000Z",
+      "textPlain": "> enumerate -r 1 10 -- 'printf \"%02d\\n\" {}'The printf zero-padding should be a built-in feature, as dealing with lots of filename structures and date structures needs zero-padding.I often end up doing things like \"for i in $(seq -w 1 100); do..\" in bash.My preference would actually be that -r does automatic zero-padding to fit the widest number that will come out of the range, and another variant like -R would suppress that behavior; but it could also be an optional switch.It might also be nice to have the code recognize when start is greater than end, like -r 10 1, and support backwards-counting.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986412,
+      "by": "chasil",
+      "timeISO": "2026-07-20T23:53:47.000Z",
+      "textPlain": "I use:  find . -name '*.log' -print0 | xargs -0 rm\n\nFor this simple example (derived from the article), find also has a delete operator.This null termination is now a POSIX standard.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48996978,
+      "by": "Borborygymus",
+      "timeISO": "2026-07-21T19:26:15.000Z",
+      "textPlain": "> Or maybe you pipe into xargs and pray your filenames don’t have spacesOr maybe use: `find ... -print0 | xargs -0 ...`I guess you're still hoping your filenames don't contain an ASCII NUL, although that's a fairly reasonable assumption for all but the most paranoid use-cases.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991036,
+      "by": "mslusarz",
+      "timeISO": "2026-07-21T11:50:40.000Z",
+      "textPlain": "I was also sick of bash ways of dealing with lots of data, spaces in file names, etc, so I created csv-nix-tools: https://github.com/mslusarz/csv-nix-toolsE.g. removing all temporary files without the need to deal with spaces, glob limits, or silly find syntax:csv-ls -R -c full_path . | csv-grep -c full_path -e '~$' | csv-exec -- rm -f %full_path",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987850,
+      "by": "G_o_D",
+      "timeISO": "2026-07-21T03:54:58.000Z",
+      "textPlain": "Atleast follow standard practice in your exampleFails : enumerate -f '.txt' -- 'wc -l {}'For all use casesCorrect : enumerate -f '.txt' -- 'wc -l -- {}'",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986261,
+      "by": "loremm",
+      "timeISO": "2026-07-20T23:34:04.000Z",
+      "textPlain": "I have found that the most reliable way I like is to just construct the command externally and then pass to gnu parallel (mostly for --eta and --tmuxpane). And the great thing is, as others say, xargs -I. I prefer for shortness (and few collisoins), '@'seq 1 10|xargs -I@ echo 'bash run.py @'|parallel -j 10I know the echo is a little silly but then I can remove the |parallel and see if it's right. And if I don't want parallelism, I just pass to bash",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987679,
+      "by": "gfalcao",
+      "timeISO": "2026-07-21T03:23:35.000Z",
+      "textPlain": "> Or maybe you pipe into xargs and pray your filenames don’t have spaces…Most of this, if not all, is fixable by adding a `export IFS=$'\\n'` to your bashrc. I'm not trying to disregard your project, just point out something that took me years to learn and I currently use extensively to solve this very problem. Perhaps you didn't know about it until now... :)",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986167,
+      "by": "0xbadcafebee",
+      "timeISO": "2026-07-20T23:24:02.000Z",
+      "textPlain": "I wanted something simpler — one consistent way to iterate over anything.That's not actually simpler though. Simple is removing everything unnecessary. You took commands which could already do what you wanted, and added an extra program which calls them in specific ways. This will add bugs and maintenance headaches, not be portable, etc. This is added complexity.The reason you made this script is not because you wanted simpler, you wanted easier. There's nothing wrong with that, and I'll grant you it probably is, especially for those unaccustomed to these commands. But easier != simpler. Often you'll find that simple is hard and easy is complexity deferred.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991352,
+      "by": "danlitt",
+      "timeISO": "2026-07-21T12:22:40.000Z",
+      "textPlain": "I think this post finally convinced me shells are awful and should be avoided.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986149,
+      "by": "samtheprogram",
+      "timeISO": "2026-07-20T23:21:59.000Z",
+      "textPlain": "Literally just use xargs with -I {} and quotation marks?",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48990504,
+      "by": "tom_",
+      "timeISO": "2026-07-21T10:41:11.000Z",
+      "textPlain": "I never liked xargs either. My replacement is kind of like \"xargs -n 1 -d '\\n' -J '{}'\", which experience has taught me is almost always what I want. It consumes all of its input before starting, so it knows how many files it has to process, and it can print progress to stderr and/or the terminal title as it goes. It can run each command via the shell if you want. It has --dry-run and --keep-going. It can read the file names from a file rather than stdin. I have a few more ideas for things it could do, but I haven't needed to add them yet.(For enumerating files, I use find or dir/b/s, possibly combined with grep, then pipe the result in.)People moaning about avoiding non-basic use of xargs and bash (and inadvertently demonstrating in many cases why some of us think that xargs sucks) miss a large part of the point, which is that it's nice to have a tool that does exactly what you want, and works in a way that's convenient for you, and isn't so widely used that you have to worry about modifying it. If you find the tool doesn't work the way you like, you can just change it. You don't have to be answerable to anybody else. I think tptacek's quite good essay could be relevant: https://sockpuppet.org/blog/2026/05/12/emacsification/(You don't have to use LLMs for this! I wrote my program by hand, it's only like 250 lines of Python, and you could write one too. But, whichever barriers to entry prevent you from creating your own tools for yourself, using an LLM would probably lower at least some of them.)",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991032,
+      "by": "kekqqq",
+      "timeISO": "2026-07-21T11:50:30.000Z",
+      "textPlain": "Parallel and sed are already well-established tools.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988685,
+      "by": "scrame",
+      "timeISO": "2026-07-21T06:13:17.000Z",
+      "textPlain": "find -print0...|xargs -0...\nworks for me, and i don't always want to execute something and xargs can run parallel processes. i feel like this guy never bothered to read the man page.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48991473,
+      "by": "guido26",
+      "timeISO": "2026-07-21T12:31:41.000Z",
+      "textPlain": "My Summary of comments:\nMultiple commands in use can interpret a series of string values in weird ways.You need to establish that every program's interpretation points to the same object before processing the object through the command chain. Stopping a bad command is more important than running the good ones.There is no tool that does this one job.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986146,
+      "by": "raggi",
+      "timeISO": "2026-07-20T23:21:55.000Z",
+      "textPlain": "in zsh you can just write:   for x (*.sh); echo \"before $x after\"\n\nor for x in *.sh; echo \"before $x after\"\n\nor for x (*.sh) { echo -n \"before \"; echo -n $x; echo \" after\" }",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48989408,
+      "by": "vladde",
+      "timeISO": "2026-07-21T07:59:30.000Z",
+      "textPlain": "i often find xargs ends up biting me, and i have wanted some alternative for a while... but i don't think this is the one for me.it feel like the syntax here is odd. it still requires me to write quote my command i want to run? unfortunately i'll have to pass on this.personally i'd want some variant where i can still auto-complete commands and have just have {} as a placeholder. (maybe time to learn how to use xargs for real?)",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987750,
+      "by": "AdieuToLogic",
+      "timeISO": "2026-07-21T03:37:45.000Z",
+      "textPlain": "> Ever found yourself writing this?  for f in *.txt; do\n    wc -l \"$f\"\n  done\n\nNo, because `wc` accepts multiple files. And the example given is incorrect for any file having a `.txt` suffix and whitespaces.> Or this?  find . -name '*.sh' -exec wc -l {} +\n\nNo.> These all work, but each has its own syntax, its own flags, its own quirks. I wanted something simpler — one consistent way to iterate over anything.And therein lies the proverbial xkcd standards[0] proof.0 - https://xkcd.com/927/",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48993343,
+      "by": "dtj1123",
+      "timeISO": "2026-07-21T15:12:09.000Z",
+      "textPlain": "Don't forget gnu parallel",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48988014,
+      "by": "fhn",
+      "timeISO": "2026-07-21T04:20:39.000Z",
+      "textPlain": "calling it 'bashnumerate' and then have the command be 'enumerate' is confusing. find one and stick with it.",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48985496,
+      "by": "caminanteblanco",
+      "timeISO": "2026-07-20T22:08:57.000Z",
+      "textPlain": "Obligatory XKCD: https://xkcd.com/927/",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48992691,
+      "by": "jeffffff",
+      "timeISO": "2026-07-21T14:17:26.000Z",
+      "textPlain": "y'all still write shell commands manually?",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48986337,
+      "by": "PunchyHamster",
+      "timeISO": "2026-07-20T23:43:32.000Z",
+      "textPlain": "I feel like it could be just alias to some particular GNU Parallel set of options",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48987478,
+      "by": "dboreham",
+      "timeISO": "2026-07-21T02:49:27.000Z",
+      "textPlain": "55 comments and nobody mentioned the incorrect English in the title?",
+      "parent": 48984270,
+      "depth": 1
+    },
+    {
+      "id": 48990623,
+      "by": "zombot",
+      "timeISO": "2026-07-21T10:57:12.000Z",
+      "textPlain": "> and pray your filenames don’t have spaces`find` has `-print0` and `xargs` has the matching `-0` flag for this. So this specific argument makes me doubt the author knows their tools. Stopped reading at this point.",
+      "parent": 48984270,
+      "depth": 1
+    }
+  ]
+}
