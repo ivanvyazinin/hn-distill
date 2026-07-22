@@ -60,12 +60,17 @@ Fill one row per run:
 
 **How to collect**
 
-- Route decisions: Loki / worker logs  
-  `Comments-v2 secondary route selected` → `kind`, `reason`, `shareBucket`, `storyId`  
-  `kind=medium-qwen` should appear ≈ share% of medium-sized work, not of all stories.
+- **Planned secondary only:** `Comments-v2 secondary route selected` → `kind`, `reason`, `shareBucket`, `storyId`.  
+  This is the hop *after* primary 70b. It does **not** mean that model ran.  
+  `kind=medium-qwen` ≈ share% of medium-sized *plans*, not of all stories and not of actual calls.
+- **Actual winner:** `Comments-v2 summary written` → `model`. If this is still 70b, secondary never executed.
+- **Qwen proof (all three required):**  
+  1) route `kind=medium-qwen`  
+  2) `llm_usage` gateway=groq model=`qwen/qwen3.6-27b` label=comments  
+  3) summary written `model=qwen/qwen3.6-27b`
 - Usage: `llm_usage` where `label=comments`  
-  - Groq `qwen/qwen3.6-27b` = candidate  
-  - Groq `llama-3.3-70b-versatile` = primary  
+  - Groq `llama-3.3-70b-versatile` = primary (most successes stop here)  
+  - Groq `qwen/qwen3.6-27b` = candidate secondary  
   - Groq `llama-3.1-8b-instant` = short/legacy second  
   - OpenRouter paid model = last resort
 - TPD breaker: `Comments-v2 marking model TPD-exhausted` / `skipping TPD-exhausted model`
