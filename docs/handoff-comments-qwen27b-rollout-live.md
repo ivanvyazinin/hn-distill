@@ -24,6 +24,26 @@ gh variable set COMMENTS_QWEN27B_ROUTE_ENABLE -R ivanvyazinin/hn-distill --body 
 gh variable set COMMENTS_QWEN27B_ROUTE_SHARE -R ivanvyazinin/hn-distill --body 0
 ```
 
+## How to read logs (do not mis-count)
+
+`Comments-v2 secondary route selected` logs the **planned secondary free hop only** (after primary 70b is already queued). It does **not** mean that model was called.
+
+Chain order (`pipeline/summarize.ts`):
+
+1. **Primary always:** `COMMENTS_MODEL` (`llama-3.3-70b-versatile`)
+2. **Secondary (size/share):** 8b / Qwen / skip — what the log’s `kind` + `model` describe
+3. **Paid OpenRouter** last resort
+
+`Comments-v2 summary written` → `model` is the **actual winner**. If primary succeeds, secondary never runs.
+
+### Qwen proof requires all three
+
+1. route log: `kind=medium-qwen` (share hit + medium reserved)
+2. `llm_usage`: gateway `groq` + model `qwen/qwen3.6-27b` (label `comments`)
+3. summary written: `model=qwen/qwen3.6-27b`
+
+Until (2)+(3), do **not** treat a run as Qwen quality/cost/latency evidence.
+
 ## Run log
 
 ### Run 1 — 2026-07-22T11:03Z (workflow_dispatch)
@@ -31,30 +51,36 @@ gh variable set COMMENTS_QWEN27B_ROUTE_SHARE -R ivanvyazinin/hn-distill --body 0
 - URL: https://github.com/ivanvyazinin/hn-distill/actions/runs/29914235102  
 - Result: **success**  
 - Env in job: ENABLE=true, SHARE=10 ✓  
-- Candidates: 5 selected (all also engagement-gate-skipped for some path; 5 processed)  
-- **Comments-v2 generations observed: 1**
-  - story `48999291`
-  - route: `kind=legacy`, `reason=share-miss-legacy-8b`
-  - `shareBucket=91` (91 ≥ 10 → miss) ✓ deterministic sample works
-  - `reservedTokens=6197` (medium band: would have been Qwen **if** share hit)
-  - `model=llama-3.1-8b-instant` second hop
-  - summary **written** (no failure)
-- **Qwen 27b calls this run: 0** (expected at 10% with n=1 medium attempt)
-- No 413 / TPD / EN spike in this thin sample
 
-| Run | UTC | written | qwen27b | share-miss | short-8b | large-skip | fails | notes |
-|---|---|---|---|---|---|---|---|---|
-| 1 | 11:03 | 1 | 0 | 1 | 0 | 0 | 0 | first live; sample miss |
-| 2 |  |  |  |  |  |  |  |  |
-| … |  |  |  |  |  |  |  | need 8 runs **with** comments work |
-| 8 |  |  |  |  |  |  |  |  |
+**What this run proves**
+
+- Repo vars wired into hourly-build ✓  
+- Share bucketing live: story `48999291` → `shareBucket=91` → `reason=share-miss-legacy-8b` (91 ≥ 10) ✓  
+- Secondary **plan** for that story: `kind=legacy`, planned fallback model `llama-3.1-8b-instant`, `reservedTokens=6197` (medium band — would plan Qwen **only if** share hit)
+
+**What this run does *not* prove**
+
+- Qwen was **not** called  
+- 8b was **not** called  
+- Actual summary: **`model=llama-3.3-70b-versatile`** (primary succeeded; secondary unused)  
+- Not a quality / cost / latency / secondary-hop sample
+
+| Run | UTC | written | actual model(s) | route kind | qwen proof? | notes |
+|---|---|---|---|---|---|---|
+| 1 | 11:03 | 1 | 70b only | legacy / share-miss (plan only) | **no** | vars+bucket only |
+| 2 |  |  |  |  |  |  |
+| … |  |  |  |  |  | need real secondary / qwen hits |
+| 8 |  |  |  |  |  |  |
 
 ## Next
 
-1. Wait for scheduled hourlies (cron `0 */3 * * *`) or dispatch when queue has real comments work.
-2. Grep each run: `Comments-v2 secondary route selected` + `summary written`.
-3. Expect ~10% of **share-eligible medium** attempts → `medium-qwen` (not 10% of all stories).
-4. Fill table; rollback per `docs/runbook-comments-qwen27b-rollout.md` if triggers fire.
+1. Scheduled hourlies (`0 */3 * * *`) or dispatch when 70b TPD/fail forces secondary, **or** when share hit + primary fails — otherwise Qwen stays dark.
+2. Per run grep:
+   - `secondary route selected` → plan (`kind`, `shareBucket`)
+   - `summary written` → **actual** `model`
+   - `llm_usage` / usage-stats for `qwen/qwen3.6-27b`
+3. Count Qwen only when the three-part proof above holds.
+4. Rollback: runbook `docs/runbook-comments-qwen27b-rollout.md`.
 
 ## CF Worker note
 
