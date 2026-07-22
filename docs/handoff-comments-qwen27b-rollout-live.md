@@ -65,12 +65,41 @@ Until (2)+(3), do **not** treat a run as Qwen quality/cost/latency evidence.
 - Actual summary: **`model=llama-3.3-70b-versatile`** (primary succeeded; secondary unused)  
 - Not a quality / cost / latency / secondary-hop sample
 
-| Run | UTC | written | actual model(s) | route kind | qwen proof? | notes |
+| Run | UTC | written | actual model(s) | route plan | qwen proof? | notes |
 |---|---|---|---|---|---|---|
-| 1 | 11:03 | 1 | 70b only | legacy / share-miss (plan only) | **no** | vars+bucket only |
-| 2 |  |  |  |  |  |  |
-| … |  |  |  |  |  | need real secondary / qwen hits |
+| 1 | 11:03 | 1 | 70b only | share-miss plan | **no** | vars+bucket only |
+| 2 | 11:55 | 5 | 70b×1, 8b×1, paid×3 | share-miss×5 | **no** | TPD breaker+8b secondary OK; 0 share hits |
+| … |  |  |  |  |  | need `kind=medium-qwen` + written qwen3.6 |
 | 8 |  |  |  |  |  |  |
+
+### Run 2 — 2026-07-22T11:55Z (workflow_dispatch)
+
+- URL: https://github.com/ivanvyazinin/hn-distill/actions/runs/29917558728  
+- Result: **success**  
+- Env: ENABLE=true, SHARE=10 ✓  
+- Comments written: **5/5** (no generation-failed)
+
+| story | bucket | plan kind/reason | reserved | chain (actual) | written model |
+|---:|---:|---|---:|---|---|
+| 48999291 | 91 | legacy / share-miss | 6222 | 70b OK | `llama-3.3-70b-versatile` |
+| 48997548 | 48 | legacy / share-miss | 7369 | 70b **TPD 429** → 8b **413** → paid | `qwen/qwen3-next-80b-a3b-instruct` |
+| 48996652 | 52 | legacy / share-miss | 5941 | 70b **TPD skip** → **8b OK** | `llama-3.1-8b-instant` |
+| 48996571 | 71 | legacy / share-miss | 6425 | 70b skip → 8b **TPM 429** → paid | `qwen/qwen3-next-80b-a3b-instruct` |
+| 48996318 | 18 | legacy / share-miss | 5824 | 70b skip → 8b **TPM 429** → paid | `qwen/qwen3-next-80b-a3b-instruct` |
+
+**Proved this run**
+
+- Share sampling: 5/5 miss (buckets 91,48,52,71,18 — all ≥10). At SHARE=10, E[hits]≈0.5 on n=5 → 0 hits plausible.
+- All five plans were **medium band** (reserved 5.8k–7.4k): on a share **hit** they would have planned `medium-qwen`, not 8b.
+- **TPD breaker works:** after 70b TPD on 48997548, later stories log `skipping TPD-exhausted model` `groq::llama-3.3-70b-versatile`.
+- **Secondary hop actually ran:** 48996652 written model = `llama-3.1-8b-instant` (not plan-only).
+- 8b still blows up on medium-large: 413 once, TPM 429 twice → paid OpenRouter — the pain Qwen medium hop is meant to absorb **when share hits**.
+
+**Still not proved**
+
+- `kind=medium-qwen` never logged  
+- zero `qwen/qwen3.6-27b` calls / writes  
+- Qwen three-part proof: **fail**
 
 ## Next
 
