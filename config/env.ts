@@ -74,6 +74,11 @@ const EnvironmentSchema = z.object({
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(3),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
+  // Regen comments only when HN story.descendants grew by more than this since the
+  // last successful summary (processedDescendants). 0 disables the gate and keeps
+  // the legacy inputHash-only behavior. Count is full-thread descendants, not the
+  // MAX_COMMENTS_PER_STORY-capped fetch sample.
+  COMMENTS_REGEN_MIN_NEW_COMMENTS: z.coerce.number().int().min(0).max(100_000).default(100),
 
   // Comments-v2 model chain. When GROQ_API_KEY is set these route through the Groq
   // client (reliable non-reasoning JSON, no json_schema needed) and MUST be Groq model

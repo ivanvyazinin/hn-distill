@@ -2201,10 +2201,49 @@ export async function processCommentsSummary(
   }
 
   const retryableFallback = existingCommentsSummary?.degraded === "generation-failed";
-  const stage1UpToDate =
+  const stage1HashUpToDate =
     existingCommentsSummary?.inputHash === inputHash &&
     existingCommentsSummary.formatVersion === 2 &&
     !retryableFallback;
+
+  // Count gate on full HN thread size (story.descendants), not the capped fetch.
+  // Trade-off (intentional): postSummary/title prompt drift alone no longer forces
+  // comments regen — only +N growth or a COMMENTS_POLICY_VERSION bump does.
+  // 0 disables the gate (legacy hash-only). Missing snapshots → hash behavior.
+  // Only healthy (non-degraded) blobs are gated: too-few-comments must keep the
+  // hash path so a thin early thread can still upgrade once real comments arrive
+  // with growth ≤ threshold. Negative delta (moderated shrink) counts as "within
+  // threshold" and keeps the existing summary — rare on HN, inherent to count gating.
+  let descendantsDelta: number | undefined;
+  if (
+    existingCommentsSummary !== undefined &&
+    existingCommentsSummary.formatVersion === 2 &&
+    existingCommentsSummary.degraded === undefined &&
+    !retryableFallback &&
+    env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
+    existingCommentsSummary.policyVersion === COMMENTS_POLICY_VERSION &&
+    existingCommentsSummary.processedDescendants !== undefined &&
+    story.descendants !== undefined
+  ) {
+    descendantsDelta = story.descendants - existingCommentsSummary.processedDescendants;
+  }
+  // Growth past threshold forces regen even when the capped sample/hash is unchanged.
+  const stage1CountForcesRegen =
+    descendantsDelta !== undefined && descendantsDelta > env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
+  const stage1CountGatedFresh =
+    descendantsDelta !== undefined && descendantsDelta <= env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
+
+  if (stage1CountGatedFresh && existingCommentsSummary !== undefined) {
+    log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 regen skipped: descendants delta within threshold", {
+      id: story.id,
+      descendants: story.descendants,
+      processedDescendants: existingCommentsSummary.processedDescendants,
+      delta: descendantsDelta,
+      threshold: env.COMMENTS_REGEN_MIN_NEW_COMMENTS,
+    });
+  }
+
+  const stage1UpToDate = !stage1CountForcesRegen && (stage1HashUpToDate || stage1CountGatedFresh);
 
   // Compress-only path when stage-1 is current OR when stage-1 is stale but we
   // only entered because compress is retryable (must not escalate into a full
@@ -2296,6 +2335,8 @@ export async function processCommentsSummary(
       inputHash,
       sampleComments: substantiveComments.map((comment) => comment.id),
       createdISO: now,
+      policyVersion: COMMENTS_POLICY_VERSION,
+      ...(story.descendants === undefined ? {} : { processedDescendants: story.descendants }),
     };
   } else {
     const validated = await generateValidatedCommentsSummaryV2(services, {
@@ -2320,6 +2361,8 @@ export async function processCommentsSummary(
         inputHash,
         sampleComments: substantiveComments.map((comment) => comment.id),
         createdISO: now,
+        policyVersion: COMMENTS_POLICY_VERSION,
+        ...(story.descendants === undefined ? {} : { processedDescendants: story.descendants }),
       };
       try {
         await store.putJson(commentsPath, commentsSummary, { pretty: true, contentType: "application/json" });
@@ -2351,6 +2394,8 @@ export async function processCommentsSummary(
       model: validated.modelUsed,
       sampleComments: validated.sampleIds,
       createdISO: new Date().toISOString(),
+      policyVersion: COMMENTS_POLICY_VERSION,
+      ...(story.descendants === undefined ? {} : { processedDescendants: story.descendants }),
     };
     const compressed = await compressCommentsSummaryIfNeeded(services, commentsSummary, sharedBudget);
     commentsSummary = compressed.summary;
@@ -2888,6 +2933,34 @@ export async function computeCommentsChanged(
   }
   if (isInsideCooldown(existingComments.createdISO, now, cooldownMs)) {
     return false;
+  }
+  // Policy bump always forces regen, even when the count gate would hold.
+  if (
+    existingComments.policyVersion !== undefined &&
+    existingComments.policyVersion !== COMMENTS_POLICY_VERSION
+  ) {
+    return true;
+  }
+  // Cheap short-circuit on full HN thread size (story.descendants), not the capped
+  // fetch sample. Trade-off (intentional): postSummary/title drift alone no longer
+  // triggers comments regen — only +N growth or a policy bump. Threshold 0 disables.
+  // Only non-degraded blobs are gated (too-few-comments keeps hash path so thin
+  // early threads can still upgrade). Blobs without processedDescendants, or stories
+  // without descendants, fall through to inputHash (one regen backfills the field).
+  // Negative delta (moderated shrink) is "within threshold" → keep summary.
+  // Policy bump above is evaluated only after cooldown — same as the hash path
+  // ("forces regen" = next non-cooldown run).
+  if (
+    env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
+    existingComments.formatVersion === 2 &&
+    existingComments.degraded === undefined &&
+    existingComments.policyVersion === COMMENTS_POLICY_VERSION &&
+    existingComments.processedDescendants !== undefined &&
+    story.descendants !== undefined
+  ) {
+    const delta = story.descendants - existingComments.processedDescendants;
+    // Growth past threshold forces regen even when the capped sample/hash is unchanged.
+    return delta > env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
   }
   const comments = await readJsonSafeOrStore<NormalizedComment[]>(
     store,

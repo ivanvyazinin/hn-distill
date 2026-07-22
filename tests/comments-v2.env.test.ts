@@ -18,6 +18,7 @@ describe("comments-v2 environment", () => {
       parsed.WORKER_QUEUE_TASK_TIMEOUT_MS - 2000
     );
     expect(parsed.COMMENTS_JUDGE_THREAD_MAX_CHARS).toBeGreaterThanOrEqual(parsed.COMMENTS_PROMPT_MAX_CHARS);
+    expect(parsed.COMMENTS_REGEN_MIN_NEW_COMMENTS).toBe(100);
   });
 
   test("coerces explicit comments-v2 settings", () => {
@@ -31,6 +32,7 @@ describe("comments-v2 environment", () => {
       COMMENTS_MAX_LLM_CALLS: "2",
       COMMENTS_LLM_REQUEST_TIMEOUT_MS: "9000",
       COMMENTS_JUDGE_THREAD_MAX_CHARS: "32000",
+      COMMENTS_REGEN_MIN_NEW_COMMENTS: "0",
     });
     expect(parsed.COMMENTS_SUMMARY_MIN_CHARS).toBe(240);
     expect(parsed.COMMENTS_MIN_CYRILLIC_RATIO).toBe(0.7);
@@ -41,6 +43,7 @@ describe("comments-v2 environment", () => {
     expect(parsed.COMMENTS_MAX_LLM_CALLS).toBe(2);
     expect(parsed.COMMENTS_LLM_REQUEST_TIMEOUT_MS).toBe(9000);
     expect(parsed.COMMENTS_JUDGE_THREAD_MAX_CHARS).toBe(32_000);
+    expect(parsed.COMMENTS_REGEN_MIN_NEW_COMMENTS).toBe(0);
   });
 
   test("rejects a judge context smaller than the candidate context", () => {

@@ -201,6 +201,10 @@ export const CommentsSummarySchema = z.object({
   degraded: z.enum(["too-few-comments", "generation-failed"]).optional(),
   sampleComments: z.array(z.number()).optional(),
   inputHash: z.string().optional(),
+  /** story.descendants snapshot at generation time; used by the +N regen gate. */
+  processedDescendants: z.number().int().nonnegative().optional(),
+  /** COMMENTS_POLICY_VERSION at generation time; bump forces regen regardless of count. */
+  policyVersion: z.string().optional(),
   model: z.string().optional(),
   createdISO: z.string().optional(),
 });

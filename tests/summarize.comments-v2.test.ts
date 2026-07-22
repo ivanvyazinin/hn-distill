@@ -805,7 +805,10 @@ describe("comments-v2 persistence", () => {
     });
   });
 
-  test("selection computes the same policy hash as persistence and notices title/post changes", async () => {
+  test("selection computes the same policy hash as persistence; title/post drift is hash-only when count gate off", async () => {
+    // Without descendants snapshots (or with gate threshold 0) title/post changes
+    // still flip the inputHash. With the default +N gate and processedDescendants
+    // present, title/post drift alone is intentionally ignored — covered below.
     const story = makeStory({ id: 23, title: "Original title" });
     const comments = [longComment(231, story.id, "Один подробный ответ объясняет порядок проверки и запуска новой системы.")];
     const postSummary = { id: story.id, lang: "ru" as const, summary: "Краткая суть исходной статьи для контекста." };
@@ -815,27 +818,358 @@ describe("comments-v2 persistence", () => {
     await store.putJson(pathFor.rawComments(story.id), comments);
     await store.putJson(pathFor.postSummary(story.id), postSummary);
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: ""}, async () => {
-      const applied = await processCommentsSummary(services, story, comments, postSummary, path, store);
-      expect(applied.status).toBe("applied");
-      if (applied.status !== "applied") {
-        return;
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 0 },
+      async () => {
+        const applied = await processCommentsSummary(services, story, comments, postSummary, path, store);
+        expect(applied.status).toBe("applied");
+        if (applied.status !== "applied") {
+          return;
+        }
+        expect(applied.policyVersion).toBe(COMMENTS_POLICY_VERSION);
+        expect(
+          await computeCommentsChanged(story, applied.summary, "ru", 0, Date.now(), store)
+        ).toBeFalse();
+        expect(
+          await computeCommentsChanged({ ...story, title: "Changed title" }, applied.summary, "ru", 0, Date.now(), store)
+        ).toBeTrue();
+        await store.putJson(pathFor.postSummary(story.id), {
+          ...postSummary,
+          summary: "Изменённая суть статьи должна поменять общий comments input hash.",
+        });
+        expect(
+          await computeCommentsChanged(story, applied.summary, "ru", 0, Date.now(), store)
+        ).toBeTrue();
       }
-      expect(applied.policyVersion).toBe(COMMENTS_POLICY_VERSION);
-      expect(
-        await computeCommentsChanged(story, applied.summary, "ru", 0, Date.now(), store)
-      ).toBeFalse();
-      expect(
-        await computeCommentsChanged({ ...story, title: "Changed title" }, applied.summary, "ru", 0, Date.now(), store)
-      ).toBeTrue();
-      await store.putJson(pathFor.postSummary(story.id), {
-        ...postSummary,
-        summary: "Изменённая суть статьи должна поменять общий comments input hash.",
-      });
-      expect(
-        await computeCommentsChanged(story, applied.summary, "ru", 0, Date.now(), store)
-      ).toBeTrue();
-    });
+    );
+  });
+});
+
+describe("comments-v2 descendants regen gate", () => {
+  test("delta within threshold skips computeCommentsChanged hash path and processCommentsSummary LLM", async () => {
+    const story = makeStory({ id: 50, title: "Gate hold", descendants: 150 });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/50.comments.json";
+    const { calls, services } = structuredServices([async () => VALID_INSIGHTS]);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        if (first.status !== "applied") {
+          return;
+        }
+        expect(first.summary.processedDescendants).toBe(150);
+        expect(first.summary.policyVersion).toBe(COMMENTS_POLICY_VERSION);
+        expect(calls.length).toBe(1);
+
+        // Mutate prompt inputs so the hash would differ, but keep delta ≤ 100.
+        const grown = { ...story, title: "Changed title", descendants: 250 };
+        await store.putJson(pathFor.rawComments(story.id), [
+          ...comments,
+          longComment(199, story.id, "Новый комментарий не должен форсировать реген при малой дельте."),
+        ]);
+        // No rawComments/postSummary needed for the short-circuit — even empty store is fine.
+        expect(await computeCommentsChanged(grown, first.summary, "ru", 0, Date.now(), store)).toBeFalse();
+
+        const second = await processCommentsSummary(services, grown, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(calls.length).toBe(1);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.processedDescendants).toBe(150);
+        expect(persisted?.inputHash).toBe(first.summary.inputHash);
+      }
+    );
+  });
+
+  test("delta above threshold regenerates and rewrites processedDescendants", async () => {
+    const story = makeStory({ id: 51, title: "Gate fire", descendants: 100 });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/51.comments.json";
+    const { calls, services } = structuredServices([
+      async () => VALID_INSIGHTS,
+      async () => VALID_INSIGHTS,
+    ]);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(first.status).toBe("applied");
+        if (first.status !== "applied") {
+          return;
+        }
+        expect(first.summary.processedDescendants).toBe(100);
+
+        const grown = { ...story, descendants: 201 };
+        expect(await computeCommentsChanged(grown, first.summary, "ru", 0, Date.now(), store)).toBeTrue();
+
+        const second = await processCommentsSummary(services, grown, comments, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(calls.length).toBe(2);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.processedDescendants).toBe(201);
+        expect(persisted?.policyVersion).toBe(COMMENTS_POLICY_VERSION);
+      }
+    );
+  });
+
+  test("legacy blob without processedDescendants falls back to inputHash", async () => {
+    const story = makeStory({ id: 52, title: "Legacy fallback", descendants: 200 });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), comments);
+
+    const legacy: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "legacy structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "stale-hash-without-descendants-field",
+      createdISO: new Date(0).toISOString(),
+      // no processedDescendants / policyVersion
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 100 },
+      async () => {
+        expect(await computeCommentsChanged(story, legacy, "ru", 0, Date.now(), store)).toBeTrue();
+      }
+    );
+  });
+
+  test("policyVersion mismatch forces regen at any delta", async () => {
+    const story = makeStory({ id: 53, title: "Policy bump", descendants: 120 });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/53.comments.json";
+    const { calls, services } = structuredServices([async () => VALID_INSIGHTS]);
+
+    const stale: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "old policy blob",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "whatever",
+      createdISO: new Date(0).toISOString(),
+      processedDescendants: 120,
+      policyVersion: "1",
+    };
+    await store.putJson(path, stale);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        expect(await computeCommentsChanged(story, stale, "ru", 0, Date.now(), store)).toBeTrue();
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        expect(calls.length).toBe(1);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.policyVersion).toBe(COMMENTS_POLICY_VERSION);
+        expect(persisted?.processedDescendants).toBe(120);
+      }
+    );
+  });
+
+  test("undefined story.descendants falls back to inputHash", async () => {
+    const story = makeStory({ id: 54, title: "No descendants" }); // descendants omitted
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), comments);
+
+    const existing: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "blob with snapshot",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "stale-hash",
+      createdISO: new Date(0).toISOString(),
+      processedDescendants: 50,
+      policyVersion: COMMENTS_POLICY_VERSION,
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 100 },
+      async () => {
+        expect(await computeCommentsChanged(story, existing, "ru", 0, Date.now(), store)).toBeTrue();
+      }
+    );
+  });
+
+  test("threshold 0 restores hash-only behavior even with snapshots", async () => {
+    const story = makeStory({ id: 55, title: "Gate off", descendants: 100 });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), comments);
+
+    const existing: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "snapshot present",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "stale-hash",
+      createdISO: new Date(0).toISOString(),
+      processedDescendants: 100,
+      policyVersion: COMMENTS_POLICY_VERSION,
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 0 },
+      async () => {
+        expect(await computeCommentsChanged(story, existing, "ru", 0, Date.now(), store)).toBeTrue();
+      }
+    );
+  });
+
+  test("generation-failed still forces regen under the count gate", async () => {
+    const story = makeStory({ id: 56, title: "Failed still retries", descendants: 80 });
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), threeComments(story.id));
+
+    const failed: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "fallback",
+      formatVersion: 2,
+      degraded: "generation-failed",
+      inputHash: "x",
+      createdISO: new Date().toISOString(),
+      processedDescendants: 80,
+      policyVersion: COMMENTS_POLICY_VERSION,
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 100 },
+      async () => {
+        expect(await computeCommentsChanged(story, failed, "ru", 60_000, Date.now(), store)).toBeTrue();
+      }
+    );
+  });
+
+  test("too-few-comments is not pinned by the count gate and upgrades on hash change", async () => {
+    // Early thin thread writes degraded too-few with processedDescendants. Growth
+    // within threshold must NOT freeze the fallback — hash path must still fire so
+    // a later substantive sample can produce a real structured summary.
+    const story = makeStory({ id: 58, title: "Too few upgrade", descendants: 5 });
+    const thin = [longComment(581, story.id, "Один короткий ответ без достаточной дискуссии.")];
+    const rich = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = "data/summaries/58.comments.json";
+    const { calls, services } = structuredServices([async () => VALID_INSIGHTS]);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 80,
+        COMMENTS_COMPRESS_MODEL: "",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        const first = await processCommentsSummary(services, story, thin, undefined, path, store);
+        expect(first.status).toBe("applied");
+        if (first.status !== "applied") {
+          return;
+        }
+        expect(first.summary.degraded).toBe("too-few-comments");
+        expect(first.summary.processedDescendants).toBe(5);
+        expect(calls.length).toBe(0);
+
+        const grown = { ...story, descendants: 90 }; // +85 ≤ 100
+        await store.putJson(pathFor.rawComments(story.id), rich);
+        // Count gate must not short-circuit degraded blobs.
+        expect(await computeCommentsChanged(grown, first.summary, "ru", 0, Date.now(), store)).toBeTrue();
+
+        const second = await processCommentsSummary(services, grown, rich, undefined, path, store);
+        expect(second.status).toBe("applied");
+        expect(calls.length).toBe(1);
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.degraded).toBeUndefined();
+        expect(persisted?.structured).toEqual(VALID_INSIGHTS);
+        expect(persisted?.processedDescendants).toBe(90);
+      }
+    );
+  });
+
+  test("gate-fire above threshold is still blocked by cooldown", async () => {
+    const story = makeStory({ id: 59, title: "Cooldown wins", descendants: 300 });
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), threeComments(story.id));
+
+    const fresh: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "hash",
+      createdISO: new Date().toISOString(),
+      processedDescendants: 100,
+      policyVersion: COMMENTS_POLICY_VERSION,
+    };
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_COMPRESS_MODEL: "", COMMENTS_REGEN_MIN_NEW_COMMENTS: 100 },
+      async () => {
+        // +200 > 100 would fire the gate, but cooldown short-circuits first.
+        expect(await computeCommentsChanged(story, fresh, "ru", 60_000, Date.now(), store)).toBeFalse();
+        // Outside cooldown the same delta forces regen.
+        expect(
+          await computeCommentsChanged(story, fresh, "ru", 0, Date.now(), store)
+        ).toBeTrue();
+      }
+    );
+  });
+
+  test("compress-retry still fires under the count gate inside cooldown", async () => {
+    const story = makeStory({ id: 57, title: "Compress under gate", descendants: 90 });
+    const store = new MemoryStore();
+    await store.putJson(pathFor.rawComments(story.id), threeComments(story.id));
+
+    const pending: CommentsSummary = {
+      id: story.id,
+      lang: "ru",
+      summary: "structured markdown",
+      formatVersion: 2,
+      structured: VALID_INSIGHTS,
+      inputHash: "hash",
+      createdISO: new Date().toISOString(),
+      processedDescendants: 90,
+      policyVersion: COMMENTS_POLICY_VERSION,
+      // compressed absent → retryable
+    };
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+        COMMENTS_REGEN_MIN_NEW_COMMENTS: 100,
+      },
+      async () => {
+        expect(await computeCommentsChanged(story, pending, "ru", 60_000, Date.now(), store)).toBeTrue();
+      }
+    );
   });
 });
 
