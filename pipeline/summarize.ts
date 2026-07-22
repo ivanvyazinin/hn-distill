@@ -101,6 +101,12 @@ export type Services = {
   pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
   /** Per-attempt LLM usage collector, scoped per story by processSingleStory. */
   usage: UsageCollector;
+  /**
+   * Run-scoped Groq model ids proven exhausted via TPD 429. Shared across stories in one
+   * makeServices() lifetime so a later story skips the dead model without a module global.
+   * Fresh Services (new run) starts empty. TPM/timeout/transport must NOT populate this.
+   */
+  commentsTpdExhaustedModels?: Set<string>;
 };
 
 export function makeServices(
@@ -278,7 +284,15 @@ export function makeServices(
     model: e.OPENROUTER_MODEL,
   });
 
-  return { http, openrouter, guardTagsClient, fetchArticleMarkdown, fetchArticleViaReader, usage };
+  return {
+    http,
+    openrouter,
+    guardTagsClient,
+    fetchArticleMarkdown,
+    fetchArticleViaReader,
+    usage,
+    commentsTpdExhaustedModels: new Set<string>(),
+  };
 }
 
 const TAGS_DEBUG_MESSAGE = "summarize/tags";
@@ -1250,16 +1264,137 @@ function hasHttpErrorCause(error: unknown): boolean {
   return false;
 }
 
-export async function callStructuredWithModelChain(
-  services: Services,
-  input: {
-    budget: CommentsGenerationBudget;
-    comments: NormalizedComment[];
-    maxInsights: number;
-    prompt: string;
-    sampleIds: number[];
+function findHttpErrorCause(error: unknown): HttpError | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 6 && current instanceof Error; depth += 1) {
+    if (current instanceof HttpError) {
+      return current;
+    }
+    current = current.cause;
   }
-): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
+  return undefined;
+}
+
+/** Deterministic prompt-size estimate used for free-route selection (no tokenizer). */
+export function estimateCommentsPromptTokens(prompt: string): number {
+  return Math.ceil(prompt.length / 4);
+}
+
+/**
+ * True only for a proven Groq tokens-per-day exhaustion signal.
+ * TPM 429 / bare 429 / timeout / transport must NOT match — those stay retryable.
+ */
+export function isGroqTpdExhaustionError(error: unknown): boolean {
+  const httpError = findHttpErrorCause(error);
+  if (httpError?.status !== 429) {
+    return false;
+  }
+  const parts = [httpError.message, error instanceof Error ? error.message : String(error)];
+  const blob = parts.join(" ").toLowerCase();
+  return blob.includes("tokens per day") || blob.includes("(tpd)") || /\btpd\b/u.test(blob);
+}
+
+export type CommentsSecondaryRouteKind = "large-skip" | "legacy" | "medium-qwen" | "short-8b";
+
+export type CommentsSecondaryRouteDecision = {
+  estimateTokens: number;
+  kind: CommentsSecondaryRouteKind;
+  model: string;
+  reason: string;
+  reservedTokens: number;
+};
+
+/**
+ * Pure secondary free-route picker (after primary 70b). Flag off → legacy 8b hop.
+ * Flag on → short→8b, medium→Qwen 27b, large→skip both (paid hop still available later).
+ */
+export function selectCommentsSecondaryRoute(input: {
+  enableQwen27b: boolean;
+  estimateTokens: number;
+  fallbackModel: string;
+  maxOutputTokens: number;
+  qwen27bMaxReservedTokens: number;
+  qwen27bModel: string;
+  shortMaxReservedTokens: number;
+  tpdExhaustedModels?: ReadonlySet<string>;
+}): CommentsSecondaryRouteDecision {
+  const reservedTokens = input.estimateTokens + input.maxOutputTokens;
+  const exhausted = input.tpdExhaustedModels ?? new Set<string>();
+
+  if (!input.enableQwen27b) {
+    const model = input.fallbackModel.trim();
+    return {
+      estimateTokens: input.estimateTokens,
+      kind: "legacy",
+      model,
+      reason: model.length === 0 ? "legacy-fallback-empty" : "flag-off-legacy-8b",
+      reservedTokens,
+    };
+  }
+
+  if (reservedTokens < input.shortMaxReservedTokens) {
+    const model = input.fallbackModel.trim();
+    if (model.length === 0 || exhausted.has(model)) {
+      return {
+        estimateTokens: input.estimateTokens,
+        kind: "large-skip",
+        model: "",
+        reason: model.length === 0 ? "short-8b-empty" : "short-8b-tpd-exhausted",
+        reservedTokens,
+      };
+    }
+    return {
+      estimateTokens: input.estimateTokens,
+      kind: "short-8b",
+      model,
+      reason: "short-reserved-under-cap",
+      reservedTokens,
+    };
+  }
+
+  if (reservedTokens <= input.qwen27bMaxReservedTokens) {
+    const model = input.qwen27bModel.trim();
+    if (model.length === 0 || exhausted.has(model)) {
+      return {
+        estimateTokens: input.estimateTokens,
+        kind: "large-skip",
+        model: "",
+        reason: model.length === 0 ? "medium-qwen-empty" : "medium-qwen-tpd-exhausted",
+        reservedTokens,
+      };
+    }
+    return {
+      estimateTokens: input.estimateTokens,
+      kind: "medium-qwen",
+      model,
+      reason: "medium-reserved-fits-qwen",
+      reservedTokens,
+    };
+  }
+
+  return {
+    estimateTokens: input.estimateTokens,
+    kind: "large-skip",
+    model: "",
+    reason: "reserved-over-qwen-cap",
+    reservedTokens,
+  };
+}
+
+type CommentsChainStep = {
+  client: OpenRouter;
+  model: string;
+  prefersResponseFormat: boolean;
+  /** Groq Qwen3.6 needs reasoning_effort=none or the budget burns inside <think>. */
+  reasoningEffort?: "high" | "low" | "medium" | "none";
+  /** When true, a proven TPD 429 on this step is recorded on services.commentsTpdExhaustedModels. */
+  trackTpdExhaustion: boolean;
+};
+
+function buildCommentsModelChain(
+  services: Services,
+  prompt: string
+): { decision: CommentsSecondaryRouteDecision | undefined; steps: CommentsChainStep[] } {
   // Route comments through the Groq client when one exists: it returns reliable
   // non-reasoning JSON, unlike the OpenRouter reasoning models that share the post
   // chain and emit prose instead of JSON. makeServices only builds a distinct
@@ -1270,24 +1405,21 @@ export async function callStructuredWithModelChain(
   const groqBaseUrl = env.GROQ_BASE_URL;
   const openRouterBaseUrl = env.OPENROUTER_BASE_URL ?? "";
 
-  // Each step carries its own client so the chain can cross providers: the Groq
-  // models first, then a paid OpenRouter model that survives Groq's per-model daily
-  // token cap (HTTP 429 TPD) which would otherwise dead-end the whole Groq chain.
-  type ChainStep = {
-    client: OpenRouter;
-    model: string;
-    prefersResponseFormat: boolean;
-  };
-  const steps: ChainStep[] = [];
+  const steps: CommentsChainStep[] = [];
   const seenSteps = new Set<string>();
   const pushStep = (
     stepClient: OpenRouter,
     model: string,
     stepBaseUrl: string,
-    prefersResponseFormat: boolean
+    prefersResponseFormat: boolean,
+    options?: { reasoningEffort?: CommentsChainStep["reasoningEffort"]; trackTpdExhaustion?: boolean }
   ): void => {
     const trimmed = model.trim();
     if (trimmed.length === 0) {
+      return;
+    }
+    if (services.commentsTpdExhaustedModels?.has(trimmed) === true) {
+      log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 skipping TPD-exhausted model", { model: trimmed });
       return;
     }
     const key = `${stepBaseUrl}::${trimmed}`;
@@ -1295,19 +1427,78 @@ export async function callStructuredWithModelChain(
       return;
     }
     seenSteps.add(key);
-    steps.push({ client: stepClient, model: trimmed, prefersResponseFormat });
+    steps.push({
+      client: stepClient,
+      model: trimmed,
+      prefersResponseFormat,
+      trackTpdExhaustion: options?.trackTpdExhaustion === true,
+      ...(options?.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
+    });
   };
 
+  let decision: CommentsSecondaryRouteDecision | undefined;
+
   if (groqEnabled) {
-    for (const model of [env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
-      pushStep(services.guardTagsClient, model, groqBaseUrl, false);
+    // Primary high-value hop always stays 70b (flag does not touch it).
+    pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, false, { trackTpdExhaustion: true });
+
+    const estimateTokens = estimateCommentsPromptTokens(prompt);
+    decision = selectCommentsSecondaryRoute({
+      enableQwen27b: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
+      estimateTokens,
+      fallbackModel: env.COMMENTS_FALLBACK_MODEL,
+      maxOutputTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
+      qwen27bMaxReservedTokens: env.COMMENTS_QWEN27B_MAX_RESERVED_TOKENS,
+      qwen27bModel: env.COMMENTS_QWEN27B_MODEL,
+      shortMaxReservedTokens: env.COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS,
+      ...(services.commentsTpdExhaustedModels === undefined
+        ? {}
+        : { tpdExhaustedModels: services.commentsTpdExhaustedModels }),
+    });
+
+    if (decision.kind === "legacy") {
+      // Flag off: preserve the historical ordered list (fallback + optional fallback_2).
+      for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
+        pushStep(services.guardTagsClient, model, groqBaseUrl, false, { trackTpdExhaustion: true });
+      }
+    } else if (decision.model.length > 0) {
+      pushStep(services.guardTagsClient, decision.model, groqBaseUrl, false, {
+        trackTpdExhaustion: true,
+        ...(decision.kind === "medium-qwen" ? { reasoningEffort: "none" as const } : {}),
+      });
     }
+
+    log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 secondary route selected", {
+      kind: decision.kind,
+      reason: decision.reason,
+      model: decision.model.length > 0 ? decision.model : undefined,
+      estimateTokens: decision.estimateTokens,
+      reservedTokens: decision.reservedTokens,
+      qwenRouteEnabled: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
+    });
+
+    // Paid OpenRouter last resort — timing/SLA intentionally unchanged in this scaffold.
     pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, true);
   } else {
     for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {
       pushStep(services.openrouter, model, openRouterBaseUrl, true);
     }
   }
+
+  return { decision, steps };
+}
+
+export async function callStructuredWithModelChain(
+  services: Services,
+  input: {
+    budget: CommentsGenerationBudget;
+    comments: NormalizedComment[];
+    maxInsights: number;
+    prompt: string;
+    sampleIds: number[];
+  }
+): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
+  const { steps } = buildCommentsModelChain(services, input.prompt);
 
   let stepIndex = 0;
   let strict = false;
@@ -1331,7 +1522,7 @@ export async function callStructuredWithModelChain(
     if (step === undefined) {
       return undefined;
     }
-    const { client, model } = step;
+    const { client, model, reasoningEffort, trackTpdExhaustion } = step;
 
     const requestTimeoutMs = input.budget.claimRequestTimeoutMs();
     if (requestTimeoutMs === undefined) {
@@ -1353,6 +1544,7 @@ export async function callStructuredWithModelChain(
           jsonExtraction: useResponseFormat ? "strict" : "balanced-object",
           transportRetries: 0,
           requestTimeoutMs,
+          ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
           ...(useResponseFormat
             ? {
                 signalUnsupportedResponseFormat: true,
@@ -1392,6 +1584,12 @@ export async function callStructuredWithModelChain(
           model,
         });
         continue;
+      }
+      if (trackTpdExhaustion && isGroqTpdExhaustionError(error)) {
+        const exhausted = services.commentsTpdExhaustedModels ?? new Set<string>();
+        exhausted.add(model);
+        services.commentsTpdExhaustedModels = exhausted;
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 marking model TPD-exhausted for this run", { model });
       }
       log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 structured attempt failed", {
         model,

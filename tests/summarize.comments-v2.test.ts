@@ -7,8 +7,11 @@ import {
   CommentsGenerationBudget,
   buildCommentsPromptV2,
   computeCommentsChanged,
+  estimateCommentsPromptTokens,
   generateValidatedCommentsSummaryV2,
+  isGroqTpdExhaustionError,
   processCommentsSummary,
+  selectCommentsSecondaryRoute,
   type Services,
 } from "../pipeline/summarize";
 import { HttpError } from "../utils/http-client";
@@ -148,6 +151,67 @@ function structuredServices(
       guardTagsClient: openrouter,
       fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
       usage: createUsageCollector(),
+      commentsTpdExhaustedModels: new Set<string>(),
+    },
+  };
+}
+
+function groqPairServices(handlers: {
+  groq?: (call: StructuredCall) => Promise<CommentsInsights>;
+  openrouter?: (call: StructuredCall) => Promise<CommentsInsights>;
+}): {
+  groqCalls: StructuredCall[];
+  openRouterCalls: StructuredCall[];
+  services: Services;
+} {
+  const groqCalls: StructuredCall[] = [];
+  const openRouterCalls: StructuredCall[] = [];
+  const groqClient = ({
+    chat: async () => {
+      throw new Error("legacy chat must not be called by comments-v2");
+    },
+    chatStructured: async <T>(
+      messages: ChatMessage[],
+      options: StructuredOutputOptions,
+      _schema: unknown,
+      maxRetries: number
+    ): Promise<T> => {
+      const call = { messages, options, maxRetries };
+      groqCalls.push(call);
+      if (handlers.groq === undefined) {
+        throw new Error("unexpected Groq call");
+      }
+      return (await handlers.groq(call)) as T;
+    },
+  } as unknown) as Services["openrouter"];
+  const openrouter = ({
+    chat: async () => {
+      throw new Error("legacy chat must not be called by comments-v2");
+    },
+    chatStructured: async <T>(
+      messages: ChatMessage[],
+      options: StructuredOutputOptions,
+      _schema: unknown,
+      maxRetries: number
+    ): Promise<T> => {
+      const call = { messages, options, maxRetries };
+      openRouterCalls.push(call);
+      if (handlers.openrouter === undefined) {
+        throw new Error("unexpected OpenRouter call");
+      }
+      return (await handlers.openrouter(call)) as T;
+    },
+  } as unknown) as Services["openrouter"];
+  return {
+    groqCalls,
+    openRouterCalls,
+    services: {
+      http: {} as Services["http"],
+      openrouter,
+      guardTagsClient: groqClient,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
+      commentsTpdExhaustedModels: new Set<string>(),
     },
   };
 }
@@ -1039,5 +1103,353 @@ describe("comments compress integration", () => {
         expect(await computeCommentsChanged(story, base, "en", 60_000, Date.now(), store)).toBeFalse();
       }
     );
+  });
+});
+
+describe("comments-v2 qwen27b feature-flag routing (Phase 3 scaffold)", () => {
+  const QWEN = "qwen/qwen3.6-27b";
+  const FLAG_ON = {
+    SUMMARY_LANG: "ru" as const,
+    COMMENTS_SUMMARY_MIN_CHARS: 200,
+    COMMENTS_COMPRESS_MODEL: "",
+    COMMENTS_MAX_LLM_CALLS: 3,
+    COMMENTS_QWEN27B_ROUTE_ENABLE: true,
+    COMMENTS_QWEN27B_MODEL: QWEN,
+    COMMENTS_SUMMARY_MAX_TOKENS: 2500,
+    COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 5500,
+    COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: 8000,
+  };
+
+  test("selectCommentsSecondaryRoute: flag off stays legacy; size splits short/medium/large", () => {
+    const base = {
+      fallbackModel: "llama-3.1-8b-instant",
+      maxOutputTokens: 2500,
+      qwen27bMaxReservedTokens: 8000,
+      qwen27bModel: QWEN,
+      shortMaxReservedTokens: 5500,
+    };
+    expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: false, estimateTokens: 1000 }).kind).toBe("legacy");
+    // reserved = 2000+2500 = 4500 < 5500 → short
+    expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: true, estimateTokens: 2000 }).kind).toBe("short-8b");
+    // reserved = 4000+2500 = 6500 → medium qwen
+    expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: true, estimateTokens: 4000 })).toEqual({
+      estimateTokens: 4000,
+      kind: "medium-qwen",
+      model: QWEN,
+      reason: "medium-reserved-fits-qwen",
+      reservedTokens: 6500,
+    });
+    // reserved = 6000+2500 = 8500 > 8000 → large skip
+    expect(selectCommentsSecondaryRoute({ ...base, enableQwen27b: true, estimateTokens: 6000 }).kind).toBe("large-skip");
+    // TPD-exhausted qwen → skip secondary
+    expect(
+      selectCommentsSecondaryRoute({
+        ...base,
+        enableQwen27b: true,
+        estimateTokens: 4000,
+        tpdExhaustedModels: new Set([QWEN]),
+      }).reason
+    ).toBe("medium-qwen-tpd-exhausted");
+  });
+
+  test("isGroqTpdExhaustionError matches only explicit TPD 429 bodies", () => {
+    expect(
+      isGroqTpdExhaustionError(
+        new Error("rate limited", {
+          cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD) limit"),
+        })
+      )
+    ).toBe(true);
+    expect(
+      isGroqTpdExhaustionError(
+        new Error("rate limited", {
+          cause: new HttpError("https://api.groq.com", 429, "tokens per minute (TPM) Limit 8000"),
+        })
+      )
+    ).toBe(false);
+    expect(
+      isGroqTpdExhaustionError(new Error("timeout", { cause: new HttpError("https://api.groq.com", 503, "down") }))
+    ).toBe(false);
+  });
+
+  test("flag off keeps the legacy 70b → 8b → paid chain", async () => {
+    const story = makeStory({ id: 301, title: "Flag off" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async () => {
+        throw new Error("rate limited", {
+          cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+        });
+      },
+      openrouter: async () => VALID_INSIGHTS,
+    });
+
+    await withEnvPatch(
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_QWEN27B_ROUTE_ENABLE: false },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+        });
+        expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(groqCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL]);
+        expect(openRouterCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_OPENROUTER_FALLBACK_MODEL]);
+        // No reasoning_effort on llama hops.
+        for (const call of groqCalls) {
+          expect(call.options.reasoningEffort).toBeUndefined();
+        }
+      }
+    );
+  });
+
+  test("medium input under flag picks Qwen 27b with reasoning_effort=none and balanced-object", async () => {
+    const story = makeStory({ id: 302, title: "Medium qwen" });
+    // Force medium: estimateTokens + maxOut in (shortCap, qwenCap].
+    // threeComments prompt is small → stub by patching short cap below reserved of tiny prompts.
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+          });
+        }
+        if (call.options.model === QWEN) {
+          return VALID_INSIGHTS;
+        }
+        throw new Error(`unexpected groq model ${call.options.model ?? "?"}`);
+      },
+    });
+
+    await withEnvPatch(
+      {
+        ...FLAG_ON,
+        // threeComments reserved is well under 5500 with default caps; drop short cap so
+        // the same fixture lands in the medium bucket without fabricating a huge prompt.
+        COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 1,
+      },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+        });
+        expect(result?.insights).toEqual(VALID_INSIGHTS);
+        expect(result?.modelUsed).toBe(QWEN);
+        expect(result?.summary.trim().length).toBeGreaterThan(0);
+        expect(groqCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_MODEL, QWEN]);
+        expect(openRouterCalls.length).toBe(0);
+        const qwenCall = groqCalls[1];
+        expect(qwenCall?.options.reasoningEffort).toBe("none");
+        expect(qwenCall?.options.jsonExtraction).toBe("balanced-object");
+        expect(qwenCall?.options.responseFormat).toBeUndefined();
+        // System+user messages still carry the production V2 prompt shape.
+        expect(qwenCall?.messages.length).toBe(2);
+        expect(qwenCall?.messages[0]?.role).toBe("system");
+        expect(qwenCall?.messages[1]?.role).toBe("user");
+        expect(qwenCall?.messages[1]?.content.length).toBeGreaterThan(0);
+      }
+    );
+  });
+
+  test("short input under flag still uses 8b, not Qwen", async () => {
+    const story = makeStory({ id: 303, title: "Short 8b" });
+    const { groqCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+          });
+        }
+        if (call.options.model === env.COMMENTS_FALLBACK_MODEL) {
+          return VALID_INSIGHTS;
+        }
+        throw new Error(`unexpected groq model ${call.options.model ?? "?"}`);
+      },
+    });
+
+    await withEnvPatch(
+      {
+        ...FLAG_ON,
+        // Make short bucket absorb the tiny fixture.
+        COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 100_000,
+      },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+        });
+        expect(result?.modelUsed).toBe(env.COMMENTS_FALLBACK_MODEL);
+        expect(groqCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL]);
+        expect(groqCalls[1]?.options.reasoningEffort).toBeUndefined();
+      }
+    );
+  });
+
+  test("large reserved input skips both free secondary hops and reaches paid within 3 calls", async () => {
+    const story = makeStory({ id: 304, title: "Large skip" });
+    const budget = new CommentsGenerationBudget({ maxCalls: 3 });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+          });
+        }
+        throw new Error(`secondary free hop must be skipped, got ${call.options.model ?? "?"}`);
+      },
+      openrouter: async () => VALID_INSIGHTS,
+    });
+
+    await withEnvPatch(
+      {
+        ...FLAG_ON,
+        COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 1,
+        COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: 1,
+      },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+          budget,
+        });
+        expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(groqCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_MODEL]);
+        expect(openRouterCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_OPENROUTER_FALLBACK_MODEL]);
+        expect(budget.callsUsed).toBe(2);
+      }
+    );
+  });
+
+  test("invalid EN candidate from Qwen is not published; chain advances", async () => {
+    const story = makeStory({ id: 305, title: "Bad qwen" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+          });
+        }
+        if (call.options.model === QWEN) {
+          return INVALID_LANGUAGE_INSIGHTS;
+        }
+        throw new Error(`unexpected groq model ${call.options.model ?? "?"}`);
+      },
+      openrouter: async () => VALID_INSIGHTS,
+    });
+
+    await withEnvPatch(
+      { ...FLAG_ON, COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 1 },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, {
+          story,
+          comments: threeComments(story.id),
+        });
+        expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(result?.insights).toEqual(VALID_INSIGHTS);
+        expect(groqCalls.map((c) => c.options.model)).toEqual([env.COMMENTS_MODEL, QWEN]);
+        expect(openRouterCalls.length).toBe(1);
+      }
+    );
+  });
+
+  test("Qwen TPD disables only Qwen for the next story; TPM does not; fresh Services resets", async () => {
+    const storyA = makeStory({ id: 306, title: "TPD A" });
+    const storyB = makeStory({ id: 307, title: "TPD B" });
+    const storyC = makeStory({ id: 308, title: "TPM C" });
+
+    let qwenHits = 0;
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+          });
+        }
+        if (call.options.model === QWEN) {
+          qwenHits += 1;
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD) Limit 200000"),
+          });
+        }
+        throw new Error(`unexpected groq model ${call.options.model ?? "?"}`);
+      },
+      openrouter: async () => VALID_INSIGHTS,
+    });
+
+    await withEnvPatch(
+      { ...FLAG_ON, COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: 1 },
+      async () => {
+        // Story A: 70b TPD → Qwen TPD → paid. Qwen marked exhausted.
+        const a = await generateValidatedCommentsSummaryV2(services, {
+          story: storyA,
+          comments: threeComments(storyA.id),
+        });
+        expect(a?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(qwenHits).toBe(1);
+        expect(services.commentsTpdExhaustedModels?.has(QWEN)).toBe(true);
+        expect(services.commentsTpdExhaustedModels?.has(env.COMMENTS_MODEL)).toBe(true);
+
+        const callsAfterA = groqCalls.length;
+
+        // Story B: primary already TPD-exhausted → skipped; Qwen skipped; paid only.
+        const b = await generateValidatedCommentsSummaryV2(services, {
+          story: storyB,
+          comments: threeComments(storyB.id),
+        });
+        expect(b?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+        expect(qwenHits).toBe(1); // no second Qwen attempt
+        expect(groqCalls.length).toBe(callsAfterA); // no new Groq calls
+        expect(openRouterCalls.length).toBe(2);
+
+        // TPM 429 must NOT expand the exhausted set with a new id.
+        const tpmServices: Services = {
+          ...services,
+          commentsTpdExhaustedModels: new Set<string>(),
+          guardTagsClient: ({
+            chat: async () => {
+              throw new Error("no chat");
+            },
+            chatStructured: async () => {
+              throw new Error("tpm", {
+                cause: new HttpError("https://api.groq.com", 429, "tokens per minute (TPM) Limit 8000"),
+              });
+            },
+          } as unknown) as Services["openrouter"],
+          openrouter: ({
+            chat: async () => {
+              throw new Error("no chat");
+            },
+            chatStructured: async <T>(): Promise<T> => VALID_INSIGHTS as T,
+          } as unknown) as Services["openrouter"],
+        };
+        await generateValidatedCommentsSummaryV2(tpmServices, {
+          story: storyC,
+          comments: threeComments(storyC.id),
+        });
+        expect(tpmServices.commentsTpdExhaustedModels?.size ?? 0).toBe(0);
+
+        // Fresh Services starts clean — Qwen is eligible again.
+        const fresh = groqPairServices({
+          groq: async (call) => {
+            if (call.options.model === QWEN) {
+              return VALID_INSIGHTS;
+            }
+            throw new Error("rate limited", {
+              cause: new HttpError("https://api.groq.com", 429, "tokens per day (TPD)"),
+            });
+          },
+        });
+        const c = await generateValidatedCommentsSummaryV2(fresh.services, {
+          story: storyC,
+          comments: threeComments(storyC.id),
+        });
+        expect(c?.modelUsed).toBe(QWEN);
+        expect(fresh.groqCalls.some((call) => call.options.model === QWEN)).toBe(true);
+      }
+    );
+  });
+
+  test("estimateCommentsPromptTokens is deterministic ceil(chars/4)", () => {
+    expect(estimateCommentsPromptTokens("abcd")).toBe(1);
+    expect(estimateCommentsPromptTokens("abcde")).toBe(2);
+    expect(estimateCommentsPromptTokens("")).toBe(0);
   });
 });

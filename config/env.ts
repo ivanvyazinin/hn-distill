@@ -85,13 +85,28 @@ const EnvironmentSchema = z.object({
   // Groq hop is llama-3.1-8b-instant (separate free-tier bucket), then paid OpenRouter.
   COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
   // Second Groq hop after 70b TPD/TPM. Keep non-reasoning; plain-JSON extraction on Groq.
+  // When COMMENTS_QWEN27B_ROUTE_ENABLE is on, this model is only used for short inputs
+  // (see COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS); medium inputs take Qwen 27b instead.
   COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
+  // Opt-in size-aware second Groq hop (Phase 3 scaffold). Default OFF — deployment without
+  // the flag keeps the legacy 70b → 8b → paid chain. Do not enable in production until
+  // Phase 2 paired eval PASSes (or an explicit waiver) and Phase 4 rollout is planned.
+  COMMENTS_QWEN27B_ROUTE_ENABLE: z
+    .union([z.literal("true"), z.literal("false"), z.boolean()])
+    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
+    .default(false),
+  COMMENTS_QWEN27B_MODEL: z.string().default("qwen/qwen3.6-27b"),
+  // Secondary free-route size gates: prompt-token estimate + COMMENTS_SUMMARY_MAX_TOKENS.
+  // Short: reserved < this → 8b-instant. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
+  COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(20_000).default(5500),
+  COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(32_000).default(8000),
   // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
   // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
   // which otherwise dead-ends comment generation into a persisted fallback. A PAID
   // OpenRouter model is required: :free models emit prose, not clean structured JSON
   // (the original reason comments moved to Groq). Empty string disables the hop.
+  // Freshness-SLA gating of this hop is intentionally unchanged in Phase 3 scaffold.
   COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
 
   // Groq strict json_schema (when GROQ_API_KEY set). Probe winner: openai/gpt-oss-20b.
