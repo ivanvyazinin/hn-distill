@@ -326,13 +326,17 @@ export async function runCandidateSmoke(options: SmokeOptions): Promise<{ candid
   await mkdir(options.outDir, { recursive: true });
 
   const requestTimeoutMs = env.COMMENTS_LLM_REQUEST_TIMEOUT_MS;
+  // Qwen3.6 is a reasoning model: without reasoning_effort=none the whole max_tokens
+  // budget is spent inside <think> and balanced-object extraction fails. Use the prod
+  // comments output cap so a non-thinking JSON body still has headroom.
   const candidateRoute: CommentsRoute = {
     label: "candidate-qwen3.6-27b",
     gateway: "groq",
     model: "qwen/qwen3.6-27b",
-    maxTokens: 1000,
+    maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
     temperature: 0,
     requestTimeoutMs,
+    reasoningEffort: "none",
   };
 
   process.stderr.write(`Candidate smoke: ${selected.length} fixtures × ${options.candidateRepeats} repeats (tpm=${options.tpm})\n`);
@@ -342,13 +346,16 @@ export async function runCandidateSmoke(options: SmokeOptions): Promise<{ candid
   await writeFile(resolve(options.outDir, "candidate.md"), renderMarkdown(candidateGate, candidateGens, selected), "utf8");
 
   if (options.runExperiment) {
+    // gpt-oss rejects reasoning_effort=none (400); "low" keeps reasoning cheap enough
+    // that JSON still lands inside the comments output cap.
     const experimentRoute: CommentsRoute = {
       label: "experiment-gpt-oss-120b",
       gateway: "groq",
       model: "openai/gpt-oss-120b",
-      maxTokens: 1000,
+      maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
       temperature: 0,
       requestTimeoutMs,
+      reasoningEffort: "low",
     };
     process.stderr.write(`\nExperiment (independent): gpt-oss-120b × ${options.experimentRepeats}\n`);
     const experimentGens = await runRoute(experimentRoute, fixtures, options.experimentRepeats, options.tpm);

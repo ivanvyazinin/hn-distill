@@ -35,6 +35,8 @@ export type CommentsRoute = {
   maxTokens: number;
   temperature: number;
   requestTimeoutMs: number;
+  /** Groq reasoning control; required for Qwen3.6 ("none") / gpt-oss ("low"). */
+  reasoningEffort?: "high" | "low" | "medium" | "none";
 };
 
 export type CommentsRouteAttempt = {
@@ -192,6 +194,7 @@ export async function runCommentsRoute(
         jsonExtraction: "balanced-object",
         transportRetries: 0,
         requestTimeoutMs: route.requestTimeoutMs,
+        ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),
       },
       CommentsInsightsSchema,
       1
