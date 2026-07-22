@@ -9,12 +9,12 @@
 | Var | Value |
 |---|---|
 | `COMMENTS_QWEN27B_ROUTE_ENABLE` | **true** |
-| `COMMENTS_QWEN27B_ROUTE_SHARE` | **10** |
+| `COMMENTS_QWEN27B_ROUTE_SHARE` | **50** (raised from 10 @ 12:00Z) |
 | `LLM_USAGE_ENABLED` | true (pre-existing) |
 
 ```bash
 gh variable set COMMENTS_QWEN27B_ROUTE_ENABLE -R ivanvyazinin/hn-distill --body true
-gh variable set COMMENTS_QWEN27B_ROUTE_SHARE -R ivanvyazinin/hn-distill --body 10
+gh variable set COMMENTS_QWEN27B_ROUTE_SHARE -R ivanvyazinin/hn-distill --body 50
 ```
 
 ## Rollback
@@ -65,12 +65,40 @@ Until (2)+(3), do **not** treat a run as Qwen quality/cost/latency evidence.
 - Actual summary: **`model=llama-3.3-70b-versatile`** (primary succeeded; secondary unused)  
 - Not a quality / cost / latency / secondary-hop sample
 
-| Run | UTC | written | actual model(s) | route plan | qwen proof? | notes |
-|---|---|---|---|---|---|---|
-| 1 | 11:03 | 1 | 70b only | share-miss plan | **no** | vars+bucket only |
-| 2 | 11:55 | 5 | 70b×1, 8b×1, paid×3 | share-miss×5 | **no** | TPD breaker+8b secondary OK; 0 share hits |
-| … |  |  |  |  |  | need `kind=medium-qwen` + written qwen3.6 |
+| Run | UTC | SHARE | written | actual model(s) | qwen proof? | notes |
+|---|---|---:|---:|---|---|---|
+| 1 | 11:03 | 10 | 1 | 70b only | **no** | vars+bucket only |
+| 2 | 11:55 | 10 | 5 | 70b×1, 8b×1, paid×3 | **no** | TPD+8b secondary; 0 share hits |
+| 3 | 12:00 | **50** | 4 | paid×3 + **qwen3.6×1** | **YES** | first live Qwen 27b write |
+| … |  |  |  |  |  | continue watch |
 | 8 |  |  |  |  |  |  |
+
+### Run 3 — 2026-07-22T12:00Z (workflow_dispatch, SHARE=50)
+
+- URL: https://github.com/ivanvyazinin/hn-distill/actions/runs/29917877343  
+- Result: **success**  
+- Env: ENABLE=true, **SHARE=50** ✓  
+
+| story | bucket | plan | actual write |
+|---:|---:|---|---|
+| 48999291 | 91 miss | legacy→8b | 70b TPD → 8b schema-fail → **paid** OR |
+| 48997548 | (no comments regen) | — | skipped comments path quickly |
+| 48996652 | 52 miss | legacy→8b | 70b skip → 8b TPM429 → **paid** |
+| 48996571 | 71 miss | legacy→8b | 70b skip → 8b TPM429 → **paid** |
+| **48996318** | **18 hit** | **`medium-qwen` → qwen/qwen3.6-27b** | **`qwen/qwen3.6-27b`** chars=2786, compressed usable |
+
+**Qwen three-part proof (48996318) — PASS**
+
+1. route: `kind=medium-qwen`, `reason=medium-reserved-fits-qwen`, `shareBucket=18` (&lt;50), `reservedTokens=5750`  
+2. call path: primary 70b skipped (TPD exhausted earlier in run); secondary executed Qwen (no fail log)  
+3. summary written: **`model=qwen/qwen3.6-27b`**, not degraded  
+
+(`llm_usage` row expected with LLM_USAGE_ENABLED=true; confirm via usage-stats/D1 when convenient.)
+
+**Also**
+
+- TPD breaker still OK across stories after first 70b 429.  
+- Share hit rate this run among logged plans: 1/4 with SHARE=50 (buckets 91,52,71,18).
 
 ### Run 2 — 2026-07-22T11:55Z (workflow_dispatch)
 
