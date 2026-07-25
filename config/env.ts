@@ -124,7 +124,11 @@ const EnvironmentSchema = z.object({
   // Groq strict json_schema (when GROQ_API_KEY set). Probe winner: openai/gpt-oss-20b.
   // No second tags model — LLM fail falls back to deterministic heuristics in processTags.
   TAGS_MODEL: z.string().default("openai/gpt-oss-20b"),
-  TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(512),
+  // gpt-oss is a reasoning model: at 512 the reasoning trace ate the whole budget and the
+  // request died as HTTP 400 json_validate_failed ("max completion tokens reached before
+  // generating a valid document") — 75% of attempts, 32% of posts left on heuristic tags.
+  // Successful completions peaked at exactly 512, so the ceiling, not the schema, was the wall.
+  TAGS_MAX_TOKENS: z.coerce.number().int().min(128).max(2048).default(1536),
   TAGS_LANG: z.enum(["en"]).default("en"), // canonical tag language
   TAGS_MAX_PER_STORY: z.coerce.number().int().min(0).max(20).default(10),
 
@@ -137,7 +141,10 @@ const EnvironmentSchema = z.object({
   // OpenRouter id here while guardTagsClient is the Groq gateway.
   POST_GUARD_MODEL: z.string().default("openai/gpt-oss-20b"),
   POST_GUARD_FALLBACK_MODEL: z.string().default(""),
-  POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(256),
+  // Same reasoning-budget wall as TAGS_MAX_TOKENS: 14/41 guard attempts died at 256 while
+  // ok-verdicts already measured up to 238 chars, so 4/26 posts were accepted with
+  // "Guard unavailable; accepting heuristics-only summary" (no fallback model to retry on).
+  POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(768),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
   POST_GUARD_ARTICLE_MAX_CHARS: z.coerce
     .number()

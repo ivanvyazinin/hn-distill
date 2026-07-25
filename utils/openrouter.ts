@@ -59,6 +59,16 @@ const DEFAULT_STRUCTURED_MAX_RETRIES: StructuredRetryCount = 3;
 
 const DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+/**
+ * Reasoning budget for the short strict-JSON tasks (tags, guard). gpt-oss reasons by default
+ * and burned the whole max_tokens inside the trace, returning HTTP 400 json_validate_failed
+ * with an empty `failed_generation`. It accepts low|medium|high only — never "none" — so the
+ * cheapest legal setting is "low"; any other model gets no field at all.
+ */
+export function structuredReasoningEffort(model: string): "low" | undefined {
+  return model.includes("gpt-oss") ? "low" : undefined;
+}
+
 function extractFirstBalancedJsonObject(content: string): string {
   for (let start = 0; start < content.length; start++) {
     if (content[start] !== "{") {
@@ -218,6 +228,8 @@ export class OpenRouter {
       label?: string;
       requestTimeoutMs?: number;
       transportRetries?: number;
+      /** Same provider-specific control as StructuredOutputOptions; omit on non-reasoning models. */
+      reasoningEffort?: "high" | "low" | "medium" | "none";
     }
   ): Promise<string> {
     type ORResp = UsageResponseFields & {
@@ -247,6 +259,9 @@ export class OpenRouter {
           messages,
           ...(options?.temperature === undefined ? {} : { temperature: options.temperature }),
           ...(options?.maxTokens === undefined ? {} : { max_tokens: options.maxTokens }),
+          ...(options?.reasoningEffort === undefined
+            ? {}
+            : { reasoning_effort: options.reasoningEffort }),
         }),
         retryOnStatuses: [429],
         ...(options?.transportRetries === undefined ? {} : { retries: options.transportRetries }),

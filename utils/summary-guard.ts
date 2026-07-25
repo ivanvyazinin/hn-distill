@@ -3,7 +3,7 @@ import { z } from "zod";
 import { log } from "@utils/log";
 
 import type { Env } from "@config/env";
-import type { JsonSchema, OpenRouter } from "@utils/openrouter";
+import { structuredReasoningEffort, type JsonSchema, type OpenRouter } from "@utils/openrouter";
 
 export type SummaryGuardVerdictLabel =
   | "nonsense"
@@ -121,6 +121,7 @@ Rules:
     articleChars: snippet.length,
   });
 
+  const reasoningEffort = structuredReasoningEffort(envLike.POST_GUARD_MODEL);
   const structured = await openrouter.chatStructured<SummaryGuardStructured>(
     messages,
     {
@@ -128,6 +129,7 @@ Rules:
       maxTokens: envLike.POST_GUARD_MAX_TOKENS,
       model: envLike.POST_GUARD_MODEL,
       label: "guard",
+      ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
       responseFormat: {
         type: "json_schema",
         json_schema: {
