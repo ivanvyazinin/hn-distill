@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 import { log } from "@utils/log";
-import { isModelNotFoundError, type JsonSchema, type OpenRouter } from "@utils/openrouter";
+import {
+  isModelNotFoundError,
+  structuredReasoningEffort,
+  type JsonSchema,
+  type OpenRouter,
+} from "@utils/openrouter";
 import { canonicalize, dedupeKeepOrder, heuristicTags } from "@utils/tags";
 
 import type { Env } from "@config/env";
@@ -219,6 +224,7 @@ export async function summarizeTagsStructured(
 
   const zodSchema = TagsResponseSchema(envLike.TAGS_MAX_PER_STORY);
   const rules = buildTagsRules(envLike.TAGS_MAX_PER_STORY);
+  const reasoningEffort = structuredReasoningEffort(envLike.TAGS_MODEL);
 
   try {
     const result = await or.chatStructured<TagsResponse>(
@@ -234,6 +240,7 @@ export async function summarizeTagsStructured(
         maxTokens: envLike.TAGS_MAX_TOKENS,
         model: envLike.TAGS_MODEL,
         label: "tags",
+        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
         responseFormat: {
           type: "json_schema",
           json_schema: {
@@ -276,6 +283,7 @@ export async function summarizeTagsStructured(
         maxTokens: envLike.TAGS_MAX_TOKENS,
         model: envLike.TAGS_MODEL,
         label: "tags",
+        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
       }
     );
 
