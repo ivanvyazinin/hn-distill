@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 
+import { PATHS } from "@config/paths";
 import { log } from "@utils/log";
 import { sanitizePostSummaryDb } from "@utils/meta-aggregated-batch";
 import { recordDrop, reportDrops, resetDrops } from "@utils/summary-drops";
+import { withEnvPatch } from "./helpers";
 
 import type { ObjectStore } from "@utils/object-store";
 
@@ -43,19 +45,25 @@ describe("summary drop reporting", () => {
     resetDrops();
     const store = makeStore();
 
+    // Pin the heuristics inputs: other suites patch env, and a stray
+    // POST_SUMMARY_MIN_CHARS would decide whether this text drops at all.
     const warns = await captureWarns(async () => {
-      expect(sanitizePostSummaryDb("Коротко.", { id: 501 })).toBeUndefined();
+      await withEnvPatch({ POST_SUMMARY_MIN_CHARS: 200, SUMMARY_LANG: "ru" }, async () => {
+        expect(sanitizePostSummaryDb("Коротко.", { id: 501 })).toBeUndefined();
+      });
       await reportDrops(store);
     });
 
     // First pass is the baseline: silent, and it remembers id 501.
     expect(warns).toEqual([]);
-    expect(await store.getJson<{ ids: number[] }>("data/aggregate-drops.json")).toEqual({ ids: [501] });
+    // Key comes from PATHS: sibling suites mock the paths module to a temp dir.
+    const stateKey = `${PATHS.dataDir}/aggregate-drops.json`;
+    expect(await store.getJson<{ ids: number[] }>(stateKey)).toEqual({ ids: [501] });
   });
 
   test("a repeat drop stays quiet, a fresh one warns once", async () => {
     const store = makeStore();
-    await store.putJson("data/aggregate-drops.json", { ids: [501] });
+    await store.putJson(`${PATHS.dataDir}/aggregate-drops.json`, { ids: [501] });
 
     resetDrops();
     let warns = await captureWarns(async () => {
