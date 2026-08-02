@@ -31,64 +31,13 @@ import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@
 import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
 import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
+import { recordDrop, reportDrops, resetDrops } from "@utils/summary-drops";
 
 import type { MetaStore } from "@utils/meta-store";
 
 type Services = {
   noop?: true;
 };
-
-/**
- * Per-run collector for post summaries the aggregate stage refuses to publish.
- *
- * The set is near-static: the same 518 ids were dropped on all 24 runs of
- * 2026-07-29..08-01 (zero difference between the first and the last), which
- * buried every real WARN under 12k lines over three days. Detail now goes to
- * debug; the run logs one line per *newly* dropped id plus a single summary,
- * so "three new drops" is visible instead of hiding inside five hundred.
- */
-type DropRecord = { id: number; stage: "guard" | "heuristics"; reasons: string[] };
-
-/** Derived from PATHS so the tests' temp-dir mock redirects it too. */
-const dropStatePath = (): string => `${PATHS.dataDir}/aggregate-drops.json`;
-
-let dropsThisRun: DropRecord[] = [];
-
-function recordDrop(record: DropRecord): void {
-  dropsThisRun.push(record);
-}
-
-async function reportDrops(store: ObjectStore): Promise<void> {
-  const drops = [...dropsThisRun].sort((a, b) => a.id - b.id);
-  const statePath = dropStatePath();
-  const previous = await store.getJson<{ ids?: number[] }>(statePath);
-  const known = new Set(previous?.ids ?? []);
-  const byReason: Record<string, number> = {};
-  for (const drop of drops) {
-    for (const reason of drop.reasons) {
-      byReason[reason] = (byReason[reason] ?? 0) + 1;
-    }
-  }
-
-  if (previous === null) {
-    // First run after this landed: everything looks new, so skip the per-id noise.
-    log.info("aggregate", "Summary drop baseline recorded", { total: drops.length, byReason });
-  } else {
-    const fresh = drops.filter((drop) => !known.has(drop.id));
-    for (const drop of fresh) {
-      log.warn("aggregate", "New summary drop", { id: drop.id, stage: drop.stage, reasons: drop.reasons });
-    }
-    const resolved = [...known].filter((id) => !drops.some((drop) => drop.id === id));
-    log.info("aggregate", "Summary drops", {
-      total: drops.length,
-      new: fresh.length,
-      resolved: resolved.length,
-      byReason,
-    });
-  }
-
-  await store.putJson(statePath, { ids: drops.map((drop) => drop.id) });
-}
 
 
 const DROP_SUMMARY_REASONS = new Set([
@@ -310,7 +259,7 @@ function sanitizePostSummary(
 
 export async function readAggregates(storyIds: number[], store: ObjectStore): Promise<AggregatedItem[]> {
   const gate = engagementThresholdsFromEnv();
-  dropsThisRun = [];
+  resetDrops();
   const results = await Promise.all(
     storyIds.map(async (id) => {
       log.debug("aggregate", "Aggregating story", { id });
@@ -426,8 +375,12 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
   const gate = engagementThresholdsFromEnv();
 
   if (fromDb && meta) {
+    // Production path (AGGREGATE_FROM_DB=true): the drop bookkeeping lives here,
+    // not in readAggregates, which this branch never calls.
+    resetDrops();
     const storyIds = await meta.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
     const latestItems = await meta.getAggregatedItems(storyIds);
+    await reportDrops(store);
     for (const it of latestItems) {
       const prev = previous.items.find((p) => p.id === it.id);
       if (!prev || !jsonEqual(prev, it)) {
