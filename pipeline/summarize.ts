@@ -2140,6 +2140,14 @@ export async function compressCommentsSummaryIfNeeded(
       });
       return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash) };
     }
+    // Every other outcome of this stage logs; success did not, so a paid stage ran
+    // 39 times over 2026-07-29..08-01 leaving no trace outside the usage ledger.
+    log.info(LOG_NAMESPACE_COMMENTS, "Comments compress written", {
+      id: summary.id,
+      model: env.COMMENTS_COMPRESS_MODEL,
+      chars: validated.text.length,
+      sourceChars: plainText.length,
+    });
     return {
       status: "usable",
       summary: {
