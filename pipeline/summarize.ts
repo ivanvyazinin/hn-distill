@@ -955,6 +955,7 @@ export async function generateValidatedPostSummary(
                 POST_GUARD_MODEL: guardModel,
                 POST_GUARD_MAX_TOKENS: env.POST_GUARD_MAX_TOKENS,
                 POST_GUARD_MIN_CONFIDENCE: env.POST_GUARD_MIN_CONFIDENCE,
+                POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE: env.POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE,
                 POST_GUARD_ARTICLE_MAX_CHARS: env.POST_GUARD_ARTICLE_MAX_CHARS,
               },
             });
