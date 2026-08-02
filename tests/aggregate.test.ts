@@ -10,6 +10,7 @@ import {
   withEnvPatch,
 } from "./helpers";
 import { writeJsonFile } from "@utils/json";
+import { log } from "@utils/log";
 import type { AggregatedItem, NormalizedComment, NormalizedStory, PostSummary } from "@config/schemas";
 import { SCORE_MIN_AGGREGATE } from "@config/constants";
 
@@ -51,6 +52,66 @@ describe("Aggregation & grouping", () => {
       expect(items[0]?.id).toBe(75);
       expect(items[0]?.score).toBe(SCORE_MIN_AGGREGATE);
       expect(items[0]?.postSummary).toBe(PUBLISHABLE_RU);
+    });
+  });
+
+  // Detail lines went to debug; the run reports only ids that were not dropped last
+  // time, so a static backlog stops burying real warnings.
+  test("readAggregates reports only newly dropped summaries", async () => {
+    await withTempDir(async (base) => {
+      const { pathFor } = mockPaths(base);
+      const { readAggregates } = await import("@scripts/aggregate.mts");
+
+      const warned: Array<Record<string, unknown>> = [];
+      const originalWarn = log.warn;
+      log.warn = ((namespace: string, message: string, meta?: Record<string, unknown>) => {
+        if (message === "New summary drop" && meta) {
+          warned.push(meta);
+        }
+      }) as typeof log.warn;
+
+      try {
+        for (const id of [81, 82]) {
+          await writeJsonFile(pathFor.rawItem(id), {
+            id,
+            score: 200,
+            title: `story ${id}`,
+            timeISO: TEST_ISO,
+            by: "a",
+            url: null,
+          });
+          // "•" bullets only: a blocking heuristic, so the body never publishes.
+          await writeJsonFile(pathFor.postSummary(id), { id, lang: "ru", summary: "• раз\n• два\n• три" });
+        }
+
+        await withEnvPatch(
+          { SUMMARIZE_MIN_SCORE: 0, SUMMARIZE_MIN_COMMENTS: 0 },
+          async () => {
+            // First pass writes the baseline and stays quiet.
+            await readAggregates([81, 82]);
+            expect(warned).toEqual([]);
+            // Second pass sees the same two: still quiet.
+            await readAggregates([81, 82]);
+            expect(warned).toEqual([]);
+
+            await writeJsonFile(pathFor.rawItem(83), {
+              id: 83,
+              score: 200,
+              title: "story 83",
+              timeISO: TEST_ISO,
+              by: "a",
+              url: null,
+            });
+            await writeJsonFile(pathFor.postSummary(83), { id: 83, lang: "ru", summary: "• раз\n• два" });
+            await readAggregates([81, 82, 83]);
+          }
+        );
+
+        expect(warned.length).toBe(1);
+        expect(warned[0]?.["id"]).toBe(83);
+      } finally {
+        log.warn = originalWarn;
+      }
     });
   });
 

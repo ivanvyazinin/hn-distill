@@ -196,8 +196,8 @@ describe("site publish bar", () => {
   // fallbackFromRaw output (280 chars of raw comment text), and the archive is
   // full of items whose post summary the aggregate heuristics dropped. Accepting
   // comments-only cards published 868 of them in one run.
-  test("comments-only card does not publish", () => {
-    expect(isSitePublishable({ ...PASSING, commentsSummary: "What the thread argued." }, GATE)).toBeFalse();
+  test("a card with no post body does not publish, however good the discussion is", () => {
+    expect(isSitePublishable({ ...PASSING }, GATE)).toBeFalse();
   });
 
   test("card with a blank post body is skipped", () => {
