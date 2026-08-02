@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import { parseEnv } from "../config/env";
+import { isSitePublishable } from "../utils/engagement-gate";
 import { passesEngagementGate, processSingleStory, type Services } from "../pipeline/summarize";
 import { pathFor } from "../config/paths";
 import { createUsageCollector } from "../utils/llm-usage";
@@ -180,5 +181,30 @@ describe("processSingleStory engagement gate", () => {
 
     expect(rec.chatCalls).toBeGreaterThan(0);
     expect(rec.upsertStateCalls).toBe(1);
+  });
+});
+
+describe("site publish bar", () => {
+  const GATE = { minScore: 300, minComments: 100 };
+  const PASSING = { score: 500, commentsCount: 200 };
+
+  test("post-only card publishes", () => {
+    expect(isSitePublishable({ ...PASSING, postSummary: "Article recap." }, GATE)).toBeTrue();
+  });
+
+  // 2026-07-29..08-01: three stories (two above 550 points) were dropped because
+  // the article was unreachable, even though the discussion summary existed.
+  test("comments-only card publishes", () => {
+    expect(isSitePublishable({ ...PASSING, commentsSummary: "What the thread argued." }, GATE)).toBeTrue();
+  });
+
+  test("card with neither body is still skipped", () => {
+    expect(isSitePublishable({ ...PASSING, postSummary: "   ", commentsSummary: "" }, GATE)).toBeFalse();
+  });
+
+  test("engagement gate still applies to comments-only cards", () => {
+    expect(
+      isSitePublishable({ score: 10, commentsCount: 2, commentsSummary: "Thread notes." }, GATE)
+    ).toBeFalse();
   });
 });

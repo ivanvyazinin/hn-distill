@@ -154,6 +154,11 @@ const EnvironmentSchema = z.object({
   // "Guard unavailable; accepting heuristics-only summary" (no fallback model to retry on).
   POST_GUARD_MAX_TOKENS: z.coerce.number().int().min(128).max(1024).default(768),
   POST_GUARD_MIN_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
+  // A rejecting `verdict` at or above this confidence overrides the model's own
+  // `ok: true`. Set to 1.01 to disable (no confidence can reach it) and go back to
+  // trusting `ok` alone. 0.8 keeps low-confidence hunches out of the decision while
+  // catching the 0.8-0.92 "not_article"/"other" verdicts that used to ship anyway.
+  POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE: z.coerce.number().min(0).max(1.01).default(0.8),
   POST_GUARD_ARTICLE_MAX_CHARS: z.coerce
     .number()
     .int()

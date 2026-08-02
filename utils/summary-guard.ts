@@ -33,6 +33,7 @@ type SummaryGuardInput = {
     | "POST_GUARD_MAX_TOKENS"
     | "POST_GUARD_MIN_CONFIDENCE"
     | "POST_GUARD_MODEL"
+    | "POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE"
     | "SUMMARY_LANG"
   >;
 };
@@ -143,7 +144,11 @@ Rules:
     2
   );
 
-  const normalized = normalizeGuard(structured, envLike.POST_GUARD_MIN_CONFIDENCE);
+  const normalized = normalizeGuard(
+    structured,
+    envLike.POST_GUARD_MIN_CONFIDENCE,
+    envLike.POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE
+  );
 
   log.info(GUARD_DEBUG_NAMESPACE, "Guard verdict", {
     model: envLike.POST_GUARD_MODEL,
@@ -180,7 +185,24 @@ function buildGuardPrompt(payload: { language: string; summary: string; articleS
   return lines.join("\n");
 }
 
-function normalizeGuard(raw: SummaryGuardStructured, minConfidence: number): SummaryGuardResult {
+/**
+ * The guard model routinely contradicts itself: `ok: true` plus a rejecting
+ * `verdict`. Four of 27 summaries came back that way over 2026-07-29..08-01
+ * ("not_article"/"other" at confidence 0.8-0.92, reasons "inaccurate details",
+ * "contains unsupported details") and all four shipped, because only the `ok`
+ * flag fed the decision and `verdict` was logged and forgotten. A confident
+ * rejecting verdict now counts as a rejection; the caller retries once on the
+ * strict model before giving up on the post body.
+ */
+function verdictRejects(verdict: SummaryGuardVerdictLabel, confidence: number, minConfidence: number): boolean {
+  return verdict !== "ok" && confidence >= minConfidence;
+}
+
+function normalizeGuard(
+  raw: SummaryGuardStructured,
+  minConfidence: number,
+  verdictRejectMinConfidence: number
+): SummaryGuardResult {
   const { ok: rawOk, is_article: isArticle, refusal, verdict: rawVerdict, reasons: rawReasons, confidence } = raw;
 
   // Semantic rejection reasons take precedence, but the rendered contract stays
@@ -195,7 +217,12 @@ function normalizeGuard(raw: SummaryGuardStructured, minConfidence: number): Sum
     .slice(0, 2);
 
   const meetsConfidence = confidence >= minConfidence;
-  const guardOk = rawOk && isArticle && !refusal && meetsConfidence;
+  const guardOk =
+    rawOk &&
+    isArticle &&
+    !refusal &&
+    meetsConfidence &&
+    !verdictRejects(rawVerdict, confidence, verdictRejectMinConfidence);
 
   let verdict: SummaryGuardVerdictLabel = rawVerdict;
   if (!guardOk) {

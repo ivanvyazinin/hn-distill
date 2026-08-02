@@ -13,6 +13,7 @@ const ENV_LIKE = {
   POST_GUARD_MAX_TOKENS: 256,
   POST_GUARD_MIN_CONFIDENCE: 0.6,
   POST_GUARD_MODEL: "openai/gpt-oss-20b",
+  POST_GUARD_VERDICT_REJECT_MIN_CONFIDENCE: 0.8,
   SUMMARY_LANG: "en" as const,
 };
 
@@ -161,5 +162,51 @@ describe("runSummaryGuard", () => {
     expect(result.ok).toBeFalse();
     expect(result.verdict).toBe("not_article");
     expect(result.reasons).toEqual(["not_article", "too vague"]);
+  });
+
+  // Production shape 2026-07-29..08-01: the model asserts ok/is_article and then
+  // contradicts itself in `verdict`. Four such summaries shipped before the
+  // verdict was allowed to veto.
+  test("confident rejecting verdict overrides the model's own ok flag", async () => {
+    const openrouter = {
+      chatStructured: mock(async () => ({
+        ok: true,
+        is_article: true,
+        refusal: false,
+        verdict: "not_article" as const,
+        reasons: ["contains unsupported details"],
+        confidence: 0.92,
+      })),
+    } as unknown as OpenRouter;
+
+    const result = await runSummaryGuard(openrouter, {
+      summary: "A plausible-looking summary with invented specifics.",
+      articleSlice: "Article body.",
+      envLike: ENV_LIKE,
+    });
+
+    expect(result.ok).toBeFalse();
+    expect(result.verdict).toBe("not_article");
+  });
+
+  test("rejecting verdict below the confidence bar still passes", async () => {
+    const openrouter = {
+      chatStructured: mock(async () => ({
+        ok: true,
+        is_article: true,
+        refusal: false,
+        verdict: "too_generic" as const,
+        reasons: ["a bit vague"],
+        confidence: 0.7,
+      })),
+    } as unknown as OpenRouter;
+
+    const result = await runSummaryGuard(openrouter, {
+      summary: "A serviceable summary the guard is only mildly unsure about.",
+      articleSlice: "Article body.",
+      envLike: ENV_LIKE,
+    });
+
+    expect(result.ok).toBeTrue();
   });
 });
