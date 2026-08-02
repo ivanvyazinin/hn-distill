@@ -5,7 +5,7 @@ import { SCORE_MIN_AGGREGATE } from "@config/constants";
 import { env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
-  hasPublishableBody,
+  hasPublishablePostSummary,
   isSitePublishable,
   passesEngagementGate,
   type EngagementThresholds,
@@ -288,11 +288,9 @@ export async function readAggregates(storyIds: number[], store: ObjectStore): Pr
 
       const { comments, postSummary, commentsSummary, tagsSummary } = await loadStoryPayload(id, store);
       const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);
-      // Threshold-pass with neither body must not become an empty card. A post-less
-      // card is fine: the article may be paywalled or the guard may have rejected the
-      // draft, and the discussion summary still stands on its own.
-      if (!hasPublishableBody(item)) {
-        log.info("aggregate", "Skipping story without any publishable summary", { id: story.id });
+      // Threshold-pass but empty/guard-dropped post body must not become an empty card.
+      if (!hasPublishablePostSummary(item)) {
+        log.info("aggregate", "Skipping story without publishable postSummary", { id: story.id });
         return;
       }
       return item;

@@ -192,19 +192,19 @@ describe("site publish bar", () => {
     expect(isSitePublishable({ ...PASSING, postSummary: "Article recap." }, GATE)).toBeTrue();
   });
 
-  // 2026-07-29..08-01: three stories (two above 550 points) were dropped because
-  // the article was unreachable, even though the discussion summary existed.
-  test("comments-only card publishes", () => {
-    expect(isSitePublishable({ ...PASSING, commentsSummary: "What the thread argued." }, GATE)).toBeTrue();
+  // Tried on 2026-08-02 and reverted the same hour: commentsSummary may hold
+  // fallbackFromRaw output (280 chars of raw comment text), and the archive is
+  // full of items whose post summary the aggregate heuristics dropped. Accepting
+  // comments-only cards published 868 of them in one run.
+  test("comments-only card does not publish", () => {
+    expect(isSitePublishable({ ...PASSING, commentsSummary: "What the thread argued." }, GATE)).toBeFalse();
   });
 
-  test("card with neither body is still skipped", () => {
-    expect(isSitePublishable({ ...PASSING, postSummary: "   ", commentsSummary: "" }, GATE)).toBeFalse();
+  test("card with a blank post body is skipped", () => {
+    expect(isSitePublishable({ ...PASSING, postSummary: "   " }, GATE)).toBeFalse();
   });
 
-  test("engagement gate still applies to comments-only cards", () => {
-    expect(
-      isSitePublishable({ score: 10, commentsCount: 2, commentsSummary: "Thread notes." }, GATE)
-    ).toBeFalse();
+  test("engagement gate still applies to cards that have a post body", () => {
+    expect(isSitePublishable({ score: 10, commentsCount: 2, postSummary: "Recap." }, GATE)).toBeFalse();
   });
 });
