@@ -772,6 +772,12 @@ async function callOpenRouterAttempt(
       maxTokens: env.OPENROUTER_MAX_TOKENS,
       model,
       label,
+      // The primary is a reasoning model and spends the entire max_tokens inside its
+      // thinking trace unless told not to: 2903 completion / 32s with the flag off vs
+      // 176 / 2.6s with it on, same prompt, same output quality. Sent for every model
+      // in the chain -- the non-reasoning fallbacks accept and ignore it (probed
+      // 2026-08-02), and the comments path already does the same for Groq Qwen.
+      reasoningEffort: "none",
     });
     const cleaned = sanitizeLlmContent(content);
     if (attempt === "primary") {

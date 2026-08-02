@@ -50,10 +50,18 @@ const EnvironmentSchema = z.object({
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
   OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"),
-  // When primary model fails for summaries, try this model next (priority order)
-  OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct:free"),
-  OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct:free"),
-  OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(8000),
+  // When primary model fails for summaries, try this model next (priority order).
+  // Paid slugs on purpose: both ":free" variants now 404 with "unavailable for free",
+  // so the whole post chain died the moment the primary failed (verified 2026-08-02).
+  OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct"),
+  // Post summaries need ~500 tokens. The old 8000 existed because the primary is a
+  // reasoning model that burned the whole budget inside its thinking trace: avg 5246
+  // completion per call, 5 calls capped at exactly 8000 and every one of those forced
+  // a retry. Sending reasoning_effort=none (see callOpenRouterAttempt) drops that to
+  // ~200, so the cap can come down. Keep the two changes together: 1200 without the
+  // reasoning flag truncates mid-thought (finish_reason=length).
+  OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(1200),
 
   // Comments-v2 has an independent input/output and request budget. Three
   // seven-second calls fit under the worker's 25s task timeout with its 2s buffer.
