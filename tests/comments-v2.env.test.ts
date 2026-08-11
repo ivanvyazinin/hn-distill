@@ -12,8 +12,9 @@ describe("comments-v2 environment", () => {
     expect(parsed.COMMENTS_SUMMARY_MAX_TOKENS).toBe(2500);
     expect(parsed.COMMENTS_COMPRESS_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
     expect(parsed.COMMENTS_COMPRESS_MAX_TOKENS).toBe(1000);
-    expect(parsed.COMMENTS_MAX_LLM_CALLS).toBe(3);
+    expect(parsed.COMMENTS_MAX_LLM_CALLS).toBe(5);
     expect(parsed.COMMENTS_LLM_REQUEST_TIMEOUT_MS).toBe(7000);
+    expect(parsed.WORKER_QUEUE_TASK_TIMEOUT_MS).toBe(40_000);
     expect(parsed.COMMENTS_MAX_LLM_CALLS * parsed.COMMENTS_LLM_REQUEST_TIMEOUT_MS).toBeLessThanOrEqual(
       parsed.WORKER_QUEUE_TASK_TIMEOUT_MS - 2000
     );
