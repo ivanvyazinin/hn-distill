@@ -63,8 +63,9 @@ const EnvironmentSchema = z.object({
   // reasoning flag truncates mid-thought (finish_reason=length).
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(1200),
 
-  // Comments-v2 has an independent input/output and request budget. Three
-  // seven-second calls fit under the worker's 25s task timeout with its 2s buffer.
+  // Comments-v2 has an independent input/output and request budget. Five
+  // seven-second calls fit under the worker's 40s task timeout with its 2s buffer
+  // (generation chain + compress after Groq 429 spill).
   COMMENTS_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(1000).default(200),
   COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
   COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
@@ -75,11 +76,9 @@ const EnvironmentSchema = z.object({
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
-  // Default 3 covers the Groq dead-end path (scout → llama-3.3 → OpenRouter
-  // hop): a 429 fails fast and jumps straight to the next step, so the paid
-  // OpenRouter fallback (COMMENTS_OPENROUTER_FALLBACK_MODEL) is reached within
-  // budget without breaching the worker task timeout (3 × 7s ≤ 25s − 2s buffer).
-  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(3),
+  // Default 5: primary + fallback + OpenRouter + room for compress (and one spare)
+  // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
+  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the
@@ -267,9 +266,10 @@ const EnvironmentSchema = z.object({
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
 
-  // Worker safety guards (serverless limits)
-  WORKER_QUEUE_TASK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(25_000),
-  WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(55_000),
+  // Worker safety guards (serverless limits). Task budget must cover
+  // COMMENTS_MAX_LLM_CALLS × COMMENTS_LLM_REQUEST_TIMEOUT_MS (+ buffer).
+  WORKER_QUEUE_TASK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(40_000),
+  WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(120_000),
   WORKER_SUMMARIZE_MAX_PER_CRON: z.coerce.number().int().min(1).max(50).default(3),
   WORKER_RETRY_COOLDOWN_SECONDS: z.coerce.number().int().min(60).max(24 * 60 * 60).default(600),
   // Opt-in migration drain. When enabled, worker cron also processes legacy
