@@ -6,8 +6,8 @@ const EnvironmentSchema = z.object({
   // (e.g. a local gateway or a direct Groq route). Empty/unset keeps the OpenRouter default.
   OPENROUTER_BASE_URL: z.string().optional(),
   // Optional secondary provider for tags + post-guard (structured JSON). When set, those
-  // two calls go to Groq (reliable JSON, non-reasoning llama) instead of OPENROUTER_API_KEY.
-  // TAGS_MODEL / POST_GUARD_MODEL must then be Groq model ids (e.g. llama-3.3-70b-versatile).
+  // two calls go to Groq (reliable JSON) instead of OPENROUTER_API_KEY.
+  // TAGS_MODEL / POST_GUARD_MODEL must then be Groq model ids (e.g. openai/gpt-oss-20b).
   GROQ_API_KEY: z.string().optional(),
   GROQ_BASE_URL: z.string().default("https://api.groq.com/openai/v1/chat/completions"),
   SUMMARY_LANG: z.enum(["ru", "en"]).default("ru"),
@@ -88,21 +88,24 @@ const EnvironmentSchema = z.object({
   COMMENTS_REGEN_MIN_NEW_COMMENTS: z.coerce.number().int().min(0).max(100_000).default(100),
 
   // Comments-v2 model chain. When GROQ_API_KEY is set these route through the Groq
-  // client (reliable non-reasoning JSON, no json_schema needed) and MUST be Groq model
-  // ids (e.g. llama-3.3-70b-versatile). Without a Groq key they are ignored and comments
-  // fall back to the OPENROUTER_MODEL chain. Reasoning models (nvidia/nemotron:free) emit
-  // prose instead of JSON here and break structured parsing — keep them out of this chain.
-  // 2026-07-20 local probe (docs/probe-llm-models-2026-07-20.md): scout is absent from the
-  // current Groq catalog (model_not_found). Primary is llama-3.3-70b; on TPD spill the next
-  // Groq hop is llama-3.1-8b-instant (separate free-tier bucket), then paid OpenRouter.
-  COMMENTS_MODEL: z.string().default("llama-3.3-70b-versatile"),
-  // Second Groq hop after 70b TPD/TPM. Keep non-reasoning; plain-JSON extraction on Groq.
+  // client (plain-JSON extraction, no json_schema needed) and MUST be Groq model ids.
+  // Without a Groq key they are ignored and comments fall back to the OPENROUTER_MODEL
+  // chain. 2026-08-16: Groq shut down both llama ids (404 model_not_found; probe and
+  // ledger in docs/probe-groq-comments-models-2026-08-21.md and docs/ops/2026-08-21/).
+  // gpt-oss keeps its reasoning in a separate message.reasoning field, so content is
+  // clean JSON with no flags. qwen3.6-27b inlines <think> into content unless the
+  // caller passes reasoning_effort="none" — only the secondary-route hop does that,
+  // so bare qwen ids are banned from these two slots.
+  COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
+  // Second Groq hop after 120b TPD/TPM (separate free-tier bucket). This slot does
+  // NOT pass reasoning_effort — keep a model whose content is clean without it.
   // When COMMENTS_QWEN27B_ROUTE_ENABLE is on, this model is only used for short inputs
-  // (see COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS); medium inputs take Qwen 27b instead.
-  COMMENTS_FALLBACK_MODEL: z.string().default("llama-3.1-8b-instant"),
+  // (see COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS); medium inputs take Qwen 27b instead
+  // (that hop passes reasoning_effort="none").
+  COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
   // Opt-in size-aware second Groq hop (Phase 3 scaffold). Default OFF — deployment without
-  // the flag keeps the legacy 70b → 8b → paid chain. Do not enable in production until
+  // the flag keeps the legacy primary → fallback → paid chain. Do not enable in production until
   // Phase 2 paired eval PASSes (or an explicit waiver) and Phase 4 rollout is planned.
   COMMENTS_QWEN27B_ROUTE_ENABLE: z
     .union([z.literal("true"), z.literal("false"), z.boolean()])
@@ -114,7 +117,7 @@ const EnvironmentSchema = z.object({
   COMMENTS_QWEN27B_ROUTE_SHARE: z.coerce.number().int().min(0).max(100).default(0),
   COMMENTS_QWEN27B_MODEL: z.string().default("qwen/qwen3.6-27b"),
   // Secondary free-route size gates: prompt-token estimate + COMMENTS_SUMMARY_MAX_TOKENS.
-  // Short: reserved < this → 8b-instant. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
+  // Short: reserved < this → fallback model. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
   COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(20_000).default(5500),
   COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(32_000).default(8000),
   // Added on top of ceil((system+user)/4). Smoke saw real prompt tokens 86–499 above chars/4
