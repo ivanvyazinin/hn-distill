@@ -1,12 +1,8 @@
 import { z } from "zod";
 
+import { callStructuredThenPlainJsonFallback } from "@utils/chat-route";
 import { log } from "@utils/log";
-import {
-  isModelNotFoundError,
-  structuredReasoningEffort,
-  type JsonSchema,
-  type OpenRouter,
-} from "@utils/openrouter";
+import { type JsonSchema, type OpenRouter } from "@utils/openrouter";
 import { canonicalize, dedupeKeepOrder, heuristicTags } from "@utils/tags";
 
 import type { Env } from "@config/env";
@@ -220,90 +216,45 @@ export async function summarizeTagsStructured(
     promptChars: prompt.length,
   });
 
-  const schema = TagsStrictJsonSchema;
-
   const zodSchema = TagsResponseSchema(envLike.TAGS_MAX_PER_STORY);
   const rules = buildTagsRules(envLike.TAGS_MAX_PER_STORY);
-  const reasoningEffort = structuredReasoningEffort(envLike.TAGS_MODEL);
+  const messagesStructured = [
+    {
+      role: "system" as const,
+      content: `Answer in JSON. ${rules}`,
+    },
+    { role: "user" as const, content: prompt },
+  ];
+  const messagesPlain = [
+    {
+      role: "system" as const,
+      content: `Answer in JSON format: { "tags": [{ "name": "...", "cat": "..." }] }. Return raw JSON only, without Markdown fences or commentary. ${rules}`,
+    },
+    { role: "user" as const, content: prompt },
+  ];
 
-  try {
-    const result = await or.chatStructured<TagsResponse>(
-      [
-        {
-          role: "system",
-          content: `Answer in JSON. ${rules}`,
-        },
-        { role: "user", content: prompt },
-      ],
-      {
-        temperature: 0.5,
-        maxTokens: envLike.TAGS_MAX_TOKENS,
-        model: envLike.TAGS_MODEL,
-        label: "tags",
-        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-        responseFormat: {
-          type: "json_schema",
-          json_schema: {
-            name: "tags_extraction",
-            strict: true,
-            schema,
-          },
-        },
-      },
-      zodSchema,
-      2 // reduced retries
-    );
-
-    return result.tags.map((tag) => ({
-      name: tag.name,
-      cat: tag.cat,
-    }));
-  } catch (error) {
-    // Same model id will keep 404'ing — surface to processTags heuristics instead of
-    // burning a second plain-JSON call on a missing route.
-    if (isModelNotFoundError(error)) {
-      throw error instanceof Error ? error : new Error(String(error));
-    }
-
-    log.warn(TAGS_DEBUG_MESSAGE, "structured outputs failed, falling back to regular JSON", {
-      model: envLike.TAGS_MODEL,
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    const jsonResponse = await or.chat(
-      [
-        {
-          role: "system",
-          content: `Answer in JSON format: { "tags": [{ "name": "...", "cat": "..." }] }. Return raw JSON only, without Markdown fences or commentary. ${rules}`,
-        },
-        { role: "user", content: prompt },
-      ],
-      {
-        temperature: 0.5,
-        maxTokens: envLike.TAGS_MAX_TOKENS,
-        model: envLike.TAGS_MODEL,
-        label: "tags",
-        ...(reasoningEffort === undefined ? {} : { reasoningEffort }),
-      }
-    );
-
-    try {
-      const parsed = JSON.parse(stripJsonFence(jsonResponse)) as unknown;
+  const result = await callStructuredThenPlainJsonFallback<TagsResponse>(or, {
+    label: "tags",
+    maxTokens: envLike.TAGS_MAX_TOKENS,
+    messagesPlain,
+    messagesStructured,
+    model: envLike.TAGS_MODEL,
+    temperature: 0.5,
+    schemaName: "tags_extraction",
+    jsonSchema: TagsStrictJsonSchema,
+    zodSchema,
+    structuredAttempts: 2,
+    parsePlain: (raw) => {
+      const parsed = JSON.parse(stripJsonFence(raw)) as unknown;
       const normalized = normalizeParsedTagCats(parsed, envLike.TAGS_MODEL);
-      const validated = zodSchema.parse(normalized);
-      return validated.tags.map((tag) => ({
-        name: tag.name,
-        cat: tag.cat,
-      }));
-    } catch (jsonError) {
-      log.error(TAGS_DEBUG_MESSAGE, "fallback JSON parsing failed", {
-        model: envLike.TAGS_MODEL,
-        error: jsonError instanceof Error ? jsonError.message : String(jsonError),
-        response: jsonResponse.slice(0, 200),
-      });
-      throw new Error(`Failed to parse fallback JSON from LLM: ${String(jsonError)}`);
-    }
-  }
+      return zodSchema.parse(normalized);
+    },
+  });
+
+  return result.tags.map((tag) => ({
+    name: tag.name,
+    cat: tag.cat,
+  }));
 }
 
 export function combineAndCanon(input: {

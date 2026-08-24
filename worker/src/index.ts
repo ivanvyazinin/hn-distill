@@ -1,6 +1,7 @@
 import { applyEnv, COMMENTS_POLICY_VERSION, parseEnv, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import { type AggregatedFile, type CommentsSummary, type NormalizedStory } from "@config/schemas";
+import { TpdBreaker } from "@utils/chat-route";
 import { HttpClient } from "@utils/http-client";
 import { log } from "@utils/log";
 import { Telegram, buildTelegramMessage, parseTelegramError, type TelegramDigestItem } from "@utils/telegram";
@@ -223,9 +224,9 @@ async function processInlineSummaries(
   }
 
   const taskTimeoutBase = Math.max(1000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
-  // One TPD breaker set for the whole inline pass — a per-story makeServices() would
+  // One TPD breaker for the whole inline pass — a per-story makeServices() would
   // re-hit models already proven exhausted earlier in this cron run.
-  const commentsTpdExhaustedModels = new Set<string>();
+  const tpdBreaker = new TpdBreaker();
   for (const id of ids) {
     const elapsed = Date.now() - startedAt;
     const remaining = cronTimeout - elapsed - TIMEOUT_BUFFER_MS;
@@ -236,7 +237,7 @@ async function processInlineSummaries(
     const taskTimeout = Math.min(taskTimeoutBase, remaining);
     try {
       await withTimeout(
-        handleSummarizeTask(env, parsedEnv, store, id, meta, taskTimeout, commentsTpdExhaustedModels),
+        handleSummarizeTask(env, parsedEnv, store, id, meta, taskTimeout, tpdBreaker),
         taskTimeout,
         `summarize:${id}`
       );
@@ -296,7 +297,7 @@ async function handleSummarizeTask(
   storyId: number,
   meta: MetaStore,
   taskTimeoutMs: number,
-  commentsTpdExhaustedModels?: Set<string>
+  tpdBreaker?: TpdBreaker
 ): Promise<void> {
   const deadlineAt = Date.now() + taskTimeoutMs - TIMEOUT_BUFFER_MS;
   if (!parsedEnv.OPENROUTER_API_KEY) {
@@ -304,7 +305,7 @@ async function handleSummarizeTask(
     return;
   }
   const services = makeSummarizeServices(parsedEnv, {
-    ...(commentsTpdExhaustedModels === undefined ? {} : { commentsTpdExhaustedModels }),
+    ...(tpdBreaker === undefined ? {} : { tpdBreaker }),
   });
   try {
     await processSingleStory(services, storyId, store, meta, { deadlineAt });
@@ -499,7 +500,7 @@ export default {
     // Share TPD breaker across every summarize message in this queue batch. Cross-batch
     // persistence would need Durable Object / D1 state (out of Phase 3 scope); a new
     // batch still starts clean, matching "new run starts clean".
-    const commentsTpdExhaustedModels = new Set<string>();
+    const tpdBreaker = new TpdBreaker();
 
     for (const message of batch.messages) {
       const {body} = message;
@@ -508,7 +509,7 @@ export default {
       }
       if (body.kind === "summarize") {
         await withTimeout(
-          handleSummarizeTask(env, parsedEnv, store, body.id, meta, taskTimeout, commentsTpdExhaustedModels),
+          handleSummarizeTask(env, parsedEnv, store, body.id, meta, taskTimeout, tpdBreaker),
           taskTimeout,
           `summarize:${body.id}`
         );
