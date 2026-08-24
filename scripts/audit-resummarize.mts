@@ -1,7 +1,5 @@
 #!/usr/bin/env bun
 
-import { createHash } from "node:crypto";
-
 import { env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
@@ -15,6 +13,8 @@ import { readJsonSafeOr, writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
 import { runSummaryGuard } from "@utils/summary-guard";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
+
+import { postInputHash } from "../pipeline/staleness";
 
 import {
   buildPostPrompt,
@@ -232,7 +232,7 @@ async function fixStory(
     id,
     lang: env.SUMMARY_LANG,
     summary: validated.summary,
-    inputHash: hashString(`${env.SUMMARY_LANG}|${prompt}`),
+    inputHash: await postInputHash(env.SUMMARY_LANG, prompt, env),
     model: validated.modelUsed,
     createdISO: new Date().toISOString(),
     ...(validated.guard
@@ -284,10 +284,6 @@ function printReport(results: AuditVerdict[], mode: Mode): void {
   const header = hasReasons ? "id\tstatus\treasons" : "id\tstatus";
   // eslint-disable-next-line no-console
   console.log(`Mode: ${mode}\n${header}\n${rows.join("\n")}`);
-}
-
-function hashString(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
 }
 
 main().catch((error) => {

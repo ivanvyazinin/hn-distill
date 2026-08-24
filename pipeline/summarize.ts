@@ -1,4 +1,4 @@
-import { COMMENTS_POLICY_VERSION, env, EXTRACT_POLICY_VERSION, type Env } from "@config/env";
+import { COMMENTS_POLICY_VERSION, env, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
   CommentsInsightsJsonSchema,
@@ -73,6 +73,15 @@ import {
   type TelegramLedger,
 } from "@utils/telegram";
 import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
+
+import {
+  commentsStage1Verdict,
+  commentsSelectionChanged,
+  isCompressRetryable,
+  postInputHash,
+  postSelectionChanged,
+  type ExtractDetectorPolicy,
+} from "./staleness";
 
 import type { MetaStore } from "@utils/meta-store";
 import type { ObjectStore } from "@utils/object-store";
@@ -539,28 +548,6 @@ async function hashString(s: string): Promise<string> {
   return await sha256Hex(s);
 }
 
-type ExtractDetectorPolicy = Pick<
-  Env,
-  "EXTRACT_MAX_DUP_RATIO" | "EXTRACT_MAX_LINK_DENSITY" | "EXTRACT_MIN_PROSE_CHARS"
->;
-
-/**
- * Input hash for a post summary. Includes both the code policy version and the
- * runtime detector thresholds: changing a verdict must also replace the current
- * summary/stub. Keep the inputs identical in processing and pre-selection.
- */
-async function postInputHash(
-  lang: string,
-  articleSlice: string,
-  detectorPolicy: ExtractDetectorPolicy
-): Promise<string> {
-  const detectorFingerprint = [
-    detectorPolicy.EXTRACT_MIN_PROSE_CHARS,
-    detectorPolicy.EXTRACT_MAX_LINK_DENSITY,
-    detectorPolicy.EXTRACT_MAX_DUP_RATIO,
-  ].join("|");
-  return await hashString(`${lang}|${EXTRACT_POLICY_VERSION}|${detectorFingerprint}|${articleSlice}`);
-}
 
 function buildPostSystemInstruction(strict?: boolean): string {
   const isStrict = strict === true;
@@ -2215,61 +2202,26 @@ export async function processCommentsSummary(
     };
   }
 
-  const retryableFallback = existingCommentsSummary?.degraded === "generation-failed";
-  const stage1HashUpToDate =
-    existingCommentsSummary?.inputHash === inputHash &&
-    existingCommentsSummary.formatVersion === 2 &&
-    !retryableFallback;
+  const stage1 =
+    existingCommentsSummary === undefined
+      ? undefined
+      : commentsStage1Verdict({ story, existing: existingCommentsSummary, currentInputHash: inputHash });
+  const stage1UpToDate = stage1?.upToDate ?? false;
 
-  // Count gate on full HN thread size (story.descendants), not the capped fetch.
-  // Trade-off (intentional): postSummary/title prompt drift alone no longer forces
-  // comments regen — only +N growth or a COMMENTS_POLICY_VERSION bump does.
-  // 0 disables the gate (legacy hash-only). Missing snapshots → hash behavior.
-  // Only healthy (non-degraded) blobs are gated: too-few-comments must keep the
-  // hash path so a thin early thread can still upgrade once real comments arrive
-  // with growth ≤ threshold. Negative delta (moderated shrink) counts as "within
-  // threshold" and keeps the existing summary — rare on HN, inherent to count gating.
-  let descendantsDelta: number | undefined;
-  if (
-    existingCommentsSummary !== undefined &&
-    existingCommentsSummary.formatVersion === 2 &&
-    existingCommentsSummary.degraded === undefined &&
-    !retryableFallback &&
-    env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
-    existingCommentsSummary.policyVersion === COMMENTS_POLICY_VERSION &&
-    existingCommentsSummary.processedDescendants !== undefined &&
-    story.descendants !== undefined
-  ) {
-    descendantsDelta = story.descendants - existingCommentsSummary.processedDescendants;
-  }
-  // Growth past threshold forces regen even when the capped sample/hash is unchanged.
-  const stage1CountForcesRegen =
-    descendantsDelta !== undefined && descendantsDelta > env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
-  const stage1CountGatedFresh =
-    descendantsDelta !== undefined && descendantsDelta <= env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
-
-  if (stage1CountGatedFresh && existingCommentsSummary !== undefined) {
+  if (stage1?.countGatedFresh === true && existingCommentsSummary !== undefined) {
     log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 regen skipped: descendants delta within threshold", {
       id: story.id,
       descendants: story.descendants,
       processedDescendants: existingCommentsSummary.processedDescendants,
-      delta: descendantsDelta,
+      delta: stage1.descendantsDelta,
       threshold: env.COMMENTS_REGEN_MIN_NEW_COMMENTS,
     });
   }
 
-  const stage1UpToDate = !stage1CountForcesRegen && (stage1HashUpToDate || stage1CountGatedFresh);
-
   // Compress-only path when stage-1 is current OR when stage-1 is stale but we
   // only entered because compress is retryable (must not escalate into a full
   // stage-1 regen and burn the shared budget the cooldown protects).
-  const compressRetryable =
-    isCommentsCompressEnabled() &&
-    existingCommentsSummary !== undefined &&
-    existingCommentsSummary.formatVersion === 2 &&
-    existingCommentsSummary.structured !== undefined &&
-    existingCommentsSummary.degraded === undefined &&
-    compressedStateFor(existingCommentsSummary) === "retryable";
+  const compressRetryable = isCompressRetryable(existingCommentsSummary);
 
   // stage1UpToDate implies an existing blob (hash arm compares its inputHash;
   // count arm derives descendantsDelta from it), so one explicit guard covers both.
@@ -2883,13 +2835,6 @@ type CandidateSelectionConfig = {
   gate: { minScore: number; minComments: number };
 };
 
-function isInsideCooldown(iso: string | undefined, now: number, cooldownMs: number): boolean {
-  if (!iso || cooldownMs <= 0) {
-    return false;
-  }
-  const ts = Date.parse(iso);
-  return Number.isFinite(ts) && now - ts < cooldownMs;
-}
 
 // Re-export shared gate (also used by aggregate/site publish filters).
 export { passesEngagementGate } from "@utils/engagement-gate";
@@ -2901,22 +2846,18 @@ async function computePostChanged(
   now: number,
   store: ObjectStore
 ): Promise<boolean> {
-  if (!existingPost) {
-    return true;
-  }
-  if (config.postSummaryOnlyIfMissing) {
-    return false;
-  }
-  if (isInsideCooldown(existingPost.createdISO, now, config.cooldownMs)) {
-    return false;
-  }
-  const cachedMd = await getCachedArticleMarkdownOnly(story, store);
-  if (!cachedMd) {
-    return false;
-  }
-  const slice = await buildPostPrompt(story, cachedMd);
-  const hash = await postInputHash(config.summaryLang, slice, config.detectorPolicy);
-  return existingPost.inputHash !== hash;
+  const verdict = await postSelectionChanged({
+    story,
+    existingPost,
+    summaryLang: config.summaryLang,
+    detectorPolicy: config.detectorPolicy,
+    postSummaryOnlyIfMissing: config.postSummaryOnlyIfMissing,
+    cooldownMs: config.cooldownMs,
+    now,
+    getCachedArticleMarkdown: (candidate) => getCachedArticleMarkdownOnly(candidate, store),
+    buildArticleSlice: (candidate, articleMd) => buildPostPrompt(candidate, articleMd),
+  });
+  return verdict.changed;
 }
 
 export async function computeCommentsChanged(
@@ -2927,73 +2868,17 @@ export async function computeCommentsChanged(
   now: number,
   store: ObjectStore
 ): Promise<boolean> {
-  if (!existingComments) {
-    return true;
-  }
-  // A deterministic fallback is intentionally not protected by the normal
-  // cooldown: it exists only to keep the card visible until generation works.
-  if (existingComments.degraded === "generation-failed") {
-    return true;
-  }
-  // Compress retry must run even inside cooldown — but only when compress is
-  // actually enabled. With COMMENTS_COMPRESS_MODEL="" or SUMMARY_LANG=en every
-  // structured blob would otherwise look eternally retryable and starve real work.
-  if (
-    isCommentsCompressEnabled() &&
-    existingComments.formatVersion === 2 &&
-    existingComments.structured !== undefined &&
-    existingComments.degraded === undefined &&
-    compressedStateFor(existingComments) === "retryable"
-  ) {
-    return true;
-  }
-  if (isInsideCooldown(existingComments.createdISO, now, cooldownMs)) {
-    return false;
-  }
-  // Policy bump always forces regen, even when the count gate would hold.
-  if (
-    existingComments.policyVersion !== undefined &&
-    existingComments.policyVersion !== COMMENTS_POLICY_VERSION
-  ) {
-    return true;
-  }
-  // Cheap short-circuit on full HN thread size (story.descendants), not the capped
-  // fetch sample. Trade-off (intentional): postSummary/title drift alone no longer
-  // triggers comments regen — only +N growth or a policy bump. Threshold 0 disables.
-  // Only non-degraded blobs are gated (too-few-comments keeps hash path so thin
-  // early threads can still upgrade). Blobs without processedDescendants, or stories
-  // without descendants, fall through to inputHash (one regen backfills the field).
-  // Negative delta (moderated shrink) is "within threshold" → keep summary.
-  // Policy bump above is evaluated only after cooldown — same as the hash path
-  // ("forces regen" = next non-cooldown run).
-  if (
-    env.COMMENTS_REGEN_MIN_NEW_COMMENTS > 0 &&
-    existingComments.formatVersion === 2 &&
-    existingComments.degraded === undefined &&
-    existingComments.policyVersion === COMMENTS_POLICY_VERSION &&
-    existingComments.processedDescendants !== undefined &&
-    story.descendants !== undefined
-  ) {
-    const delta = story.descendants - existingComments.processedDescendants;
-    // Growth past threshold forces regen even when the capped sample/hash is unchanged.
-    return delta > env.COMMENTS_REGEN_MIN_NEW_COMMENTS;
-  }
-  const comments = await readJsonSafeOrStore<NormalizedComment[]>(
-    store,
-    pathFor.rawComments(story.id),
-    NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
-    []
-  );
-  const postSummary = await readJsonSafe(store, pathFor.postSummary(story.id), PostSummarySchema);
-  const prepared = buildCommentsPromptV2({
+  // Single freshness implementation lives in pipeline/staleness.ts (Phase 1);
+  // ordering semantics are pinned by tests/summarize.staleness-freeze.test.ts.
+  const verdict = await commentsSelectionChanged({
     story,
-    comments: comments ?? [],
-    ...(postSummary === undefined ? {} : { postSummary }),
+    existing: existingComments,
     language,
-    maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
+    cooldownMs,
+    now,
+    store,
   });
-  const hash = await commentsInputHash(language, COMMENTS_POLICY_VERSION, prepared.prompt);
-  return existingComments.formatVersion !== 2 || existingComments.inputHash !== hash;
+  return verdict.changed;
 }
 
 async function evaluateCandidate(
