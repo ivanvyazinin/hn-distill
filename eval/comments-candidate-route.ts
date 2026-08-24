@@ -19,11 +19,13 @@
  */
 import { env } from "@config/env";
 import { CommentsInsightsSchema } from "@config/schemas";
-import { renderCommentsSummaryMarkdown, validateCommentsQuote } from "@utils/comments-render";
-import { buildCommentsPromptV2, buildCommentsSystemInstructionV2 } from "@utils/comments-thread";
+import {
+  buildCommentsPromptV2,
+  buildCommentsSystemInstructionV2,
+  evaluateCommentsInsightsCandidate,
+} from "@utils/comments-thread";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { OpenRouter, type ChatMessage } from "@utils/openrouter";
-import { checkCommentsInsightsHeuristics } from "@utils/summary-heuristics";
 
 import type { CommentsInsights, NormalizedComment, NormalizedStory } from "@config/schemas";
 import type { UsageInput } from "@utils/llm-usage";
@@ -76,9 +78,10 @@ type ValidationOutcome =
   | { ok: true; insights: CommentsInsights; summary: string; quoteEmitted: boolean; quoteProvenanceOk: boolean };
 
 /**
- * Faithful copy of pipeline/summarize.ts `validateCommentsInsightsCandidate`, composed
- * from the same exported helpers so the eval accepts/rejects exactly what production
- * would. Additionally surfaces whether an emitted quote failed provenance (dropped).
+ * Thin instrumentation over the canonical production validator
+ * (@utils/comments-thread evaluateCommentsInsightsCandidate — the exact function
+ * pipeline/chat-route accepts with). Adds eval-only provenance flags; the
+ * accept/reject decision itself is not duplicated here anymore (N7).
  */
 function validateCandidateInsights(
   insights: CommentsInsights,
@@ -86,32 +89,16 @@ function validateCandidateInsights(
   sampleIds: number[],
   maxInsights: number
 ): ValidationOutcome {
-  let effective: CommentsInsights = insights;
-  const quoteEmitted = insights.best_quote !== null;
-  let quoteProvenanceOk = true;
-  if (insights.best_quote !== null) {
-    const quote = validateCommentsQuote(insights, comments);
-    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
-      quoteProvenanceOk = false;
-      // eslint-disable-next-line unicorn/no-null -- schema uses null for "no quote"
-      effective = { ...insights, best_quote: null };
-    }
+  const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, maxInsights);
+  if (!evaluation.ok) {
+    return {
+      ok: false,
+      reason: evaluation.reason,
+      quoteEmitted: evaluation.quoteEmitted,
+      quoteProvenanceOk: evaluation.quoteProvenanceOk,
+    };
   }
-  if (effective.insights.length > maxInsights) {
-    effective = { ...effective, insights: effective.insights.slice(0, maxInsights) };
-  }
-  const heuristics = checkCommentsInsightsHeuristics(effective, {
-    language: env.SUMMARY_LANG,
-    minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
-  });
-  if (!heuristics.ok) {
-    return { ok: false, reason: `heuristics:${heuristics.triggers.map((t) => t.reason).join(",")}`, quoteEmitted, quoteProvenanceOk };
-  }
-  const summary = renderCommentsSummaryMarkdown(effective, { language: env.SUMMARY_LANG, comments });
-  if (summary.trim().length < env.COMMENTS_SUMMARY_MIN_CHARS) {
-    return { ok: false, reason: "too_short", quoteEmitted, quoteProvenanceOk };
-  }
-  return { ok: true, insights: effective, summary, quoteEmitted, quoteProvenanceOk };
+  return { ok: true, insights: evaluation.insights, summary: evaluation.summary, quoteEmitted: evaluation.quoteEmitted, quoteProvenanceOk: evaluation.quoteProvenanceOk };
 }
 
 function findHttpError(error: unknown): HttpError | undefined {

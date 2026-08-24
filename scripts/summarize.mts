@@ -5,7 +5,6 @@ import { pdfToText } from "@utils/pdf";
 
 import {
   RateLimitError,
-  buildCommentsPrompt,
   buildCommentsPromptV2,
   buildCommentsSystemInstructionV2,
   buildCommentsThread,
@@ -15,10 +14,8 @@ import {
   getOrFetchArticleMarkdown as getOrFetchArticleMarkdownCore,
   preserveMarkdownWhitespace,
   processSingleStory as processSingleStoryCore,
-  generateValidatedCommentsSummary,
   generateValidatedCommentsSummaryV2,
   commentsInputHash,
-  summarizeComments,
   summarizePost,
   summarizeWorkflow as summarizeWorkflowCore,
   makeServices as makeServicesCore,
@@ -30,7 +27,6 @@ import type { NormalizedStory } from "@config/schemas";
 export type { Services } from "../pipeline/summarize";
 export {
   RateLimitError,
-  buildCommentsPrompt,
   buildCommentsPromptV2,
   buildCommentsSystemInstructionV2,
   buildCommentsThread,
@@ -38,10 +34,8 @@ export {
   buildPostPrompt,
   generateValidatedPostSummary,
   preserveMarkdownWhitespace,
-  generateValidatedCommentsSummary,
   generateValidatedCommentsSummaryV2,
   commentsInputHash,
-  summarizeComments,
   summarizePost,
 };
 export type { CommentsProcessingResult } from "../pipeline/summarize";

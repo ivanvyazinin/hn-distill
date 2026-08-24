@@ -1,11 +1,14 @@
 import { env } from "@config/env";
 import {
-  CommentsInsightsJsonSchema,
   CommentsInsightsSchema,
   type CommentsInsights,
   type NormalizedComment,
 } from "@config/schemas";
-import { COMMENTS_INSIGHTS_HARD_CEILING, buildCommentsSystemInstructionV2 } from "@utils/comments-thread";
+import {
+  buildCommentsSystemInstructionV2,
+  commentsInsightsResponseFormat,
+  COMMENTS_INSIGHTS_HARD_CEILING,
+} from "@utils/comments-thread";
 import { HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
 import {
@@ -928,9 +931,9 @@ export function buildCommentsModelChain(
       qwen27bSharePercent: env.COMMENTS_QWEN27B_ROUTE_SHARE,
       shortMaxReservedTokens: env.COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS,
       storyId,
-      ...(services.commentsTpdExhaustedModels === undefined
-        ? {}
-        : { tpdExhaustedModels: services.commentsTpdExhaustedModels }),
+      // Single TPD source: the breaker view (legacy Set is the same identity via
+      // makeServices; a bare tpdBreaker-only stub now also routes correctly).
+      tpdExhaustedModels: breaker.asSet(),
     });
 
     if (decision.kind === "legacy") {
@@ -1060,11 +1063,7 @@ export async function callStructuredWithModelChain(
                 signalUnsupportedResponseFormat: true,
                 responseFormat: {
                   type: "json_schema" as const,
-                  json_schema: {
-                    name: "comments_insights_v2",
-                    strict: true,
-                    schema: CommentsInsightsJsonSchema as unknown as JsonSchema,
-                  },
+                  json_schema: commentsInsightsResponseFormat(),
                 },
               }
             : {}),

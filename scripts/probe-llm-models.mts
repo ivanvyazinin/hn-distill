@@ -2,7 +2,8 @@ import { appendFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
 
 import { env } from "@config/env";
-import { CommentsInsightsJsonSchema, CommentsInsightsSchema } from "@config/schemas";
+import { CommentsInsightsSchema } from "@config/schemas";
+import { commentsInsightsResponseFormat } from "@utils/comments-thread";
 import { HttpClient } from "@utils/http-client";
 import { OpenRouter, type ChatMessage, type JsonSchema, type StructuredOutputOptions } from "@utils/openrouter";
 import { SummaryGuardSchema, SummaryGuardStrictJsonSchema } from "@utils/summary-guard";
@@ -229,11 +230,7 @@ export async function runLlmModelProbes(
             jsonExtraction: "strict",
             responseFormat: {
               type: "json_schema",
-              json_schema: {
-                name: "comments_insights_v2",
-                strict: true,
-                schema: CommentsInsightsJsonSchema as unknown as JsonSchema,
-              },
+              json_schema: commentsInsightsResponseFormat(),
             },
           },
           CommentsInsightsSchema,

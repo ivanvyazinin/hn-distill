@@ -40,15 +40,6 @@ import { reportDrops, resetDrops } from "@utils/summary-drops";
 
 import type { MetaStore } from "@utils/meta-store";
 
-type Services = {
-  noop?: true;
-};
-
-
-
-export function makeServices(): Services {
-  return {};
-}
 
 // Relaxed schema sufficient for aggregation; matches what tests write.
 const AggregationStorySchema = z.object({

@@ -7,12 +7,11 @@ import {
   extractDomain,
   fallbackFromRaw,
   main as coreMain,
-  makeServices,
   readAggregates as readAggregatesCore,
   sortItemsDesc,
 } from "../pipeline/aggregate";
 
-export { buildAggregatedItem, extractDomain, fallbackFromRaw, makeServices, sortItemsDesc };
+export { buildAggregatedItem, extractDomain, fallbackFromRaw, sortItemsDesc };
 
 export async function readAggregates(storyIds: number[]) {
   const store = createFsStore();

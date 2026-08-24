@@ -15,11 +15,7 @@ import {
   type NormalizedStory,
   type PostSummary,
 } from "@config/schemas";
-import {
-  fetchViaJinaReader,
-  isCloudflareChallengeError,
-  looksLikeCloudflareChallenge,
-} from "@utils/article-fetch";
+import { createArticleFetcher, isCloudflareChallengeError, type FetchedArticle } from "@utils/article-fetch";
 import {
   buildCommentsCompressUserPrompt,
   compressedStateFor,
@@ -33,10 +29,8 @@ import {
 } from "@utils/comments-compress";
 import {
   renderCommentsLead,
-  renderCommentsSummaryMarkdown,
   renderCompressedParagraphMarkdown,
   renderTooFewCommentsFallback,
-  validateCommentsQuote,
 } from "@utils/comments-render";
 import {
   buildCommentsThread,
@@ -45,13 +39,12 @@ import {
   COMMENTS_INSIGHTS_HARD_CEILING,
   commentsInputHash,
   isSubstantiveComment,
+  validateCommentsInsightsCandidate,
 } from "@utils/comments-thread";
-import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
 import { passesEngagementGate } from "@utils/engagement-gate";
 import { assessExtractQuality } from "@utils/extract-quality";
 import { sha256Hex } from "@utils/hash";
-import { extractArticleMd } from "@utils/html-to-md";
-import { HttpClient, HttpError } from "@utils/http-client";
+import { HttpClient } from "@utils/http-client";
 import { createUsageCollector, type UsageCollector } from "@utils/llm-usage";
 import { log } from "@utils/log";
 import { createNoopMetaStore } from "@utils/noop-meta-store";
@@ -59,7 +52,6 @@ import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
 import {
-  checkCommentsInsightsHeuristics,
   checkSummaryHeuristics,
   languageGateFromEnv,
 } from "@utils/summary-heuristics";
@@ -73,7 +65,6 @@ import {
   type TelegramDigestItem,
   type TelegramLedger,
 } from "@utils/telegram";
-import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
 
 import {
   commentsStage1Verdict,
@@ -122,9 +113,7 @@ export { buildCommentsPromptV2, buildCommentsSystemInstructionV2, buildCommentsT
  * "html" and "reader" (Jina markdown fallback) are subject to the garbage detector;
  * pdf / youtube / text / empty bypass it (lists and short lines are legitimate there).
  */
-export type ArticleSourceKind = "empty" | "html" | "pdf" | "reader" | "text" | "youtube";
-
-export type FetchedArticle = { md: string; sourceKind: ArticleSourceKind };
+export type { ArticleSourceKind, FetchedArticle } from "@utils/article-fetch";
 
 export type Services = {
   http: HttpClient;
@@ -200,133 +189,11 @@ export function makeServices(
       })
     : openrouter;
 
-  async function fetchArticleMarkdown(url: string): Promise<FetchedArticle> {
-    const youtubeText = await tryFetchYouTubeContent(url);
-    if (youtubeText) {
-      return { md: youtubeText, sourceKind: "youtube" };
-    }
-
-    try {
-      const { data, contentType } = await http.bytes(url);
-      // Rare: origin returns 200 with a Cloudflare challenge HTML body. Treat as
-      // fallback-eligible instead of feeding the interstitial to Readability.
-      // Decode once; reuse for both challenge check and HTML extract.
-      if (looksLikeHtml(contentType ?? undefined)) {
-        const html = decodeText(data, contentType ?? undefined);
-        if (looksLikeCloudflareChallenge(html)) {
-          // Synthetic 403 so reader failure on this path classifies as bot-protection
-          // (WARN), same as a real origin 403 — not a generic ERROR.
-          throw new HttpError(url, 403, `HTTP 403 Cloudflare challenge body for ${url}`);
-        }
-        return await parseFetchedContent(url, data, contentType ?? undefined, html);
-      }
-      return await parseFetchedContent(url, data, contentType ?? undefined);
-    } catch (error) {
-      if (!e.ARTICLE_FETCH_READER_FALLBACK || !isCloudflareChallengeError(error)) {
-        throw error;
-      }
-      try {
-        return await fetchArticleViaReader(url);
-      } catch (readerError) {
-        log.warn(LOG_NAMESPACE_ARTICLE, "Jina reader fallback failed", {
-          url,
-          error: String(readerError),
-        });
-        // Preserve the original origin failure (status/url) so outer logging still
-        // classifies it as bot-protection; attach reader failure as cause.
-        if (error instanceof HttpError) {
-          throw new HttpError(error.url, error.status, error.message, { cause: readerError });
-        }
-        throw error;
-      }
-    }
-  }
-
-  async function fetchArticleViaReader(url: string): Promise<FetchedArticle> {
-    // Structured counter-ish log: grep "via Jina reader" / sourceKind=reader for frequency.
-    log.info(LOG_NAMESPACE_ARTICLE, "Retrying article via Jina reader", {
-      url,
-      fallback: "jina",
-      readerBase: e.ARTICLE_READER_BASE_URL,
-      hasJinaKey: Boolean(e.JINA_API_KEY && e.JINA_API_KEY.length > 0),
-    });
-    const md = await fetchViaJinaReader(http, url, {
-      apiKey: e.JINA_API_KEY,
-      baseUrl: e.ARTICLE_READER_BASE_URL,
-      timeoutMs: e.HTTP_TIMEOUT_MS,
-    });
-    return { md, sourceKind: "reader" };
-  }
-
-  async function tryFetchYouTubeContent(url: string): Promise<string | undefined> {
-    try {
-      const parsed = new URL(url);
-      if (!isYouTubeUrl(parsed)) {
-        return undefined;
-      }
-      const vid = getVideoId(parsed);
-      if (!vid) {
-        return undefined;
-      }
-      log.info(LOG_NAMESPACE_ARTICLE, "Fetching YouTube transcript", { url, vid });
-      const prefer =
-        (e.YT_TRANSCRIPT_LANGS?.length ?? 0) > 0
-          ? e.YT_TRANSCRIPT_LANGS ?? [e.SUMMARY_LANG, "en"]
-          : [e.SUMMARY_LANG, "en"];
-      const transcript = await fetchYouTubeTranscript(http, vid, prefer);
-      const trimmed = transcript?.text.trim();
-      if (trimmed) {
-        return trimmed;
-      }
-      log.warn(LOG_NAMESPACE_ARTICLE, "No captions available; falling back to HTML", { url, vid });
-    } catch {
-      // Not a valid URL or transcript fetch failed; fall back to fetching bytes.
-    }
-    return undefined;
-  }
-
-  async function parseFetchedContent(
-    url: string,
-    data: Uint8Array,
-    contentType?: string,
-    /** Pre-decoded HTML when the caller already decoded for challenge detection. */
-    decodedHtml?: string
-  ): Promise<FetchedArticle> {
-    const head = data.subarray(0, 8);
-    if (looksLikePdf({ url, contentType, bytesHead: head })) {
-      log.info(LOG_NAMESPACE_ARTICLE, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
-      if (!options?.pdfToText) {
-        log.warn(LOG_NAMESPACE_ARTICLE, "PDF parsing disabled; skipping", { url, contentType });
-        return { md: "", sourceKind: "pdf" };
-      }
-      try {
-        const text = await options.pdfToText(data, {
-          maxPages: e.PDF_MAX_PAGES,
-          softMaxBytes: e.PDF_MAX_BYTES,
-        });
-        log.debug(LOG_NAMESPACE_ARTICLE, "PDF parsed successfully", { url, textLength: text.length });
-        return { md: text, sourceKind: "pdf" };
-      } catch (error) {
-        log.error(LOG_NAMESPACE_ARTICLE, "PDF parse failed", { url, error: String(error) });
-        return { md: "", sourceKind: "pdf" };
-      }
-    }
-    if (looksLikeHtml(contentType)) {
-      log.debug(LOG_NAMESPACE_ARTICLE, "Processing HTML content", { url, contentType });
-      const html = decodedHtml ?? decodeText(data, contentType);
-      // Readability-extract the article before turndown; the extract-quality
-      // detector (HTML-only, in getOrFetchArticleMarkdown) judges the result.
-      return { md: extractArticleMd(html, url), sourceKind: "html" };
-    }
-    log.debug(LOG_NAMESPACE_ARTICLE, "Processing as plain text", { url, contentType });
-    try {
-      const text = decodeText(data, contentType);
-      return { md: text.trim(), sourceKind: "text" };
-    } catch (error) {
-      log.warn(LOG_NAMESPACE_ARTICLE, "Text decode failed", { url, contentType, error: String(error) });
-      return { md: "", sourceKind: "text" };
-    }
-  }
+  const articleFetcher = createArticleFetcher({
+    http,
+    ...(options?.pdfToText === undefined ? {} : { pdfToText: options.pdfToText }),
+    envLike: e,
+  });
 
   log.debug("summarize/services", "initialized", {
     hasOpenRouterKey: !!e.OPENROUTER_API_KEY,
@@ -341,8 +208,7 @@ export function makeServices(
     http,
     openrouter,
     guardTagsClient,
-    fetchArticleMarkdown,
-    fetchArticleViaReader,
+    ...articleFetcher,
     usage,
     tpdBreaker,
     commentsTpdExhaustedModels: tpdBreaker.asSet(),
@@ -428,36 +294,6 @@ function buildPostSystemInstruction(strict?: boolean): string {
   return base.join("\n");
 }
 
-function buildCommentsSystemInstruction(): string {
-  if (env.SUMMARY_LANG === "en") {
-    return "You summarize Hacker News discussions in Markdown, in English. Always write in English.";
-  }
-  return [
-    "Ты кратко пересказываешь обсуждения Hacker News в Markdown на русском языке.",
-    "Пиши только по-русски, даже если все комментарии на английском. Никогда не переходи на английский.",
-  ].join("\n");
-}
-
-function buildCommentsLanguageHeader(): string {
-  if (env.SUMMARY_LANG === "en") {
-    return (
-      "Language: en\n" +
-      // Style guardrails to avoid chatty prefaces
-      "Summarize the discussion as 5–7 concise bullet points.\n" +
-      "Output must be a markdown bullet list only, starting immediately with '- '.\n" +
-      "Do not add any introductions, headings, prefaces, phrases like 'Summary:', 'Key takeaways:', or closing sentences.\n" +
-      "No extra text before or after the list."
-    );
-  }
-  return (
-    "Language: ru\n" +
-    "Суммаризируй обсуждение в 3-5 лаконичных буллетах.\n" +
-    "Выводи только маркированный список в Markdown, сразу начинай с '- '.\n" +
-    "Без вступлений, заголовков и фраз вида 'Саммари:', 'Основные тезисы обсуждения:', 'Вот саммари обсуждения:', и без заключений.\n" +
-    "Никакого дополнительного текста до или после списка."
-  );
-}
-
 export async function buildPostPrompt(story: NormalizedStory, articleMd?: string): Promise<string> {
   const content = (articleMd ?? "").trim();
   if (!content) {
@@ -484,40 +320,6 @@ export async function buildPostPrompt(story: NormalizedStory, articleMd?: string
   });
   return articleSlice;
 }
-
-export async function buildCommentsPrompt(
-  comments: NormalizedComment[]
-): Promise<{ prompt: string; sampleIds: number[] }> {
-  const header = buildCommentsLanguageHeader();
-  const { OPENROUTER_MAX_TOKENS } = env;
-  let budget = 6 * OPENROUTER_MAX_TOKENS;
-  const lines: string[] = [];
-  for (const c of comments) {
-    const { textPlain, by, depth } = c;
-    const text = textPlain ? textPlain.replaceAll(/\s+/gu, " ").trim() : "";
-    if (!text) {
-      continue;
-    }
-    const line = `@${by} [d${depth}] ${text.slice(0, 400)}`;
-    const cost = line.length + 1;
-    if (budget - cost < 0) {
-      break;
-    }
-    lines.push(line);
-    budget -= cost;
-  }
-  const sampleIds = comments
-    .filter((c) => {
-      const { textPlain } = c;
-      return Boolean(textPlain.trim());
-    })
-    .slice(0, 5)
-    .map((c) => c.id);
-  const prompt = [header, ...lines].join("\n");
-  log.debug(LOG_NAMESPACE_COMMENTS, "Built comments prompt", { count: comments.length, promptChars: prompt.length });
-  return { prompt, sampleIds };
-}
-
 
 export function buildPostChatMessages(articleSlice: string, options: { strict?: boolean } = {}): ChatMessage[] {
   const system = buildPostSystemInstruction(options.strict ?? false);
@@ -645,128 +447,6 @@ export async function generateValidatedPostSummary(
   return undefined;
 }
 
-export async function summarizeComments(
-  services: Services,
-  storyId: number,
-  prompt: string,
-  sampleIds: number[] = [],
-  options: { models?: string[]; context?: LlmLogContext } = {}
-): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
-  const messages: ChatMessage[] = [
-    { role: "system", content: buildCommentsSystemInstruction() },
-    { role: "user", content: prompt },
-  ];
-  const { content, modelUsed } = await callLLMWithMessages(
-    services,
-    messages,
-    options.context ?? {},
-    "comments",
-    options.models
-  );
-  return {
-    id: storyId,
-    lang: env.SUMMARY_LANG,
-    summary: content,
-    sampleComments: sampleIds,
-    model: modelUsed,
-  };
-}
-
-const HEURISTIC_REJECTION_WEIGHTS: Readonly<Record<string, number>> = {
-  empty: 1000,
-  refusal: 800,
-  policy: 800,
-  content_free: 700,
-  artifact: 600,
-  prompt_instructions: 600,
-  low_cyrillic_ratio: 500,
-  url_encoded_noise: 400,
-  bare_bullets: 300,
-  repetition_run: 300,
-  low_unique_ratio: 250,
-  contains_url: 200,
-  latin_prose: 150,
-  numeric_headings: 150,
-  generic: 100,
-  meta_instructions: 100,
-  too_short: 75,
-  too_few_words: 50,
-  bullets_only: 50,
-};
-
-/** Lower is better; zero is a valid summary. Used only when both comment attempts fail. */
-function heuristicRejectionScore(verdict: ReturnType<typeof checkSummaryHeuristics>): number {
-  return verdict.triggers.reduce(
-    (score, trigger) => score + (HEURISTIC_REJECTION_WEIGHTS[trigger.reason] ?? 100),
-    0
-  );
-}
-
-/**
- * Comments summary with content validation and a single escalated retry.
- * The first call keeps the default model chain untouched; on a heuristics reject
- * (language gate, refusal, artifacts, ...) one retry runs, starting from
- * SUMMARY_CONTENT_REJECT_MODEL when configured. A summary is never dropped:
- * if the retry is also rejected (or errors), the best available text is kept.
- */
-export async function generateValidatedCommentsSummary(
-  services: Services,
-  storyId: number,
-  prompt: string,
-  sampleIds: number[] = []
-): Promise<Pick<CommentsSummary, "id" | "lang" | "model" | "sampleComments" | "summary">> {
-  const checkOptions = {
-    minChars: env.POST_SUMMARY_MIN_CHARS,
-    language: env.SUMMARY_LANG,
-    kind: "comments" as const,
-    languageGate: languageGateFromEnv(env),
-  };
-
-  const first = await summarizeComments(services, storyId, prompt, sampleIds);
-  const firstCheck = checkSummaryHeuristics(first.summary, checkOptions);
-  if (firstCheck.ok) {
-    return first;
-  }
-
-  log.warn(LOG_NAMESPACE_COMMENTS, "Comments heuristic check failed; retrying with escalation", {
-    id: storyId,
-    triggers: firstCheck.triggers,
-  });
-
-  const escalationModel = env.SUMMARY_CONTENT_REJECT_MODEL.trim();
-  const models = escalationModel.length > 0 ? [escalationModel, env.OPENROUTER_FALLBACK_MODEL] : undefined;
-  let retry: Awaited<ReturnType<typeof summarizeComments>>;
-  try {
-    retry = await summarizeComments(services, storyId, prompt, sampleIds, {
-      ...(models === undefined ? {} : { models }),
-      context: { attempt: "comments-retry" },
-    });
-  } catch (error) {
-    log.error(LOG_NAMESPACE_COMMENTS, "Comments retry failed; keeping first summary", {
-      id: storyId,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    return first;
-  }
-
-  const retryCheck = checkSummaryHeuristics(retry.summary, checkOptions);
-  if (retryCheck.ok) {
-    return retry;
-  }
-
-  const firstScore = heuristicRejectionScore(firstCheck);
-  const retryScore = heuristicRejectionScore(retryCheck);
-  const keepRetry = retryScore < firstScore;
-  log.warn(LOG_NAMESPACE_COMMENTS, "Comments retry still flagged; keeping less severe result", {
-    id: storyId,
-    firstScore,
-    retryScore,
-    selected: keepRetry ? "retry" : "first",
-    firstTriggers: firstCheck.triggers,
-    retryTriggers: retryCheck.triggers,
-  });
-  return keepRetry ? retry : first;
-}
 
 const COMMENTS_DEADLINE_BUFFER_MS = 250;
 
@@ -832,63 +512,6 @@ export type GenerateCommentsSummaryV2Input = {
   prepared?: PreparedCommentsPromptV2;
   story: Pick<NormalizedStory, "id" | "title">;
 };
-
-
-function validateCommentsInsightsCandidate(
-  insights: CommentsInsights,
-  comments: NormalizedComment[],
-  sampleIds: number[],
-  maxInsights: number
-): { insights: CommentsInsights; summary: string } | undefined {
-  // Quote decision first: best_quote is optional, so a provenance miss drops the
-  // quote and keeps the summary. Heuristics re-run on the quote-less text because
-  // they include best_quote.translation when present.
-  let effective: CommentsInsights = insights;
-  if (insights.best_quote !== null) {
-    const quote = validateCommentsQuote(insights, comments);
-    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
-      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 quote failed provenance; dropped quote, keeping summary", {
-        commentId: insights.best_quote.comment_id,
-      });
-      effective = { ...insights, best_quote: null };
-    }
-  }
-
-  // maxInsights already comes from commentsInsightsCeiling (≤ hard ceiling).
-  const sliceTo = maxInsights;
-  if (effective.insights.length > sliceTo) {
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 insights over ceiling; slicing", {
-      produced: effective.insights.length,
-      sliceTo,
-      hardCeiling: COMMENTS_INSIGHTS_HARD_CEILING,
-    });
-    effective = { ...effective, insights: effective.insights.slice(0, sliceTo) };
-  }
-
-  const heuristics = checkCommentsInsightsHeuristics(effective, {
-    language: env.SUMMARY_LANG,
-    minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
-  });
-  if (!heuristics.ok) {
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 insights failed heuristics", {
-      triggers: heuristics.triggers,
-    });
-    return undefined;
-  }
-
-  const summary = renderCommentsSummaryMarkdown(effective, {
-    language: env.SUMMARY_LANG,
-    comments,
-  });
-  if (summary.trim().length < env.COMMENTS_SUMMARY_MIN_CHARS) {
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 rendered summary is too short", {
-      chars: summary.trim().length,
-      minimum: env.COMMENTS_SUMMARY_MIN_CHARS,
-    });
-    return undefined;
-  }
-  return { insights: effective, summary };
-}
 
 
 export async function callStructuredWithModelChain(

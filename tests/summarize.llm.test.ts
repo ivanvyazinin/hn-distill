@@ -2,7 +2,8 @@ import { describe, expect, test } from "bun:test";
 
 import { env } from "../config/env.ts";
 import type { Services } from "../scripts/summarize.mts";
-import { RateLimitError, summarizeComments } from "../scripts/summarize.mts";
+import { RateLimitError } from "../scripts/summarize.mts";
+import { summarizeComments } from "../eval/comments-v1";
 import { HttpError } from "../utils/http-client.ts";
 import { createUsageCollector } from "../utils/llm-usage.ts";
 import type { ChatMessage } from "../utils/openrouter";

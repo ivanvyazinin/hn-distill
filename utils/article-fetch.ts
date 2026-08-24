@@ -1,4 +1,11 @@
+import { type Env } from "@config/env";
+import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
+import { extractArticleMd } from "@utils/html-to-md";
 import { HttpError, type HttpClient } from "@utils/http-client";
+import { log } from "@utils/log";
+import { fetchYouTubeTranscript, getVideoId, isYouTubeUrl } from "@utils/youtube";
+
+import type { PdfToTextOptions } from "@utils/pdf";
 
 /** Default public Jina Reader prefix. Overridable via ARTICLE_READER_BASE_URL. */
 export const DEFAULT_ARTICLE_READER_BASE_URL = "https://r.jina.ai";
@@ -121,4 +128,175 @@ export async function fetchViaJinaReader(
     throw new Error(`Jina reader still returned a Cloudflare challenge page for ${targetUrl}`);
   }
   return trimmed;
+}
+
+export type ArticleSourceKind = "empty" | "html" | "pdf" | "reader" | "text" | "youtube";
+
+export type FetchedArticle = { md: string; sourceKind: ArticleSourceKind };
+
+/**
+ * Env surface the fetch policy reads. Narrow on purpose: the policy must stay
+ * grep-able for its config (N8 self-liquidation path).
+ */
+export type ArticleFetchEnv = Pick<
+  Env,
+  | "ARTICLE_FETCH_READER_FALLBACK"
+  | "ARTICLE_READER_BASE_URL"
+  | "HTTP_TIMEOUT_MS"
+  | "JINA_API_KEY"
+  | "PDF_MAX_BYTES"
+  | "PDF_MAX_PAGES"
+  | "SUMMARY_LANG"
+  | "YT_TRANSCRIPT_LANGS"
+>;
+
+const ARTICLE_LOG_NS = "summarize/article" as const;
+
+export type ArticleFetcher = {
+  fetchArticleMarkdown: (url: string) => Promise<FetchedArticle>;
+  fetchArticleViaReader: (url: string) => Promise<FetchedArticle>;
+};
+
+/**
+ * Single owner of the article-fetch policy (N6): youtube transcript → http bytes →
+ * Cloudflare-challenge detection → pdf/html/text extraction → Jina reader fallback.
+ * makeServices and future composition roots assemble this; the policy is testable
+ * without the whole pipeline Services.
+ */
+export function createArticleFetcher(deps: {
+  http: HttpClient;
+  envLike: ArticleFetchEnv;
+  pdfToText?: (bytes: Uint8Array, opts?: PdfToTextOptions) => Promise<string>;
+}): ArticleFetcher {
+  const { http, envLike: e, pdfToText } = deps;
+
+  async function fetchArticleViaReader(url: string): Promise<FetchedArticle> {
+    // Structured counter-ish log: grep "via Jina reader" / sourceKind=reader for frequency.
+    log.info(ARTICLE_LOG_NS, "Retrying article via Jina reader", {
+      url,
+      fallback: "jina",
+      readerBase: e.ARTICLE_READER_BASE_URL,
+      hasJinaKey: e.JINA_API_KEY !== undefined && e.JINA_API_KEY.length > 0,
+    });
+    const md = await fetchViaJinaReader(http, url, {
+      apiKey: e.JINA_API_KEY,
+      baseUrl: e.ARTICLE_READER_BASE_URL,
+      timeoutMs: e.HTTP_TIMEOUT_MS,
+    });
+    return { md, sourceKind: "reader" };
+  }
+
+  async function tryFetchYouTubeContent(url: string): Promise<string | undefined> {
+    try {
+      const parsed = new URL(url);
+      if (!isYouTubeUrl(parsed)) {
+        return undefined;
+      }
+      const vid = getVideoId(parsed);
+      if (vid === undefined || vid.length === 0) {
+        return undefined;
+      }
+      log.info(ARTICLE_LOG_NS, "Fetching YouTube transcript", { url, vid });
+      const prefer =
+        (e.YT_TRANSCRIPT_LANGS?.length ?? 0) > 0
+          ? e.YT_TRANSCRIPT_LANGS ?? [e.SUMMARY_LANG, "en"]
+          : [e.SUMMARY_LANG, "en"];
+      const transcript = await fetchYouTubeTranscript(http, vid, prefer);
+      const trimmed = transcript?.text.trim();
+      if (trimmed !== undefined && trimmed.length > 0) {
+        return trimmed;
+      }
+      log.warn(ARTICLE_LOG_NS, "No captions available; falling back to HTML", { url, vid });
+    } catch {
+      // Not a valid URL or transcript fetch failed; fall back to fetching bytes.
+    }
+    return undefined;
+  }
+
+  async function parseFetchedContent(
+    url: string,
+    data: Uint8Array,
+    contentType?: string,
+    /** Pre-decoded HTML when the caller already decoded for challenge detection. */
+    decodedHtml?: string
+  ): Promise<FetchedArticle> {
+    const head = data.subarray(0, 8);
+    if (looksLikePdf({ url, contentType, bytesHead: head })) {
+      log.info(ARTICLE_LOG_NS, "Fetching and parsing PDF", { url, contentType, bytes: data.length });
+      if (pdfToText === undefined) {
+        log.warn(ARTICLE_LOG_NS, "PDF parsing disabled; skipping", { url, contentType });
+        return { md: "", sourceKind: "pdf" };
+      }
+      try {
+        const text = await pdfToText(data, {
+          maxPages: e.PDF_MAX_PAGES,
+          softMaxBytes: e.PDF_MAX_BYTES,
+        });
+        log.debug(ARTICLE_LOG_NS, "PDF parsed successfully", { url, textLength: text.length });
+        return { md: text, sourceKind: "pdf" };
+      } catch (error) {
+        log.error(ARTICLE_LOG_NS, "PDF parse failed", { url, error: String(error) });
+        return { md: "", sourceKind: "pdf" };
+      }
+    }
+    if (looksLikeHtml(contentType)) {
+      log.debug(ARTICLE_LOG_NS, "Processing HTML content", { url, contentType });
+      const html = decodedHtml ?? decodeText(data, contentType);
+      // Readability-extract the article before turndown; the extract-quality
+      // detector (HTML-only) judges the result downstream.
+      return { md: extractArticleMd(html, url), sourceKind: "html" };
+    }
+    log.debug(ARTICLE_LOG_NS, "Processing as plain text", { url, contentType });
+    try {
+      const text = decodeText(data, contentType);
+      return { md: text.trim(), sourceKind: "text" };
+    } catch (error) {
+      log.warn(ARTICLE_LOG_NS, "Text decode failed", { url, contentType, error: String(error) });
+      return { md: "", sourceKind: "text" };
+    }
+  }
+
+  async function fetchArticleMarkdown(url: string): Promise<FetchedArticle> {
+    const youtubeText = await tryFetchYouTubeContent(url);
+    if (youtubeText !== undefined && youtubeText.length > 0) {
+      return { md: youtubeText, sourceKind: "youtube" };
+    }
+
+    try {
+      const { data, contentType } = await http.bytes(url);
+      // Rare: origin returns 200 with a Cloudflare challenge HTML body. Treat as
+      // fallback-eligible instead of feeding the interstitial to Readability.
+      // Decode once; reuse for both challenge check and HTML extract.
+      if (looksLikeHtml(contentType ?? undefined)) {
+        const html = decodeText(data, contentType ?? undefined);
+        if (looksLikeCloudflareChallenge(html)) {
+          // Synthetic 403 so reader failure on this path classifies as bot-protection
+          // (WARN), same as a real origin 403 — not a generic ERROR.
+          throw new HttpError(url, 403, `HTTP 403 Cloudflare challenge body for ${url}`);
+        }
+        return await parseFetchedContent(url, data, contentType ?? undefined, html);
+      }
+      return await parseFetchedContent(url, data, contentType ?? undefined);
+    } catch (error) {
+      if (!e.ARTICLE_FETCH_READER_FALLBACK || !isCloudflareChallengeError(error)) {
+        throw error;
+      }
+      try {
+        return await fetchArticleViaReader(url);
+      } catch (readerError) {
+        log.warn(ARTICLE_LOG_NS, "Jina reader fallback failed", {
+          url,
+          error: String(readerError),
+        });
+        // Preserve the original origin failure (status/url) so outer logging still
+        // classifies it as bot-protection; attach reader failure as cause.
+        if (error instanceof HttpError) {
+          throw new HttpError(error.url, error.status, error.message, { cause: readerError });
+        }
+        throw error;
+      }
+    }
+  }
+
+  return { fetchArticleMarkdown, fetchArticleViaReader };
 }

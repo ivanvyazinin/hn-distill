@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 import { env } from "../config/env.ts";
-import type { Services } from "../scripts/summarize.mts";
-import { generateValidatedCommentsSummary } from "../scripts/summarize.mts";
+import { generateValidatedCommentsSummary } from "../eval/comments-v1.ts";
+import type { RouteServices } from "../utils/chat-route.ts";
 import { createUsageCollector } from "../utils/llm-usage.ts";
 
 import type { ChatMessage } from "../utils/openrouter";
@@ -50,9 +50,8 @@ function makeServices(chatHandlers: ChatHandler[]) {
     chatStructured: async () => {
       throw new Error("not implemented");
     },
-  } as unknown as Services["openrouter"];
-  const services: Services = {
-    http: {} as Services["http"],
+  } as unknown as RouteServices["openrouter"];
+  const services = {
     openrouter: orMock,
     guardTagsClient: orMock,
     fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" as const }),

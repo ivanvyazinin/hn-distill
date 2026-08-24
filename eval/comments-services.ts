@@ -3,13 +3,8 @@ import { z } from "zod";
 import { COMMENTS_POLICY_VERSION, type Env } from "@config/env";
 import { OpenRouter, type ChatMessage, type JsonSchema, type StructuredOutputOptions } from "@utils/openrouter";
 
-import {
-  buildCommentsPrompt,
-  generateValidatedCommentsSummary,
-  generateValidatedCommentsSummaryV2,
-  makeServices,
-  type Services,
-} from "../pipeline/summarize";
+import { buildCommentsPrompt, generateValidatedCommentsSummary } from "./comments-v1";
+import { generateValidatedCommentsSummaryV2, makeServices, type Services } from "../pipeline/summarize";
 
 import {
   CommentsJudgeVerdictSchema,

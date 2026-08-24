@@ -5,7 +5,8 @@ import type { NormalizedStory } from "../config/schemas";
 import type { HttpClient } from "../utils/http-client";
 import { createUsageCollector } from "../utils/llm-usage";
 import type { ChatMessage } from "../utils/openrouter";
-import { makeServices, summarizeComments, summarizePost, type Services } from "../pipeline/summarize";
+import { makeServices, summarizePost, type Services } from "../pipeline/summarize";
+import { summarizeComments } from "../eval/comments-v1";
 import { story as makeStory } from "./helpers";
 
 // ── Collector unit behavior (R3: drop out-of-scope, stamp in-scope) ────────────

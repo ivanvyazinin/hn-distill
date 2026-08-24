@@ -1,7 +1,17 @@
-import { CommentsInsightsJsonSchema } from "@config/schemas";
+import { env } from "@config/env";
+import {
+  CommentsInsightsJsonSchema,
+  type CommentsInsights,
+  type NormalizedComment,
+  type NormalizedStory,
+  type PostSummary,
+} from "@config/schemas";
+import { renderCommentsSummaryMarkdown, validateCommentsQuote } from "@utils/comments-render";
 import { sha256Hex } from "@utils/hash";
+import { log } from "@utils/log";
+import { type JsonSchema } from "@utils/openrouter";
+import { checkCommentsInsightsHeuristics } from "@utils/summary-heuristics";
 
-import type { NormalizedComment, NormalizedStory, PostSummary } from "@config/schemas";
 
 export type CommentsLanguage = "en" | "ru";
 
@@ -354,4 +364,110 @@ export async function commentsInputHash(
   prompt: string
 ): Promise<string> {
   return await sha256Hex(JSON.stringify({ language, policyVersion, prompt }));
+}
+
+const COMMENTS_VALIDATION_LOG_NS = "summarize/comments" as const;
+
+export type CommentsInsightsCandidateVerdict =
+  | { ok: false; reason: string }
+  | { ok: true; insights: CommentsInsights; summary: string };
+
+export type CommentsInsightsCandidateEvaluation = CommentsInsightsCandidateVerdict & {
+  quoteEmitted: boolean;
+  /** False only when a quote was emitted and then dropped by provenance check. */
+  quoteProvenanceOk: boolean;
+};
+
+/**
+ * Single owner of comments-v2 candidate acceptance (quote provenance → insight
+ * ceiling → language/format heuristics → render → min-chars). Production
+ * (pipeline/chat-route via validateCommentsInsightsCandidate) and eval
+ * (comments-candidate-route) must call THIS implementation — no copies.
+ */
+export function evaluateCommentsInsightsCandidate(
+  insights: CommentsInsights,
+  comments: NormalizedComment[],
+  sampleIds: number[],
+  maxInsights: number
+): CommentsInsightsCandidateEvaluation {
+  // Quote decision first: best_quote is optional, so a provenance miss drops the
+  // quote and keeps the summary. Heuristics re-run on the quote-less text because
+  // they include best_quote.translation when present.
+  let effective: CommentsInsights = insights;
+  const quoteEmitted = insights.best_quote !== null;
+  let quoteProvenanceOk = true;
+  if (insights.best_quote !== null) {
+    const quote = validateCommentsQuote(insights, comments);
+    if (quote === undefined || !sampleIds.includes(quote.commentId)) {
+      log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 quote failed provenance; dropped quote, keeping summary", {
+        commentId: insights.best_quote.comment_id,
+      });
+      // eslint-disable-next-line unicorn/no-null -- schema uses null for "no quote"
+      effective = { ...insights, best_quote: null };
+      quoteProvenanceOk = false;
+    }
+  }
+
+  // maxInsights already comes from commentsInsightsCeiling (≤ hard ceiling).
+  const sliceTo = maxInsights;
+  if (effective.insights.length > sliceTo) {
+    log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 insights over ceiling; slicing", {
+      produced: effective.insights.length,
+      sliceTo,
+      hardCeiling: COMMENTS_INSIGHTS_HARD_CEILING,
+    });
+    effective = { ...effective, insights: effective.insights.slice(0, sliceTo) };
+  }
+
+  const heuristics = checkCommentsInsightsHeuristics(effective, {
+    language: env.SUMMARY_LANG,
+    minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
+  });
+  if (!heuristics.ok) {
+    log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 insights failed heuristics", {
+      triggers: heuristics.triggers,
+    });
+    return {
+      ok: false,
+      reason: `heuristics:${heuristics.triggers.map((t) => t.reason).join(",")}`,
+      quoteEmitted,
+      quoteProvenanceOk,
+    };
+  }
+
+  const summary = renderCommentsSummaryMarkdown(effective, {
+    language: env.SUMMARY_LANG,
+    comments,
+  });
+  if (summary.trim().length < env.COMMENTS_SUMMARY_MIN_CHARS) {
+    log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 rendered summary is too short", {
+      chars: summary.trim().length,
+      minimum: env.COMMENTS_SUMMARY_MIN_CHARS,
+    });
+    return { ok: false, reason: "too_short", quoteEmitted, quoteProvenanceOk };
+  }
+  return { ok: true, insights: effective, summary, quoteEmitted, quoteProvenanceOk };
+}
+
+/** Production-shaped adapter: undefined instead of a verdict object. */
+export function validateCommentsInsightsCandidate(
+  insights: CommentsInsights,
+  comments: NormalizedComment[],
+  sampleIds: number[],
+  maxInsights: number
+): { insights: CommentsInsights; summary: string } | undefined {
+  const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, maxInsights);
+  return evaluation.ok ? { insights: evaluation.insights, summary: evaluation.summary } : undefined;
+}
+/** Canonical strict json_schema request format for comments-v2 structured calls. */
+export function commentsInsightsResponseFormat(): {
+  name: string;
+  strict: true;
+  schema: JsonSchema;
+} {
+  return {
+    name: "comments_insights_v2",
+    strict: true,
+    schema: CommentsInsightsJsonSchema as unknown as JsonSchema,
+  };
 }
