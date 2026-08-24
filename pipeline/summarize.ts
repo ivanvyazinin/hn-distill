@@ -53,7 +53,7 @@ import { sha256Hex } from "@utils/hash";
 import { extractArticleMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
-import { readJsonSafeOrStore } from "@utils/object-store";
+import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 import { createUsageCollector, type UsageCollector } from "@utils/llm-usage";
 import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
@@ -1930,7 +1930,7 @@ async function processPostSummary(
   store: ObjectStore,
   meta?: MetaStore
 ): Promise<void> {
-  const existingPostSummary = await readJsonSafeOrStore(store, postPath, PostSummarySchema);
+  const existingPostSummary = await readJsonSafe(store, postPath, PostSummarySchema);
 
   if (env.POST_SUMMARY_ONLY_IF_MISSING && existingPostSummary) {
     log.debug(LOG_NAMESPACE_POST, "Post summary exists; skipping due to ONLY_IF_MISSING", { id: story.id });
@@ -2204,7 +2204,7 @@ export async function processCommentsSummary(
   const inputHash = await commentsInputHash(env.SUMMARY_LANG, COMMENTS_POLICY_VERSION, prepared.prompt);
   let existingCommentsSummary: CommentsSummary | undefined;
   try {
-    existingCommentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
+    existingCommentsSummary = await readJsonSafe(store, commentsPath, CommentsSummarySchema);
   } catch (error) {
     log.error(LOG_NAMESPACE_COMMENTS, "Comments-v2 storage read failed", { id: story.id, error: String(error) });
     return {
@@ -2271,7 +2271,9 @@ export async function processCommentsSummary(
     existingCommentsSummary.degraded === undefined &&
     compressedStateFor(existingCommentsSummary) === "retryable";
 
-  if (stage1UpToDate || (compressRetryable && existingCommentsSummary !== undefined)) {
+  // stage1UpToDate implies an existing blob (hash arm compares its inputHash;
+  // count arm derives descendantsDelta from it), so one explicit guard covers both.
+  if ((stage1UpToDate || compressRetryable) && existingCommentsSummary !== undefined) {
     let summaryForMeta = existingCommentsSummary;
     if (compressRetryable) {
       const lazyBudget = new CommentsGenerationBudget({
@@ -2663,7 +2665,7 @@ async function processTags(
   const p = pathFor.tagsSummary(story.id);
   const prompt = buildTagsPrompt(story, postSummary);
   const inputHash = await hashString(buildTagsCacheMaterial(prompt, env.TAGS_MODEL));
-  const existing = await readJsonSafeOrStore(store, p, TagsSummarySchema);
+  const existing = await readJsonSafe(store, p, TagsSummarySchema);
   if (existing?.inputHash === inputHash) {
     log.debug(TAGS_DEBUG_MESSAGE, "up-to-date", { id: story.id });
     return;
@@ -2731,7 +2733,7 @@ export async function processSingleStory(
   meta?: MetaStore,
   options: { deadlineAt?: number } = {}
 ): Promise<void> {
-  const story = await readJsonSafeOrStore<NormalizedStory>(
+  const story = await readJsonSafe<NormalizedStory>(
     store,
     pathFor.rawItem(id),
     NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
@@ -2772,16 +2774,15 @@ export async function processSingleStory(
     const commentsPath = pathFor.commentsSummary(id);
 
     await processPostSummary(services, story, postPath, store, meta);
-    const post = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
+    const post = await readJsonSafe(store, pathFor.postSummary(story.id), PostSummarySchema);
     let comments: NormalizedComment[] | undefined;
     try {
-      comments =
-        (await readJsonSafeOrStore<NormalizedComment[]>(
-          store,
-          pathFor.rawComments(id),
-          NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
-          []
-        )) ?? [];
+      comments = await readJsonSafeOrStore<NormalizedComment[]>(
+        store,
+        pathFor.rawComments(id),
+        NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
+        []
+      );
       log.debug(LOG_NAMESPACE_COMMENTS, "Comments loaded", { id: story.id, count: comments.length });
     } catch (error) {
       log.error(LOG_NAMESPACE_COMMENTS, "Comments input load failed; continuing with legacy Telegram summary", {
@@ -2792,7 +2793,7 @@ export async function processSingleStory(
 
     let commentsSummary: CommentsSummary | undefined;
     try {
-      commentsSummary = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema);
+      commentsSummary = await readJsonSafe(store, commentsPath, CommentsSummarySchema);
     } catch (error) {
       log.error(LOG_NAMESPACE_COMMENTS, "Comments summary snapshot failed; continuing without Telegram teaser", {
         id: story.id,
@@ -2819,7 +2820,7 @@ export async function processSingleStory(
     } else {
       try {
         commentsSummary =
-          (await readJsonSafeOrStore(store, pathFor.commentsSummary(story.id), CommentsSummarySchema)) ??
+          (await readJsonSafe(store, pathFor.commentsSummary(story.id), CommentsSummarySchema)) ??
           commentsSummary;
       } catch (error) {
         log.error(LOG_NAMESPACE_COMMENTS, "Comments summary refresh failed; using pre-processing snapshot", {
@@ -2847,7 +2848,7 @@ export async function processSingleStory(
               commentsInputHash: commentsResult.inputHash,
             }
           : {}),
-        tagsStatus: (await readJsonSafeOrStore(store, pathFor.tagsSummary(story.id), TagsSummarySchema))
+        tagsStatus: (await readJsonSafe(store, pathFor.tagsSummary(story.id), TagsSummarySchema))
           ? "ok"
           : "missing",
         updatedAt: now,
@@ -2983,7 +2984,7 @@ export async function computeCommentsChanged(
     NormalizedCommentSchema.array() as unknown as z.ZodType<NormalizedComment[]>,
     []
   );
-  const postSummary = await readJsonSafeOrStore(store, pathFor.postSummary(story.id), PostSummarySchema);
+  const postSummary = await readJsonSafe(store, pathFor.postSummary(story.id), PostSummarySchema);
   const prepared = buildCommentsPromptV2({
     story,
     comments: comments ?? [],
@@ -2992,11 +2993,7 @@ export async function computeCommentsChanged(
     maxChars: env.COMMENTS_PROMPT_MAX_CHARS,
   });
   const hash = await commentsInputHash(language, COMMENTS_POLICY_VERSION, prepared.prompt);
-  return (
-    existingComments.degraded === "generation-failed" ||
-    existingComments.formatVersion !== 2 ||
-    existingComments.inputHash !== hash
-  );
+  return existingComments.formatVersion !== 2 || existingComments.inputHash !== hash;
 }
 
 async function evaluateCandidate(
@@ -3004,7 +3001,7 @@ async function evaluateCandidate(
   config: CandidateSelectionConfig,
   store: ObjectStore
 ): Promise<Candidate | "gate-skipped" | undefined> {
-  const story = await readJsonSafeOrStore<NormalizedStory>(
+  const story = await readJsonSafe<NormalizedStory>(
     store,
     pathFor.rawItem(id),
     NormalizedStorySchema as unknown as z.ZodType<NormalizedStory>
@@ -3027,8 +3024,8 @@ async function evaluateCandidate(
   }
 
   const [existingPost, existingComments] = await Promise.all([
-    readJsonSafeOrStore(store, pathFor.postSummary(id), PostSummarySchema.nullable()),
-    readJsonSafeOrStore(store, pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
+    readJsonSafe(store, pathFor.postSummary(id), PostSummarySchema.nullable()),
+    readJsonSafe(store, pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
   ]);
 
   const now = Date.now();

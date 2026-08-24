@@ -14,7 +14,7 @@ import { HN } from "@utils/hn";
 import { HttpClient } from "@utils/http-client";
 import { log } from "@utils/log";
 import type { MetaStore } from "@utils/meta-store";
-import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
+import { readJsonSafe, readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { toDateKeyUTC } from "@utils/date-keys";
 import { clamp, htmlToPlain } from "@utils/text";
 
@@ -336,7 +336,7 @@ async function migrateCache(raw: unknown): Promise<SeenCacheShape> {
 
 export async function readSeenCache(store: ObjectStore, p: string = PATHS.seenCache): Promise<SeenCacheShape> {
   const rawCache = await readJsonSafeOrStore<Record<string, unknown>>(store, p, z.record(z.unknown()), {});
-  return migrateCache(rawCache ?? {});
+  return migrateCache(rawCache);
 }
 
 function uniqueNumbers(values: number[]): number[] {
@@ -515,7 +515,7 @@ export async function main(
   const seenCacheExists = (await store.getText(PATHS.seenCache)) !== null;
   let seenCacheChanged = false;
 
-  const previousIndex = await readJsonSafeOrStore(store, PATHS.index, IndexSchema);
+  const previousIndex = await readJsonSafe(store, PATHS.index, IndexSchema);
   const indexExists = (await store.getText(PATHS.index)) !== null;
 
   const topIds = await readTopIds(services, env.TOP_N, {

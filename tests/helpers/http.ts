@@ -2,7 +2,7 @@
 import type { HttpClient } from "@utils/http-client";
 
 type RouteResolver = (url: string) => unknown;
-type RouteValue = RouteResolver | boolean | number | object | string | null | undefined;
+export type RouteValue = RouteResolver | boolean | number | object | string | null | undefined;
 
 /**
  * Simple HTTP mock. Pass routes as a map where keys are strings like "/pattern/flags".

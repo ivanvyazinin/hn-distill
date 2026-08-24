@@ -1,3 +1,9 @@
+// Bun runtime surface used by the repo but absent from lib.dom/es2022.
+interface ImportMeta {
+  /** Absolute path of the containing directory (Bun). */
+  dir: string;
+}
+
 declare module "he" {
   const he: {
     decode: (text: string) => string;
@@ -25,6 +31,7 @@ declare module "bun:test" {
     toBe(expected: T): void;
     toHaveBeenCalledTimes(count: number): void;
     toEqual(expected: T): void;
+    toBeDefined(): void;
     toBeUndefined(): void;
     toBeNull(): void;
     toBeTruthy(): void;

@@ -39,7 +39,7 @@ import { renderCompressedParagraphMarkdown } from "@utils/comments-render";
 import { createFsStore } from "@utils/fs-store";
 import { log } from "@utils/log";
 import { openLocalMetaStore } from "@utils/meta-runtime";
-import { readJsonSafeOrStore } from "@utils/object-store";
+import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 
 import {
   CommentsGenerationBudget,
@@ -238,7 +238,7 @@ async function runCompressOnly(
         continue;
       }
       const commentsPath = pathFor.commentsSummary(id);
-      const existing = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema.nullable());
+      const existing = await readJsonSafe(store, commentsPath, CommentsSummarySchema.nullable());
       const decision = compressDecision(existing ?? undefined, options.force);
 
       if (decision.action === "skip") {
@@ -359,7 +359,7 @@ async function runStage1(options: Options, ids: number[]): Promise<{ succeeded: 
       }
 
       const commentsPath = pathFor.commentsSummary(id);
-      const existing = await readJsonSafeOrStore(store, commentsPath, CommentsSummarySchema.nullable());
+      const existing = await readJsonSafe(store, commentsPath, CommentsSummarySchema.nullable());
       const alreadyV2 = existing?.formatVersion === 2 && existing.structured !== undefined;
 
       if (alreadyV2 && !options.force) {
@@ -368,7 +368,7 @@ async function runStage1(options: Options, ids: number[]): Promise<{ succeeded: 
         continue;
       }
 
-      const story = await readJsonSafeOrStore<NormalizedStory>(
+      const story = await readJsonSafe<NormalizedStory>(
         store,
         pathFor.rawItem(id),
         NormalizedStorySchema as never
@@ -379,14 +379,13 @@ async function runStage1(options: Options, ids: number[]): Promise<{ succeeded: 
         continue;
       }
 
-      const comments =
-        (await readJsonSafeOrStore<NormalizedComment[]>(
-          store,
-          pathFor.rawComments(id),
-          NormalizedCommentSchema.array() as never,
-          []
-        )) ?? [];
-      const post = await readJsonSafeOrStore(store, pathFor.postSummary(id), PostSummarySchema);
+      const comments = await readJsonSafeOrStore<NormalizedComment[]>(
+        store,
+        pathFor.rawComments(id),
+        NormalizedCommentSchema.array() as never,
+        []
+      );
+      const post = await readJsonSafe(store, pathFor.postSummary(id), PostSummarySchema);
 
       if (options.dryRun) {
         log.info(LOG_NAMESPACE, "Dry-run would regenerate", {

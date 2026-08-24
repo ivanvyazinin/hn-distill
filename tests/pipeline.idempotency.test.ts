@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import { join, relative } from "node:path";
 
 import type { Services } from "../scripts/fetch-hn.mts";
-import { makeMockHttp, mockPaths, withEnvPatch, withTempDir } from "./helpers";
+import { makeMockHttp, mockPaths, withEnvPatch, withTempDir, type RouteValue } from "./helpers";
 
 async function snapshotDir(root: string): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
@@ -64,7 +64,7 @@ describe("pipeline idempotency", () => {
         kids: [],
       };
 
-      const routes: Record<string, unknown> = {
+      const routes: Record<string, RouteValue> = {
         "/\\/topstories\\.json$/": [storyId],
         [`/\\/item\\/${storyId}\\.json$/`]: story,
         [`/\\/item\\/${commentId}\\.json$/`]: comment,

@@ -1,5 +1,5 @@
 import { applyEnv, COMMENTS_POLICY_VERSION, parseEnv, type Env } from "@config/env";
-import { pathFor } from "@config/paths";
+import { PATHS, pathFor } from "@config/paths";
 import { type AggregatedFile, type CommentsSummary, type NormalizedStory } from "@config/schemas";
 import { HttpClient } from "@utils/http-client";
 import { log } from "@utils/log";
@@ -483,7 +483,7 @@ export default {
       );
       await setAggregateState(env.DB, AGG_KEY, index.updatedISO, nextProcessingISO, new Date().toISOString());
     } else {
-      aggregated = await store.getJson<AggregatedFile>(pathFor.aggregated);
+      aggregated = (await store.getJson<AggregatedFile>(PATHS.aggregated)) ?? undefined;
       log.info("worker/cron", "Aggregate unchanged; skipping recompute", {
         indexUpdatedISO: index.updatedISO,
         processingUpdatedISO: nextProcessingISO,

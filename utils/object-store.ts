@@ -1,3 +1,5 @@
+import type { ZodType } from "zod";
+
 export type PutOptions = {
   contentType?: string;
   pretty?: boolean;
@@ -73,7 +75,7 @@ export function createR2Store(
         }
       }
       await bucket.put(resolveKey(key), body, {
-        httpMetadata: opts?.contentType ? { contentType: opts.contentType } : undefined,
+        ...(opts?.contentType ? { httpMetadata: { contentType: opts.contentType } } : {}),
       });
     },
     async getJson<T>(key: string): Promise<T | null> {
@@ -98,19 +100,31 @@ export function createR2Store(
   };
 }
 
-export async function readJsonSafeOrStore<T>(
+export async function readJsonSafe<T>(
   store: ObjectStore,
   key: string,
-  schema: import("zod").ZodType<T>,
-  fallback?: T
+  schema: ZodType<T>
 ): Promise<T | undefined> {
   const raw = await store.getJson<unknown>(key);
   if (raw === null || raw === undefined) {
-    return fallback;
+    return undefined;
   }
   try {
     return schema.parse(raw);
   } catch {
-    return fallback;
+    return undefined;
   }
+}
+
+/**
+ * Read JSON validated by schema; missing or invalid payloads yield fallback.
+ * Shared by aggregate/fetch/backfill sites that always need a value.
+ */
+export async function readJsonSafeOrStore<T>(
+  store: ObjectStore,
+  key: string,
+  schema: ZodType<T>,
+  fallback: T
+): Promise<T> {
+  return (await readJsonSafe(store, key, schema)) ?? fallback;
 }

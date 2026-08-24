@@ -1,18 +1,18 @@
 import { describe, expect, test } from "bun:test";
 import type { Services } from "../scripts/fetch-hn.mts";
 import { collectComments } from "../scripts/fetch-hn.mts";
-import { makeMockHttp, withEnvPatch } from "./helpers";
+import { makeMockHttp, withEnvPatch, type RouteValue } from "./helpers";
 
 describe("scripts/fetch-hn collectComments", () => {
   test("honors maxDepth, maxCount, dedup, and skipping empty comments", async () => {
     const now = 1_700_000_000;
-    const data: Record<number, unknown> = {
+    const data: Record<number, RouteValue> = {
       1: { id: 1, type: "comment", by: "u1", text: "<p>One</p>", time: now, parent: 0, kids: [2, 3] },
       2: { id: 2, type: "comment", by: "u2", text: "", time: now, parent: 1, kids: [4] },
       3: { id: 3, type: "comment", by: "u3", text: "<p>Three</p>", time: now, parent: 1, kids: [] },
       4: { id: 4, type: "comment", by: "u4", text: "<p>Four</p>", time: now, parent: 2, kids: [] },
     };
-    const routes: Record<string, unknown> = {
+    const routes: Record<string, RouteValue> = {
       "/\\/item\\/1\\.json$/": data[1],
       "/\\/item\\/2\\.json$/": data[2],
       "/\\/item\\/3\\.json$/": data[3],
@@ -37,7 +37,7 @@ describe("scripts/fetch-hn collectComments", () => {
 
   test("stops at maxCount", async () => {
     const now = 1_700_000_000;
-    const data: Record<number, unknown> = {};
+    const data: Record<number, RouteValue> = {};
     for (let index = 1; index <= 10; index++) {
       data[index] = {
         id: index,
@@ -50,7 +50,7 @@ describe("scripts/fetch-hn collectComments", () => {
       };
     }
 
-    const routes: Record<string, unknown> = {};
+    const routes: Record<string, RouteValue> = {};
     for (const k of Object.keys(data)) {
       routes[`/\\/item\\/${k}\\.json$/`] = data[Number(k)];
     }
@@ -74,7 +74,7 @@ describe("scripts/fetch-hn collectComments", () => {
     const data = {
       1: { id: 1, type: "comment", text: longText, time: now, parent: 0, kids: [] },
     };
-    const routes: Record<string, unknown> = { "/\\/item\\/1\\.json$/": data[1] };
+    const routes: Record<string, RouteValue> = { "/\\/item\\/1\\.json$/": data[1] };
     const services = makeMockHttp(routes) as unknown as Services;
 
     await withEnvPatch({ MAX_BODY_CHARS: 2000 }, async () => {
@@ -103,7 +103,7 @@ describe("scripts/fetch-hn collectComments", () => {
       3: { id: 3, type: "comment", text: "3", time: now, parent: 1, kids: [4] },
       4: { id: 4, type: "comment", text: "4", time: now, parent: 3, kids: [2] }, // duplicate enqueue of 2
     };
-    const routes: Record<string, unknown> = {
+    const routes: Record<string, RouteValue> = {
       "/\\/item\\/1\\.json$/": data[1],
       "/\\/item\\/2\\.json$/": data[2],
       "/\\/item\\/3\\.json$/": data[3],
@@ -132,7 +132,7 @@ describe("scripts/fetch-hn collectComments", () => {
       4: { id: 4, type: "comment", text: "4", time: now, parent: 100, kids: [] },
       5: { id: 5, type: "comment", text: "5", time: now, parent: 100, kids: [] },
     };
-    const routes: Record<string, unknown> = {
+    const routes: Record<string, RouteValue> = {
       "/\\/item\\/100\\.json$/": data[100],
       "/\\/item\\/3\\.json$/": data[3],
       "/\\/item\\/4\\.json$/": data[4],

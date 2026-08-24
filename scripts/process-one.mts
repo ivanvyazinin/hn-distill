@@ -3,7 +3,7 @@
 import { env } from "@config/env";
 import { makeServices, processSingleStory } from "./summarize.mts";
 
-const STORY_ID = Number.parseInt(process.argv[2], 10);
+const STORY_ID = Number.parseInt(process.argv[2] ?? "", 10);
 
 if (!Number.isInteger(STORY_ID)) {
   // eslint-disable-next-line no-console

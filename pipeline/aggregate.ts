@@ -29,7 +29,7 @@ import { log } from "@utils/log";
 import { compressedStateFor } from "@utils/comments-compress";
 import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@utils/comments-render";
 import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
-import { readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
+import { readJsonSafe, readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
 import { recordDrop, reportDrops, resetDrops } from "@utils/summary-drops";
 
@@ -86,7 +86,7 @@ async function loadStoryOnly(
   id: number,
   store: ObjectStore
 ): Promise<NormalizedStory | undefined> {
-  const storyLoose = await readJsonSafeOrStore(store, pathFor.rawItem(id), AggregationStorySchema.nullable());
+  const storyLoose = await readJsonSafe(store, pathFor.rawItem(id), AggregationStorySchema.nullable());
   if (!storyLoose) {
     return undefined;
   }
@@ -105,9 +105,9 @@ async function loadStoryPayload(
 }> {
   const [comments, postSummary, commentsSummary, tagsSummary] = await Promise.all([
     readJsonSafeOrStore<NormalizedComment[]>(store, pathFor.rawComments(id), NormalizedCommentSchema.array(), []),
-    readJsonSafeOrStore(store, pathFor.postSummary(id), PostSummarySchema.nullable()),
-    readJsonSafeOrStore(store, pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
-    readJsonSafeOrStore(store, pathFor.tagsSummary(id), TagsSummarySchema.nullable()),
+    readJsonSafe(store, pathFor.postSummary(id), PostSummarySchema.nullable()),
+    readJsonSafe(store, pathFor.commentsSummary(id), CommentsSummarySchema.nullable()),
+    readJsonSafe(store, pathFor.tagsSummary(id), TagsSummarySchema.nullable()),
   ]);
   return { comments, postSummary, commentsSummary, tagsSummary };
 }
