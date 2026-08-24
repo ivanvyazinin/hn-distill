@@ -1,11 +1,11 @@
+
 import type { AggregatedItem, NormalizedStory } from "@config/schemas";
 import type { LlmUsageEvent } from "@utils/llm-usage";
 
-import type { D1DatabaseLike } from "../worker/src/bindings";
 
-export type ProcessingStatus = "ok" | "missing" | "error";
+export type ProcessingStatus = "error" | "missing" | "ok";
 
-export type SummaryKind = "post" | "comments";
+export type SummaryKind = "comments" | "post";
 
 export type SummaryRow = {
   storyId: number;
@@ -16,7 +16,7 @@ export type SummaryRow = {
   createdAt: string;
 };
 
-export type RawBlobKind = "item" | "comments" | "article";
+export type RawBlobKind = "article" | "comments" | "item";
 
 export type RawBlobRow = {
   storyId: number;
@@ -77,60 +77,74 @@ export type ProcessingStateUpdate = {
   error?: string | null;
 };
 
-export interface MetaStore {
-  migrate(): Promise<void>;
+/** Persisted per-story comments policy provenance, read back at selection time. */
+export type CommentsPolicyState = {
+  commentsPolicyVersion: string | undefined;
+  commentsInputHash: string | undefined;
+  updatedAt: string | undefined;
+};
 
-  upsertStory(story: NormalizedStory, rank: number, fetchedISO: string): Promise<void>;
-  listStoryIdsForAggregate(minScore: number): Promise<number[]>;
-  getAggregatedItems(storyIds: number[]): Promise<AggregatedItem[]>;
+export type MetaStore = {
+  migrate: () => Promise<void>;
 
-  upsertSummary(row: SummaryRow): Promise<void>;
-  replaceTags(storyId: number, tags: string[]): Promise<void>;
-  upsertArticleExtract(row: ArticleExtractRow): Promise<void>;
+  upsertStory: (story: NormalizedStory, rank: number, fetchedISO: string) => Promise<void>;
+  listStoryIdsForAggregate: (minScore: number) => Promise<number[]>;
+  getAggregatedItems: (storyIds: number[]) => Promise<AggregatedItem[]>;
+
+  upsertSummary: (row: SummaryRow) => Promise<void>;
+  replaceTags: (storyId: number, tags: string[]) => Promise<void>;
+  upsertArticleExtract: (row: ArticleExtractRow) => Promise<void>;
   /** Read the persisted extract verdict for a story (used at summarize time on cache hits). */
-  getArticleExtract(storyId: number): Promise<ArticleExtractRow | undefined>;
-  upsertRawBlob(row: RawBlobRow): Promise<void>;
-  upsertDailyRanking(row: DailyRankingRow): Promise<void>;
+  getArticleExtract: (storyId: number) => Promise<ArticleExtractRow | undefined>;
+  upsertRawBlob: (row: RawBlobRow) => Promise<void>;
+  upsertDailyRanking: (row: DailyRankingRow) => Promise<void>;
 
-  upsertProcessingState(storyId: number, state: ProcessingStateUpdate): Promise<void>;
+  upsertProcessingState: (storyId: number, state: ProcessingStateUpdate) => Promise<void>;
 
-  getTelegramSentIds(ids: number[]): Promise<Set<number>>;
-  markTelegramSent(storyId: number, messageId: number, sentAtISO: string): Promise<void>;
-  getTelegramLedger(): Promise<TelegramLedgerSnapshot>;
-  acquireRunLock(key: string, nowISO: string, ttlMs: number, owner: string): Promise<boolean>;
-  listPendingStoryIds(
+  /** Policy provenance for one story (undefined when no processing row exists). */
+  getCommentsPolicyState: (storyId: number) => Promise<CommentsPolicyState | undefined>;
+  /** Policy provenance for many stories; absent rows are simply missing from the map. */
+  getCommentsPolicyStates: (storyIds: number[]) => Promise<Map<number, CommentsPolicyState>>;
+
+  getTelegramSentIds: (ids: number[]) => Promise<Set<number>>;
+  markTelegramSent: (storyId: number, messageId: number, sentAtISO: string) => Promise<void>;
+  getTelegramLedger: () => Promise<TelegramLedgerSnapshot>;
+  acquireRunLock: (key: string, nowISO: string, ttlMs: number, owner: string) => Promise<boolean>;
+  listPendingStoryIds: (
     limit: number,
     updatedBeforeISO: string,
     fetchedISO: string,
     desiredPolicyVersion: string
-  ): Promise<number[]>;
-  getProcessingUpdatedMax(): Promise<string | undefined>;
-  getAggregateState(
+  ) => Promise<number[]>;
+  getProcessingUpdatedMax: () => Promise<string | undefined>;
+  getAggregateState: (
     key: string
-  ): Promise<{ indexUpdatedISO?: string | null; processingUpdatedISO?: string | null } | undefined>;
-  setAggregateState(
+  ) => Promise<{ indexUpdatedISO?: string | null; processingUpdatedISO?: string | null } | undefined>;
+  setAggregateState: (
     key: string,
     indexUpdatedISO: string,
     processingUpdatedISO: string | null,
     updatedAtISO: string
-  ): Promise<void>;
-  getPagesDeployState(
+  ) => Promise<void>;
+  getPagesDeployState: (
     key: string
-  ): Promise<{ monthKey?: string | null; usedCount?: number | null; lastSlot?: string | null } | undefined>;
-  setPagesDeployState(
+  ) => Promise<{ monthKey?: string | null; usedCount?: number | null; lastSlot?: string | null } | undefined>;
+  setPagesDeployState: (
     key: string,
     monthKey: string,
     usedCount: number,
     lastSlot: string,
     updatedAtISO: string
-  ): Promise<void>;
+  ) => Promise<void>;
 
-  deleteStoriesBelowScore(minScore: number): Promise<number[]>;
+  deleteStoriesBelowScore: (minScore: number) => Promise<number[]>;
 
   /** Append per-attempt LLM usage rows (best-effort; off the critical path). */
-  insertLlmUsage(rows: LlmUsageRow[]): Promise<void>;
+  insertLlmUsage: (rows: LlmUsageRow[]) => Promise<void>;
   /** Aggregated usage per day/gateway/label/model for the CLI report. */
-  getLlmUsageSummary(): Promise<LlmUsageSummaryRow[]>;
+  getLlmUsageSummary: () => Promise<LlmUsageSummaryRow[]>;
 }
 
-export type { D1DatabaseLike };
+
+
+export {type D1DatabaseLike} from "../worker/src/bindings";

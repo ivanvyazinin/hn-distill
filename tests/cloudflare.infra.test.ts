@@ -10,19 +10,34 @@ import { buildTelegramMessage } from "@utils/telegram";
 
 import { buildScheduleForDate } from "../worker/src/pages-schedule";
 import { createD1MetaStore } from "../worker/src/d1-meta-store";
-import type { R2BucketLike } from "../worker/src/bindings";
+import type { R2BucketLike , D1DatabaseLike } from "../worker/src/bindings";
 import { createWorkerStore } from "../worker/src/store";
-import {
-  getTelegramSentIds,
-  getCommentsPolicyState,
-  listLegacyExtractionStoryIds,
-  listPendingStoryIds,
-  markTelegramSent,
-  upsertProcessingState,
-  upsertStory,
-} from "../worker/src/d1";
+import { listLegacyExtractionStoryIds } from "../worker/src/d1";
 import worker from "../worker/src/index";
 
+import type { MetaStore } from "@utils/meta-store";
+
+// The raw d1.ts helpers moved into the unified MetaStore; keep the test-local
+// call shapes by adapting through a per-call store instance.
+function metaOf(db: D1DatabaseLike): MetaStore {
+  return createD1MetaStore(db);
+}
+const upsertStory = async (db: D1DatabaseLike, story: NormalizedStory, rank: number, fetchedISO: string) =>
+  metaOf(db).upsertStory(story, rank, fetchedISO);
+const upsertProcessingState = async (db: D1DatabaseLike, storyId: number, state: Parameters<MetaStore["upsertProcessingState"]>[1]) =>
+  metaOf(db).upsertProcessingState(storyId, state);
+const listPendingStoryIds = async (
+  db: D1DatabaseLike,
+  limit: number,
+  updatedBeforeISO: string,
+  fetchedISO: string,
+  desiredPolicyVersion: string
+) => metaOf(db).listPendingStoryIds(limit, updatedBeforeISO, fetchedISO, desiredPolicyVersion);
+const getCommentsPolicyState = async (db: D1DatabaseLike, storyId: number) =>
+  metaOf(db).getCommentsPolicyState(storyId);
+const getTelegramSentIds = async (db: D1DatabaseLike, ids: number[]) => metaOf(db).getTelegramSentIds(ids);
+const markTelegramSent = async (db: D1DatabaseLike, storyId: number, messageId: number, sentAtISO: string) =>
+  metaOf(db).markTelegramSent(storyId, messageId, sentAtISO);
 const MINIFLARE_SCRIPT = "export default { fetch() { return new Response('ok'); } };";
 
 /**

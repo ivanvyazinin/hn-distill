@@ -13,38 +13,26 @@ import {
   processSingleStory,
 } from "../../pipeline/summarize";
 
-import type { QueueBatch, WorkerEnv } from "./bindings";
-import {
-  acquireRunLock,
-  getAggregateState,
-  getCommentsPolicyStates,
-  getProcessingUpdatedMax,
-  getPagesDeployState,
-  getTelegramSentIds,
-  listLegacyExtractionStoryIds,
-  listPendingStoryIds,
-  markTelegramSent,
-  setPagesDeployState,
-  setAggregateState,
-  upsertProcessingState,
-  upsertStory,
-} from "./d1";
+import { listLegacyExtractionStoryIds } from "./d1";
 import { createD1MetaStore } from "./d1-meta-store";
 import { buildScheduleForDate, shouldTriggerSlot } from "./pages-schedule";
 import { createWorkerStore } from "./store";
+
+import type { QueueBatch, WorkerEnv } from "./bindings";
 import type { TaskMessage } from "./types";
+import type { MetaStore } from "@utils/meta-store";
 
 const LOCK_KEY = "cron";
 const AGG_KEY = "aggregate";
 const PAGES_KEY = "pages";
 const LOCK_TTL_MS = 55 * 60 * 1000;
 type ScheduledEvent = { scheduledTime?: number };
-const TIMEOUT_BUFFER_MS = 2_000;
+const TIMEOUT_BUFFER_MS = 2000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`Timeout: ${label}`)), ms);
+    timer = setTimeout(() => { reject(new Error(`Timeout: ${label}`)); }, ms);
   });
   try {
     return await Promise.race([promise, timeout]);
@@ -72,7 +60,7 @@ function initEnv(env: WorkerEnv): Env {
 }
 
 async function upsertStoriesFromStore(
-  db: WorkerEnv["DB"],
+  meta: MetaStore,
   store: ReturnType<typeof createWorkerStore>,
   storyIds: number[],
   fetchedISO: string
@@ -82,8 +70,16 @@ async function upsertStoriesFromStore(
     if (!story) {
       continue;
     }
-    await upsertStory(db, story, index, fetchedISO);
+    await meta.upsertStory(story, index, fetchedISO);
   }
+}
+function isProcessingStateInsideCooldown(updatedAt: string | undefined, cutoffISO: string): boolean {
+  if (updatedAt === undefined) {
+    return false;
+  }
+  const updated = Date.parse(updatedAt);
+  const cutoff = Date.parse(cutoffISO);
+  return Number.isFinite(updated) && Number.isFinite(cutoff) && updated >= cutoff;
 }
 
 async function enqueueSummaries(queue: NonNullable<WorkerEnv["TASKS"]>, ids: number[]): Promise<void> {
@@ -94,17 +90,9 @@ async function enqueueSummaries(queue: NonNullable<WorkerEnv["TASKS"]>, ids: num
   }
 }
 
-function isProcessingStateInsideCooldown(updatedAt: string | undefined, cutoffISO: string): boolean {
-  if (updatedAt === undefined) {
-    return false;
-  }
-  const updated = Date.parse(updatedAt);
-  const cutoff = Date.parse(cutoffISO);
-  return Number.isFinite(updated) && Number.isFinite(cutoff) && updated >= cutoff;
-}
-
 async function selectSummarizeIds(
   env: WorkerEnv,
+  meta: MetaStore,
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
   currentStoryIds: number[],
@@ -115,9 +103,9 @@ async function selectSummarizeIds(
   const cutoffISO = new Date(Date.now() - cooldownMs).toISOString();
   const currentIds = [...new Set(currentStoryIds)];
   const sqlPending = new Set(
-    await listPendingStoryIds(env.DB, maxPerCron, cutoffISO, fetchedISO, COMMENTS_POLICY_VERSION)
+    await meta.listPendingStoryIds(maxPerCron, cutoffISO, fetchedISO, COMMENTS_POLICY_VERSION)
   );
-  const policyStates = await getCommentsPolicyStates(env.DB, currentIds);
+  const policyStates = await meta.getCommentsPolicyStates(currentIds);
   const selectedCurrent: number[] = [];
 
   for (const id of currentIds) {
@@ -163,7 +151,7 @@ async function selectSummarizeIds(
 }
 
 async function collectTelegramItems(
-  env: WorkerEnv,
+  meta: MetaStore,
   aggregated: AggregatedFile | undefined,
   parsedEnv: Env
 ): Promise<TelegramDigestItem[]> {
@@ -178,7 +166,7 @@ async function collectTelegramItems(
 
   const candidates = aggregated.items.filter((item) => (item.postSummary ?? "").trim().length > 0);
   const limited = candidates.slice(0, Math.max(1, parsedEnv.TELEGRAM_MAX_ITEMS));
-  const sent = await getTelegramSentIds(env.DB, limited.map((item) => item.id));
+  const sent = await meta.getTelegramSentIds(limited.map((item) => item.id));
 
   const items: TelegramDigestItem[] = [];
   for (const item of limited) {
@@ -205,13 +193,14 @@ async function collectTelegramItems(
 
 async function enqueueTelegramTasks(
   env: WorkerEnv,
+  meta: MetaStore,
   aggregated: AggregatedFile | undefined,
   parsedEnv: Env
 ): Promise<void> {
   if (!env.TASKS) {
     return;
   }
-  const items = await collectTelegramItems(env, aggregated, parsedEnv);
+  const items = await collectTelegramItems(meta, aggregated, parsedEnv);
   for (const item of items) {
     await env.TASKS.send({ kind: "telegram", item } satisfies TaskMessage);
   }
@@ -221,19 +210,19 @@ async function processInlineSummaries(
   env: WorkerEnv,
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
-  meta: ReturnType<typeof createD1MetaStore>,
+  meta: MetaStore,
   startedAt: number,
   cronTimeout: number,
   currentStoryIds: number[],
   fetchedISO: string
 ): Promise<void> {
-  const ids = await selectSummarizeIds(env, parsedEnv, store, currentStoryIds, fetchedISO);
+  const ids = await selectSummarizeIds(env, meta, parsedEnv, store, currentStoryIds, fetchedISO);
   if (ids.length === 0) {
     log.info("worker/cron", "No pending summaries");
     return;
   }
 
-  const taskTimeoutBase = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+  const taskTimeoutBase = Math.max(1000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
   // One TPD breaker set for the whole inline pass — a per-story makeServices() would
   // re-hit models already proven exhausted earlier in this cron run.
   const commentsTpdExhaustedModels = new Set<string>();
@@ -260,16 +249,17 @@ async function processInlineSummaries(
 async function processInlineTelegram(
   env: WorkerEnv,
   parsedEnv: Env,
+  meta: MetaStore,
   aggregated: AggregatedFile | undefined,
   startedAt: number,
   cronTimeout: number
 ): Promise<void> {
-  const items = await collectTelegramItems(env, aggregated, parsedEnv);
+  const items = await collectTelegramItems(meta, aggregated, parsedEnv);
   if (items.length === 0) {
     return;
   }
 
-  const taskTimeoutBase = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+  const taskTimeoutBase = Math.max(1000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
   for (const item of items) {
     const elapsed = Date.now() - startedAt;
     const remaining = cronTimeout - elapsed - TIMEOUT_BUFFER_MS;
@@ -279,7 +269,7 @@ async function processInlineTelegram(
     }
     const taskTimeout = Math.min(taskTimeoutBase, remaining);
     try {
-      await withTimeout(handleTelegramTask(env, parsedEnv, item), taskTimeout, `telegram:${item.id}`);
+      await withTimeout(handleTelegramTask(env, parsedEnv, meta, item), taskTimeout, `telegram:${item.id}`);
     } catch (error) {
       const err = error instanceof Error ? error.message : String(error);
       log.error("worker/cron", "Inline Telegram failed", { id: item.id, error: err });
@@ -304,7 +294,7 @@ async function handleSummarizeTask(
   parsedEnv: Env,
   store: ReturnType<typeof createWorkerStore>,
   storyId: number,
-  meta: ReturnType<typeof createD1MetaStore>,
+  meta: MetaStore,
   taskTimeoutMs: number,
   commentsTpdExhaustedModels?: Set<string>
 ): Promise<void> {
@@ -319,7 +309,7 @@ async function handleSummarizeTask(
   try {
     await processSingleStory(services, storyId, store, meta, { deadlineAt });
   } catch (error) {
-    await upsertProcessingState(env.DB, storyId, {
+    await meta.upsertProcessingState(storyId, {
       postStatus: "error",
       commentsStatus: "error",
       tagsStatus: "error",
@@ -330,11 +320,16 @@ async function handleSummarizeTask(
   }
 }
 
-async function handleTelegramTask(env: WorkerEnv, parsedEnv: Env, item: TelegramDigestItem): Promise<void> {
+async function handleTelegramTask(
+  env: WorkerEnv,
+  parsedEnv: Env,
+  meta: MetaStore,
+  item: TelegramDigestItem
+): Promise<void> {
   if (!parsedEnv.TELEGRAM_ENABLE || !parsedEnv.TELEGRAM_BOT_TOKEN || !parsedEnv.TELEGRAM_CHAT_ID) {
     return;
   }
-  const sent = await getTelegramSentIds(env.DB, [item.id]);
+  const sent = await meta.getTelegramSentIds([item.id]);
   if (sent.has(item.id)) {
     return;
   }
@@ -358,7 +353,7 @@ async function handleTelegramTask(env: WorkerEnv, parsedEnv: Env, item: Telegram
       disableNotification: parsedEnv.TELEGRAM_DISABLE_NOTIFICATIONS,
       ...(parsedEnv.TELEGRAM_MESSAGE_THREAD_ID && { messageThreadId: parsedEnv.TELEGRAM_MESSAGE_THREAD_ID }),
     });
-    await markTelegramSent(env.DB, item.id, messageId, new Date().toISOString());
+    await meta.markTelegramSent(item.id, messageId, new Date().toISOString());
   } catch (error) {
     const err = error instanceof Error ? error.message : String(error);
     if (err.includes("429") || err.includes("Too Many Requests")) {
@@ -376,7 +371,7 @@ function slotKeyUTC(d: Date): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${day}-${hour}`;
 }
 
-async function maybeTriggerPagesDeploy(env: WorkerEnv, parsedEnv: Env): Promise<void> {
+async function maybeTriggerPagesDeploy(env: WorkerEnv, parsedEnv: Env, meta: MetaStore): Promise<void> {
   if (!parsedEnv.PAGES_DEPLOY_ENABLE) {
     return;
   }
@@ -393,7 +388,7 @@ async function maybeTriggerPagesDeploy(env: WorkerEnv, parsedEnv: Env): Promise<
 
   const schedule = buildScheduleForDate(now, target);
   const slot = slotKeyUTC(now);
-  const state = await getPagesDeployState(env.DB, PAGES_KEY);
+  const state = await meta.getPagesDeployState(PAGES_KEY);
   const sameMonth = state?.monthKey === schedule.monthKey;
   const used = sameMonth ? Math.max(0, state?.usedCount ?? 0) : 0;
   const lastSlot = sameMonth ? state?.lastSlot ?? undefined : undefined;
@@ -413,7 +408,7 @@ async function maybeTriggerPagesDeploy(env: WorkerEnv, parsedEnv: Env): Promise<
     return;
   }
 
-  await setPagesDeployState(env.DB, PAGES_KEY, schedule.monthKey, used + 1, slot, new Date().toISOString());
+  await meta.setPagesDeployState(PAGES_KEY, schedule.monthKey, used + 1, slot, new Date().toISOString());
   log.info("worker/pages", "Triggered Pages deploy", {
     month: schedule.monthKey,
     used: used + 1,
@@ -438,26 +433,22 @@ export default {
     const nowISO = new Date().toISOString();
     const cryptoObj = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
     const owner = typeof cryptoObj?.randomUUID === "function" ? cryptoObj.randomUUID() : `run-${Date.now()}`;
-    const hasLock = await acquireRunLock(env.DB, LOCK_KEY, nowISO, LOCK_TTL_MS, owner);
+    const meta = createD1MetaStore(env.DB);
+    const hasLock = await meta.acquireRunLock(LOCK_KEY, nowISO, LOCK_TTL_MS, owner);
     if (!hasLock) {
       log.warn("worker/cron", "Run skipped: lock held", { owner });
       return;
     }
 
     const store = createWorkerStore(env.DATA_BUCKET);
-    const meta = createD1MetaStore(env.DB);
     const fetchServices = makeFetchServices(parsedEnv);
-    const cronTimeout = Math.max(1_000, parsedEnv.WORKER_CRON_TIMEOUT_MS);
+    const cronTimeout = Math.max(1000, parsedEnv.WORKER_CRON_TIMEOUT_MS);
     const queue = env.TASKS;
 
     const startedAt = Date.now();
     const index = await withTimeout(fetchMain(fetchServices, store, meta), cronTimeout - TIMEOUT_BUFFER_MS, "fetch-main");
-    await upsertStoriesFromStore(env.DB, store, index.storyIds, nowISO);
-    if (queue) {
-      await enqueueSummaries(queue, await selectSummarizeIds(env, parsedEnv, store, index.storyIds, nowISO));
-    } else {
-      await processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, index.storyIds, nowISO);
-    }
+    await upsertStoriesFromStore(meta, store, index.storyIds, nowISO);
+    await (queue ? enqueueSummaries(queue, await selectSummarizeIds(env, meta, parsedEnv, store, index.storyIds, nowISO)) : processInlineSummaries(env, parsedEnv, store, meta, startedAt, cronTimeout, index.storyIds, nowISO));
 
     const elapsed = Date.now() - startedAt;
     if (elapsed + TIMEOUT_BUFFER_MS >= cronTimeout) {
@@ -465,8 +456,8 @@ export default {
       return;
     }
 
-    const processingUpdatedISO = await getProcessingUpdatedMax(env.DB);
-    const aggregateState = await getAggregateState(env.DB, AGG_KEY);
+    const processingUpdatedISO = await meta.getProcessingUpdatedMax();
+    const aggregateState = await meta.getAggregateState(AGG_KEY);
     const prevIndexISO = aggregateState?.indexUpdatedISO ?? null;
     const prevProcessingISO = aggregateState?.processingUpdatedISO ?? null;
     const nextProcessingISO = processingUpdatedISO ?? null;
@@ -475,13 +466,13 @@ export default {
     let aggregated: AggregatedFile | undefined;
 
     if (shouldAggregate) {
-      const fromDb = parsedEnv.AGGREGATE_FROM_DB === true;
+      const fromDb = parsedEnv.AGGREGATE_FROM_DB;
       aggregated = await withTimeout(
         aggregateMain(store, meta, fromDb ? { fromDb: true } : undefined),
         cronTimeout - elapsed,
         "aggregate"
       );
-      await setAggregateState(env.DB, AGG_KEY, index.updatedISO, nextProcessingISO, new Date().toISOString());
+      await meta.setAggregateState(AGG_KEY, index.updatedISO, nextProcessingISO, new Date().toISOString());
     } else {
       aggregated = (await store.getJson<AggregatedFile>(PATHS.aggregated)) ?? undefined;
       log.info("worker/cron", "Aggregate unchanged; skipping recompute", {
@@ -490,15 +481,11 @@ export default {
       });
     }
 
-    if (queue) {
-      await enqueueTelegramTasks(env, aggregated, parsedEnv);
-    } else {
-      await processInlineTelegram(env, parsedEnv, aggregated, startedAt, cronTimeout);
-    }
+    await (queue ? enqueueTelegramTasks(env, meta, aggregated, parsedEnv) : processInlineTelegram(env, parsedEnv, meta, aggregated, startedAt, cronTimeout));
 
     const remaining = cronTimeout - (Date.now() - startedAt) - TIMEOUT_BUFFER_MS;
     if (remaining > 1000) {
-      await maybeTriggerPagesDeploy(env, parsedEnv);
+      await maybeTriggerPagesDeploy(env, parsedEnv, meta);
     } else {
       log.warn("worker/cron", "Skipping Pages deploy due to cron budget", { remaining });
     }
@@ -508,14 +495,14 @@ export default {
     const parsedEnv = initEnv(env);
     const store = createWorkerStore(env.DATA_BUCKET);
     const meta = createD1MetaStore(env.DB);
-    const taskTimeout = Math.max(1_000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
+    const taskTimeout = Math.max(1000, parsedEnv.WORKER_QUEUE_TASK_TIMEOUT_MS);
     // Share TPD breaker across every summarize message in this queue batch. Cross-batch
     // persistence would need Durable Object / D1 state (out of Phase 3 scope); a new
     // batch still starts clean, matching "new run starts clean".
     const commentsTpdExhaustedModels = new Set<string>();
 
     for (const message of batch.messages) {
-      const body = message.body;
+      const {body} = message;
       if (!body || typeof body !== "object") {
         continue;
       }
@@ -526,7 +513,7 @@ export default {
           `summarize:${body.id}`
         );
       } else if (body.kind === "telegram") {
-        await withTimeout(handleTelegramTask(env, parsedEnv, body.item), taskTimeout, `telegram:${body.item.id}`);
+        await withTimeout(handleTelegramTask(env, parsedEnv, meta, body.item), taskTimeout, `telegram:${body.item.id}`);
       }
     }
   },

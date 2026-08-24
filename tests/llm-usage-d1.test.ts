@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { Miniflare } from "miniflare";
 
-import { getLlmUsageSummary, insertLlmUsage } from "../worker/src/d1.ts";
+import { createD1MetaStore } from "../worker/src/d1-meta-store";
 
 import type { LlmUsageRow } from "../utils/meta-store.ts";
 
@@ -31,12 +31,13 @@ describe("D1 llm_usage helpers", () => {
     try {
       const db = await mf.getD1Database("DB");
       await initUsageDb(db);
+      const meta = createD1MetaStore(db);
 
       // Empty batch is a no-op.
-      await insertLlmUsage(db, []);
-      await insertLlmUsage(db, ROWS);
+      await meta.insertLlmUsage([]);
+      await meta.insertLlmUsage(ROWS);
 
-      const summary = await getLlmUsageSummary(db);
+      const summary = await meta.getLlmUsageSummary();
 
       const post = summary.find((r) => r.label === "post");
       expect(post).toEqual({

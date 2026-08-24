@@ -8,7 +8,8 @@ import { pathFor } from "../config/paths";
 import { buildAggregatedItem, fallbackFromRaw, readAggregates } from "../pipeline/aggregate";
 import { renderTooFewCommentsFallback } from "../utils/comments-render";
 import { createFsStore } from "../utils/fs-store";
-import { getAggregatedItemsD1 } from "../utils/meta-aggregated-load-d1";
+import { getAggregatedItemsOverDriver } from "../utils/meta-aggregated-load";
+import { createD1Driver } from "../utils/sql-driver";
 import { makeEnCommentsInsights } from "./helpers/comments-insights.ts";
 
 import { comment, story, withTempDir } from "./helpers";
@@ -59,11 +60,13 @@ async function loadSqliteComments(
   stories: StoryRow[],
   summaries: SummaryRow[]
 ): Promise<Map<number, string | undefined>> {
-  const loaderUrl = pathToFileURL(join(process.cwd(), "utils/meta-aggregated-load-sqlite.ts")).href;
+  const loaderUrl = pathToFileURL(join(process.cwd(), "utils/meta-aggregated-load.ts")).href;
+  const driverUrl = pathToFileURL(join(process.cwd(), "utils/sql-driver.ts")).href;
   const envUrl = pathToFileURL(join(process.cwd(), "config/env.ts")).href;
   const script = `
     import { DatabaseSync } from "node:sqlite";
-    import { getAggregatedItemsSqlite } from ${JSON.stringify(loaderUrl)};
+    import { getAggregatedItemsOverDriver } from ${JSON.stringify(loaderUrl)};
+    import { createNodeSqliteDriver } from ${JSON.stringify(driverUrl)};
     import { env } from ${JSON.stringify(envUrl)};
     const stories = JSON.parse(process.argv[1]);
     const summaries = JSON.parse(process.argv[2]);
@@ -85,7 +88,8 @@ async function loadSqliteComments(
     for (const row of summaries) {
       insertSummary.run(row.story_id, row.kind, env.SUMMARY_LANG, row.summary);
     }
-    const items = getAggregatedItemsSqlite(db, stories.map((row) => row.id));
+    const driver = createNodeSqliteDriver(db);
+    const items = await getAggregatedItemsOverDriver(driver, stories.map((row) => row.id));
     db.close();
     process.stdout.write(JSON.stringify(items.map((item) => [item.id, item.commentsSummary])));
   `;
@@ -202,7 +206,10 @@ describe("comments summary aggregation parity", () => {
     }));
 
     const expected = commentsById(fsItems);
-    const d1Items = await getAggregatedItemsD1(fakeD1(storyRows, summaryRows), storyRows.map((row) => row.id));
+    const d1Items = await getAggregatedItemsOverDriver(
+      createD1Driver(fakeD1(storyRows, summaryRows)),
+      storyRows.map((row) => row.id)
+    );
     const sqliteComments = await loadSqliteComments(storyRows, summaryRows);
 
     expect(expected).toEqual(
@@ -259,7 +266,7 @@ describe("comments summary aggregation parity", () => {
         summary: commentsSummary.summary,
       },
     ];
-    const d1Items = await getAggregatedItemsD1(fakeD1(storyRows, summaryRows), [801]);
+    const d1Items = await getAggregatedItemsOverDriver(createD1Driver(fakeD1(storyRows, summaryRows)), [801]);
     expect(d1Items[0]?.commentsInsights).toBeUndefined();
 
     const sqliteComments = await loadSqliteComments(storyRows, summaryRows);

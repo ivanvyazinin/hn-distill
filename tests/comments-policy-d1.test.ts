@@ -2,13 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { Miniflare } from "miniflare";
 
-import {
-  getCommentsPolicyState,
-  getCommentsPolicyStates,
-  listPendingStoryIds,
-  upsertProcessingState,
-  upsertStory,
-} from "../worker/src/d1.ts";
+import { createD1MetaStore } from "../worker/src/d1-meta-store";
 
 import type { NormalizedStory } from "../config/schemas.ts";
 
@@ -45,8 +39,10 @@ function story(id: number): NormalizedStory {
   };
 }
 
+type MetaStoreOfType = ReturnType<typeof createD1MetaStore>;
+
 async function insertState(
-  db: Awaited<ReturnType<Miniflare["getD1Database"]>>,
+  meta: MetaStoreOfType,
   storyId: number,
   options: {
     commentsStatus?: "error" | "missing" | "ok";
@@ -54,7 +50,7 @@ async function insertState(
     updatedAt?: string;
   } = {}
 ): Promise<void> {
-  await upsertProcessingState(db, storyId, {
+  await meta.upsertProcessingState(storyId, {
     postStatus: "ok",
     commentsStatus: options.commentsStatus ?? "ok",
     tagsStatus: "ok",
@@ -70,21 +66,22 @@ describe("D1 comments policy helpers", () => {
     try {
       const db = await mf.getD1Database("DB");
       await initPolicyDb(db);
+      const meta = createD1MetaStore(db);
       for (let id = 1; id <= 8; id++) {
-        await upsertStory(db, story(id), id - 1, id === 6 ? ARCHIVE_FETCH_ISO : CURRENT_FETCH_ISO);
+        await meta.upsertStory(story(id), id - 1, id === 6 ? ARCHIVE_FETCH_ISO : CURRENT_FETCH_ISO);
       }
 
-      await insertState(db, 1, { policyVersion: "2" });
-      await insertState(db, 2, { policyVersion: "1" });
-      await insertState(db, 3);
-      await insertState(db, 4, { commentsStatus: "error", policyVersion: "2" });
-      await insertState(db, 5, { policyVersion: "1", updatedAt: FRESH_STATE_ISO });
-      await insertState(db, 6, { policyVersion: "1" });
+      await insertState(meta, 1, { policyVersion: "2" });
+      await insertState(meta, 2, { policyVersion: "1" });
+      await insertState(meta, 3);
+      await insertState(meta, 4, { commentsStatus: "error", policyVersion: "2" });
+      await insertState(meta, 5, { policyVersion: "1", updatedAt: FRESH_STATE_ISO });
+      await insertState(meta, 6, { policyVersion: "1" });
       // Story 7 has no processing row and is immediately eligible.
-      await insertState(db, 8, { commentsStatus: "missing", policyVersion: "2", updatedAt: FRESH_STATE_ISO });
+      await insertState(meta, 8, { commentsStatus: "missing", policyVersion: "2", updatedAt: FRESH_STATE_ISO });
 
-      expect(await listPendingStoryIds(db, 20, CUTOFF_ISO, CURRENT_FETCH_ISO, "2")).toEqual([2, 3, 4, 7]);
-      expect(await listPendingStoryIds(db, 2, CUTOFF_ISO, CURRENT_FETCH_ISO, "2")).toEqual([2, 3]);
+      expect(await meta.listPendingStoryIds(20, CUTOFF_ISO, CURRENT_FETCH_ISO, "2")).toEqual([2, 3, 4, 7]);
+      expect(await meta.listPendingStoryIds(2, CUTOFF_ISO, CURRENT_FETCH_ISO, "2")).toEqual([2, 3]);
     } finally {
       await mf.dispose();
     }
@@ -95,10 +92,11 @@ describe("D1 comments policy helpers", () => {
     try {
       const db = await mf.getD1Database("DB");
       await initPolicyDb(db);
-      await upsertStory(db, story(10), 0, CURRENT_FETCH_ISO);
-      await upsertStory(db, story(11), 1, CURRENT_FETCH_ISO);
+      const meta = createD1MetaStore(db);
+      await meta.upsertStory(story(10), 0, CURRENT_FETCH_ISO);
+      await meta.upsertStory(story(11), 1, CURRENT_FETCH_ISO);
 
-      await upsertProcessingState(db, 10, {
+      await meta.upsertProcessingState(10, {
         postStatus: "ok",
         commentsStatus: "ok",
         tagsStatus: "ok",
@@ -106,32 +104,32 @@ describe("D1 comments policy helpers", () => {
         commentsPolicyVersion: "2",
         commentsInputHash: "hash-v2",
       });
-      expect(await getCommentsPolicyState(db, 10)).toEqual({
+      expect(await meta.getCommentsPolicyState(10)).toEqual({
         commentsPolicyVersion: "2",
         commentsInputHash: "hash-v2",
         updatedAt: OLD_STATE_ISO,
       });
-      expect(await getCommentsPolicyState(db, 999)).toBeUndefined();
-      expect((await getCommentsPolicyStates(db, [])).size).toBe(0);
+      expect(await meta.getCommentsPolicyState(999)).toBeUndefined();
+      expect((await meta.getCommentsPolicyStates([])).size).toBe(0);
 
-      const firstBatch = await getCommentsPolicyStates(db, [10, 10, 11, 999]);
+      const firstBatch = await meta.getCommentsPolicyStates([10, 10, 11, 999]);
       expect(firstBatch.size).toBe(1);
       expect(firstBatch.get(10)?.commentsInputHash).toBe("hash-v2");
 
-      await upsertProcessingState(db, 10, {
+      await meta.upsertProcessingState(10, {
         postStatus: "ok",
         commentsStatus: "error",
         tagsStatus: "ok",
         updatedAt: FRESH_STATE_ISO,
         error: "temporary generation failure",
       });
-      expect(await getCommentsPolicyState(db, 10)).toEqual({
+      expect(await meta.getCommentsPolicyState(10)).toEqual({
         commentsPolicyVersion: "2",
         commentsInputHash: "hash-v2",
         updatedAt: FRESH_STATE_ISO,
       });
 
-      await upsertProcessingState(db, 10, {
+      await meta.upsertProcessingState(10, {
         postStatus: "ok",
         commentsStatus: "ok",
         tagsStatus: "ok",
@@ -139,7 +137,7 @@ describe("D1 comments policy helpers", () => {
         commentsPolicyVersion: "3",
         commentsInputHash: "hash-v3",
       });
-      const finalState = await getCommentsPolicyStates(db, [10]);
+      const finalState = await meta.getCommentsPolicyStates([10]);
       expect(finalState.get(10)).toEqual({
         commentsPolicyVersion: "3",
         commentsInputHash: "hash-v3",
