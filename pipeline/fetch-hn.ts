@@ -308,17 +308,31 @@ type SeenCacheShape = Record<
   }
 >;
 
-async function migrateCache(raw: unknown): Promise<SeenCacheShape> {
-  const migrated: SeenCacheShape = {};
+/**
+ * Whole-file view of the seen cache. Foreign top-level namespaces (e.g. the
+ * telegram digest state written by scripts/publish-telegram.mts) are preserved
+ * verbatim through read→write cycles instead of being dropped by migration.
+ */
+export type SeenCacheFile = {
+  entries: SeenCacheShape;
+  extras: Record<string, unknown>;
+};
+
+function migrateCache(raw: unknown): SeenCacheFile {
+  const entries: SeenCacheShape = {};
+  const extras: Record<string, unknown> = {};
   if (typeof raw !== "object" || raw === null) {
-    return migrated;
+    return { entries, extras };
   }
   for (const key of Object.keys(raw as Record<string, unknown>)) {
+    const value = (raw as Record<string, unknown>)[key];
     const storyId = Number(key);
     if (Number.isNaN(storyId)) {
+      // Not a story entry (e.g. "telegram"): hand back untouched on write.
+      extras[key] = value;
       continue;
     }
-    const entry = (raw as Record<string, unknown>)[key] as
+    const entry = value as
       | {
           seenTopLevel?: number[];
           seenKids?: number[];
@@ -329,12 +343,12 @@ async function migrateCache(raw: unknown): Promise<SeenCacheShape> {
     const seenTopLevel: number[] = entry?.seenTopLevel ?? entry?.seenKids ?? [];
     const seenByDepth: Record<string, number[]> = entry?.seenByDepth ?? {};
     const updatedISO: string = typeof entry?.updatedISO === "string" ? entry.updatedISO : new Date(0).toISOString();
-    migrated[storyId] = { seenTopLevel, seenByDepth, updatedISO };
+    entries[storyId] = { seenTopLevel, seenByDepth, updatedISO };
   }
-  return migrated;
+  return { entries, extras };
 }
 
-export async function readSeenCache(store: ObjectStore, p: string = PATHS.seenCache): Promise<SeenCacheShape> {
+export async function readSeenCache(store: ObjectStore, p: string = PATHS.seenCache): Promise<SeenCacheFile> {
   const rawCache = await readJsonSafeOrStore<Record<string, unknown>>(store, p, z.record(z.unknown()), {});
   return migrateCache(rawCache);
 }
@@ -511,7 +525,8 @@ export async function main(
   const services = servicesOverride ?? makeServices(env);
   const runTimestamp = new Date().toISOString();
 
-  const seenCache = await readSeenCache(store);
+  const seenCacheFile = await readSeenCache(store);
+  const seenCache = seenCacheFile.entries;
   const seenCacheExists = (await store.getText(PATHS.seenCache)) !== null;
   let seenCacheChanged = false;
 
@@ -632,7 +647,10 @@ export async function main(
 
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
   if (seenCacheChanged || !seenCacheExists) {
-    await store.putJson(PATHS.seenCache, seenCache, { pretty: true, contentType: "application/json" });
+    await store.putJson(PATHS.seenCache, { ...seenCacheFile.extras, ...seenCache }, {
+      pretty: true,
+      contentType: "application/json",
+    });
   }
 
   return indexPayload;
