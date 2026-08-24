@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { PATHS } from "@config/paths";
 import { log } from "@utils/log";
-import { sanitizePostSummaryDb } from "@utils/meta-aggregated-batch";
+import { sanitizePostSummaryForPublish } from "@utils/meta-aggregated-batch";
 import { recordDrop, reportDrops, resetDrops } from "@utils/summary-drops";
 import { withEnvPatch } from "./helpers";
 
@@ -49,7 +49,7 @@ describe("summary drop reporting", () => {
     // POST_SUMMARY_MIN_CHARS would decide whether this text drops at all.
     const warns = await captureWarns(async () => {
       await withEnvPatch({ POST_SUMMARY_MIN_CHARS: 200, SUMMARY_LANG: "ru" }, async () => {
-        expect(sanitizePostSummaryDb("Коротко.", { id: 501 })).toBeUndefined();
+        expect(sanitizePostSummaryForPublish("Коротко.", { id: 501 })).toBeUndefined();
       });
       await reportDrops(store);
     });

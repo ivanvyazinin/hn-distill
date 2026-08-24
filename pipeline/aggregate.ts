@@ -28,10 +28,14 @@ import { HN } from "@utils/hn";
 import { log } from "@utils/log";
 import { compressedStateFor } from "@utils/comments-compress";
 import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@utils/comments-render";
-import { presentCommentsSummary, resolveCommentsSummary } from "@utils/meta-aggregated-batch";
+import {
+  presentCommentsSummary,
+  resolveCommentsSummary,
+  sanitizePostSummaryForPublish,
+  type PostSummaryGuardPersisted,
+} from "@utils/meta-aggregated-batch";
 import { readJsonSafe, readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
-import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heuristics";
-import { recordDrop, reportDrops, resetDrops } from "@utils/summary-drops";
+import { reportDrops, resetDrops } from "@utils/summary-drops";
 
 import type { MetaStore } from "@utils/meta-store";
 
@@ -40,22 +44,6 @@ type Services = {
 };
 
 
-const DROP_SUMMARY_REASONS = new Set([
-  "empty",
-  "too_short",
-  "too_few_words",
-  "refusal",
-  "apology",
-  "policy",
-  "artifact",
-  "bullets_only",
-  "meta_instructions",
-  "redirects_to_article",
-  "content_free",
-  "repetition_run",
-  "low_unique_ratio",
-  "url_encoded_noise",
-]);
 
 export function makeServices(): Services {
   return {};
@@ -154,7 +142,10 @@ export function buildAggregatedItem(
       ? presentCommentsSummary(rawCommentsSummary)
       : undefined;
   const postGuard = (postSummary as { guard?: PostSummaryGuardPersisted } | undefined)?.guard;
-  const cleanedPostSummary = sanitizePostSummary(rawPostSummary, postGuard, { id: story.id });
+  const cleanedPostSummary = sanitizePostSummaryForPublish(rawPostSummary, {
+    id: story.id,
+    ...(postGuard ? { guard: postGuard } : {}),
+  });
 
   let commentsInsights: AggregatedItem["commentsInsights"];
   let compressedCommentsSummary: string | undefined;
@@ -197,65 +188,6 @@ export function buildAggregatedItem(
   };
 }
 
-const POST_SUMMARY_ARTIFACT = "<｜begin▁of▁sentence｜>";
-
-type PostSummaryGuardPersisted = {
-  ok?: boolean;
-  verdict?: string;
-  reasons?: string[];
-  confidence?: number;
-};
-
-function sanitizePostSummary(
-  summary: string | undefined,
-  guard: PostSummaryGuardPersisted | undefined,
-  context: { id: number }
-): string | undefined {
-  if (!summary) {
-    return summary;
-  }
-  const cleaned = summary.replaceAll(POST_SUMMARY_ARTIFACT, "").trim();
-  if (cleaned.length === 0) {
-    return undefined;
-  }
-
-  if (guard && guard.ok === false) {
-    log.debug("aggregate", "Dropping summary flagged by guard", {
-      id: context.id,
-      verdict: guard.verdict,
-      reasons: guard.reasons,
-    });
-    recordDrop({
-      id: context.id,
-      stage: "guard",
-      reasons: guard.verdict === undefined ? ["guard"] : [guard.verdict],
-    });
-    return undefined;
-  }
-
-  const heuristics = checkSummaryHeuristics(cleaned, {
-    minChars: env.POST_SUMMARY_MIN_CHARS,
-    language: env.SUMMARY_LANG,
-    kind: "post",
-    languageGate: languageGateFromEnv(env),
-  });
-  const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS.has(trigger.reason));
-  if (blocking.length > 0) {
-    const reasons = blocking.map((t) => t.reason);
-    log.debug("aggregate", "Dropping summary after heuristics", { id: context.id, triggers: reasons });
-    recordDrop({ id: context.id, stage: "heuristics", reasons });
-    return undefined;
-  }
-
-  if (!heuristics.ok) {
-    log.info("aggregate", "Summary passed with non-blocking triggers", {
-      id: context.id,
-      triggers: heuristics.triggers.map((t) => t.reason),
-    });
-  }
-
-  return cleaned;
-}
 
 export async function readAggregates(storyIds: number[], store: ObjectStore): Promise<AggregatedItem[]> {
   const gate = engagementThresholdsFromEnv();
@@ -416,10 +348,9 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
     sorted = merged.sort(sortItemsDesc);
   }
 
+  // Both branches above already filtered by isSitePublishable; this pass only
+  // validates the schema.
   const safeItems = sorted.filter((it) => {
-    if (!isSitePublishable(it, gate)) {
-      return false;
-    }
     try {
       AggregatedItemSchema.parse(it);
       return true;

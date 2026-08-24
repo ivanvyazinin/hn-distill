@@ -6,44 +6,82 @@ import { checkSummaryHeuristics, languageGateFromEnv } from "@utils/summary-heur
 
 import type { AggregatedItem } from "@config/schemas";
 
-const DROP_SUMMARY_REASONS = new Set([
-  "empty",
-  "too_short",
-  "too_few_words",
-  "refusal",
-  "apology",
-  "policy",
-  "artifact",
-  "bullets_only",
-  "meta_instructions",
-  "redirects_to_article",
-  "content_free",
-  "repetition_run",
-  "low_unique_ratio",
-  "url_encoded_noise",
-]);
+const DROP_SUMMARY_REASONS: Record<string, true> = {
+  empty: true,
+  too_short: true,
+  too_few_words: true,
+  refusal: true,
+  apology: true,
+  policy: true,
+  artifact: true,
+  bullets_only: true,
+  meta_instructions: true,
+  redirects_to_article: true,
+  content_free: true,
+  repetition_run: true,
+  low_unique_ratio: true,
+  url_encoded_noise: true,
+};
 
-export function sanitizePostSummaryDb(summary: string | undefined, context: { id: number }): string | undefined {
+const POST_SUMMARY_ARTIFACT = "<｜begin▁of▁sentence｜>";
+
+export type PostSummaryGuardPersisted = {
+  ok?: boolean;
+  verdict?: string;
+  reasons?: string[];
+  confidence?: number;
+};
+
+// Single publish-time sanitizer for both aggregation branches (object-store
+// files and DB rows): strips artifacts, applies the guard veto, then heuristics.
+export function sanitizePostSummaryForPublish(
+  summary: string | undefined,
+  options: { id: number; guard?: PostSummaryGuardPersisted }
+): string | undefined {
   if (summary === undefined || summary.length === 0) {
     return undefined;
   }
-  const cleaned = summary.replaceAll("\uFFFD", "").trim();
+  const cleaned = summary.replaceAll(POST_SUMMARY_ARTIFACT, "").replaceAll("\uFFFD", "").trim();
   if (cleaned.length === 0) {
     return undefined;
   }
+
+  const { id, guard } = options;
+  if (guard && guard.ok === false) {
+    log.debug("aggregate", "Dropping summary flagged by guard", {
+      id,
+      verdict: guard.verdict,
+      reasons: guard.reasons,
+    });
+    recordDrop({
+      id,
+      stage: "guard",
+      reasons: guard.verdict === undefined ? ["guard"] : [guard.verdict],
+    });
+    return undefined;
+  }
+
   const heuristics = checkSummaryHeuristics(cleaned, {
     minChars: env.POST_SUMMARY_MIN_CHARS,
     language: env.SUMMARY_LANG,
     kind: "post",
     languageGate: languageGateFromEnv(env),
   });
-  const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS.has(trigger.reason));
+  const blocking = heuristics.triggers.filter((trigger) => DROP_SUMMARY_REASONS[trigger.reason] === true);
   if (blocking.length > 0) {
     const reasons = blocking.map((t) => t.reason);
-    log.debug("aggregate", "Dropping summary after heuristics", { id: context.id, triggers: reasons });
-    recordDrop({ id: context.id, stage: "heuristics", reasons });
+    log.debug("aggregate", "Dropping summary after heuristics", { id, triggers: reasons });
+    recordDrop({ id, stage: "heuristics", reasons });
     return undefined;
   }
+
+  if (!heuristics.ok) {
+    log.info("aggregate", "Summary passed with non-blocking triggers", {
+      id,
+      triggers: heuristics.triggers.map((t) => t.reason),
+    });
+  }
+
   return cleaned;
 }
 
@@ -99,7 +137,7 @@ export function buildAggregatedItemsFromRows(
   for (const story of stories) {
     const sum = summaries.get(story.id);
     const tags = [...new Set(tagsByStory.get(story.id) ?? [])];
-    const postSummary = sanitizePostSummaryDb(sum?.post, { id: story.id });
+    const postSummary = sanitizePostSummaryForPublish(sum?.post, { id: story.id });
     items.push({
       id: story.id,
       title: story.title,

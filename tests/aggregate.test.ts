@@ -11,6 +11,8 @@ import {
 } from "./helpers";
 import { writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
+import { buildAggregatedItemsFromRows } from "@utils/meta-aggregated-batch";
+import { resetDrops } from "@utils/summary-drops";
 import type { AggregatedItem, NormalizedComment, NormalizedStory, PostSummary } from "@config/schemas";
 import { SCORE_MIN_AGGREGATE } from "@config/constants";
 
@@ -449,6 +451,64 @@ describe("Aggregation & grouping", () => {
       const itemD: AggregatedItem = aggItem({ id: 4, title: "D", by: "d", timeISO: "invalid-date-2" });
       const sortedInvalid = [itemC, itemD].sort(sortItemsDesc);
       expect(sortedInvalid.map((it) => it.title)).toEqual(["D", "C"]); // by id desc
+    });
+  });
+
+  // Fix 0.2: one canonical sanitizer must decide identically on both branches
+  // (object-store files via buildAggregatedItem, DB rows via
+  // buildAggregatedItemsFromRows) — otherwise AGGREGATE_FROM_DB flips the site.
+  test("post-summary sanitizer parity: FS and DB paths agree", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      // mockPaths must precede this module's load: it reads PATHS at import time.
+      const { buildAggregatedItem } = await import("@scripts/aggregate.mts");
+
+      resetDrops();
+
+      const tooShort = "Коротко.";
+      const withUrl =
+        `${PUBLISHABLE_RU} Полный разбор опубликован на https://example.com/article с таблицами и графиками.`;
+      const guardFailed = {
+        summary: PUBLISHABLE_RU,
+        guard: { ok: false, verdict: "not_article", reasons: ["not_article"] },
+      } satisfies Partial<PostSummary>;
+
+      const fsItemFor = (id: number, postSummary: unknown) =>
+        buildAggregatedItem(makeStory({ id, url: null, score: 150, commentIds: [] }), [], postSummary, void 0, void 0);
+
+      const dbItems = buildAggregatedItemsFromRows(
+        [901, 902, 903].map((id) => ({
+          id,
+          title: `story-${id}`,
+          url: null,
+          by: "t",
+          timeISO: TEST_ISO,
+          score: 150,
+          descendants: 5,
+        })),
+        new Map([
+          [901, { post: tooShort }],
+          [902, { post: withUrl }],
+          [903, { post: PUBLISHABLE_RU }],
+        ]),
+        new Map()
+      );
+
+      const fsTooShort = fsItemFor(901, { summary: tooShort });
+      const dbTooShort = dbItems.find((it) => it.id === 901);
+      expect(fsTooShort.postSummary).toBeUndefined();
+      expect(dbTooShort?.postSummary).toBeUndefined();
+
+      // contains_url is a non-blocking trigger: the summary survives both paths.
+      const fsWithUrl = fsItemFor(902, { summary: withUrl });
+      const dbWithUrl = dbItems.find((it) => it.id === 902);
+      expect(fsWithUrl.postSummary).toBe(withUrl);
+      expect(dbWithUrl?.postSummary).toBe(fsWithUrl.postSummary);
+
+      // The guard veto fires only where a guard is actually passed (FS path).
+      const fsGuarded = fsItemFor(903, guardFailed);
+      expect(fsGuarded.postSummary).toBeUndefined();
+      expect(dbItems.find((it) => it.id === 903)?.postSummary).toBe(PUBLISHABLE_RU);
     });
   });
 });

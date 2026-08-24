@@ -13,8 +13,8 @@ import type { ObjectStore } from "@utils/object-store";
  * line, so "three new drops" is visible instead of hiding inside five hundred.
  *
  * Both aggregation paths feed this: the object-store one (readAggregates) and
- * the DB one (sanitizePostSummaryDb), which is what production actually runs
- * with AGGREGATE_FROM_DB=true.
+ * the DB one (buildAggregatedItemsFromRows), which is what production actually
+ * runs with AGGREGATE_FROM_DB=true.
  */
 export type DropRecord = { id: number; stage: "guard" | "heuristics"; reasons: string[] };
 
