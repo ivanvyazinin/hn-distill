@@ -10,13 +10,15 @@ import {
   type NormalizedComment,
   type NormalizedStory,
 } from "@config/schemas";
+import { toDateKeyUTC } from "@utils/date-keys";
 import { HN } from "@utils/hn";
 import { HttpClient } from "@utils/http-client";
 import { log } from "@utils/log";
-import type { MetaStore } from "@utils/meta-store";
+import { createNoopMetaStore } from "@utils/noop-meta-store";
 import { readJsonSafe, readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
-import { toDateKeyUTC } from "@utils/date-keys";
 import { clamp, htmlToPlain } from "@utils/text";
+
+import type { MetaStore } from "@utils/meta-store";
 
 export type Services = {
   http: HttpClient;
@@ -600,34 +602,33 @@ export async function main(
     )
   );
 
+  const metaStore = meta ?? createNoopMetaStore();
   for (const s of stories) {
     await store.putJson(pathFor.rawItem(s.id), s, { pretty: true, contentType: "application/json" });
     const comments = commentsByStory[s.id] ?? [];
     await store.putJson(pathFor.rawComments(s.id), comments, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      const rank = topIds.indexOf(s.id);
-      await meta.upsertStory(s, rank >= 0 ? rank : stories.indexOf(s), runTimestamp);
-      await meta.upsertRawBlob({
+    const rank = topIds.indexOf(s.id);
+    await metaStore.upsertStory(s, rank >= 0 ? rank : stories.indexOf(s), runTimestamp);
+    await metaStore.upsertRawBlob({
+      storyId: s.id,
+      kind: "item",
+      ref: pathFor.rawItem(s.id),
+      fetchedAt: runTimestamp,
+    });
+    await metaStore.upsertRawBlob({
+      storyId: s.id,
+      kind: "comments",
+      ref: pathFor.rawComments(s.id),
+      fetchedAt: runTimestamp,
+    });
+    if (env.TOP_N_MODE === "daily-top-by-score") {
+      await metaStore.upsertDailyRanking({
+        day: toDateKeyUTC(s.timeISO),
         storyId: s.id,
-        kind: "item",
-        ref: pathFor.rawItem(s.id),
-        fetchedAt: runTimestamp,
+        rank: Math.max(rank, 0),
+        ...(typeof s.score === "number" ? { score: s.score } : {}),
+        mode: env.TOP_N_MODE,
       });
-      await meta.upsertRawBlob({
-        storyId: s.id,
-        kind: "comments",
-        ref: pathFor.rawComments(s.id),
-        fetchedAt: runTimestamp,
-      });
-      if (env.TOP_N_MODE === "daily-top-by-score") {
-        await meta.upsertDailyRanking({
-          day: toDateKeyUTC(s.timeISO),
-          storyId: s.id,
-          rank: rank >= 0 ? rank : 0,
-          ...(typeof s.score === "number" ? { score: s.score } : {}),
-          mode: env.TOP_N_MODE,
-        });
-      }
     }
   }
 

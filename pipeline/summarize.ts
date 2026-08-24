@@ -20,7 +20,6 @@ import {
   isCloudflareChallengeError,
   looksLikeCloudflareChallenge,
 } from "@utils/article-fetch";
-import { passesEngagementGate } from "@utils/engagement-gate";
 import {
   buildCommentsCompressUserPrompt,
   compressedStateFor,
@@ -48,13 +47,15 @@ import {
   isSubstantiveComment,
 } from "@utils/comments-thread";
 import { decodeText, looksLikeHtml, looksLikePdf } from "@utils/content-detect";
+import { passesEngagementGate } from "@utils/engagement-gate";
 import { assessExtractQuality } from "@utils/extract-quality";
 import { sha256Hex } from "@utils/hash";
 import { extractArticleMd } from "@utils/html-to-md";
 import { HttpClient, HttpError } from "@utils/http-client";
-import { log } from "@utils/log";
-import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 import { createUsageCollector, type UsageCollector } from "@utils/llm-usage";
+import { log } from "@utils/log";
+import { createNoopMetaStore } from "@utils/noop-meta-store";
+import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
 import { runSummaryGuard, type SummaryGuardResult } from "@utils/summary-guard";
 import {
@@ -82,6 +83,7 @@ import {
   postSelectionChanged,
   type ExtractDetectorPolicy,
 } from "./staleness";
+
 
 import type { MetaStore } from "@utils/meta-store";
 import type { ObjectStore } from "@utils/object-store";
@@ -1778,13 +1780,17 @@ export async function getOrFetchArticleMarkdown(
   }
   const path = pathFor.articleMd(story.id);
   const cached = await store.getText(path);
+  // A REAL store participates in decisions (legacy-cache refetch, verdict
+  // re-evaluation); a Noop only absorbs the writes. Normalize after capturing.
+  const hasRealMeta = meta !== undefined;
+  const metaStore = meta ?? createNoopMetaStore();
   if (cached?.trim()) {
-    const extract = meta ? await meta.getArticleExtract(story.id) : undefined;
+    const extract = await metaStore.getArticleExtract(story.id);
     // Legacy cache: written before Readability extraction landed (no sourceKind
     // recorded). Re-fetch once so the article is re-extracted through Readability +
     // detector. Works for both FS (local) and R2 (worker); the re-fetch overwrites
     // the cached blob in place, so no separate cache-invalidation step is needed.
-    const isLegacyCache = meta !== undefined && extract?.sourceKind === undefined;
+    const isLegacyCache = hasRealMeta && extract?.sourceKind === undefined;
     if (!isLegacyCache) {
       log.debug(LOG_NAMESPACE_ARTICLE, "Using cached content", { id: story.id, path });
       let extractStatus = extract?.status ?? undefined;
@@ -1792,10 +1798,10 @@ export async function getOrFetchArticleMarkdown(
         // Re-run the detector with the CURRENT thresholds so tuning takes effect on
         // cached extracts without a re-fetch (a cached verdict alone would be stale).
         extractStatus = detectHtmlExtractStatus(cached);
-        if (meta && extractStatus !== extract.status) {
+        if (extractStatus !== extract.status) {
           // This is only a local verdict re-evaluation; the underlying bytes were
           // not fetched again, so preserve their original fetchedAt provenance.
-          await meta.upsertArticleExtract({ ...extract, status: extractStatus });
+          await metaStore.upsertArticleExtract({ ...extract, status: extractStatus });
         }
       }
       return { md: cached, ...(extractStatus === undefined ? {} : { extractStatus }) };
@@ -1855,24 +1861,22 @@ export async function getOrFetchArticleMarkdown(
       }
     }
     await store.putText(path, text, { contentType: "text/markdown" });
-    if (meta) {
-      const fetchedAt = new Date().toISOString();
-      await meta.upsertRawBlob({
-        storyId: story.id,
-        kind: "article",
-        ref: path,
-        sizeBytes: text.length,
-        fetchedAt,
-      });
-      await meta.upsertArticleExtract({
-        storyId: story.id,
-        status: extractStatus,
-        sourceKind: finalSourceKind,
-        charCount: text.length,
-        rawArticleRef: path,
-        fetchedAt,
-      });
-    }
+    const fetchedAt = new Date().toISOString();
+    await metaStore.upsertRawBlob({
+      storyId: story.id,
+      kind: "article",
+      ref: path,
+      sizeBytes: text.length,
+      fetchedAt,
+    });
+    await metaStore.upsertArticleExtract({
+      storyId: story.id,
+      status: extractStatus,
+      sourceKind: finalSourceKind,
+      charCount: text.length,
+      rawArticleRef: path,
+      fetchedAt,
+    });
     log.debug(LOG_NAMESPACE_ARTICLE, "Wrote content cache", {
       id: story.id,
       path,
@@ -1917,6 +1921,7 @@ async function processPostSummary(
   store: ObjectStore,
   meta?: MetaStore
 ): Promise<void> {
+  const metaStore = meta ?? createNoopMetaStore();
   const existingPostSummary = await readJsonSafe(store, postPath, PostSummarySchema);
 
   if (env.POST_SUMMARY_ONLY_IF_MISSING && existingPostSummary) {
@@ -1947,15 +1952,13 @@ async function processPostSummary(
       createdISO: now,
     };
     await store.putJson(postPath, stub, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      await meta.upsertSummary({
-        storyId: story.id,
-        kind: "post",
-        lang: stub.lang,
-        summary: "",
-        createdAt: now,
-      });
-    }
+    await metaStore.upsertSummary({
+      storyId: story.id,
+      kind: "post",
+      lang: stub.lang,
+      summary: "",
+      createdAt: now,
+    });
     log.warn(LOG_NAMESPACE_POST, "Post degraded (no-article); skipped LLM", { id: story.id });
     return;
   }
@@ -1988,16 +1991,14 @@ async function processPostSummary(
       ...(guardPersisted ? { guard: guardPersisted } : {}),
     };
     await store.putJson(postPath, postSummary, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      await meta.upsertSummary({
-        storyId: story.id,
-        kind: "post",
-        lang: postSummary.lang,
-        ...(postSummary.model ? { model: postSummary.model } : {}),
-        summary: postSummary.summary,
-        createdAt: postSummary.createdISO ?? new Date().toISOString(),
-      });
-    }
+    await metaStore.upsertSummary({
+      storyId: story.id,
+      kind: "post",
+      lang: postSummary.lang,
+      ...(postSummary.model ? { model: postSummary.model } : {}),
+      summary: postSummary.summary,
+      createdAt: postSummary.createdISO ?? new Date().toISOString(),
+    });
     log.info(LOG_NAMESPACE_POST, "Post summary written", {
       id: story.id,
       chars: postSummary.summary.length,
@@ -2031,10 +2032,8 @@ function metaSummaryText(summary: CommentsSummary): string {
 }
 
 async function upsertCommentsSummaryMeta(meta: MetaStore | undefined, summary: CommentsSummary): Promise<void> {
-  if (meta === undefined) {
-    return;
-  }
-  await meta.upsertSummary({
+  const metaStore = meta ?? createNoopMetaStore();
+  await metaStore.upsertSummary({
     storyId: summary.id,
     kind: "comments",
     lang: summary.lang,
@@ -2060,8 +2059,7 @@ function makeCompressRejectMarker(
 }
 
 export type CompressCommentsResult =
-  | { status: "usable" | "rejected" | "skipped"; summary: CommentsSummary }
-  | { status: "pending"; summary: CommentsSummary; reason: "compress-pending" };
+  { status: "pending"; summary: CommentsSummary; reason: "compress-pending" } | { status: "rejected" | "skipped" | "usable"; summary: CommentsSummary };
 
 /**
  * Second-pass compression of a structured comments summary.
@@ -2584,9 +2582,8 @@ async function publishTelegramAfterSummary(
 
   const sentAt = new Date().toISOString();
   const nextIds = [...new Set([...(ledger.sentIds ?? []), story.id])];
-  if (meta) {
-    await meta.markTelegramSent(story.id, messageId, sentAt);
-  }
+  const metaStore = meta ?? createNoopMetaStore();
+  await metaStore.markTelegramSent(story.id, messageId, sentAt);
   await persistTelegramLedgerCached({
     sentIds: nextIds,
     lastUpdatedISO: sentAt,
@@ -2609,6 +2606,7 @@ async function processTags(
   store: ObjectStore,
   meta?: MetaStore
 ): Promise<void> {
+  const metaStore = meta ?? createNoopMetaStore();
   // Allow disabling tags to conserve LLM quota (e.g., during catch-up runs)
   if (env.TAGS_MAX_PER_STORY <= 0) {
     log.debug(TAGS_DEBUG_MESSAGE, "tags disabled via TAGS_MAX_PER_STORY=0", { id: story.id });
@@ -2642,9 +2640,7 @@ async function processTags(
       createdISO: new Date().toISOString(),
     };
     await store.putJson(p, payload, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      await meta.replaceTags(story.id, tags);
-    }
+    await metaStore.replaceTags(story.id, tags);
     log.info(TAGS_DEBUG_MESSAGE, "tags written", { id: story.id, count: tags.length, model: env.TAGS_MODEL });
   } catch (error) {
     log.error(TAGS_DEBUG_MESSAGE, "Failed to generate structured tags, falling back to heuristics", {
@@ -2671,9 +2667,7 @@ async function processTags(
       createdISO: new Date().toISOString(),
     };
     await store.putJson(p, payload, { pretty: true, contentType: "application/json" });
-    if (meta) {
-      await meta.replaceTags(story.id, tags);
-    }
+    await metaStore.replaceTags(story.id, tags);
     log.info(TAGS_DEBUG_MESSAGE, "fallback tags written", { id: story.id, count: tags.length, model: env.TAGS_MODEL });
   }
 }
@@ -2789,31 +2783,31 @@ export async function processSingleStory(
     await publishTelegramAfterSummary(services, story, post?.summary, commentsSummary?.summary, meta, telegramLead);
     await processTags(services, story, post?.summary, store, meta);
 
-    if (meta) {
-      const now = new Date().toISOString();
-      await meta.upsertProcessingState(story.id, {
-        postStatus: post ? "ok" : "missing",
-        commentsStatus: commentsResult?.status === "applied" ? "ok" : "missing",
-        ...(commentsResult?.status === "applied"
-          ? {
-              commentsPolicyVersion: commentsResult.policyVersion,
-              commentsInputHash: commentsResult.inputHash,
-            }
-          : {}),
-        tagsStatus: (await readJsonSafe(store, pathFor.tagsSummary(story.id), TagsSummarySchema))
-          ? "ok"
-          : "missing",
-        updatedAt: now,
-        error: null,
-      });
-    }
+    const metaStore = meta ?? createNoopMetaStore();
+    const now = new Date().toISOString();
+    await metaStore.upsertProcessingState(story.id, {
+      postStatus: post ? "ok" : "missing",
+      commentsStatus: commentsResult?.status === "applied" ? "ok" : "missing",
+      ...(commentsResult?.status === "applied"
+        ? {
+            commentsPolicyVersion: commentsResult.policyVersion,
+            commentsInputHash: commentsResult.inputHash,
+          }
+        : {}),
+      tagsStatus: (await readJsonSafe(store, pathFor.tagsSummary(story.id), TagsSummarySchema))
+        ? "ok"
+        : "missing",
+      updatedAt: now,
+      error: null,
+    });
   } finally {
     const rows = services.usage.drain();
     services.usage.setStory(undefined);
-    if (meta && rows.length > 0) {
+    const metaStore = meta ?? createNoopMetaStore();
+    if (rows.length > 0) {
       // Best-effort, off the critical path: a persistence failure must not fail the story.
       try {
-        await meta.insertLlmUsage(rows);
+        await metaStore.insertLlmUsage(rows);
       } catch (error) {
         log.error("summarize", "persist llm usage failed", { id, error: String(error) });
       }
@@ -2854,8 +2848,8 @@ async function computePostChanged(
     postSummaryOnlyIfMissing: config.postSummaryOnlyIfMissing,
     cooldownMs: config.cooldownMs,
     now,
-    getCachedArticleMarkdown: (candidate) => getCachedArticleMarkdownOnly(candidate, store),
-    buildArticleSlice: (candidate, articleMd) => buildPostPrompt(candidate, articleMd),
+    getCachedArticleMarkdown: async (candidate) => getCachedArticleMarkdownOnly(candidate, store),
+    buildArticleSlice: async (candidate, articleMd) => buildPostPrompt(candidate, articleMd),
   });
   return verdict.changed;
 }

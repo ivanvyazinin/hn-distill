@@ -5,12 +5,6 @@ import { SCORE_MIN_AGGREGATE } from "@config/constants";
 import { env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
-  hasPublishablePostSummary,
-  isSitePublishable,
-  passesEngagementGate,
-  type EngagementThresholds,
-} from "@utils/engagement-gate";
-import {
   AggregatedFileSchema,
   AggregatedItemSchema,
   CommentsSummarySchema,
@@ -23,17 +17,24 @@ import {
   type NormalizedComment,
   type NormalizedStory,
 } from "@config/schemas";
-import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
-import { HN } from "@utils/hn";
-import { log } from "@utils/log";
 import { compressedStateFor } from "@utils/comments-compress";
 import { renderCommentsSummaryParts, renderCompressedParagraphMarkdown } from "@utils/comments-render";
+import { isoWeekKey, toDateKeyUTC } from "@utils/date-keys";
+import {
+  hasPublishablePostSummary,
+  isSitePublishable,
+  passesEngagementGate,
+  type EngagementThresholds,
+} from "@utils/engagement-gate";
+import { HN } from "@utils/hn";
+import { log } from "@utils/log";
 import {
   presentCommentsSummary,
   resolveCommentsSummary,
   sanitizePostSummaryForPublish,
   type PostSummaryGuardPersisted,
 } from "@utils/meta-aggregated-batch";
+import { createNoopMetaStore } from "@utils/noop-meta-store";
 import { readJsonSafe, readJsonSafeOrStore, type ObjectStore } from "@utils/object-store";
 import { reportDrops, resetDrops } from "@utils/summary-drops";
 
@@ -292,7 +293,10 @@ export function sortItemsDesc(a: AggregatedItem, b: AggregatedItem): number {
 }
 
 export async function main(store: ObjectStore, meta?: MetaStore, options?: { fromDb?: boolean }): Promise<AggregatedFile> {
-  const fromDb = options?.fromDb === true && meta !== undefined;
+  // A REAL store is required for the DB branch: a Noop must never select it.
+  const hasRealMeta = meta !== undefined;
+  const fromDb = options?.fromDb === true && hasRealMeta;
+  const metaStore = meta ?? createNoopMetaStore();
 
   const previous = await readJsonSafeOrStore<AggregatedFile>(store, PATHS.aggregated, AggregatedFileSchema, {
     updatedISO: new Date(0).toISOString(),
@@ -306,12 +310,12 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
 
   const gate = engagementThresholdsFromEnv();
 
-  if (fromDb && meta) {
+  if (fromDb) {
     // Production path (AGGREGATE_FROM_DB=true): the drop bookkeeping lives here,
     // not in readAggregates, which this branch never calls.
     resetDrops();
-    const storyIds = await meta.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
-    const latestItems = await meta.getAggregatedItems(storyIds);
+    const storyIds = await metaStore.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
+    const latestItems = await metaStore.getAggregatedItems(storyIds);
     await reportDrops(store);
     for (const it of latestItems) {
       const prev = previous.items.find((p) => p.id === it.id);
