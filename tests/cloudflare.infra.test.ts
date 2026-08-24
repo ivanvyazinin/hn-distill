@@ -10,6 +10,7 @@ import { buildTelegramMessage } from "@utils/telegram";
 
 import { buildScheduleForDate } from "../worker/src/pages-schedule";
 import { createD1MetaStore } from "../worker/src/d1-meta-store";
+import type { R2BucketLike } from "../worker/src/bindings";
 import { createWorkerStore } from "../worker/src/store";
 import {
   getTelegramSentIds,
@@ -23,6 +24,16 @@ import {
 import worker from "../worker/src/index";
 
 const MINIFLARE_SCRIPT = "export default { fetch() { return new Response('ok'); } };";
+
+/**
+ * Miniflare's getR2Bucket returns ReplaceWorkersTypes<R2Bucket>, whose
+ * workerd-to-dom Request remapping is not structurally assignable to our
+ * R2BucketLike. Tests exercise only the get/put subset, so cast at this seam.
+ */
+async function testR2Bucket(mf: Miniflare): Promise<R2BucketLike> {
+  const raw = mf.getR2Bucket("DATA_BUCKET");
+  return (await raw) as unknown as R2BucketLike;
+}
 
 async function initDb(db: Awaited<ReturnType<Miniflare["getD1Database"]>>): Promise<void> {
   const schema = await readFile("worker/d1/schema.sql", "utf8");
@@ -74,7 +85,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const store = createWorkerStore(bucket);
 
       await store.putJson(pathFor.postSummary(1), { summary: "hello" }, { pretty: false });
@@ -312,7 +323,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
@@ -419,7 +430,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
       const store = createWorkerStore(bucket as never);
@@ -559,7 +570,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
@@ -635,7 +646,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
@@ -726,7 +737,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
@@ -796,7 +807,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
       const store = createWorkerStore(bucket as never);
@@ -858,7 +869,10 @@ describe("cloudflare infra", () => {
         restore();
       }
 
-      expect(llmCalls).toBe(3);
+      // Chain: 3 OpenRouter models, no Groq key in this env. Model 1 retries
+      // strict → balanced (2 physical calls); models 2-3 take one call each
+      // (strict already set) = 4 total, under the #33 budget of 5.
+      expect(llmCalls).toBe(4);
       const fallback = await store.getJson<CommentsSummary>(pathFor.commentsSummary(storyId));
       expect(fallback?.degraded).toBe("generation-failed");
       expect(fallback?.formatVersion).toBe(2);
@@ -886,7 +900,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
       const store = createWorkerStore(bucket as never);
@@ -948,7 +962,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
@@ -1013,7 +1027,7 @@ describe("cloudflare infra", () => {
     });
 
     try {
-      const bucket = await mf.getR2Bucket("DATA_BUCKET");
+      const bucket = await testR2Bucket(mf);
       const db = await mf.getD1Database("DB");
       await initDb(db);
 
