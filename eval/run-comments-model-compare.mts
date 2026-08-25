@@ -76,7 +76,8 @@ function buildRoutes(models: string[]): CommentsRoute[] {
   const extraction = process.env["COMPARE_EXTRACTION"] === "strict" ? ("strict" as const) : ("balanced-object" as const);
   return models.map((entry) => {
     const separator = entry.indexOf(":");
-    const gateway = separator > 0 && entry.slice(0, separator) === "groq" ? "groq" : "openrouter";
+    const prefix = separator > 0 ? entry.slice(0, separator) : "openrouter";
+    const gateway = prefix === "groq" || prefix === "minimax" ? prefix : "openrouter";
     const model = separator > 0 ? entry.slice(separator + 1) : entry;
     return {
       label: entry,
@@ -86,9 +87,11 @@ function buildRoutes(models: string[]): CommentsRoute[] {
       temperature: 0,
       requestTimeoutMs: 90_000,
       jsonExtraction: extraction,
-      // Production runs gpt-oss with low effort and Groq Qwen3.6 with none.
+      // Production runs gpt-oss with low effort, Groq Qwen3.6 and MiniMax M3 with none.
       ...(model.includes("gpt-oss") ? { reasoningEffort: "low" as const } : {}),
-      ...(model.includes("qwen") ? { reasoningEffort: "none" as const } : {}),
+      ...(model.includes("qwen") || model.toLowerCase().includes("minimax")
+        ? { reasoningEffort: "none" as const }
+        : {}),
     };
   });
 }

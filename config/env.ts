@@ -17,6 +17,10 @@ const EnvironmentSchema = z.object({
   // Daily catch-up coverage report (scripts/daily-coverage.mts): alert thresholds
   // for "did we miss yesterday" checks. Ratio is a fraction (0.5 = 50%).
   DAILY_COVERAGE_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(-1),
+  // MiniMax official API (platform.minimax.io) — optional third gateway for
+  // comments model eval / future routing. Token Plan keys look like sk-cp-…
+  MINIMAX_API_KEY: z.string().optional(),
+  MINIMAX_BASE_URL: z.string().optional(),
   DAILY_COVERAGE_MIN_CARDS: z.coerce.number().int().min(0).max(500).default(6),
   DAILY_COVERAGE_MIN_RATIO: z.coerce.number().min(0).max(1).default(0.5),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
