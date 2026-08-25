@@ -21,9 +21,11 @@ describe("model config contract", () => {
     expect(defaults.COMMENTS_OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
     expect(defaults.OPENROUTER_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
     // Free-first 2026-08-25: ≥$10 account balance unlocks 1000 :free requests/day,
-    // daily volume fits it. Paid qwen drops to walk-through fallback for upstream
-    // 429 bursts / dead slugs; RU-gate + guard + escalation still guard quality.
-    expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    // daily volume fits it. Post fallback = the paid twin of the primary (same
+    // style when the free pool dies, cheaper output than qwen). Comments spill
+    // and escalation stay on qwen: the spill sends strict json_schema without
+    // reasoning_effort — nemotron empties its content into the reasoning trace.
+    expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b");
     expect(defaults.OPENROUTER_FALLBACK_MODEL_2).toBe("meta-llama/llama-3.3-70b-instruct");
     expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
