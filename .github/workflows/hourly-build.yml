@@ -50,6 +50,16 @@ jobs:
         run: |
           mkdir -p data
           rsync -az "$VPS_USER@$VPS_HOST:$VPS_PATH/" data/
+          # Cold start may have no backup yet (missing file is fine). An existing
+          # file must be a real SQLite DB, not a truncated placeholder
+          # (1-byte backup incident, 2026-08).
+          if [ -e data/hn.sqlite ]; then
+            bytes=$(wc -c < data/hn.sqlite)
+            if [ "$bytes" -lt 4096 ] || ! head -c 16 data/hn.sqlite | grep -aq '^SQLite format 3'; then
+              echo "::error::restored data/hn.sqlite is corrupt (${bytes} bytes); refusing to run on it"
+              exit 1
+            fi
+          fi
 
       - name: Run data pipeline
         env:
@@ -80,16 +90,16 @@ jobs:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_PATH: ${{ secrets.VPS_PATH }}
         run: |
-          if [ -s data/hn.sqlite ]; then
-            rsync -az --delete \
-              --exclude 'bench/' \
-              --exclude '.DS_Store' \
-              --exclude '*.sqlite-shm' \
-              --exclude '*.sqlite-wal' \
-              data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
-          else
-            echo "data/hn.sqlite is missing or empty; skipping backup"
+          if [ ! -f data/hn.sqlite ]; then
+            echo "::error::pipeline produced no data/hn.sqlite; refusing to skip backup silently"
+            exit 1
           fi
+          bytes=$(wc -c < data/hn.sqlite)
+          if [ "$bytes" -lt 4096 ] || ! head -c 16 data/hn.sqlite | grep -aq '^SQLite format 3'; then
+            echo "::error::data/hn.sqlite is invalid (${bytes} bytes); refusing to overwrite the VPS backup with garbage"
+            exit 1
+          fi
+          rsync -az --delete --exclude 'bench/' --exclude '.DS_Store' --exclude '*.sqlite-shm' --exclude '*.sqlite-wal' data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
 
       - name: Build site
         env:
