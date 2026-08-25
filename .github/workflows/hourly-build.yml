@@ -82,7 +82,20 @@ jobs:
           # All model IDs (OPENROUTER_*, COMMENTS_*, TAGS_*, POST_GUARD_*,
           # SUMMARY_CONTENT_REJECT_MODEL) come only from config/env.ts defaults.
           # Do not reintroduce workflow model env or repository model variables.
-        run: make run
+        run: |
+          set -o pipefail
+          make run 2>&1 | tee /tmp/pipeline.log
+
+      - name: Fail loudly if the OpenRouter key budget tripped
+        # Project policy: routing must be free; paid spend means something is
+        # broken. The per-key spend cap is the deliberate canary — when it trips,
+        # ALL OpenRouter calls die (including :free), so fail instead of shipping
+        # a silently degraded run. Backup/deploy stay skipped until it is fixed.
+        run: |
+          if grep -q 'Key limit exceeded' /tmp/pipeline.log; then
+            echo "::error::OpenRouter key hit its spend limit — free-first routing died mid-run (403 Key limit exceeded). Fix the key at openrouter.ai/settings/keys, then re-run."
+            exit 1
+          fi
 
       - name: Backup state to VPS
         env:
