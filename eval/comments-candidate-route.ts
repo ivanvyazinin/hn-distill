@@ -32,12 +32,13 @@ import type { UsageInput } from "@utils/llm-usage";
 
 export type CommentsRoute = {
   label: string;
-  gateway: "groq";
+  /** "groq" — Groq API + GROQ_API_KEY; "openrouter" — OpenRouter API + OPENROUTER_API_KEY. */
+  gateway: "groq" | "openrouter";
   model: string;
   maxTokens: number;
   temperature: number;
   requestTimeoutMs: number;
-  /** Groq reasoning control; required for Qwen3.6 ("none") / gpt-oss ("low"). */
+  /** Reasoning control; required for Qwen3.6 ("none") / gpt-oss ("low"). */
   reasoningEffort?: "high" | "low" | "medium" | "none";
 };
 
@@ -134,11 +135,10 @@ export function makeCommentsRouteHttp(): HttpClient {
     { ua: "hn-distill-eval/1.0 (+https://hckr.top/)", headers: {} }
   );
 }
-
 /**
  * One generation, one physical call (transportRetries: 0, maxRetries: 1 → no burst).
- * Uses the Groq gateway with balanced-object JSON extraction, mirroring the production
- * Groq comments hop (Groq llama rejects json_schema, so no response_format).
+ * Uses the route's gateway (Groq or OpenRouter) with balanced-object JSON extraction,
+ * mirroring the production comments hop.
  */
 export async function runCommentsRoute(
   http: HttpClient,
@@ -156,8 +156,12 @@ export async function runCommentsRoute(
     { role: "user", content: prepared.prompt },
   ];
 
+  const apiKey = route.gateway === "groq" ? (env.GROQ_API_KEY ?? "") : (env.OPENROUTER_API_KEY ?? "");
+  const baseUrl = route.gateway === "groq"
+    ? env.GROQ_BASE_URL
+    : (env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions");
   let usageEvent: UsageInput | undefined;
-  const client = new OpenRouter(http, env.GROQ_API_KEY ?? "", route.model, env.GROQ_BASE_URL, {
+  const client = new OpenRouter(http, apiKey, route.model, baseUrl, {
     gateway: route.gateway,
     onUsage: (event): void => {
       usageEvent = event;

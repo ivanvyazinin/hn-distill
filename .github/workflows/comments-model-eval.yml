@@ -1,0 +1,52 @@
+name: Comments model eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      models:
+        description: "Comma-separated OpenRouter slugs to compare"
+        required: false
+        default: "openai/gpt-oss-120b,openai/gpt-oss-20b,openai/gpt-oss-120b:free"
+      fixtures:
+        description: "Fixture count from bench/candidate-manifest.json (1..20)"
+        required: false
+        default: "20"
+      repeats:
+        description: "Repeats per fixture per model"
+        required: false
+        default: "1"
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Compare comment models on real threads
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Setup Bun and Install Dependencies
+        uses: ./.github/actions/setup-bun
+
+      - name: Run comparison through the production validator seam
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SUMMARY_LANG: ru
+          COMPARE_MODELS: ${{ inputs.models }}
+          COMPARE_FIXTURES: ${{ inputs.fixtures }}
+          COMPARE_REPEATS: ${{ inputs.repeats }}
+          COMPARE_DELAY_MS: "1000"
+        run: bun run tsx eval/run-comments-model-compare.mts
+
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: comments-model-compare
+          path: data/bench/model-compare/
