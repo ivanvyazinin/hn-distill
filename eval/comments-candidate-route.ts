@@ -38,6 +38,8 @@ export type CommentsRoute = {
   maxTokens: number;
   temperature: number;
   requestTimeoutMs: number;
+  /** Extraction mode: production ladder starts strict, falls back to balanced-object. */
+  jsonExtraction?: "balanced-object" | "strict";
   /** Reasoning control; required for Qwen3.6 ("none") / gpt-oss ("low"). */
   reasoningEffort?: "high" | "low" | "medium" | "none";
 };
@@ -180,9 +182,8 @@ export async function runCommentsRoute(
       {
         temperature: route.temperature,
         maxTokens: route.maxTokens,
-        model: route.model,
+        ...(route.jsonExtraction === undefined ? {} : { jsonExtraction: route.jsonExtraction }),
         label: "comments",
-        jsonExtraction: "balanced-object",
         transportRetries: 0,
         requestTimeoutMs: route.requestTimeoutMs,
         ...(route.reasoningEffort === undefined ? {} : { reasoningEffort: route.reasoningEffort }),

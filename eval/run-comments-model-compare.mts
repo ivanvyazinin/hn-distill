@@ -73,6 +73,7 @@ async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(raw) as T;
 }
 function buildRoutes(models: string[]): CommentsRoute[] {
+  const extraction = process.env["COMPARE_EXTRACTION"] === "strict" ? ("strict" as const) : ("balanced-object" as const);
   return models.map((entry) => {
     const separator = entry.indexOf(":");
     const gateway = separator > 0 && entry.slice(0, separator) === "groq" ? "groq" : "openrouter";
@@ -84,6 +85,7 @@ function buildRoutes(models: string[]): CommentsRoute[] {
       maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
       temperature: 0,
       requestTimeoutMs: 90_000,
+      jsonExtraction: extraction,
       // Production runs gpt-oss with low effort and Groq Qwen3.6 with none.
       ...(model.includes("gpt-oss") ? { reasoningEffort: "low" as const } : {}),
       ...(model.includes("qwen") ? { reasoningEffort: "none" as const } : {}),
