@@ -54,14 +54,14 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  // 2026-08-25: nemotron-3-nano-30b-a3b:free died (404 "unavailable for free" since
-  // 08-24, burned one wasted request per call before the fallback). qwen3-next-80b
-  // was already serving every summary through the fallback — promoted to primary.
-  OPENROUTER_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
-  // Free slot on purpose as a cheap backstop; :free slugs are volatile (two deaths:
-  // nemotron 08-24, earlier :free variants 08-02), so never put one in the primary.
-  OPENROUTER_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it:free"),
-  // Paid last resort. Verified live via OpenRouter /models on 2026-08-25.
+  // Free-first (2026-08-25): the account holds ≥$10 credits, which unlocks
+  // 1000 :free requests/day on OpenRouter (vs 50 on a bare account), so the
+  // daily volume fits the free tier. Paid slugs stay as walk-through fallbacks
+  // for upstream 429 bursts / dead free slugs (two :free deaths: 08-02, 08-24).
+  // Slug picked by live probe on 2026-08-25 (gemma/glm/minimax all 429 upstream
+  // that morning; nemotron-3-super answered with clean RU, no inline reasoning).
+  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct"),
   // Post summaries need ~500 tokens. The old 8000 existed because the primary is a
   // reasoning model that burned the whole budget inside its thinking trace: avg 5246
@@ -80,9 +80,11 @@ const EnvironmentSchema = z.object({
   // Room for up to 15 RU insights (dynamic ceiling); ~3k tokens worst case.
   COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(2500),
   // Second-pass compression of structured comments. Empty string disables.
+  // Free slug under the ≥$10-account 1000/day quota; validateCompressedText +
+  // sourceHash cache gate quality, transient failures stay retryable (pending).
+  COMMENTS_COMPRESS_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
-  COMMENTS_COMPRESS_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
   // Default 5: primary + fallback + OpenRouter + room for compress (and one spare)
   // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
