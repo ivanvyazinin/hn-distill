@@ -307,6 +307,76 @@ describe("comments-v2 request budget and validation", () => {
     });
   });
 
+  test("default chain pins hop 1 to the MiniMax gateway (MiniMax-M3, reasoning none, balanced-object)", async () => {
+    const story = makeStory({ id: 44, title: "MiniMax primary" });
+    const minimaxCalls: StructuredCall[] = [];
+    const groqCalls: StructuredCall[] = [];
+    const minimaxClient = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async <T>(
+        messages: ChatMessage[],
+        options: StructuredOutputOptions,
+        _schema: unknown,
+        maxRetries: number
+      ): Promise<T> => {
+        minimaxCalls.push({ messages, options, maxRetries });
+        // HTTP-caused failure → the ladder advances instead of retrying the same hop.
+        throw new Error("minimax down", {
+          cause: new HttpError("https://api.minimax.io/v1/chat/completions", 503),
+        });
+      },
+    } as unknown) as Services["openrouter"];
+    const groqClient = ({
+      chat: async () => {
+        throw new Error("legacy chat must not be called by comments-v2");
+      },
+      chatStructured: async <T>(
+        messages: ChatMessage[],
+        options: StructuredOutputOptions,
+        _schema: unknown,
+        maxRetries: number
+      ): Promise<T> => {
+        groqCalls.push({ messages, options, maxRetries });
+        return VALID_INSIGHTS as T;
+      },
+    } as unknown) as Services["openrouter"];
+    const openrouter = ({
+      chatStructured: async () => {
+        throw new Error("paid last resort must not run when the Groq ladder answers");
+      },
+    } as unknown) as Services["openrouter"];
+    const services: Services = {
+      http: {} as Services["http"],
+      openrouter,
+      guardTagsClient: groqClient,
+      commentsMinimaxClient: minimaxClient,
+      fetchArticleMarkdown: async () => ({ md: "", sourceKind: "empty" }),
+      usage: createUsageCollector(),
+    };
+
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_COMPRESS_MODEL: "" }, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, {
+        story,
+        comments: threeComments(story.id),
+      });
+
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe(env.COMMENTS_MODEL);
+      expect(minimaxCalls.length).toBe(1);
+      expect(minimaxCalls[0]?.options.model).toBe(env.COMMENTS_MINIMAX_MODEL);
+      expect(minimaxCalls[0]?.options.reasoningEffort).toBe("none");
+      expect(minimaxCalls[0]?.options.temperature).toBe(0.2);
+      expect(minimaxCalls[0]?.options.jsonExtraction).toBe("balanced-object");
+      expect(minimaxCalls[0]?.options.responseFormat).toBeUndefined();
+      // The paid gpt-oss ladder follows unchanged: Groq 120b is hop 2.
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL]);
+      expect(groqCalls[0]?.options.responseFormat).toBeUndefined();
+      expect(groqCalls[0]?.options.jsonExtraction).toBe("balanced-object");
+    });
+  });
+
   test("Groq TPD 429 falls back cross-provider to the paid OpenRouter model", async () => {
     const story = makeStory({ id: 41, title: "TPD exhausted" });
     const groqCalls: StructuredCall[] = [];

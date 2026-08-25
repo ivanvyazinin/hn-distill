@@ -39,6 +39,11 @@ export type LlmLogContext = Record<string, unknown>;
 export type RouteServices = {
   openrouter: OpenRouter;
   guardTagsClient: OpenRouter;
+  /**
+   * Official MiniMax API client (MINIMAX_API_KEY). When present, the comments chain
+   * prepends a free MiniMax-M3 hop before the Groq/paid ladder. Absent → no hop.
+   */
+  commentsMinimaxClient?: OpenRouter;
   /** Preferred TPD breaker. When absent, commentsTpdExhaustedModels is adapted. */
   tpdBreaker?: TpdBreaker;
   /**
@@ -837,11 +842,11 @@ export function selectCommentsSecondaryRoute(input: {
 }
 
 type CommentsChainStep = {
+  gateway: "groq" | "minimax" | "openrouter";
   client: OpenRouter;
-  gateway: "groq" | "openrouter";
   model: string;
   prefersResponseFormat: boolean;
-  /** Groq Qwen3.6 needs reasoning_effort=none or the budget burns inside <think>. */
+  /** Groq Qwen3.6 / MiniMax-M3 need reasoning_effort=none or the budget burns inside <think>. */
   reasoningEffort?: "high" | "low" | "medium" | "none";
   /** Match smoke / reduce quote-rewrite variance on the candidate hop. */
   temperature: number;
@@ -871,7 +876,7 @@ export function buildCommentsModelChain(
     stepClient: OpenRouter,
     model: string,
     stepBaseUrl: string,
-    gateway: "groq" | "openrouter",
+    gateway: "groq" | "minimax" | "openrouter",
     prefersResponseFormat: boolean,
     options?: {
       reasoningEffort?: CommentsChainStep["reasoningEffort"];
@@ -913,8 +918,25 @@ export function buildCommentsModelChain(
   };
 
   let decision: CommentsSecondaryRouteDecision | undefined;
-
   if (groqEnabled) {
+    // Free-first comments primary (2026-08-25): official MiniMax API hop prepended
+    // before the paid ladder. reasoning_effort=none (MiniMax-M3 inlines thinking
+    // otherwise); temperature keeps the chain default 0.2. Live smoke 2026-08-25:
+    // MiniMax accepts response_format json_schema but does NOT enforce the schema
+    // (returns its own shape), so this hop extracts a balanced object exactly like
+    // the Groq hops — the configuration the probe validated (19/20 schema-valid).
+    // The hop never joins the Groq TPD breaker and is skipped without a client.
+    const minimaxModel = env.COMMENTS_MINIMAX_MODEL.trim();
+    if (minimaxModel.length > 0 && services.commentsMinimaxClient !== undefined) {
+      pushStep(services.commentsMinimaxClient, minimaxModel, env.MINIMAX_BASE_URL, "minimax", false, {
+        reasoningEffort: "none",
+      });
+    } else if (minimaxModel.length > 0) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 COMMENTS_MINIMAX_MODEL set without MINIMAX_API_KEY; starting at the paid ladder", {
+        commentsMinimaxModel: minimaxModel,
+      });
+    }
+
     // Primary high-value hop always stays 70b (flag does not touch it).
     pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
       trackTpdExhaustion: true,

@@ -19,6 +19,9 @@ describe("model config contract", () => {
     expect(defaults.COMMENTS_FALLBACK_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.COMMENTS_FALLBACK_MODEL_2).toBe("");
     expect(defaults.COMMENTS_OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    // Free-first comments primary (2026-08-25): prepended official-MiniMax hop.
+    expect(defaults.COMMENTS_MINIMAX_MODEL).toBe("MiniMax-M3");
+    expect(defaults.MINIMAX_BASE_URL).toBe("https://api.minimax.io/v1/chat/completions");
     expect(defaults.OPENROUTER_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
     // Free-first 2026-08-25: ≥$10 account balance unlocks 1000 :free requests/day,
     // daily volume fits it. Post fallback = the paid twin of the primary (same
@@ -41,6 +44,7 @@ describe("model config contract", () => {
       "COMMENTS_FALLBACK_MODEL:",
       "COMMENTS_FALLBACK_MODEL_2:",
       "COMMENTS_OPENROUTER_FALLBACK_MODEL:",
+      "COMMENTS_MINIMAX_MODEL:",
       "TAGS_MODEL:",
       "POST_GUARD_MODEL:",
       "POST_GUARD_FALLBACK_MODEL:",
@@ -52,5 +56,6 @@ describe("model config contract", () => {
     // Secrets stay — only model IDs are banned from the workflow surface.
     expect(workflow).toContain("OPENROUTER_API_KEY:");
     expect(workflow).toContain("GROQ_API_KEY:");
+    expect(workflow).toContain("MINIMAX_API_KEY:");
   });
 });

@@ -20,7 +20,7 @@ const EnvironmentSchema = z.object({
   // MiniMax official API (platform.minimax.io) — optional third gateway for
   // comments model eval / future routing. Token Plan keys look like sk-cp-…
   MINIMAX_API_KEY: z.string().optional(),
-  MINIMAX_BASE_URL: z.string().optional(),
+  MINIMAX_BASE_URL: z.string().default("https://api.minimax.io/v1/chat/completions"),
   DAILY_COVERAGE_MIN_CARDS: z.coerce.number().int().min(0).max(500).default(6),
   DAILY_COVERAGE_MIN_RATIO: z.coerce.number().min(0).max(1).default(0.5),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
@@ -117,6 +117,13 @@ const EnvironmentSchema = z.object({
   // caller passes reasoning_effort="none" — only the secondary-route hop does that,
   // so bare qwen ids are banned from these two slots.
   COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
+  // Free-first comments primary (2026-08-25): when MINIMAX_API_KEY is set, this model is
+  // PREPENDED to the Groq ladder as hop 1 — official MiniMax API, reasoning_effort=none
+  // and balanced-object JSON extraction (live smoke: MiniMax accepts response_format
+  // json_schema but does not enforce it). Probe: docs/probe-comments-models-2026-08-25.md;
+  // beats the paid gpt-oss-120b primary on schema/RU/provenance at $0. The gpt-oss →
+  // qwen paid ladder below stays untouched as fallback. Empty string disables the hop.
+  COMMENTS_MINIMAX_MODEL: z.string().default("MiniMax-M3"),
   // Second Groq hop after 120b TPD/TPM (separate free-tier bucket). This slot does
   // NOT pass reasoning_effort — keep a model whose content is clean without it.
   // When COMMENTS_QWEN27B_ROUTE_ENABLE is on, this model is only used for short inputs
