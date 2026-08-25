@@ -4,11 +4,7 @@ import {
   type CommentsInsights,
   type NormalizedComment,
 } from "@config/schemas";
-import {
-  buildCommentsSystemInstructionV2,
-  commentsInsightsResponseFormat,
-  COMMENTS_INSIGHTS_HARD_CEILING,
-} from "@utils/comments-thread";
+import { buildCommentsSystemInstructionV2, commentsInsightsResponseFormat } from "@utils/comments-thread";
 import { HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
 import {
@@ -681,21 +677,6 @@ function commentsV2Messages(prompt: string, strict: boolean, maxInsights: number
   ];
 }
 
-/**
- * Deterministic request-size estimate for free-route selection (no tokenizer).
- * Counts system + user chars (the full chat payload), then applies a safety margin for
- * tokenizer drift. Smoke saw real prompt_tokens 86–499 above user-only chars/4.
- */
-export function estimateCommentsPromptTokens(
-  prompt: string,
-  options?: { marginTokens?: number; maxInsights?: number; strict?: boolean }
-): number {
-  const maxInsights = options?.maxInsights ?? COMMENTS_INSIGHTS_HARD_CEILING;
-  const messages = commentsV2Messages(prompt, options?.strict === true, maxInsights);
-  const totalChars = messages.reduce((sum, message) => sum + message.content.length, 0);
-  const margin = options?.marginTokens ?? env.COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN;
-  return Math.ceil(totalChars / 4) + margin;
-}
 
 /**
  * True only for a proven Groq tokens-per-day exhaustion signal.
@@ -711,135 +692,6 @@ export function isGroqTpdExhaustionError(error: unknown): boolean {
   return blob.includes("tokens per day") || blob.includes("(tpd)") || /\btpd\b/u.test(blob);
 }
 
-export type CommentsSecondaryRouteKind = "large-skip" | "legacy" | "medium-qwen" | "short-8b";
-
-export type CommentsSecondaryRouteDecision = {
-  estimateTokens: number;
-  kind: CommentsSecondaryRouteKind;
-  model: string;
-  reason: string;
-  reservedTokens: number;
-  /** 0–99 bucket used for medium share sampling; undefined when share N/A. */
-  shareBucket?: number;
-};
-
-/**
- * Deterministic medium-share gate: storyId % 100 < sharePercent.
- * share 0 → never; share 100 → always (when enable is on).
- */
-export function isCommentsQwen27bShareHit(storyId: number, sharePercent: number): boolean {
-  if (sharePercent <= 0) {
-    return false;
-  }
-  if (sharePercent >= 100) {
-    return true;
-  }
-  const id = Number.isFinite(storyId) ? Math.trunc(Math.abs(storyId)) : 0;
-  return id % 100 < sharePercent;
-}
-
-/**
- * Pure secondary free-route picker (after primary 70b).
- * - enable off OR medium share miss → legacy 8b hop (flag-off path).
- * - enable on + share hit → short→8b, medium→Qwen 27b, large→skip both.
- */
-export function selectCommentsSecondaryRoute(input: {
-  enableQwen27b: boolean;
-  estimateTokens: number;
-  fallbackModel: string;
-  maxOutputTokens: number;
-  qwen27bMaxReservedTokens: number;
-  qwen27bModel: string;
-  /** 0–100; only applied when enableQwen27b is true. */
-  qwen27bSharePercent: number;
-  shortMaxReservedTokens: number;
-  storyId: number;
-  /** Optional set of gateway-prefixed TPD exhaustion keys for this run. */
-  tpdExhaustedModels?: ReadonlySet<string>;
-}): CommentsSecondaryRouteDecision {
-  const reservedTokens = input.estimateTokens + input.maxOutputTokens;
-  const exhausted = input.tpdExhaustedModels ?? new Set<string>();
-  const groqExhausted = (model: string): boolean => exhausted.has(commentsTpdExhaustionKey("groq", model));
-  const shareBucket = Number.isFinite(input.storyId)
-    ? Math.trunc(Math.abs(input.storyId)) % 100
-    : 0;
-  const shareHit =
-    input.enableQwen27b && isCommentsQwen27bShareHit(input.storyId, input.qwen27bSharePercent);
-
-  // Flag off, or medium rollout sample miss → identical legacy chain (8b second hop).
-  if (!shareHit) {
-    const model = input.fallbackModel.trim();
-    let reason = "flag-off-legacy-8b";
-    if (!input.enableQwen27b) {
-      reason = model.length === 0 ? "legacy-fallback-empty" : "flag-off-legacy-8b";
-    } else if (input.qwen27bSharePercent <= 0) {
-      reason = "share-zero-legacy-8b";
-    } else {
-      reason = "share-miss-legacy-8b";
-    }
-    return {
-      estimateTokens: input.estimateTokens,
-      kind: "legacy",
-      model,
-      reason: model.length === 0 && input.enableQwen27b ? "legacy-fallback-empty" : reason,
-      reservedTokens,
-      shareBucket,
-    };
-  }
-
-  if (reservedTokens < input.shortMaxReservedTokens) {
-    const model = input.fallbackModel.trim();
-    if (model.length === 0 || groqExhausted(model)) {
-      return {
-        estimateTokens: input.estimateTokens,
-        kind: "large-skip",
-        model: "",
-        reason: model.length === 0 ? "short-8b-empty" : "short-8b-tpd-exhausted",
-        reservedTokens,
-        shareBucket,
-      };
-    }
-    return {
-      estimateTokens: input.estimateTokens,
-      kind: "short-8b",
-      model,
-      reason: "short-reserved-under-cap",
-      reservedTokens,
-      shareBucket,
-    };
-  }
-
-  if (reservedTokens <= input.qwen27bMaxReservedTokens) {
-    const model = input.qwen27bModel.trim();
-    if (model.length === 0 || groqExhausted(model)) {
-      return {
-        estimateTokens: input.estimateTokens,
-        kind: "large-skip",
-        model: "",
-        reason: model.length === 0 ? "medium-qwen-empty" : "medium-qwen-tpd-exhausted",
-        reservedTokens,
-        shareBucket,
-      };
-    }
-    return {
-      estimateTokens: input.estimateTokens,
-      kind: "medium-qwen",
-      model,
-      reason: "medium-reserved-fits-qwen",
-      reservedTokens,
-      shareBucket,
-    };
-  }
-
-  return {
-    estimateTokens: input.estimateTokens,
-    kind: "large-skip",
-    model: "",
-    reason: "reserved-over-qwen-cap",
-    reservedTokens,
-    shareBucket,
-  };
-}
 
 type CommentsChainStep = {
   gateway: "groq" | "minimax" | "openrouter";
@@ -854,11 +706,7 @@ type CommentsChainStep = {
   trackTpdExhaustion: boolean;
 };
 
-export function buildCommentsModelChain(
-  services: RouteServices,
-  prompt: string,
-  storyId: number
-): { decision: CommentsSecondaryRouteDecision | undefined; steps: CommentsChainStep[] } {
+export function buildCommentsModelChain(services: RouteServices): CommentsChainStep[] {
   // Route comments through the Groq client when one exists: it returns reliable
   // non-reasoning JSON, unlike the OpenRouter reasoning models that share the post
   // chain and emit prose instead of JSON. makeServices only builds a distinct
@@ -917,7 +765,6 @@ export function buildCommentsModelChain(
     });
   };
 
-  let decision: CommentsSecondaryRouteDecision | undefined;
   if (groqEnabled) {
     // Free-first comments primary (2026-08-25): official MiniMax API hop prepended
     // before the paid ladder. reasoning_effort=none (MiniMax-M3 inlines thinking
@@ -937,54 +784,16 @@ export function buildCommentsModelChain(
       });
     }
 
-    // Primary high-value hop always stays 70b (flag does not touch it).
+    // Primary Groq hop.
     pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
       trackTpdExhaustion: true,
     });
 
-    const estimateTokens = estimateCommentsPromptTokens(prompt, { maxInsights: COMMENTS_INSIGHTS_HARD_CEILING });
-    decision = selectCommentsSecondaryRoute({
-      enableQwen27b: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
-      estimateTokens,
-      fallbackModel: env.COMMENTS_FALLBACK_MODEL,
-      maxOutputTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
-      qwen27bMaxReservedTokens: env.COMMENTS_QWEN27B_MAX_RESERVED_TOKENS,
-      qwen27bModel: env.COMMENTS_QWEN27B_MODEL,
-      qwen27bSharePercent: env.COMMENTS_QWEN27B_ROUTE_SHARE,
-      shortMaxReservedTokens: env.COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS,
-      storyId,
-      // Single TPD source: the breaker view (legacy Set is the same identity via
-      // makeServices; a bare tpdBreaker-only stub now also routes correctly).
-      tpdExhaustedModels: breaker.asSet(),
-    });
-
-    if (decision.kind === "legacy") {
-      // Flag off: preserve the historical ordered list (fallback + optional fallback_2).
-      for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
-        pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
-      }
-    } else if (decision.model.length > 0) {
-      // Qwen: temperature 0 matches the Phase 1 smoke that validated the candidate policy.
-      // Llama secondary keeps the historical 0.2.
-      pushStep(services.guardTagsClient, decision.model, groqBaseUrl, "groq", false, {
-        trackTpdExhaustion: true,
-        ...(decision.kind === "medium-qwen"
-          ? { reasoningEffort: "none" as const, temperature: 0 }
-          : {}),
-      });
+    // Historical ordered fallback list (fallback + optional fallback_2).
+    for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
+      pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
     }
 
-    log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 secondary route selected", {
-      kind: decision.kind,
-      reason: decision.reason,
-      model: decision.model.length > 0 ? decision.model : undefined,
-      estimateTokens: decision.estimateTokens,
-      reservedTokens: decision.reservedTokens,
-      qwenRouteEnabled: env.COMMENTS_QWEN27B_ROUTE_ENABLE,
-      qwenRouteShare: env.COMMENTS_QWEN27B_ROUTE_SHARE,
-      shareBucket: decision.shareBucket,
-      storyId,
-    });
 
     // Paid OpenRouter last resort — timing/SLA intentionally unchanged in this scaffold.
     // gateway "openrouter" → never written/read against the Groq TPD breaker set.
@@ -995,7 +804,7 @@ export function buildCommentsModelChain(
     }
   }
 
-  return { decision, steps };
+  return steps;
 }
 
 /** Domain acceptance check, injected so routing stays content-agnostic. */
@@ -1023,11 +832,10 @@ export async function callStructuredWithModelChain(
     maxInsights: number;
     prompt: string;
     sampleIds: number[];
-    storyId: number;
     validate: InsightsValidator;
   }
 ): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
-  const { steps } = buildCommentsModelChain(services, input.prompt, input.storyId);
+  const steps = buildCommentsModelChain(services);
   // Old contract: a TPD trip must stay visible to later stories even on a
   // hand-built Services that carries neither field — seed-and-assign, like the
   // pre-Phase-3 code did. Production paths always inject tpdBreaker.

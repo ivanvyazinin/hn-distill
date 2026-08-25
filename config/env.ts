@@ -126,30 +126,8 @@ const EnvironmentSchema = z.object({
   COMMENTS_MINIMAX_MODEL: z.string().default("MiniMax-M3"),
   // Second Groq hop after 120b TPD/TPM (separate free-tier bucket). This slot does
   // NOT pass reasoning_effort — keep a model whose content is clean without it.
-  // When COMMENTS_QWEN27B_ROUTE_ENABLE is on, this model is only used for short inputs
-  // (see COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS); medium inputs take Qwen 27b instead
-  // (that hop passes reasoning_effort="none").
   COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
-  // Opt-in size-aware second Groq hop (Phase 3 scaffold). Default OFF — deployment without
-  // the flag keeps the legacy primary → fallback → paid chain. Do not enable in production until
-  // Phase 2 paired eval PASSes (or an explicit waiver) and Phase 4 rollout is planned.
-  COMMENTS_QWEN27B_ROUTE_ENABLE: z
-    .union([z.literal("true"), z.literal("false"), z.boolean()])
-    .transform((v) => (typeof v === "boolean" ? v : v === "true"))
-    .default(false),
-  // Phase 4 limited rollout: percent of *medium* stories (0–100) that may use Qwen 27b
-  // when ENABLE is true. Deterministic by story id (id % 100 < share). Short/large unaffected.
-  // Default 0 = enable alone is a no-op until share is raised (safe deploy).
-  COMMENTS_QWEN27B_ROUTE_SHARE: z.coerce.number().int().min(0).max(100).default(0),
-  COMMENTS_QWEN27B_MODEL: z.string().default("qwen/qwen3.6-27b"),
-  // Secondary free-route size gates: prompt-token estimate + COMMENTS_SUMMARY_MAX_TOKENS.
-  // Short: reserved < this → fallback model. Medium: reserved ≤ QWEN max → Qwen 27b. Else skip both.
-  COMMENTS_SHORT_ROUTE_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(20_000).default(5500),
-  COMMENTS_QWEN27B_MAX_RESERVED_TOKENS: z.coerce.number().int().min(1000).max(32_000).default(8000),
-  // Added on top of ceil((system+user)/4). Smoke saw real prompt tokens 86–499 above chars/4
-  // on user-only estimates; margin covers system prompt drift + tokenizer variance near 8k TPM.
-  COMMENTS_ROUTE_TOKEN_ESTIMATE_MARGIN: z.coerce.number().int().min(0).max(4000).default(600),
   // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
   // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
   // which otherwise dead-ends comment generation into a persisted fallback. A PAID

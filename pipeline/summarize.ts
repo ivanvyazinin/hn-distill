@@ -92,12 +92,7 @@ export {
 } from "@utils/chat-route";
 export {
   commentsTpdExhaustionKey,
-  estimateCommentsPromptTokens,
-  isCommentsQwen27bShareHit,
   isGroqTpdExhaustionError,
-  selectCommentsSecondaryRoute,
-  type CommentsSecondaryRouteDecision,
-  type CommentsSecondaryRouteKind,
 } from "@utils/chat-route";
 
 
@@ -538,7 +533,6 @@ export async function callStructuredWithModelChain(
     maxInsights: number;
     prompt: string;
     sampleIds: number[];
-    storyId: number;
   }
 ): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
   // Routing/resilience live in @utils/chat-route (Phase 3); this wrapper injects
@@ -573,7 +567,6 @@ export async function generateValidatedCommentsSummaryV2(
     maxInsights: prepared.maxInsights,
     prompt: prepared.prompt,
     sampleIds: prepared.sampleIds,
-    storyId: input.story.id,
   });
   if (result === undefined) {
     return undefined;

@@ -1,5 +1,12 @@
 # Runbook: Qwen 27b comments secondary-hop rollout (Phase 4)
 
+> **SUPERSEDED (25.08.2026).** The qwen27b secondary-route scaffolding this runbook
+> drives (size-split, share sampling, `COMMENTS_QWEN27B_*` env keys) has been removed.
+> Comments now run free-first via the official MiniMax API with the paid gpt-oss
+> ladder as fallback — see docs/probe-comments-models-2026-08-25.md and the closure
+> note in docs/plan-cheap-groq-comments-route.md. Kept for history only; do not
+> execute.
+
 **Audience:** on-call / pipeline owner  
 **Scope:** limited production enable of `qwen/qwen3.6-27b` as the **medium** Groq second hop after `llama-3.3-70b-versatile`.  
 **Status:** procedure only — defaults stay OFF until you set Worker/env vars.
@@ -111,3 +118,4 @@ Only then consider raising share (e.g. 10 → 25 → 50) or making size-aware pa
 - Plan: `docs/plan-cheap-groq-comments-route.md` (Phase 4)
 - Scaffold handoff: `docs/handoff-comments-candidate-eval-phase3.md`
 - Code: `selectCommentsSecondaryRoute`, `isCommentsQwen27bShareHit` in `pipeline/summarize.ts`
+
