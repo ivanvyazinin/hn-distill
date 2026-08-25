@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     const results: CommentsRouteResult[] = [];
     for (const meta of fixtures) {
       const fixture = await readJson<CommentsRouteFixture>(
-        resolve(import.meta.dir, `../bench/comments/${meta.id}.json`)
+        resolve("bench", "comments", `${meta.id}.json`)
       );
       for (let i = 0; i < repeats; i += 1) {
         const result = await runCommentsRoute(http, route, fixture);
