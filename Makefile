@@ -77,7 +77,7 @@ local-test:
 	# Generate fresh data with smaller scope for local runs
 	TOP_N=5 TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/fetch-hn.mts
-	TOP_N=5 OPENROUTER_MODEL=nvidia/nemotron-3-nano-30b-a3b:free TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
+	TOP_N=5 TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/summarize.mts
 	TOP_N=5 TOP_N_DAY_OFFSET=-1 TOP_N_MODE=daily-top-by-score MAX_COMMENTS_PER_STORY=20 MAX_DEPTH=2 CONCURRENCY=6 \
 		bun run tsx scripts/aggregate.mts

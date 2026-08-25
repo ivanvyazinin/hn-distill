@@ -19,10 +19,12 @@ describe("model config contract", () => {
     expect(defaults.COMMENTS_FALLBACK_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.COMMENTS_FALLBACK_MODEL_2).toBe("");
     expect(defaults.COMMENTS_OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
-    expect(defaults.OPENROUTER_MODEL).toBe("nvidia/nemotron-3-nano-30b-a3b:free");
-    // Repointed 2026-08-02: both ":free" slugs now answer 404 "unavailable for free",
-    // which left the post chain with no working fallback at all.
-    expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    expect(defaults.OPENROUTER_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    // Repointed 2026-08-25: nemotron-3-nano-30b-a3b:free answers 404 "unavailable for
+    // free" since 2026-08-24 and burned a wasted request per call before the fallback.
+    // qwen3-next-80b was already serving every summary via fallback — promoted.
+    // :free slugs stay only as a cheap backstop, never primary (two deaths: 08-02, 08-24).
+    expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("google/gemma-4-31b-it:free");
     expect(defaults.OPENROUTER_FALLBACK_MODEL_2).toBe("meta-llama/llama-3.3-70b-instruct");
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });

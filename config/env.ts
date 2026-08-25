@@ -49,11 +49,14 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-nano-30b-a3b:free"),
-  // When primary model fails for summaries, try this model next (priority order).
-  // Paid slugs on purpose: both ":free" variants now 404 with "unavailable for free",
-  // so the whole post chain died the moment the primary failed (verified 2026-08-02).
-  OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  // 2026-08-25: nemotron-3-nano-30b-a3b:free died (404 "unavailable for free" since
+  // 08-24, burned one wasted request per call before the fallback). qwen3-next-80b
+  // was already serving every summary through the fallback — promoted to primary.
+  OPENROUTER_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  // Free slot on purpose as a cheap backstop; :free slugs are volatile (two deaths:
+  // nemotron 08-24, earlier :free variants 08-02), so never put one in the primary.
+  OPENROUTER_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it:free"),
+  // Paid last resort. Verified live via OpenRouter /models on 2026-08-25.
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct"),
   // Post summaries need ~500 tokens. The old 8000 existed because the primary is a
   // reasoning model that burned the whole budget inside its thinking trace: avg 5246
