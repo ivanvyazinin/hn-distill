@@ -51,7 +51,10 @@ type ModelReport = {
   totalCompletionTokens: number;
 };
 
-const DEFAULT_MODELS = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "openai/gpt-oss-120b:free"];
+const DEFAULT_MODELS = [
+  "openrouter:openai/gpt-oss-120b",
+  "openrouter:openai/gpt-oss-20b",
+];
 
 function percentile(values: Array<number | undefined>, p: number): number {
   const clean = values.filter((v): v is number => typeof v === "number" && v > 0);
@@ -69,18 +72,23 @@ async function readJson<T>(path: string): Promise<T> {
   const raw = await readFile(path, "utf8");
   return JSON.parse(raw) as T;
 }
-
 function buildRoutes(models: string[]): CommentsRoute[] {
-  return models.map((model) => ({
-    label: model,
-    gateway: "openrouter",
-    model,
-    maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
-    temperature: 0,
-    requestTimeoutMs: 90_000,
-    // Production runs gpt-oss with low reasoning effort (utils/chat-route).
-    ...(model.includes("gpt-oss") ? { reasoningEffort: "low" as const } : {}),
-  }));
+  return models.map((entry) => {
+    const separator = entry.indexOf(":");
+    const gateway = separator > 0 && entry.slice(0, separator) === "groq" ? "groq" : "openrouter";
+    const model = separator > 0 ? entry.slice(separator + 1) : entry;
+    return {
+      label: entry,
+      gateway,
+      model,
+      maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
+      temperature: 0,
+      requestTimeoutMs: 90_000,
+      // Production runs gpt-oss with low effort and Groq Qwen3.6 with none.
+      ...(model.includes("gpt-oss") ? { reasoningEffort: "low" as const } : {}),
+      ...(model.includes("qwen") ? { reasoningEffort: "none" as const } : {}),
+    };
+  });
 }
 
 function summarize(model: string, results: CommentsRouteResult[]): ModelReport {
