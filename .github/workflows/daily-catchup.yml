@@ -1,0 +1,130 @@
+name: daily-catchup
+
+on:
+  schedule:
+    # Once a day at 01:33 UTC. Sits between the hourly slots (17 */3 -> 00:17,
+    # 03:17, ...) so the two workflows never race for the VPS state.
+    - cron: "33 1 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: hn-distill-daily-catchup
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Show Node.js version
+        run: node --version
+
+      - name: Setup Bun and Install Dependencies
+        uses: ./.github/actions/setup-bun
+
+      - name: Configure SSH
+        env:
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 "$HOME/.ssh"
+          printf '%s\n' "$VPS_SSH_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Restore state from VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          mkdir -p data
+          rsync -az "$VPS_USER@$VPS_HOST:$VPS_PATH/" data/
+          # Cold start may have no backup yet (missing file is fine). An existing
+          # file must be a real SQLite DB, not a truncated placeholder
+          # (1-byte backup incident, 2026-08).
+          if [ -e data/hn.sqlite ]; then
+            bytes=$(wc -c < data/hn.sqlite)
+            if [ "$bytes" -lt 4096 ] || ! head -c 16 data/hn.sqlite | grep -aq '^SQLite format 3'; then
+              echo "::error::restored data/hn.sqlite is corrupt (${bytes} bytes); refusing to run on it"
+              exit 1
+            fi
+          fi
+
+      - name: Run yesterday catch-up pipeline
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
+          ARTICLE_FETCH_READER_FALLBACK: ${{ vars.ARTICLE_FETCH_READER_FALLBACK || 'true' }}
+          # Catch-up selection: final score ranking for the closed UTC day.
+          # Stories already summarized by the hourly runs are skipped by the
+          # staleness owner; only late bloomers get LLM work here.
+          TOP_N: ${{ vars.CATCHUP_TOP_N || '20' }}
+          TOP_N_MODE: daily-top-by-score
+          TOP_N_DAY_OFFSET: '-1'
+          SUMMARIZE_MIN_SCORE: ${{ vars.SUMMARIZE_MIN_SCORE || '300' }}
+          SUMMARIZE_MIN_COMMENTS: ${{ vars.SUMMARIZE_MIN_COMMENTS || '100' }}
+          SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
+          AGGREGATE_FROM_DB: ${{ vars.AGGREGATE_FROM_DB || 'true' }}
+          LLM_USAGE_ENABLED: ${{ vars.LLM_USAGE_ENABLED || 'false' }}
+          COMMENTS_QWEN27B_ROUTE_ENABLE: ${{ vars.COMMENTS_QWEN27B_ROUTE_ENABLE || 'false' }}
+          COMMENTS_QWEN27B_ROUTE_SHARE: ${{ vars.COMMENTS_QWEN27B_ROUTE_SHARE || '0' }}
+        run: make run
+
+      - name: Backup state to VPS
+        env:
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PATH: ${{ secrets.VPS_PATH }}
+        run: |
+          if [ ! -f data/hn.sqlite ]; then
+            echo "::error::pipeline produced no data/hn.sqlite; refusing to skip backup silently"
+            exit 1
+          fi
+          bytes=$(wc -c < data/hn.sqlite)
+          if [ "$bytes" -lt 4096 ] || ! head -c 16 data/hn.sqlite | grep -aq '^SQLite format 3'; then
+            echo "::error::data/hn.sqlite is invalid (${bytes} bytes); refusing to overwrite the VPS backup with garbage"
+            exit 1
+          fi
+          rsync -az --delete --exclude 'bench/' --exclude '.DS_Store' --exclude '*.sqlite-shm' --exclude '*.sqlite-wal' data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
+
+      - name: Daily coverage report and alert
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: bun run tsx scripts/daily-coverage.mts
+
+      - name: Build site
+        env:
+          SITE: ${{ vars.SITE }}
+          BASE: ${{ vars.BASE || '/' }}
+          GOATCOUNTER_CODE: ${{ vars.GOATCOUNTER_CODE }}
+          SUMMARIZE_MIN_SCORE: ${{ vars.SUMMARIZE_MIN_SCORE || '300' }}
+          SUMMARIZE_MIN_COMMENTS: ${{ vars.SUMMARIZE_MIN_COMMENTS || '100' }}
+        run: make build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    environment: github-pages
+    permissions:
+      pages: write
+      id-token: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/deploy-pages@v4

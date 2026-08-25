@@ -94,3 +94,7 @@ cleanup:
 .PHONY: publish-telegram
 publish-telegram:
 	bun run tsx scripts/publish-telegram.mts
+
+.PHONY: coverage-daily
+coverage-daily:
+	bun run tsx scripts/daily-coverage.mts

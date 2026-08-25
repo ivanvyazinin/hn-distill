@@ -14,6 +14,11 @@ const EnvironmentSchema = z.object({
   TOP_N: z.coerce.number().int().min(1).max(500).default(10),
   TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),
   TOP_N_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(0),
+  // Daily catch-up coverage report (scripts/daily-coverage.mts): alert thresholds
+  // for "did we miss yesterday" checks. Ratio is a fraction (0.5 = 50%).
+  DAILY_COVERAGE_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(-1),
+  DAILY_COVERAGE_MIN_CARDS: z.coerce.number().int().min(0).max(500).default(6),
+  DAILY_COVERAGE_MIN_RATIO: z.coerce.number().min(0).max(1).default(0.5),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
   MAX_DEPTH: z.coerce.number().int().min(1).max(10).default(2),
   CONCURRENCY: z.coerce.number().int().min(1).max(32).default(8),
