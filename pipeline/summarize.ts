@@ -488,11 +488,11 @@ export class CommentsGenerationBudget {
     return this.used;
   }
 
-  claimRequestTimeoutMs(): number | undefined {
+  claimRequestTimeoutMs(preferredMs?: number): number | undefined {
     if (this.used >= this.maxCalls) {
       return undefined;
     }
-    let timeoutMs = this.requestTimeoutMs;
+    let timeoutMs = preferredMs ?? this.requestTimeoutMs;
     if (this.deadlineAt !== undefined) {
       const availableMs = this.deadlineAt - this.now() - COMMENTS_DEADLINE_BUFFER_MS;
       if (availableMs < 1000) {

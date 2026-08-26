@@ -704,6 +704,12 @@ type CommentsChainStep = {
   temperature: number;
   /** When true, a proven TPD 429 on this Groq step is recorded under gateway-prefixed key. */
   trackTpdExhaustion: boolean;
+  /**
+   * Per-step base timeout override. The shared budget is tuned for fast Groq hops
+   * (7 s); the slow MiniMax-M3 reasoning model needs its own ceiling and still gets
+   * capped by the budget's maxCalls/worker-deadline claims at call time.
+   */
+  requestTimeoutMs?: number;
 };
 
 export function buildCommentsModelChain(services: RouteServices): CommentsChainStep[] {
@@ -730,6 +736,7 @@ export function buildCommentsModelChain(services: RouteServices): CommentsChainS
       reasoningEffort?: CommentsChainStep["reasoningEffort"];
       temperature?: number;
       trackTpdExhaustion?: boolean;
+      requestTimeoutMs?: number;
     }
   ): void => {
     const trimmed = model.trim();
@@ -762,21 +769,26 @@ export function buildCommentsModelChain(services: RouteServices): CommentsChainS
       temperature: options?.temperature ?? 0.2,
       trackTpdExhaustion: gateway === "groq" && options?.trackTpdExhaustion === true,
       ...(options?.reasoningEffort === undefined ? {} : { reasoningEffort: options.reasoningEffort }),
+      ...(options?.requestTimeoutMs === undefined
+        ? {}
+        : { requestTimeoutMs: options.requestTimeoutMs }),
     });
   };
 
   if (groqEnabled) {
     // Free-first comments primary (2026-08-25): official MiniMax API hop prepended
     // before the paid ladder. reasoning_effort=none (MiniMax-M3 inlines thinking
-    // otherwise); temperature keeps the chain default 0.2. Live smoke 2026-08-25:
-    // MiniMax accepts response_format json_schema but does NOT enforce the schema
-    // (returns its own shape), so this hop extracts a balanced object exactly like
-    // the Groq hops — the configuration the probe validated (19/20 schema-valid).
+    // otherwise); temperature keeps the chain default 0.2. MiniMax accepts
+    // response_format json_schema but does NOT enforce the schema (returns its own
+    // shape), so this hop extracts a balanced object exactly like the Groq hops.
+    // The shared 7 s budget is Groq-tuned and M3 answers in ~14 s avg on stage-1 —
+    // with it, prod timed out 27/27 (2026-08-25..26); hence the per-hop ceiling.
     // The hop never joins the Groq TPD breaker and is skipped without a client.
     const minimaxModel = env.COMMENTS_MINIMAX_MODEL.trim();
     if (minimaxModel.length > 0 && services.commentsMinimaxClient !== undefined) {
       pushStep(services.commentsMinimaxClient, minimaxModel, env.MINIMAX_BASE_URL, "minimax", false, {
         reasoningEffort: "none",
+        requestTimeoutMs: env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS,
       });
     } else if (minimaxModel.length > 0) {
       log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 COMMENTS_MINIMAX_MODEL set without MINIMAX_API_KEY; starting at the paid ladder", {
@@ -815,11 +827,10 @@ export type InsightsValidator = (
   maxInsights: number
 ) => { insights: CommentsInsights; summary: string } | undefined;
 
-/** Budget contract shared across stage-1 + compress calls (owned by the pipeline). */
 export type ChainBudget = {
   callsUsed: number;
   maxCalls: number;
-  claimRequestTimeoutMs: () => number | undefined;
+  claimRequestTimeoutMs: (preferredMs?: number) => number | undefined;
 };
 
 const insightsSchema = CommentsInsightsSchema as unknown as z.ZodSchema<CommentsInsights>;
@@ -867,7 +878,7 @@ export async function callStructuredWithModelChain(
     }
     const { client, gateway, model, reasoningEffort, temperature, trackTpdExhaustion } = step;
 
-    const requestTimeoutMs = input.budget.claimRequestTimeoutMs();
+    const requestTimeoutMs = input.budget.claimRequestTimeoutMs(step.requestTimeoutMs);
     if (requestTimeoutMs === undefined) {
       log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 request budget or deadline exhausted", {
         callsUsed: input.budget.callsUsed,

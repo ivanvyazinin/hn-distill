@@ -367,10 +367,14 @@ describe("comments-v2 request budget and validation", () => {
       expect(minimaxCalls[0]?.options.temperature).toBe(0.2);
       expect(minimaxCalls[0]?.options.jsonExtraction).toBe("balanced-object");
       expect(minimaxCalls[0]?.options.responseFormat).toBeUndefined();
+      // Slow reasoning hop gets its own ceiling; Groq hops keep the shared base.
+      expect(minimaxCalls[0]?.options.requestTimeoutMs).toBe(env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS);
+      expect(minimaxCalls[0]?.options.requestTimeoutMs).toBeGreaterThan(env.COMMENTS_LLM_REQUEST_TIMEOUT_MS);
       // The paid gpt-oss ladder follows unchanged: Groq 120b is hop 2.
       expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL]);
       expect(groqCalls[0]?.options.responseFormat).toBeUndefined();
       expect(groqCalls[0]?.options.jsonExtraction).toBe("balanced-object");
+      expect(groqCalls[0]?.options.requestTimeoutMs).toBe(env.COMMENTS_LLM_REQUEST_TIMEOUT_MS);
     });
   });
 
@@ -1587,5 +1591,30 @@ describe("comments-v2 Groq TPD breaker", () => {
     expect(b.commentsTpdExhaustedModels).toBe(shared);
     a.commentsTpdExhaustedModels?.add(commentsTpdExhaustionKey("groq", "llama-3.1-8b-instant"));
     expect(b.commentsTpdExhaustedModels?.has(commentsTpdExhaustionKey("groq", "llama-3.1-8b-instant"))).toBe(true);
+  });
+});
+
+describe("CommentsGenerationBudget.claimRequestTimeoutMs", () => {
+  test("preferred per-step timeout overrides the base and still claims a call", () => {
+    const budget = new CommentsGenerationBudget({ maxCalls: 2 });
+    expect(budget.claimRequestTimeoutMs(env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS)).toBe(
+      env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS
+    );
+    // Second claim without preference falls back to the shared base timeout.
+    expect(budget.claimRequestTimeoutMs()).toBe(env.COMMENTS_LLM_REQUEST_TIMEOUT_MS);
+    // Budget exhausted.
+    expect(budget.claimRequestTimeoutMs(20_000)).toBeUndefined();
+  });
+
+  test("preferred timeout is capped by the remaining worker deadline", () => {
+    const now = { current: 1_000_000 };
+    const budget = new CommentsGenerationBudget({
+      maxCalls: 3,
+      deadlineAt: now.current + 8000, // only ~6 s remain after the buffer
+      now: () => now.current,
+    });
+    const claimed = budget.claimRequestTimeoutMs(env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS);
+    expect(claimed).toBeLessThan(env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS);
+    expect(claimed).toBeGreaterThan(0);
   });
 });

@@ -33,6 +33,7 @@ describe("model config contract", () => {
     // 2026-08-26: nematron :free burns max_tokens in its reasoning trace on the
     // plain-text compress task (finish=length, expands source); minimax-m3:free 6/6 OK.
     expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("minimax/minimax-m3:free");
+    expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(20_000);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });
 
