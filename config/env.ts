@@ -90,9 +90,14 @@ const EnvironmentSchema = z.object({
   // Room for up to 15 RU insights (dynamic ceiling); ~3k tokens worst case.
   COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(2500),
   // Second-pass compression of structured comments. Empty string disables.
-  // Free slug under the ≥$10-account 1000/day quota; validateCompressedText +
-  // sourceHash cache gate quality, transient failures stay retryable (pending).
-  COMMENTS_COMPRESS_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
+  // 2026-08-26: nemotron-3-super-120b-a12b:free burns the whole max_tokens inside
+  // its reasoning trace on this plain-text task (finish=length on every probe call)
+  // and expands instead of compressing — 1/6 OK on real prod inputs, matching the
+  // hourly "semantic reject expanded:N>M" / "empty content" WARN storm. Probe winner
+  // minimax-m3:free: 6/6 OK, ~55% of source, finish=stop (docs/probe-compress-models-2026-08-26.md).
+  // :free volatility is accepted: failures stay retryable-pending and the next hourly
+  // run retries; volume (~40 calls/day) fits the ≥$10-account 1000/day quota.
+  COMMENTS_COMPRESS_MODEL: z.string().default("minimax/minimax-m3:free"),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),

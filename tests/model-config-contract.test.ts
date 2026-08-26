@@ -30,7 +30,9 @@ describe("model config contract", () => {
     // reasoning_effort — nemotron empties its content into the reasoning trace.
     expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b");
     expect(defaults.OPENROUTER_FALLBACK_MODEL_2).toBe("meta-llama/llama-3.3-70b-instruct");
-    expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+    // 2026-08-26: nematron :free burns max_tokens in its reasoning trace on the
+    // plain-text compress task (finish=length, expands source); minimax-m3:free 6/6 OK.
+    expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("minimax/minimax-m3:free");
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });
 
