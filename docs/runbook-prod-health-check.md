@@ -71,3 +71,21 @@ fallback-карточках не должно быть простыни одно
 - Свежесть данных на витрине: деплой = GitHub Pages из hourly; контент собирается
   из `summaries` таблицы `hn.sqlite` (VPS-бэкап `hnbackup@188.137.253.16:
   /home/hnbackup/backup/hn-distill/`) — JSON-правки без апдейта мета-БД на сайте невидимы.
+
+## Утренний автоматический чек (Hermes → OMP)
+
+Слои 1–3 собираются детерминированно, без LLM:
+
+```sh
+WARN_RUNS=6 SAMPLE=10 HN_DB_PATH=/tmp/hn.sqlite \
+  bun run tsx scripts/prod-health-collect.mts > /tmp/facts.json
+```
+
+Секции деградируют независимо: сломавшийся источник попадает в `errors[]`,
+а не валит прогон. `HN_DB_PATH` — свежая копия VPS-бэкапа (`sudo cp
+/home/hnbackup/backup/hn-distill/hn.sqlite /tmp/ && sudo chmod 644 /tmp/hn.sqlite`);
+без него раздел llm_usage честно скажет «нет данных».
+
+Интерпретирует факты утренний агент по контракту
+`docs/ops/morning-agent-prompt.md`: read-only, вердикт GREEN/YELLOW/RED,
+≤3 находки, JSON на stdout. Суждение — работа агента; проверки — работа скрипта.
