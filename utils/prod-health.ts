@@ -147,3 +147,25 @@ export function summarizeRenderSample(cards: readonly SampledCard[]): RenderSamp
     fallbackRatioPercent: classified === 0 ? 100 : Math.round((fallback / classified) * 100),
   };
 }
+
+export type RenderDelta = {
+  /** Cards that entered fallback since the previous run. */
+  entered: number[];
+  /** Cards that recovered to compressed since the previous run. */
+  resolved: number[];
+};
+
+/** Diff two fallback id sets; nulls (first run / missing state) yield empty deltas. */
+export function computeRenderDelta(
+  previousFallbackIds: readonly number[] | undefined,
+  currentFallbackIds: readonly number[]
+): RenderDelta {
+  if (previousFallbackIds === undefined) {
+    return { entered: [], resolved: [] };
+  }
+  const prev = new Set(previousFallbackIds);
+  const curr = new Set(currentFallbackIds);
+  const entered = [...curr].filter((id) => !prev.has(id));
+  const resolved = [...prev].filter((id) => !curr.has(id));
+  return { entered, resolved };
+}

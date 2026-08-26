@@ -6,6 +6,7 @@ import {
   repeatOffenders,
   summarizeRenderSample,
   tallyWarnings,
+  computeRenderDelta,
 } from "../utils/prod-health.ts";
 
 const COMPRESSED_CARD = `
@@ -90,5 +91,16 @@ describe("summarizeRenderSample", () => {
     ]);
     expect(sample.fallbackRatioPercent).toBe(50);
     expect(sample.missing).toBe(1);
+  });
+});
+
+describe("computeRenderDelta", () => {
+  test("splits fallback churn into entered and resolved", () => {
+    const delta = computeRenderDelta([1, 2, 3], [2, 3, 4]);
+    expect(delta).toEqual({ entered: [4], resolved: [1] });
+  });
+
+  test("first run without previous state yields empty deltas", () => {
+    expect(computeRenderDelta(undefined, [7, 8])).toEqual({ entered: [], resolved: [] });
   });
 });

@@ -16,6 +16,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { log } from "@utils/log";
 import {
+  computeRenderDelta,
   classifyCommentsCard,
   extractItemIds,
   repeatOffenders,
@@ -92,6 +93,50 @@ async function sampleCards(): Promise<RenderSample> {
     })
   );
   return summarizeRenderSample(cards);
+}
+
+/** Last commits touching pipeline-relevant code: lets the agent correlate
+ * regressions with recent changes instead of re-reporting fixed issues. */
+function gitContext(): Array<{ hash: string; date: string; subject: string }> {
+  const proc = spawnSync(
+    "git",
+    ["log", "--pretty=%h%x1f%as%x1f%s", "-10"],
+    { encoding: "utf8" }
+  );
+  if (proc.status !== 0) {
+    return [];
+  }
+  return proc.stdout
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const [hash, date, subject] = line.split("\u001F");
+      return { hash: hash ?? "", date: date ?? "", subject: subject ?? "" };
+    });
+}
+
+const { STATE_PATH } = process.env;
+type HealthState = { lastFallbackIds: number[]; lastReportDate: string };
+
+function readState(): HealthState | undefined {
+  if (STATE_PATH === undefined || STATE_PATH.length === 0) {
+    return undefined;
+  }
+  try {
+    return JSON.parse(spawnSync("cat", [STATE_PATH], { encoding: "utf8" }).stdout) as HealthState;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeState(state: HealthState): void {
+  if (STATE_PATH === undefined || STATE_PATH.length === 0) {
+    return;
+  }
+  spawnSync("tee", [STATE_PATH], {
+    encoding: "utf8",
+    input: JSON.stringify(state),
+  });
 }
 
 type UsageDigest = {
@@ -188,6 +233,16 @@ try {
   render = { error: String(error) };
 }
 
+const previousState = readState();
+const fallbackIds = "cards" in render ? render.cards.filter((card) => card.mode === "fallback").map((card) => card.id) : [];
+const renderDelta = computeRenderDelta(previousState?.lastFallbackIds, fallbackIds);
+writeState({
+  lastFallbackIds: fallbackIds,
+  lastReportDate: new Date().toISOString(),
+});
+
+const recentCommits = gitContext();
+
 let llmUsage: UsageDigest | { error: string };
 if (HN_DB_PATH === undefined || HN_DB_PATH.length === 0) {
   llmUsage = { error: "HN_DB_PATH not set; copy the VPS backup first (sudo cp hn.sqlite)" };
@@ -214,7 +269,8 @@ const report = {
     dailyCatchup: "runs" in dailyCatchup ? dailyCatchup.runs : [],
   },
   warnings,
-  render,
+  render: "cards" in render ? { ...render, deltaVsPrevRun: renderDelta } : render,
+  recentCommits,
   llmUsage,
   errors,
 };
