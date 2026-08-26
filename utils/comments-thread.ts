@@ -418,6 +418,30 @@ export function evaluateCommentsInsightsCandidate(
     });
     effective = { ...effective, insights: effective.insights.slice(0, sliceTo) };
   }
+  // MiniMax-M3 (2026-08-26) labels most insights kind="dispute" — one card rendered
+  // 12 "Спор:" bullets out of 17 insights, which is exactly the degenerate fallback
+  // view users see while compress is pending/failed. The model ranks densest first,
+  // so keep the top ranked disputes and demote the tail to consensus: text survives,
+  // label spam does not.
+  const DISPUTE_INSIGHT_CAP = 3;
+  const disputes = effective.insights.filter((insight) => insight.kind === "dispute").length;
+  if (disputes > DISPUTE_INSIGHT_CAP) {
+    let kept = 0;
+    effective = {
+      ...effective,
+      insights: effective.insights.map((insight) => {
+        if (insight.kind !== "dispute") {
+          return insight;
+        }
+        kept += 1;
+        return kept <= DISPUTE_INSIGHT_CAP ? insight : { ...insight, kind: "consensus" };
+      }),
+    };
+    log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 dispute over-cap; demoted tail to consensus", {
+      produced: disputes,
+      cap: DISPUTE_INSIGHT_CAP,
+    });
+  }
 
   const heuristics = checkCommentsInsightsHeuristics(effective, {
     language: env.SUMMARY_LANG,

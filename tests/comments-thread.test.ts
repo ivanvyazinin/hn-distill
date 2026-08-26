@@ -8,8 +8,10 @@ import {
   commentsInputHash,
   commentsJsonContract,
   countSubstantiveComments,
+  evaluateCommentsInsightsCandidate,
   isSubstantiveComment,
 } from "../utils/comments-thread.ts";
+import { makeRuCommentsInsights, makeRuDisputeInsight } from "./helpers/comments-insights.ts";
 
 import type { NormalizedComment } from "../config/schemas.ts";
 
@@ -31,6 +33,11 @@ function comment(
     ...overrides,
   };
 }
+
+const ruDispute = (n: number) =>
+  makeRuDisputeInsight(
+    `Спор №${n}: одна сторона предлагает постепенный rollout, другая требует полный cutover с откатом.`
+  );
 
 function renderedCommentText(thread: string, id: number): string {
   const marker = `[comment_id=${id} `;
@@ -256,5 +263,52 @@ describe("comments prompt v2", () => {
     expect(await commentsInputHash("en", "2", "prompt")).not.toBe(base);
     expect(await commentsInputHash("ru", "3", "prompt")).not.toBe(base);
     expect(await commentsInputHash("ru", "2", "changed prompt")).not.toBe(base);
+  });
+});
+
+describe("evaluateCommentsInsightsCandidate", () => {
+  const comments = [comment(1, STORY.id, "Развёрнутый комментарий с опытом эксплуатации в продакшене.")];
+  const sampleIds = [1];
+  test("demotes disputes beyond the cap to consensus, keeping rank order and text", () => {
+    const insights = makeRuCommentsInsights({
+      insights: [
+        ruDispute(1),
+        { kind: "advice", text: "Проверяйте предложенный подход на небольшом воспроизводимом примере перед полным запуском." },
+        ruDispute(2),
+        { kind: "consensus", text: "Участники согласны, что измерения нужно повторить на реальной нагрузке перед выбором архитектуры." },
+        ruDispute(3),
+        ruDispute(4),
+        ruDispute(5),
+      ],
+    });
+    const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, 15);
+    expect(evaluation.ok).toBe(true);
+    if (!evaluation.ok) {
+      return;
+    }
+    expect(evaluation.insights.insights.map((insight) => insight.kind)).toEqual([
+      "dispute",
+      "advice",
+      "dispute",
+      "consensus",
+      "dispute",
+      "consensus",
+      "consensus",
+    ]);
+    expect(evaluation.insights.insights[5]?.text).toContain("№4");
+  });
+
+  test("keeps insights untouched when disputes are within the cap", () => {
+    const insights = makeRuCommentsInsights({ insights: [ruDispute(1), ruDispute(2), ruDispute(3)] });
+    const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, 15);
+    expect(evaluation.ok).toBe(true);
+    if (!evaluation.ok) {
+      return;
+    }
+    expect(evaluation.insights.insights.map((insight) => insight.kind)).toEqual([
+      "dispute",
+      "dispute",
+      "dispute",
+    ]);
   });
 });
