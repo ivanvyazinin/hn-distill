@@ -37,6 +37,9 @@ describe("model config contract", () => {
     // times a day; without a second hop the card keeps the raw bullet render. qwen
     // scored 5/6 on the same compress probe.
     expect(defaults.COMMENTS_COMPRESS_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    // Repair scan tracks the TOP_N window it backstops, not the whole archive.
+    expect(defaults.COMMENTS_COMPRESS_REPAIR_SCAN).toBe(10);
+    expect(defaults.COMMENTS_COMPRESS_REPAIR_MAX_STORIES).toBe(3);
     expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(20_000);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });

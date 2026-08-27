@@ -114,8 +114,9 @@ const EnvironmentSchema = z.object({
   // stayed on the raw bullet render forever (26.08 prod: 3/10 sampled cards). Each
   // run scans the newest N comments blobs (HN ids are monotonic, so "newest ids" is
   // "newest stories") and repairs at most MAX of them — stage-1 is never re-run.
-  // 0 for either value disables the pass.
-  COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(60),
+  // 0 for either value disables the pass. Scan stays at 10 (≈ the TOP_N window it
+  // backstops): the older tail is a manual sweep, not per-cron blob reads.
+  COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(10),
   COMMENTS_COMPRESS_REPAIR_MAX_STORIES: z.coerce.number().int().min(0).max(50).default(3),
   // Default 5: primary + fallback + OpenRouter + room for compress (and one spare)
   // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
