@@ -98,9 +98,25 @@ const EnvironmentSchema = z.object({
   // :free volatility is accepted: failures stay retryable-pending and the next hourly
   // run retries; volume (~40 calls/day) fits the ≥$10-account 1000/day quota.
   COMMENTS_COMPRESS_MODEL: z.string().default("minimax/minimax-m3:free"),
+  // Second compress hop, tried only when the primary fails at the transport level.
+  // 2026-08-27: the free minimax slot returns upstream 429 ("temporarily
+  // rate-limited upstream", shared provider pool) a few times a day; with a single
+  // hop that leaves `compressed` absent and the card renders raw bullets until some
+  // later run happens to catch the story inside the window. qwen is the paid route
+  // already used for comments spill and scored 5/6 on the same compress probe.
+  // Empty string disables the second hop.
+  COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
+  // Compress repair pass: stories drop out of the fetch index after TOP_N rotates,
+  // so a compress hop that failed at write time was never retried and the card
+  // stayed on the raw bullet render forever (26.08 prod: 3/10 sampled cards). Each
+  // run scans the newest N comments blobs (HN ids are monotonic, so "newest ids" is
+  // "newest stories") and repairs at most MAX of them — stage-1 is never re-run.
+  // 0 for either value disables the pass.
+  COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(60),
+  COMMENTS_COMPRESS_REPAIR_MAX_STORIES: z.coerce.number().int().min(0).max(50).default(3),
   // Default 5: primary + fallback + OpenRouter + room for compress (and one spare)
   // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),

@@ -6,14 +6,17 @@ import type { CommentsInsights, CommentsSummary, NormalizedComment } from "../co
 import {
   CommentsGenerationBudget,
   buildCommentsPromptV2,
+  commentsBlobIdsNewestFirst,
   commentsTpdExhaustionKey,
   computeCommentsChanged,
   generateValidatedCommentsSummaryV2,
   isGroqTpdExhaustionError,
   makeServices,
   processCommentsSummary,
+  runCompressRepairPass,
   type Services,
 } from "../pipeline/summarize";
+import { expectedCompressSourceHash } from "../utils/comments-compress";
 import { HttpError } from "../utils/http-client";
 import { createUsageCollector } from "../utils/llm-usage";
 import type { MetaStore, SummaryRow } from "../utils/meta-store";
@@ -1408,6 +1411,8 @@ describe("comments compress integration", () => {
         SUMMARY_LANG: "ru",
         COMMENTS_SUMMARY_MIN_CHARS: 80,
         COMMENTS_COMPRESS_MODEL: "typo/model-id",
+        // Single-hop chain: the fallback hop has its own test below.
+        COMMENTS_COMPRESS_FALLBACK_MODEL: "",
       },
       async () => {
         const first = await processCommentsSummary(services, story, comments, undefined, path, store);
@@ -1511,6 +1516,231 @@ describe("comments compress integration", () => {
         expect(await computeCommentsChanged(story, base, "en", 60_000, Date.now(), store)).toBeFalse();
       }
     );
+  });
+});
+
+function upstream429(): HttpError {
+  return new HttpError("https://openrouter.ai/api/v1/chat/completions", 429, "rate-limited upstream");
+}
+
+function structuredRepairBlob(id: number, overrides: Partial<CommentsSummary> = {}): CommentsSummary {
+  return {
+    id,
+    lang: "ru",
+    summary: "bullet fallback render",
+    formatVersion: 2,
+    structured: VALID_INSIGHTS,
+    inputHash: `hash-${id}`,
+    createdISO: new Date().toISOString(),
+    policyVersion: COMMENTS_POLICY_VERSION,
+    ...overrides,
+  };
+}
+
+describe("comments compress model chain", () => {
+  const CHAIN_ENV = {
+    SUMMARY_LANG: "ru" as const,
+    COMMENTS_SUMMARY_MIN_CHARS: 80,
+    COMMENTS_COMPRESS_MODEL: "free/primary",
+    COMMENTS_COMPRESS_FALLBACK_MODEL: "paid/fallback",
+  };
+
+  test("upstream 429 on the free hop falls through to the paid hop", async () => {
+    const story = makeStory({ id: 71, title: "Compress fallback hop" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          throw upstream429();
+        },
+        async () => VALID_COMPRESSED_RU,
+      ]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+      // Provenance must name the hop that actually answered.
+      expect(persisted?.compressed?.model).toBe("paid/fallback");
+      expect(chatCalls.map((call) => call.options.model)).toEqual(["free/primary", "paid/fallback"]);
+    });
+  });
+
+  test("both hops failing transport leaves compressed absent (retryable)", async () => {
+    const story = makeStory({ id: 72, title: "Compress chain exhausted" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          throw upstream429();
+        },
+        async () => {
+          throw upstream429();
+        },
+      ]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed).toBeUndefined();
+      expect(chatCalls.length).toBe(2);
+    });
+  });
+
+  test("semantic reject on the first hop is terminal: no fallback call", async () => {
+    const story = makeStory({ id: 73, title: "Compress semantic reject" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => "short"]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed?.text).toBe("");
+      expect(chatCalls.length).toBe(1);
+    });
+  });
+
+  test("permanent 4xx on the free hop still tries the paid hop", async () => {
+    const story = makeStory({ id: 74, title: "Compress permanent then fallback" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [
+        async () => {
+          throw new HttpError("https://openrouter.ai/api/v1/chat/completions", 404, "model not found");
+        },
+        async () => VALID_COMPRESSED_RU,
+      ]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+      expect(chatCalls.length).toBe(2);
+    });
+  });
+});
+
+describe("compress repair pass", () => {
+  const REPAIR_ENV = {
+    SUMMARY_LANG: "ru" as const,
+    COMMENTS_SUMMARY_MIN_CHARS: 80,
+    COMMENTS_COMPRESS_MODEL: "free/primary",
+    COMMENTS_COMPRESS_FALLBACK_MODEL: "",
+    COMMENTS_COMPRESS_REPAIR_SCAN: 60,
+    COMMENTS_COMPRESS_REPAIR_MAX_STORIES: 3,
+  };
+
+  test("ids are collected newest first from blob keys only", () => {
+    expect(
+      commentsBlobIdsNewestFirst([
+        "data/summaries/100.comments.json",
+        "data/summaries/300.post.json",
+        "summaries/200.comments.json",
+        "data/summaries/index.comments.json",
+        "data/summaries/100.comments.json",
+      ])
+    ).toEqual([200, 100]);
+  });
+
+  test("repairs a story that already left the index and writes blob + meta", async () => {
+    const store = new MemoryStore();
+    const rows: SummaryRow[] = [];
+    const meta = ({
+      upsertSummary: async (row: SummaryRow) => {
+        rows.push(row);
+      },
+    } as unknown) as MetaStore;
+    await store.putJson(pathFor.commentsSummary(900), structuredRepairBlob(900));
+    const { chatCalls, services } = structuredServices([], [async () => VALID_COMPRESSED_RU]);
+
+    await withEnvPatch(REPAIR_ENV, async () => {
+      const stats = await runCompressRepairPass(services, store, meta);
+      expect(stats.candidates).toBe(1);
+      expect(stats.repaired).toBe(1);
+      expect(stats.rejected).toBe(0);
+      expect(stats.pending).toBe(0);
+      const persisted = await store.getJson<CommentsSummary>(pathFor.commentsSummary(900));
+      expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+      // Site text comes from the meta DB, so the row is what actually fixes the card.
+      expect(rows.length).toBe(1);
+      expect(rows[0]?.summary).toContain(VALID_COMPRESSED_RU);
+      expect(chatCalls.length).toBe(1);
+    });
+  });
+
+  test("skips usable blobs, excluded ids, and stops after a fully failed chain", async () => {
+    const store = new MemoryStore();
+    const usableBlob = structuredRepairBlob(910);
+    const sourceHash = expectedCompressSourceHash(usableBlob) ?? "";
+    await store.putJson(
+      pathFor.commentsSummary(910),
+      {
+        ...usableBlob,
+        compressed: {
+          text: VALID_COMPRESSED_RU,
+          model: "free/primary",
+          createdISO: new Date().toISOString(),
+          sourceHash,
+        },
+      } satisfies CommentsSummary
+    );
+    await store.putJson(pathFor.commentsSummary(920), structuredRepairBlob(920));
+    await store.putJson(pathFor.commentsSummary(930), structuredRepairBlob(930));
+    await store.putJson(pathFor.commentsSummary(940), structuredRepairBlob(940));
+    const { chatCalls, services } = structuredServices(
+      [],
+      [
+        async () => {
+          throw new HttpError("https://openrouter.ai/api/v1/chat/completions", 429, "rate-limited upstream");
+        },
+      ]
+    );
+
+    await withEnvPatch(REPAIR_ENV, async () => {
+      const stats = await runCompressRepairPass(services, store, undefined, { excludeIds: [940] });
+      // 940 excluded, 930 fails the whole chain → pass stops before 920.
+      expect(stats.candidates).toBe(1);
+      expect(stats.repaired).toBe(0);
+      expect(stats.pending).toBe(1);
+      expect(chatCalls.length).toBe(1);
+      const untouched = await store.getJson<CommentsSummary>(pathFor.commentsSummary(920));
+      expect(untouched?.compressed).toBeUndefined();
+    });
+  });
+
+  test("disabled by COMMENTS_COMPRESS_REPAIR_MAX_STORIES=0", async () => {
+    const store = new MemoryStore();
+    await store.putJson(pathFor.commentsSummary(950), structuredRepairBlob(950));
+    const { chatCalls, services } = structuredServices([], []);
+
+    await withEnvPatch({ ...REPAIR_ENV, COMMENTS_COMPRESS_REPAIR_MAX_STORIES: 0 }, async () => {
+      const stats = await runCompressRepairPass(services, store);
+      expect(stats.scanned).toBe(0);
+      expect(stats.candidates).toBe(0);
+      expect(stats.repaired).toBe(0);
+      expect(chatCalls.length).toBe(0);
+    });
   });
 });
 

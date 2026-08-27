@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   COMMENTS_COMPRESS_PROMPT,
   buildCommentsCompressUserPrompt,
+  commentsCompressModelChain,
   compressSourceHash,
   renderCommentsInsightsPlainText,
   resolveCompressedState,
@@ -72,6 +73,23 @@ describe("comments-compress pure helpers", () => {
     expect(sanitizeCompressedOutput("  строка один. \n\n строка  два.  ")).toBe("строка один. строка два.");
     // Multi-span quotes must not be peeled as a single outer pair.
     expect(sanitizeCompressedOutput("«Первый.» … «Второй.»")).toBe("«Первый.» … «Второй.»");
+  });
+
+  test("commentsCompressModelChain: primary, optional fallback, dedup, kill switch", async () => {
+    const { withEnvPatch } = await import("./helpers");
+    await withEnvPatch({ COMMENTS_COMPRESS_MODEL: "a", COMMENTS_COMPRESS_FALLBACK_MODEL: "b" }, async () => {
+      expect(commentsCompressModelChain()).toEqual(["a", "b"]);
+    });
+    await withEnvPatch({ COMMENTS_COMPRESS_MODEL: "a", COMMENTS_COMPRESS_FALLBACK_MODEL: " a " }, async () => {
+      expect(commentsCompressModelChain()).toEqual(["a"]);
+    });
+    await withEnvPatch({ COMMENTS_COMPRESS_MODEL: "a", COMMENTS_COMPRESS_FALLBACK_MODEL: "" }, async () => {
+      expect(commentsCompressModelChain()).toEqual(["a"]);
+    });
+    // Empty primary is the kill switch for the whole route — the fallback must not revive it.
+    await withEnvPatch({ COMMENTS_COMPRESS_MODEL: "", COMMENTS_COMPRESS_FALLBACK_MODEL: "b" }, async () => {
+      expect(commentsCompressModelChain()).toEqual([]);
+    });
   });
 
   test("isCommentsCompressEnabled gates on lang + model", async () => {

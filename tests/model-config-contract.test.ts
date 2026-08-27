@@ -33,6 +33,10 @@ describe("model config contract", () => {
     // 2026-08-26: nematron :free burns max_tokens in its reasoning trace on the
     // plain-text compress task (finish=length, expands source); minimax-m3:free 6/6 OK.
     expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("minimax/minimax-m3:free");
+    // 2026-08-27: the free minimax slot answers 429 "rate-limited upstream" a few
+    // times a day; without a second hop the card keeps the raw bullet render. qwen
+    // scored 5/6 on the same compress probe.
+    expect(defaults.COMMENTS_COMPRESS_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
     expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(20_000);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });
@@ -52,6 +56,8 @@ describe("model config contract", () => {
       "POST_GUARD_MODEL:",
       "POST_GUARD_FALLBACK_MODEL:",
       "SUMMARY_CONTENT_REJECT_MODEL:",
+      "COMMENTS_COMPRESS_MODEL:",
+      "COMMENTS_COMPRESS_FALLBACK_MODEL:",
     ];
     for (const key of forbidden) {
       expect(workflow.includes(key)).toBeFalse();

@@ -10,6 +10,22 @@ export function isCommentsCompressEnabled(): boolean {
   return env.SUMMARY_LANG === "ru" && env.COMMENTS_COMPRESS_MODEL.trim().length > 0;
 }
 
+/**
+ * Compress hops in order, deduped, empty entries dropped. The fallback exists for
+ * transport failures of the free primary slot only — semantic rejects are terminal
+ * and never advance to the next hop.
+ */
+export function commentsCompressModelChain(): string[] {
+  // An empty primary is the documented kill switch for the whole route, so the
+  // fallback never revives it on its own.
+  const primary = env.COMMENTS_COMPRESS_MODEL.trim();
+  if (primary.length === 0) {
+    return [];
+  }
+  const fallback = env.COMMENTS_COMPRESS_FALLBACK_MODEL.trim();
+  return fallback.length > 0 && fallback !== primary ? [primary, fallback] : [primary];
+}
+
 /** Exact compress prompt — do not rephrase; the plan freezes this wording. */
 export const COMMENTS_COMPRESS_PROMPT =
   "Сожми текст: убери повторы, канцелярит и лишние пояснения, объедини близкие мысли. Сохрани факты, смысл и важные оговорки. Ничего не добавляй от себя. Верни только итоговый текст.";

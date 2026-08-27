@@ -18,6 +18,7 @@ import {
 import { createArticleFetcher, isCloudflareChallengeError, type FetchedArticle } from "@utils/article-fetch";
 import {
   buildCommentsCompressUserPrompt,
+  commentsCompressModelChain,
   compressedStateFor,
   expectedCompressSourceHash,
   isCommentsCompressEnabled,
@@ -879,13 +880,14 @@ async function upsertCommentsSummaryMeta(meta: MetaStore | undefined, summary: C
 
 function makeCompressRejectMarker(
   summary: CommentsSummary,
-  sourceHash: string
+  sourceHash: string,
+  model: string
 ): CommentsSummary {
   return {
     ...summary,
     compressed: {
       text: "",
-      model: env.COMMENTS_COMPRESS_MODEL,
+      model,
       createdISO: new Date().toISOString(),
       sourceHash,
     },
@@ -924,84 +926,237 @@ export async function compressCommentsSummaryIfNeeded(
     return { status: state, summary };
   }
 
-  const requestTimeoutMs = budget.claimRequestTimeoutMs();
-  if (requestTimeoutMs === undefined) {
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress skipped: budget/deadline exhausted", {
-      id: summary.id,
-      callsUsed: budget.callsUsed,
-      maxCalls: budget.maxCalls,
-    });
-    return { status: "pending", summary, reason: "compress-pending" };
-  }
-
-  try {
-    const raw = await callLabeledChat(
-      services.openrouter,
-      [{ role: "user", content: buildCommentsCompressUserPrompt(plainText) }],
-      {
-        temperature: 0.2,
-        maxTokens: env.COMMENTS_COMPRESS_MAX_TOKENS,
-        model: env.COMMENTS_COMPRESS_MODEL,
-        label: "comments-compress",
-        transportRetries: 0,
-        requestTimeoutMs,
-      }
-    );
-    const sanitized = sanitizeCompressedOutput(raw);
-    const validated = validateCompressedText(sanitized, plainText, {
-      language: "ru",
-      minChars: env.COMMENTS_SUMMARY_MIN_CHARS,
-      minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
-    });
-    if (!validated.ok) {
-      log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject", {
+  const chain = commentsCompressModelChain();
+  // Every hop is a transport attempt at the same task: a failing free slot must not
+  // cost the card its compressed paragraph while a working hop is still untried.
+  let lastPermanentModel: string | undefined;
+  for (const [hop, model] of chain.entries()) {
+    const requestTimeoutMs = budget.claimRequestTimeoutMs();
+    if (requestTimeoutMs === undefined) {
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress skipped: budget/deadline exhausted", {
         id: summary.id,
-        reason: validated.reason,
+        callsUsed: budget.callsUsed,
+        maxCalls: budget.maxCalls,
+        model,
+        hop: hop + 1,
       });
-      return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash) };
+      break;
     }
-    // Every other outcome of this stage logs; success did not, so a paid stage ran
-    // 39 times over 2026-07-29..08-01 leaving no trace outside the usage ledger.
-    log.info(LOG_NAMESPACE_COMMENTS, "Comments compress written", {
-      id: summary.id,
-      model: env.COMMENTS_COMPRESS_MODEL,
-      chars: validated.text.length,
-      sourceChars: plainText.length,
-    });
-    return {
-      status: "usable",
-      summary: {
-        ...summary,
-        compressed: {
-          text: validated.text,
-          model: env.COMMENTS_COMPRESS_MODEL,
-          createdISO: new Date().toISOString(),
-          sourceHash,
-        },
-      },
-    };
-  } catch (error) {
-    // Permanent 4xx (bad model id, 401, …) must not burn a paid call every cron.
-    if (isPermanentCompressHttpError(error)) {
-      log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress permanent HTTP error; writing reject marker", {
+    try {
+      const raw = await callLabeledChat(
+        services.openrouter,
+        [{ role: "user", content: buildCommentsCompressUserPrompt(plainText) }],
+        {
+          temperature: 0.2,
+          maxTokens: env.COMMENTS_COMPRESS_MAX_TOKENS,
+          model,
+          label: "comments-compress",
+          transportRetries: 0,
+          requestTimeoutMs,
+        }
+      );
+      const sanitized = sanitizeCompressedOutput(raw);
+      const validated = validateCompressedText(sanitized, plainText, {
+        language: "ru",
+        minChars: env.COMMENTS_SUMMARY_MIN_CHARS,
+        minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
+      });
+      if (!validated.ok) {
+        // Semantic rejects are terminal: the model answered, the answer is unusable.
+        // Another hop would only spend budget on the same verdict.
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject", {
+          id: summary.id,
+          reason: validated.reason,
+          model,
+        });
+        return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash, model) };
+      }
+      // Every other outcome of this stage logs; success did not, so a paid stage ran
+      // 39 times over 2026-07-29..08-01 leaving no trace outside the usage ledger.
+      log.info(LOG_NAMESPACE_COMMENTS, "Comments compress written", {
         id: summary.id,
+        model,
+        hop: hop + 1,
+        chars: validated.text.length,
+        sourceChars: plainText.length,
+      });
+      return {
+        status: "usable",
+        summary: {
+          ...summary,
+          compressed: {
+            text: validated.text,
+            model,
+            createdISO: new Date().toISOString(),
+            sourceHash,
+          },
+        },
+      };
+    } catch (error) {
+      // Permanent 4xx (bad model id, 401, …) must not burn a paid call every cron —
+      // but it is a verdict on THIS hop, so a remaining hop still gets its turn and
+      // only an all-permanent chain writes the reject marker.
+      if (isPermanentCompressHttpError(error)) {
+        lastPermanentModel = model;
+        log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress permanent HTTP error", {
+          id: summary.id,
+          model,
+          hop: hop + 1,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        continue;
+      }
+      lastPermanentModel = undefined;
+      log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress transport error", {
+        id: summary.id,
+        model,
+        hop: hop + 1,
+        remainingHops: chain.length - hop - 1,
         error: error instanceof Error ? error.message : String(error),
       });
-      return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash) };
+      continue;
     }
-    log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress transport error; leaving field absent", {
-      id: summary.id,
-      error: error instanceof Error ? error.message : String(error),
-    });
-    // Do NOT drop an existing usable compressed blob on a transient failure of a
-    // force-retry: keep the previous field when present so backfill --force cannot
-    // destroy good data. Fresh stage-1 blobs have no compressed field yet.
-    return {
-      status: "pending",
-      summary,
-      reason: "compress-pending",
-    };
   }
+
+  if (lastPermanentModel !== undefined) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress chain permanently failed; writing reject marker", {
+      id: summary.id,
+      models: chain.join(","),
+    });
+    return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash, lastPermanentModel) };
+  }
+
+  log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress chain exhausted; leaving field absent", {
+    id: summary.id,
+    models: chain.join(","),
+  });
+  // Do NOT drop an existing usable compressed blob on a transient failure of a
+  // force-retry: keep the previous field when present so backfill --force cannot
+  // destroy good data. Fresh stage-1 blobs have no compressed field yet.
+  return {
+    status: "pending",
+    summary,
+    reason: "compress-pending",
+  };
+}
+
+/** Story ids of comments blobs in the store, newest first (HN ids are monotonic). */
+export function commentsBlobIdsNewestFirst(keys: string[]): number[] {
+  const suffix = ".comments.json";
+  const ids = new Set<number>();
+  for (const key of keys) {
+    const base = key.slice(key.lastIndexOf("/") + 1);
+    if (!base.endsWith(suffix)) {
+      continue;
+    }
+    const stem = base.slice(0, -suffix.length);
+    if (!/^\d+$/u.test(stem)) {
+      continue;
+    }
+    ids.add(Number.parseInt(stem, 10));
+  }
+  return [...ids].sort((a, b) => b - a);
+}
+
+export type CompressRepairStats = {
+  scanned: number;
+  candidates: number;
+  repaired: number;
+  rejected: number;
+  pending: number;
+};
+
+/**
+ * Compress-only repair pass over recent stories, independent of the fetch index.
+ *
+ * The hourly index holds just the current TOP_N, so a compress hop that failed at
+ * write time was never retried once the story rotated out — on 2026-08-27 that left
+ * 3 of 10 sampled cards permanently on the raw bullet render after a single upstream
+ * 429. This pass re-reads the newest comments blobs and compresses the retryable
+ * ones; stage-1 is never re-run, so a repair costs at most one compress chain.
+ *
+ * Stops on the first story whose whole chain fails at the transport level: that is
+ * a provider-wide problem right now, and the remaining candidates would only burn
+ * budget for the same outcome.
+ */
+export async function runCompressRepairPass(
+  services: Services,
+  store: ObjectStore,
+  meta?: MetaStore,
+  options: { deadlineAt?: number; excludeIds?: Iterable<number> } = {}
+): Promise<CompressRepairStats> {
+  const stats: CompressRepairStats = { scanned: 0, candidates: 0, repaired: 0, rejected: 0, pending: 0 };
+  const scanLimit = env.COMMENTS_COMPRESS_REPAIR_SCAN;
+  const maxStories = env.COMMENTS_COMPRESS_REPAIR_MAX_STORIES;
+  if (!isCommentsCompressEnabled() || scanLimit === 0 || maxStories === 0) {
+    return stats;
+  }
+
+  let keys: string[];
+  try {
+    keys = await store.list(PATHS.summaries);
+  } catch (error) {
+    log.warn(LOG_NAMESPACE_COMMENTS, "Compress repair pass: summaries listing failed", {
+      error: String(error),
+    });
+    return stats;
+  }
+
+  const excluded = new Set(options.excludeIds ?? []);
+  const ids = commentsBlobIdsNewestFirst(keys)
+    .filter((id) => !excluded.has(id))
+    .slice(0, scanLimit);
+  stats.scanned = ids.length;
+
+  for (const id of ids) {
+    if (stats.repaired + stats.rejected >= maxStories) {
+      break;
+    }
+    const commentsPath = pathFor.commentsSummary(id);
+    let summary: CommentsSummary | undefined;
+    try {
+      summary = await readJsonSafe(store, commentsPath, CommentsSummarySchema);
+    } catch (error) {
+      log.debug(LOG_NAMESPACE_COMMENTS, "Compress repair pass: blob unreadable", { id, error: String(error) });
+      continue;
+    }
+    if (summary === undefined || !isCompressRetryable(summary)) {
+      continue;
+    }
+    stats.candidates += 1;
+    const budget = new CommentsGenerationBudget({
+      maxCalls: Math.max(1, commentsCompressModelChain().length),
+      ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
+    });
+    const compressed = await compressCommentsSummaryIfNeeded(services, summary, budget);
+    if (compressed.status === "pending") {
+      stats.pending += 1;
+      log.warn(LOG_NAMESPACE_COMMENTS, "Compress repair pass: stopping after a fully failed chain", { id });
+      break;
+    }
+    if (compressed.status !== "usable" && compressed.status !== "rejected") {
+      continue;
+    }
+    try {
+      await store.putJson(commentsPath, compressed.summary, { pretty: true, contentType: "application/json" });
+      // Site text comes from the meta DB (AGGREGATE_FROM_DB), so the blob alone
+      // would repair nothing visible.
+      await upsertCommentsSummaryMeta(meta, compressed.summary);
+    } catch (error) {
+      log.error(LOG_NAMESPACE_COMMENTS, "Compress repair pass: persistence failed", { id, error: String(error) });
+      continue;
+    }
+    if (compressed.status === "usable") {
+      stats.repaired += 1;
+    } else {
+      stats.rejected += 1;
+    }
+  }
+
+  if (stats.candidates > 0) {
+    log.info(LOG_NAMESPACE_COMMENTS, "Compress repair pass complete", { ...stats, maxStories, scanLimit });
+  }
+  return stats;
 }
 
 export async function processCommentsSummary(
@@ -1062,7 +1217,8 @@ export async function processCommentsSummary(
     let summaryForMeta = existingCommentsSummary;
     if (compressRetryable) {
       const lazyBudget = new CommentsGenerationBudget({
-        maxCalls: 1,
+        // One claim per compress hop; stage-1 is not re-run on this path.
+        maxCalls: Math.max(1, commentsCompressModelChain().length),
         ...(options.deadlineAt === undefined ? {} : { deadlineAt: options.deadlineAt }),
       });
       const compressed = await compressCommentsSummaryIfNeeded(
@@ -1879,6 +2035,16 @@ export async function summarizeWorkflow(services: Services, e: Env, store: Objec
       }
       log.error("summarize", "Unhandled error during story processing", { id, error: String(error) });
       continue;
+    }
+  }
+
+  // Stories that already rolled out of the index still need their compress retry;
+  // skipped after a rate-limit abort so the pass cannot pile onto a throttled provider.
+  if (!rateLimitAbort) {
+    try {
+      await runCompressRepairPass(services, store, meta, { excludeIds: selected.map((candidate) => candidate.id) });
+    } catch (error) {
+      log.error("summarize", "Compress repair pass failed", { error: String(error) });
     }
   }
 
