@@ -5,6 +5,7 @@ import {
   buildCommentsCompressUserPrompt,
   commentsCompressModelChain,
   compressSourceHash,
+  isRetriableCompressReject,
   renderCommentsInsightsPlainText,
   resolveCompressedState,
   sanitizeCompressedOutput,
@@ -90,6 +91,21 @@ describe("comments-compress pure helpers", () => {
     await withEnvPatch({ COMMENTS_COMPRESS_MODEL: "", COMMENTS_COMPRESS_FALLBACK_MODEL: "b" }, async () => {
       expect(commentsCompressModelChain()).toEqual([]);
     });
+  });
+
+  test("isRetriableCompressReject: language/format retries, size verdicts are terminal", () => {
+    // Model-specific: the paid hop plausibly answers in Russian on the same input.
+    expect(isRetriableCompressReject("low_cyrillic_ratio:0.621")).toBeTrue();
+    expect(isRetriableCompressReject("low_cyrillic_ratio,latin_prose")).toBeTrue();
+    expect(isRetriableCompressReject("contains_url")).toBeTrue();
+    expect(isRetriableCompressReject("artifact")).toBeTrue();
+    // Source verdicts: another hop would only repeat them.
+    expect(isRetriableCompressReject("expanded:4547>3237")).toBeFalse();
+    expect(isRetriableCompressReject("too_short:189<200")).toBeFalse();
+    expect(isRetriableCompressReject("expanded:10>5,too_short:1<2")).toBeFalse();
+    // Mixed: one retriable token is enough to earn the next hop.
+    expect(isRetriableCompressReject("too_short:189<200,latin_prose")).toBeTrue();
+    expect(isRetriableCompressReject("")).toBeFalse();
   });
 
   test("isCommentsCompressEnabled gates on lang + model", async () => {

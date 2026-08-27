@@ -1597,14 +1597,15 @@ describe("comments compress model chain", () => {
     });
   });
 
-  test("semantic reject on the first hop is terminal: no fallback call", async () => {
-    const story = makeStory({ id: 73, title: "Compress semantic reject" });
+  test("size reject on the first hop is terminal: no fallback call", async () => {
+    const story = makeStory({ id: 73, title: "Compress size reject" });
     const comments = threeComments(story.id);
     const store = new MemoryStore();
     const path = pathFor.commentsSummary(story.id);
     const { chatCalls, services } = structuredServices(
       [async () => VALID_INSIGHTS],
-      [async () => "short"]
+      // too_short describes the source, so another hop would repeat the verdict.
+      [async () => "коротко"]
     );
 
     await withEnvPatch(CHAIN_ENV, async () => {
@@ -1613,6 +1614,52 @@ describe("comments compress model chain", () => {
       const persisted = await store.getJson<CommentsSummary>(path);
       expect(persisted?.compressed?.text).toBe("");
       expect(chatCalls.length).toBe(1);
+    });
+  });
+
+  test("language reject on the free hop advances to the paid hop", async () => {
+    const story = makeStory({ id: 75, title: "Compress language reject" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    // Prod 2026-08-27: minimax answered English prose on RU input and the gate
+    // froze the card; the paid hop must still get its turn.
+    const englishAnswer =
+      "Participants agree that latency should be measured before the migration begins, that request mirroring is the safer rollout, and that write traffic must wait until every discrepancy is resolved and rollback criteria are agreed upon by everyone involved.";
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => englishAnswer, async () => VALID_COMPRESSED_RU]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+      expect(persisted?.compressed?.model).toBe("paid/fallback");
+      expect(chatCalls.length).toBe(2);
+    });
+  });
+
+  test("language reject on the last hop writes the terminal marker", async () => {
+    const story = makeStory({ id: 76, title: "Compress language reject both hops" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const englishAnswer =
+      "Participants agree that latency should be measured before the migration begins, that request mirroring is the safer rollout, and that write traffic must wait until every discrepancy is resolved and rollback criteria are agreed upon by everyone involved.";
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => englishAnswer, async () => englishAnswer]
+    );
+
+    await withEnvPatch(CHAIN_ENV, async () => {
+      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+      expect(result.status).toBe("applied");
+      const persisted = await store.getJson<CommentsSummary>(path);
+      expect(persisted?.compressed?.text).toBe("");
+      expect(persisted?.compressed?.model).toBe("paid/fallback");
+      expect(chatCalls.length).toBe(2);
     });
   });
 

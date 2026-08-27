@@ -23,6 +23,7 @@ import {
   expectedCompressSourceHash,
   isCommentsCompressEnabled,
   isPermanentCompressHttpError,
+  isRetriableCompressReject,
   renderCommentsInsightsPlainText,
   resolveCompressedState,
   sanitizeCompressedOutput,
@@ -962,12 +963,24 @@ export async function compressCommentsSummaryIfNeeded(
         minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
       });
       if (!validated.ok) {
-        // Semantic rejects are terminal: the model answered, the answer is unusable.
-        // Another hop would only spend budget on the same verdict.
+        const lastHop = hop === chain.length - 1;
+        // A language/format reject is a verdict on this model's answer, so the next
+        // hop still gets its turn; a size verdict describes the source and ends here.
+        if (!lastHop && isRetriableCompressReject(validated.reason)) {
+          log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject; trying next hop", {
+            id: summary.id,
+            reason: validated.reason,
+            model,
+            hop: hop + 1,
+          });
+          lastPermanentModel = undefined;
+          continue;
+        }
         log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject", {
           id: summary.id,
           reason: validated.reason,
           model,
+          hop: hop + 1,
         });
         return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash, model) };
       }

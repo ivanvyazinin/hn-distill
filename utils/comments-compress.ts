@@ -157,6 +157,31 @@ export function validateCompressedText(
   return { ok: true, text: trimmed };
 }
 
+/**
+ * Reject reasons that are a verdict on the source, not on the model: any hop would
+ * fail them the same way, so they end the chain and write the terminal marker.
+ */
+const TERMINAL_COMPRESS_REJECT_REASONS = new Set(["expanded", "too_short"]);
+
+/**
+ * True when a semantic reject looks model-specific and the next hop is worth a call.
+ *
+ * Evidence (prod 2026-08-27): the free minimax slot drifts into English and trips
+ * the cyrillic/latin gates on inputs the paid hop compressed fine on the probe —
+ * treating every reject as terminal froze those cards on the raw bullet render.
+ * Size verdicts (expanded / too_short) stay terminal: they describe the source.
+ */
+export function isRetriableCompressReject(reason: string): boolean {
+  const tokens = reason
+    .split(",")
+    .map((part) => part.split(":")[0]?.trim() ?? "")
+    .filter((part) => part.length > 0);
+  if (tokens.length === 0) {
+    return false;
+  }
+  return tokens.some((token) => !TERMINAL_COMPRESS_REJECT_REASONS.has(token));
+}
+
 export type CompressedState = "usable" | "rejected" | "retryable";
 
 /**
