@@ -31,6 +31,7 @@ import {
   type NormalizedStory,
 } from "@config/schemas";
 import {
+  commentsCompressModelChain,
   compressSourceHash,
   renderCommentsInsightsPlainText,
   resolveCompressedState,
@@ -270,7 +271,10 @@ async function runCompressOnly(
       }
 
       try {
-        const budget = new CommentsGenerationBudget({ maxCalls: 1 });
+        // One claim per compress hop, same as the pipeline's lazy path.
+        const budget = new CommentsGenerationBudget({
+          maxCalls: Math.max(1, commentsCompressModelChain().length),
+        });
         const result = await compressCommentsSummaryIfNeeded(services, requestSummary, budget);
 
         if (result.status === "usable" || result.status === "rejected") {
