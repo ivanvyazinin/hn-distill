@@ -81,8 +81,10 @@ fallback-карточках не должно быть простыни одно
 
 ## Если что-то не так
 
-- Смена/проверка моделей — сначала микропробник на реальных входах (метод:
-  `docs/probe-compress-models-2026-08-26.md`), потом дефолт в `config/env.ts`.
+- Смена/проверка моделей — сначала сверяйтесь с живой картой моделей и prompt-контрактов
+  (`docs/llm-models-and-prompts.md`), затем запускайте микропробник на реальных входах
+  (метод: `docs/probe-compress-models-2026-08-26.md`) и только потом меняйте дефолт
+  в `config/env.ts`.
 - Застрявшие карточки сами не оживут (hourly трогает только окно TOP_N):
   свип по процедуре `docs/handoff-manual-compress-72h.md`.
 - Свежесть данных на витрине: деплой = GitHub Pages из hourly; контент собирается
@@ -91,17 +93,38 @@ fallback-карточках не должно быть простыни одно
 
 ## Утренний автоматический чек (Hermes → OMP)
 
-Слои 1–3 собираются детерминированно, без LLM:
+Слои 1–3 собираются детерминированно, без LLM.
+
+### Подготовить свежую копию базы
+
+`HN_DB_PATH` — локальный путь. Collector сам не скачивает `hn.sqlite` с VPS.
+Перед запуском обновите копию. В локальном SSH-конфиге alias `vps` подключается
+как `ivan`; backup читается через `sudo`:
 
 ```sh
-WARN_RUNS=6 SAMPLE=10 HN_DB_PATH=/tmp/hn.sqlite \
+ssh vps 'sudo cp /home/hnbackup/backup/hn-distill/hn.sqlite /tmp/hn-prod-health.sqlite && sudo chmod 644 /tmp/hn-prod-health.sqlite'
+rsync -az vps:/tmp/hn-prod-health.sqlite /tmp/hn.sqlite
+```
+
+Проверьте возраст последней записи ledger. Если backup старше 24 часов, обновите
+копию и не интерпретируйте `byLabel: []` как отсутствие LLM-активности:
+
+```sh
+python3 -c 'import sqlite3,datetime as d; p="/tmp/hn.sqlite"; c=sqlite3.connect(p); v=c.execute("select max(created_at) from llm_usage").fetchone()[0]; assert v, "llm_usage is empty"; t=d.datetime.fromisoformat(v.replace("Z","+00:00")); age=(d.datetime.now(d.timezone.utc)-t).total_seconds()/3600; print(f"max(created_at)={v} age={age:.1f}h"); assert age <= 24, f"stale backup: {age:.1f}h"'
+```
+
+### Собрать факты
+
+```sh
+WARN_RUNS=6 SAMPLE=10 HN_DB_PATH=/tmp/hn.sqlite STATE_PATH=/tmp/prod-health-state.json \
   bun run tsx scripts/prod-health-collect.mts > /tmp/facts.json
 ```
 
+Не удаляйте `STATE_PATH` между чеками. При первом запуске `deltaVsPrevRun` не
+определяется; последующие запуски сравнивают список fallback с предыдущим чеком.
+
 Секции деградируют независимо: сломавшийся источник попадает в `errors[]`,
-а не валит прогон. `HN_DB_PATH` — свежая копия VPS-бэкапа (`sudo cp
-/home/hnbackup/backup/hn-distill/hn.sqlite /tmp/ && sudo chmod 644 /tmp/hn.sqlite`);
-без него раздел llm_usage честно скажет «нет данных».
+а не валит прогон. Без локальной базы раздел `llmUsage` честно скажет «нет данных».
 
 Интерпретирует факты утренний агент по контракту
 `docs/ops/morning-agent-prompt.md`: read-only, вердикт GREEN/YELLOW/RED,

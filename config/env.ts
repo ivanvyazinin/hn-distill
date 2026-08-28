@@ -126,8 +126,8 @@ const EnvironmentSchema = z.object({
   // p95 ~18.5 s on stage-1 prompts (probes 2026-08-25/26), while the shared 7 s
   // budget above is tuned for Groq. Before this override the prod hop timed out
   // 27/27 (TimeoutError at api.minimax.io) and the paid ladder answered everything.
-  // Still capped by the shared budget claims (maxCalls + worker deadline remainder).
-  COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(20_000),
+  // Keep this below the 40 s worker task budget so one fallback and compression still fit.
+  COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(22_000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the
   // last successful summary (processedDescendants). 0 disables the gate and keeps

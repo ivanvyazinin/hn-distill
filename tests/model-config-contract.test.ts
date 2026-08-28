@@ -40,7 +40,9 @@ describe("model config contract", () => {
     // Repair scan tracks the TOP_N window it backstops, not the whole archive.
     expect(defaults.COMMENTS_COMPRESS_REPAIR_SCAN).toBe(10);
     expect(defaults.COMMENTS_COMPRESS_REPAIR_MAX_STORIES).toBe(3);
-    expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(20_000);
+    // 2026-08-28: raise MiniMax stage-1 timeout above the measured p95 while
+    // staying within the 40-second worker task budget.
+    expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(22_000);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });
 
