@@ -1,4 +1,5 @@
 import { COMMENTS_COMPRESS_POLICY_VERSION, env } from "@config/env";
+import { COMMENTS_DEDUP_THRESHOLD, containment, dedupByContainment } from "@utils/comments-dedup";
 import { clampToClause } from "@utils/comments-render";
 import { sha256HexSync } from "@utils/hash";
 import { checkSummaryHeuristics, cyrillicRatio } from "@utils/summary-heuristics";
@@ -39,10 +40,19 @@ const INSIGHT_KIND_PREFIX_RU: Record<CommentsInsights["insights"][number]["kind"
 /**
  * Deterministic plain-text render of structured insights for compress input/hash.
  * Includes bottom_line + every insight (with kind prefixes); best_quote is excluded.
+ *
+ * Insights are deduped with the same containment pass the display renderer applies
+ * (prod 49468642, 2026-08-28): without it a stage-1 near-duplicate reaches the
+ * compressor twice while the raw fallback shows it once — input and fallback disagree.
  */
 export function renderCommentsInsightsPlainText(insights: CommentsInsights): string {
+  const texts = insights.insights.map((insight) => insight.text);
+  const survivors = new Set(dedupByContainment(insights.bottom_line, texts));
   const lines = [insights.bottom_line.trim()];
-  for (const insight of insights.insights) {
+  for (const [index, insight] of insights.insights.entries()) {
+    if (!survivors.has(index)) {
+      continue;
+    }
     const prefix = INSIGHT_KIND_PREFIX_RU[insight.kind];
     lines.push(`${prefix}${insight.text.trim()}`);
   }
@@ -114,9 +124,64 @@ export type CompressedValidationResult =
   | { ok: true; text: string }
   | { ok: false; reason: string };
 
+const MIN_DUP_SENTENCE_WORDS = 4;
+
+/**
+ * Split the single-paragraph compressed output into sentences for repeat
+ * detection. Closing quotes (`»`, `"`) end a quoted sentence ("…чинить.» Next"),
+ * so they terminate too; over-splitting is safe because fragments below the
+ * word gate never enter comparison.
+ */
+function splitCompressedSentences(text: string): string[] {
+  return text
+    .split(/(?<=[!"'.?»…])\s+/u)
+    .map((part) => part.trim())
+    .filter((part) => part.length > 0);
+}
+
+function countWords(text: string): number {
+  const normalized = text
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .replaceAll(/[^\s\p{L}\p{N}]+/gu, " ")
+    .replaceAll(/\s+/gu, " ")
+    .trim();
+  return normalized.length === 0 ? 0 : normalized.split(" ").length;
+}
+
+/**
+ * First repeated sentence pair (1-based positions in the reject reason), or
+ * undefined. Token-set containment with the same 0.7 bar as the display dedup
+ * catches both verbatim repeats and one-fact-twice rewordings; sentences under
+ * the word gate are ignored so stock phrases cannot false-positive.
+ * Prod basis (49468642, 2026-08-28): the compressor emitted the same thesis
+ * twice verbatim (containment 1.0) while the clean remainder peaked at 0.23.
+ */
+function findDuplicateSentence(text: string): { index: number; prior: number } | undefined {
+  const sentences = splitCompressedSentences(text);
+  for (let index = 1; index < sentences.length; index += 1) {
+    const current = sentences[index];
+    if (current === undefined || countWords(current) < MIN_DUP_SENTENCE_WORDS) {
+      continue;
+    }
+    for (let prior = 0; prior < index; prior += 1) {
+      const candidate = sentences[prior];
+      if (candidate === undefined || countWords(candidate) < MIN_DUP_SENTENCE_WORDS) {
+        continue;
+      }
+      if (containment(current, candidate) >= COMMENTS_DEDUP_THRESHOLD) {
+        return { index, prior };
+      }
+    }
+  }
+  return undefined;
+}
+
 /**
  * Semantic validation of a compressed paragraph against the source plain text.
- * Compression must not expand; RU outputs must pass the cyrillic gate.
+ * Compression must not expand; RU outputs must pass the cyrillic gate; repeated
+ * sentences are a model defect and reject the text (the raw render is the
+ * fallback, so a reject never unpublishes the summary).
  */
 export function validateCompressedText(
   text: string,
@@ -142,6 +207,10 @@ export function validateCompressedText(
     if (ratio < minimum) {
       return { ok: false, reason: `low_cyrillic_ratio:${ratio.toFixed(3)}` };
     }
+  }
+  const duplicate = findDuplicateSentence(trimmed);
+  if (duplicate !== undefined) {
+    return { ok: false, reason: `duplicate_sentence:${duplicate.prior + 1}==${duplicate.index + 1}` };
   }
   const heuristics = checkSummaryHeuristics(trimmed, {
     kind: "comments",

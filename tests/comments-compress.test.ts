@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import { readFileSync } from "node:fs";
 
 import {
   COMMENTS_COMPRESS_PROMPT,
@@ -45,6 +46,31 @@ describe("comments-compress pure helpers", () => {
     expect(plain).toContain("Совет: Сначала зеркалируйте");
     expect(plain).not.toContain("Measure twice");
     expect(plain).not.toContain("best_quote");
+  });
+  test("renderCommentsInsightsPlainText drops near-duplicate insights like the display render", () => {
+    const first =
+      "Проверяйте гипотезу на малом воспроизводимом примере перед полным запуском в прод.";
+    const nearCopy =
+      "Проверяйте гипотезу на малом воспроизводимом примере перед полным запуском в продакшен.";
+    const bottomEcho =
+      "Тред добавляет практический опыт: VPN через SSH проще корпоративного клиента для внутреннего доступа.";
+    const planted = makeRuCommentsInsights({
+      insights: [
+        { kind: "advice", text: first },
+        { kind: "advice", text: nearCopy },
+        { kind: "advice", text: bottomEcho },
+        {
+          kind: "consensus",
+          text: "Участники согласны, что измерения нужно повторить на реальной нагрузке перед выбором архитектуры.",
+        },
+      ],
+    });
+
+    const plain = renderCommentsInsightsPlainText(planted);
+    expect(plain).toContain(first);
+    expect(plain).not.toContain(nearCopy);
+    expect(plain).not.toContain(bottomEcho);
+    expect(plain).toContain("измерения нужно повторить");
   });
 
   test("buildCommentsCompressUserPrompt freezes the exact prompt wording", () => {
@@ -178,5 +204,59 @@ describe("comments-compress pure helpers", () => {
         hash
       )
     ).toBe("usable");
+  });
+});
+
+// Fixture: verbatim prod data/summaries/49468642.comments.json from 2026-08-28.
+// Stage-1 (MiniMax-M3) returned 11 clean insights; the compressor hop
+// (qwen/qwen3-next-80b-a3b-instruct) repeated one thesis byte-identically and
+// the pre-fix validation passed it, publishing the duplicate to the site.
+const prodDupFixturePath = new URL("fixtures/comments-v2/49468642-compressed-dup.json", import.meta.url);
+
+describe("prod 49468642 regression: compressor duplicate must not publish", () => {
+  const fixture = JSON.parse(readFileSync(prodDupFixturePath, "utf8")) as {
+    lang: "ru";
+    structured: Parameters<typeof renderCommentsInsightsPlainText>[0];
+    compressed: { text: string; sourceHash: string };
+  };
+
+  test("deduped plaintext keeps the prod sourceHash stable when stage-1 has no duplicates", () => {
+    // If this breaks, every good prod compressed blob goes stale on deploy and
+    // the fleet re-compresses for no reason — dedup must only change inputs
+    // that actually contain duplicates.
+    const plain = renderCommentsInsightsPlainText(fixture.structured);
+    expect(compressSourceHash(fixture.lang, plain)).toBe(fixture.compressed.sourceHash);
+  });
+
+  test("rejects the published paragraph as duplicate_sentence, retriable for the next hop", () => {
+    const plain = renderCommentsInsightsPlainText(fixture.structured);
+    const verdict = validateCompressedText(fixture.compressed.text, plain, { language: "ru" });
+    expect(verdict.ok).toBeFalse();
+    if (verdict.ok) {
+      return;
+    }
+    expect(verdict.reason).toContain("duplicate_sentence");
+    expect(isRetriableCompressReject(verdict.reason)).toBeTrue();
+  });
+
+  test("accepts the same paragraph with the duplicate removed (no false positive on real text)", () => {
+    const repeated =
+      "@ks2048, @saghm, @MaxBarraclough и @wvbdmp сходятся: фаззеры важны, потому что находят именно эксплуатируемые пути, а не просто ошибки.";
+    expect(fixture.compressed.text.split(repeated).length - 1).toBe(2);
+    const clean = fixture.compressed.text.replace(`${repeated} ${repeated}`, repeated);
+
+    const plain = renderCommentsInsightsPlainText(fixture.structured);
+    const verdict = validateCompressedText(clean, plain, { language: "ru" });
+    expect(verdict).toEqual({ ok: true, text: clean });
+  });
+
+  test("ignores repeated short stock phrases below the word gate", () => {
+    const body =
+      "Тред сходится, что перед миграцией нужно измерить задержки на реальной нагрузке, зеркалировать запросы между старой и новой системами, сравнивать ответы и оставить путь отката. Итог понятен. Итог понятен.";
+    const verdict = validateCompressedText(body, `${body} ${"дополнительный исходный текст".repeat(6)}`, {
+      language: "ru",
+      minChars: 40,
+    });
+    expect(verdict).toEqual({ ok: true, text: body });
   });
 });
