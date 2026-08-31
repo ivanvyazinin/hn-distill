@@ -7,42 +7,23 @@ import { parseEnv } from "@config/env";
 const ROOT = join(import.meta.dir, "..");
 
 describe("model config contract", () => {
-  test("schema defaults match the 2026-08-21 selected availability routes", () => {
+  test("schema defaults match the selected comments routes", () => {
     // Empty source → pure schema defaults (ignore developer .env / process.env overrides).
     const defaults = parseEnv({});
     expect(defaults.TAGS_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.POST_GUARD_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.POST_GUARD_FALLBACK_MODEL).toBe("");
-    // Repointed 2026-08-21: Groq shut down both llama ids on 2026-08-16 (404
-    // model_not_found); probe in docs/probe-groq-comments-models-2026-08-21.md.
     expect(defaults.COMMENTS_MODEL).toBe("openai/gpt-oss-120b");
     expect(defaults.COMMENTS_FALLBACK_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.COMMENTS_FALLBACK_MODEL_2).toBe("");
     expect(defaults.COMMENTS_OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
-    // Free-first comments primary (2026-08-25): prepended official-MiniMax hop.
-    expect(defaults.COMMENTS_MINIMAX_MODEL).toBe("MiniMax-M3");
-    expect(defaults.MINIMAX_BASE_URL).toBe("https://api.minimax.io/v1/chat/completions");
     expect(defaults.OPENROUTER_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
-    // Free-first 2026-08-25: ≥$10 account balance unlocks 1000 :free requests/day,
-    // daily volume fits it. Post fallback = the paid twin of the primary (same
-    // style when the free pool dies, cheaper output than qwen). Comments spill
-    // and escalation stay on qwen: the spill sends strict json_schema without
-    // reasoning_effort — nemotron empties its content into the reasoning trace.
     expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b");
     expect(defaults.OPENROUTER_FALLBACK_MODEL_2).toBe("meta-llama/llama-3.3-70b-instruct");
-    // 2026-08-26: nematron :free burns max_tokens in its reasoning trace on the
-    // plain-text compress task (finish=length, expands source); minimax-m3:free 6/6 OK.
     expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("minimax/minimax-m3:free");
-    // 2026-08-27: the free minimax slot answers 429 "rate-limited upstream" a few
-    // times a day; without a second hop the card keeps the raw bullet render. qwen
-    // scored 5/6 on the same compress probe.
     expect(defaults.COMMENTS_COMPRESS_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
-    // Repair scan tracks the TOP_N window it backstops, not the whole archive.
     expect(defaults.COMMENTS_COMPRESS_REPAIR_SCAN).toBe(10);
     expect(defaults.COMMENTS_COMPRESS_REPAIR_MAX_STORIES).toBe(3);
-    // 2026-08-28: raise MiniMax stage-1 timeout above the measured p95 while
-    // staying within the 40-second worker task budget.
-    expect(defaults.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS).toBe(22_000);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
   });
 
@@ -56,7 +37,6 @@ describe("model config contract", () => {
       "COMMENTS_FALLBACK_MODEL:",
       "COMMENTS_FALLBACK_MODEL_2:",
       "COMMENTS_OPENROUTER_FALLBACK_MODEL:",
-      "COMMENTS_MINIMAX_MODEL:",
       "TAGS_MODEL:",
       "POST_GUARD_MODEL:",
       "POST_GUARD_FALLBACK_MODEL:",
@@ -67,9 +47,8 @@ describe("model config contract", () => {
     for (const key of forbidden) {
       expect(workflow.includes(key)).toBeFalse();
     }
-    // Secrets stay — only model IDs are banned from the workflow surface.
+    // Provider credentials remain; model IDs stay in config defaults.
     expect(workflow).toContain("OPENROUTER_API_KEY:");
     expect(workflow).toContain("GROQ_API_KEY:");
-    expect(workflow).toContain("MINIMAX_API_KEY:");
   });
 });

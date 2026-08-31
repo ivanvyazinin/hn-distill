@@ -77,7 +77,7 @@ function buildRoutes(models: string[]): CommentsRoute[] {
   return models.map((entry) => {
     const separator = entry.indexOf(":");
     const prefix = separator > 0 ? entry.slice(0, separator) : "openrouter";
-    const gateway = prefix === "groq" || prefix === "minimax" ? prefix : "openrouter";
+    const gateway = prefix === "groq" ? prefix : "openrouter";
     const model = separator > 0 ? entry.slice(separator + 1) : entry;
     return {
       label: entry,

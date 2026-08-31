@@ -31,9 +31,8 @@ import type { CommentsInsights, NormalizedComment, NormalizedStory } from "@conf
 import type { UsageInput } from "@utils/llm-usage";
 
 export type CommentsRoute = {
-  /** "groq" — Groq API + GROQ_API_KEY; "openrouter" — OpenRouter API + OPENROUTER_API_KEY;
-   *  "minimax" — official platform.minimax.io API + MINIMAX_API_KEY. */
-  gateway: "groq" | "minimax" | "openrouter";
+  /** "groq" — Groq API + GROQ_API_KEY; "openrouter" — OpenRouter API + OPENROUTER_API_KEY. */
+  gateway: "groq" | "openrouter";
   label: string;
   model: string;
   maxTokens: number;
@@ -161,10 +160,6 @@ export async function runCommentsRoute(
 
   const credentials: Record<CommentsRoute["gateway"], { apiKey: string; baseUrl: string }> = {
     groq: { apiKey: env.GROQ_API_KEY ?? "", baseUrl: env.GROQ_BASE_URL },
-    minimax: {
-      apiKey: env.MINIMAX_API_KEY ?? "",
-      baseUrl: env.MINIMAX_BASE_URL ?? "https://api.minimax.io/v1/chat/completions",
-    },
     openrouter: {
       apiKey: env.OPENROUTER_API_KEY ?? "",
       baseUrl: env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1/chat/completions",

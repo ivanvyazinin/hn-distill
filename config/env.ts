@@ -17,10 +17,6 @@ const EnvironmentSchema = z.object({
   // Daily catch-up coverage report (scripts/daily-coverage.mts): alert thresholds
   // for "did we miss yesterday" checks. Ratio is a fraction (0.5 = 50%).
   DAILY_COVERAGE_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(-1),
-  // MiniMax official API (platform.minimax.io) — optional third gateway for
-  // comments model eval / future routing. Token Plan keys look like sk-cp-…
-  MINIMAX_API_KEY: z.string().optional(),
-  MINIMAX_BASE_URL: z.string().default("https://api.minimax.io/v1/chat/completions"),
   DAILY_COVERAGE_MIN_CARDS: z.coerce.number().int().min(0).max(500).default(6),
   DAILY_COVERAGE_MIN_RATIO: z.coerce.number().min(0).max(1).default(0.5),
   MAX_COMMENTS_PER_STORY: z.coerce.number().int().min(1).max(5000).default(40),
@@ -122,12 +118,6 @@ const EnvironmentSchema = z.object({
   // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
-  // MiniMax-M3 is a slow reasoning model: 6–11 s even on short outputs, avg ~14 s /
-  // p95 ~18.5 s on stage-1 prompts (probes 2026-08-25/26), while the shared 7 s
-  // budget above is tuned for Groq. Before this override the prod hop timed out
-  // 27/27 (TimeoutError at api.minimax.io) and the paid ladder answered everything.
-  // Keep this below the 40 s worker task budget so one fallback and compression still fit.
-  COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(22_000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the
   // last successful summary (processedDescendants). 0 disables the gate and keeps
@@ -135,33 +125,12 @@ const EnvironmentSchema = z.object({
   // MAX_COMMENTS_PER_STORY-capped fetch sample.
   COMMENTS_REGEN_MIN_NEW_COMMENTS: z.coerce.number().int().min(0).max(100_000).default(100),
 
-  // Comments-v2 model chain. When GROQ_API_KEY is set these route through the Groq
-  // client (plain-JSON extraction, no json_schema needed) and MUST be Groq model ids.
-  // Without a Groq key they are ignored and comments fall back to the OPENROUTER_MODEL
-  // chain. 2026-08-16: Groq shut down both llama ids (404 model_not_found; probe and
-  // ledger in docs/probe-groq-comments-models-2026-08-21.md and docs/ops/2026-08-21/).
-  // gpt-oss keeps its reasoning in a separate message.reasoning field, so content is
-  // clean JSON with no flags. qwen3.6-27b inlines <think> into content unless the
-  // caller passes reasoning_effort="none" — only the secondary-route hop does that,
-  // so bare qwen ids are banned from these two slots.
+  // Comments-v2 model chain. Groq is the free primary; the paid OpenRouter
+  // Qwen route is used only after the Groq fallbacks are exhausted.
   COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
-  // Free-first comments primary (2026-08-25): when MINIMAX_API_KEY is set, this model is
-  // PREPENDED to the Groq ladder as hop 1 — official MiniMax API, reasoning_effort=none
-  // and balanced-object JSON extraction (live smoke: MiniMax accepts response_format
-  // json_schema but does not enforce it). Probe: docs/probe-comments-models-2026-08-25.md;
-  // beats the paid gpt-oss-120b primary on schema/RU/provenance at $0. The gpt-oss →
-  // qwen paid ladder below stays untouched as fallback. Empty string disables the hop.
-  COMMENTS_MINIMAX_MODEL: z.string().default("MiniMax-M3"),
-  // Second Groq hop after 120b TPD/TPM (separate free-tier bucket). This slot does
-  // NOT pass reasoning_effort — keep a model whose content is clean without it.
   COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
-  // Cross-provider last resort tried on the OpenRouter client (not Groq) after the
-  // Groq chain is exhausted — chiefly Groq's per-model daily token cap (HTTP 429 TPD),
-  // which otherwise dead-ends comment generation into a persisted fallback. A PAID
-  // OpenRouter model is required: :free models emit prose, not clean structured JSON
-  // (the original reason comments moved to Groq). Empty string disables the hop.
-  // Freshness-SLA gating of this hop is intentionally unchanged in Phase 3 scaffold.
+  // Paid cross-provider last resort. Empty disables the paid hop.
   COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
 
   // Groq strict json_schema (when GROQ_API_KEY set). Probe winner: openai/gpt-oss-20b.

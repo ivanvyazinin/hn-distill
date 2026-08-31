@@ -73,11 +73,7 @@ const WARNING_PATTERNS: Array<[category: string, re: RegExp]> = [
 export function tallyWarnings(lines: readonly string[]): WarningTally {
   const counts: Record<string, number> = {};
   const rejectIdsByReason: Record<string, number[]> = {};
-  let minimaxTimeouts = 0;
   for (const line of lines) {
-    if (line.includes("TimeoutError") && line.includes("api.minimax.io")) {
-      minimaxTimeouts += 1;
-    }
     for (const [category, re] of WARNING_PATTERNS) {
       if (!re.test(line)) {
         continue;
@@ -92,9 +88,6 @@ export function tallyWarnings(lines: readonly string[]): WarningTally {
         (rejectIdsByReason[reason] ??= []).push(Number(id));
       }
     }
-  }
-  if (minimaxTimeouts > 0) {
-    counts["minimax.hopTimeout"] = minimaxTimeouts;
   }
   return { counts, rejectIdsByReason };
 }

@@ -142,7 +142,6 @@ function writeState(state: HealthState): void {
 type UsageDigest = {
   windowHours: number;
   byLabel: Array<{ label: string; ok: number; error: number; totalTokens: number }>;
-  minimaxHop: { ok: number; error: number };
 };
 
 function digestUsage(dbPath: string, windowHours: number): UsageDigest {
@@ -170,18 +169,7 @@ function digestUsage(dbPath: string, windowHours: number): UsageDigest {
           };
         })
     ;
-    const hop = db
-      .prepare(
-        `select coalesce(sum(status = 'ok'), 0) as ok,
-                coalesce(sum(status = 'error'), 0) as error
-         from llm_usage where gateway = 'minimax' and created_at >= ?`
-      )
-      .get(since) as Record<string, unknown>;
-    return {
-      windowHours,
-      byLabel,
-      minimaxHop: { ok: Number(hop["ok"]), error: Number(hop["error"]) },
-    };
+    return { windowHours, byLabel };
   } finally {
     db.close();
   }

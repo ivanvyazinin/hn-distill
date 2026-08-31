@@ -53,17 +53,15 @@ describe("classifyCommentsCard", () => {
 });
 
 describe("tallyWarnings", () => {
-  test("counts categories, pairs reject ids with reasons, spots minimax timeouts", () => {
+  test("counts categories and pairs reject ids with reasons", () => {
     const lines = [
       "WARN summarize/comments: Comments compress semantic reject { id: 49434378, reason: 'expanded:4547>3237' }",
       "WARN summarize/comments: Comments compress transport error; leaving field absent { error: 'empty content' }",
-      "DOMException [TimeoutError]: Request timed out … url: 'https://api.minimax.io/v1/chat/completions'",
       "INFO summarize/comments: Comments-v2 summary written { id: 1 }",
     ];
     const tally = tallyWarnings(lines);
     expect(tally.counts["compress.semanticReject"]).toBe(1);
     expect(tally.counts["compress.transportError"]).toBe(1);
-    expect(tally.counts["minimax.hopTimeout"]).toBe(1);
     expect(tally.rejectIdsByReason["expanded:4547>3237"]).toEqual([49_434_378]);
   });
 });

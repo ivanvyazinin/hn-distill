@@ -12,7 +12,7 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 | Stage | Models | Provider | Оплата | Назначение и поведение |
 |---|---|---|---|---|
 | Post summary | `nvidia/nemotron-3-super-120b-a12b:free` → `nvidia/nemotron-3-super-120b-a12b` → `meta-llama/llama-3.3-70b-instruct` | OpenRouter | Первый hop — free pool; остальные — paid route | Пересказ статьи на русском. При heuristic/guard reject выполняются strict retries; для них используется `SUMMARY_CONTENT_REJECT_MODEL` (`qwen/qwen3-next-80b-a3b-instruct`) и затем fallback. |
-| Comments-v2, stage 1 | `MiniMax-M3` → `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → optional `COMMENTS_FALLBACK_MODEL_2` → `qwen/qwen3-next-80b-a3b-instruct` | MiniMax API → Groq → OpenRouter | MiniMax — free quota; Groq — ваш бесплатный tier; последний qwen — paid | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. MiniMax hop добавляется только при `MINIMAX_API_KEY`; Groq hops — только при `GROQ_API_KEY`. Последний qwen hop — cross-provider fallback. |
+| Comments-v2, stage 1 | `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → optional `COMMENTS_FALLBACK_MODEL_2` → `qwen/qwen3-next-80b-a3b-instruct` | Groq → OpenRouter | Groq — free primary/fallbacks; Qwen — paid last resort | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. Groq использует balanced-object extraction; Qwen — strict JSON. |
 | Comments compression | `minimax/minimax-m3:free` → `qwen/qwen3-next-80b-a3b-instruct` | OpenRouter | Первый hop — free pool; второй — paid route | Второй проход: structured insights превращаются в один русский абзац. Transport и model-specific language/format rejects передаются следующему hop; `expanded` и `too_short` остаются terminal. |
 | Tags | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Извлечение до `TAGS_MAX_PER_STORY` нормализованных тегов. При полном отказе используются deterministic heuristics; второго LLM hop нет. |
 | Post guard | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Проверка post summary: статья ли это, отказ, verdict, confidence. `POST_GUARD_FALLBACK_MODEL` по умолчанию пустой; при недоступности guard summary принимается только через heuristics. |
@@ -22,29 +22,23 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 
 | Provider | Credential | Free / paid rule | Что проверить при изменении |
 |---|---|---|---|
-| MiniMax official API | `MINIMAX_API_KEY` | `MiniMax-M3` используется как free-first hop; текущая конфигурация считает его route с ценой `$0`. Квоты и latency остаются ограничениями. | Token Plan, лимиты и фактический статус account |
 | OpenRouter | `OPENROUTER_API_KEY` | Slug с суффиксом `:free` — free pool. Slug без `:free` — paid route и требует credits. | Model page, credits, upstream rate limits |
 | Groq | `GROQ_API_KEY` | В текущем setup используется только бесплатный tier. `openai/gpt-oss-*` — free-tier API calls, ограниченные лимитами аккаунта. | Free-tier limits, rate limits и актуальность model id |
 
-`MiniMax-M3` и `minimax/minimax-m3:free` — разные записи в ledger:
+Через OpenRouter используются два comments-маршрута:
 
-- `MiniMax-M3` — stage-1 comments через официальный MiniMax API;
-- `minimax/minimax-m3:free` — comments-compress через OpenRouter.
+- `qwen/qwen3-next-80b-a3b-instruct` — paid comments stage-1 last resort и compression fallback;
+- `minimax/minimax-m3:free` — только comments compression primary. Это не official MiniMax API.
 
-Фраза «иначе основной client» в таблице описывает только выбор gateway при
-отсутствии `GROQ_API_KEY`. Она не означает, что текущий Groq setup платный.
+Основной comments route остаётся free-first: платный Qwen вызывается только после
+исчерпания Groq-моделей или их отказа по transport/TPD/schema-причинам.
 
-Поэтому плохая недельная строка `MiniMax-M3: 62 calls, 19 OK, 43 errors`
-описывает stage 1, а не compression. Из 43 errors у 41 не было ответа и токенов;
-логи показывают `Request timed out` на MiniMax hop. Два ответа были получены, но
-завершились ошибкой обработки/валидации. Счётчик считает попытки, а не карточки.
+Official MiniMax API удалён из production chain: stage-1 latency/transport были
+нестабильны, а schema enforcement не гарантировался. Исторические probe-документы
+сохраняют результаты прежнего маршрута.
 
 ### Model-specific constraints
 
-- `MiniMax-M3` получает `reasoning_effort=none` и отдельный timeout
-  `COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS`. Без этого reasoning может занять весь
-  budget. Текущий default — 22 секунды; значение остаётся ограничено общим
-  40-секундным worker task budget, shared comments budget и fallback hops.
 - `qwen/qwen3.6-27b` нельзя ставить в обычные Groq comments slots без
   `reasoning_effort=none`: модель может вернуть `<think>` внутри JSON.
 - OpenRouter free-модели не использовать для strict comments JSON без проверки:

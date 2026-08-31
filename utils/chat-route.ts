@@ -35,11 +35,6 @@ export type LlmLogContext = Record<string, unknown>;
 export type RouteServices = {
   openrouter: OpenRouter;
   guardTagsClient: OpenRouter;
-  /**
-   * Official MiniMax API client (MINIMAX_API_KEY). When present, the comments chain
-   * prepends a free MiniMax-M3 hop before the Groq/paid ladder. Absent → no hop.
-   */
-  commentsMinimaxClient?: OpenRouter;
   /** Preferred TPD breaker. When absent, commentsTpdExhaustedModels is adapted. */
   tpdBreaker?: TpdBreaker;
   /**
@@ -694,21 +689,16 @@ export function isGroqTpdExhaustionError(error: unknown): boolean {
 
 
 type CommentsChainStep = {
-  gateway: "groq" | "minimax" | "openrouter";
+  gateway: "groq" | "openrouter";
   client: OpenRouter;
   model: string;
   prefersResponseFormat: boolean;
-  /** Groq Qwen3.6 / MiniMax-M3 need reasoning_effort=none or the budget burns inside <think>. */
   reasoningEffort?: "high" | "low" | "medium" | "none";
   /** Match smoke / reduce quote-rewrite variance on the candidate hop. */
   temperature: number;
   /** When true, a proven TPD 429 on this Groq step is recorded under gateway-prefixed key. */
   trackTpdExhaustion: boolean;
-  /**
-   * Per-step base timeout override. The shared budget is tuned for fast Groq hops
-   * (7 s); the slow MiniMax-M3 reasoning model needs its own ceiling and still gets
-   * capped by the budget's maxCalls/worker-deadline claims at call time.
-   */
+  /** Optional per-step timeout override for provider-specific routes. */
   requestTimeoutMs?: number;
 };
 
@@ -730,7 +720,7 @@ export function buildCommentsModelChain(services: RouteServices): CommentsChainS
     stepClient: OpenRouter,
     model: string,
     stepBaseUrl: string,
-    gateway: "groq" | "minimax" | "openrouter",
+    gateway: "groq" | "openrouter",
     prefersResponseFormat: boolean,
     options?: {
       reasoningEffort?: CommentsChainStep["reasoningEffort"];
@@ -776,39 +766,17 @@ export function buildCommentsModelChain(services: RouteServices): CommentsChainS
   };
 
   if (groqEnabled) {
-    // Free-first comments primary (2026-08-25): official MiniMax API hop prepended
-    // before the paid ladder. reasoning_effort=none (MiniMax-M3 inlines thinking
-    // otherwise); temperature keeps the chain default 0.2. MiniMax accepts
-    // response_format json_schema but does NOT enforce the schema (returns its own
-    // shape), so this hop extracts a balanced object exactly like the Groq hops.
-    // The shared 7 s budget is Groq-tuned and M3 answers in ~14 s avg on stage-1 —
-    // with it, prod timed out 27/27 (2026-08-25..26); hence the per-hop ceiling.
-    // The hop never joins the Groq TPD breaker and is skipped without a client.
-    const minimaxModel = env.COMMENTS_MINIMAX_MODEL.trim();
-    if (minimaxModel.length > 0 && services.commentsMinimaxClient !== undefined) {
-      pushStep(services.commentsMinimaxClient, minimaxModel, env.MINIMAX_BASE_URL, "minimax", false, {
-        reasoningEffort: "none",
-        requestTimeoutMs: env.COMMENTS_MINIMAX_REQUEST_TIMEOUT_MS,
-      });
-    } else if (minimaxModel.length > 0) {
-      log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 COMMENTS_MINIMAX_MODEL set without MINIMAX_API_KEY; starting at the paid ladder", {
-        commentsMinimaxModel: minimaxModel,
-      });
-    }
-
-    // Primary Groq hop.
+    // Groq is the free comments primary. Its provider-specific models use
+    // balanced-object extraction because strict response_format is unreliable.
     pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
       trackTpdExhaustion: true,
     });
 
-    // Historical ordered fallback list (fallback + optional fallback_2).
     for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
       pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
     }
 
-
-    // Paid OpenRouter last resort — timing/SLA intentionally unchanged in this scaffold.
-    // gateway "openrouter" → never written/read against the Groq TPD breaker set.
+    // Paid OpenRouter Qwen is the last resort after the free Groq ladder.
     pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, "openrouter", true);
   } else {
     for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {

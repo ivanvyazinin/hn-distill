@@ -115,13 +115,9 @@ export type { ArticleSourceKind, FetchedArticle } from "@utils/article-fetch";
 export type Services = {
   http: HttpClient;
   openrouter: OpenRouter;
-  /** Client for structured-JSON calls (tags, post-guard, comments-v2). Groq when GROQ_API_KEY is set, else same as openrouter. */
+  /** Client for structured JSON calls; Groq when GROQ_API_KEY is set. */
   guardTagsClient: OpenRouter;
-  /**
-   * Official MiniMax API client (MINIMAX_API_KEY). When set, the comments chain
-   * prepends a free MiniMax-M3 hop before the Groq/paid ladder (chat-route).
-   */
-  commentsMinimaxClient?: OpenRouter;
+  /** Article fetcher used by post summarization. */
   fetchArticleMarkdown: (url: string) => Promise<FetchedArticle>;
   /** Force the Jina reader path (JS-rendered pages). Used to recover a no-article html extract. */
   fetchArticleViaReader?: (url: string) => Promise<FetchedArticle>;
@@ -190,16 +186,6 @@ export function makeServices(
         ...(onUsage === undefined ? {} : { onUsage }),
       })
     : openrouter;
-  // Free-first comments primary (2026-08-25): official MiniMax API client for the
-  // prepended MiniMax-M3 hop. Only built when a key exists; chat-route skips the
-  // hop otherwise and the paid gpt-oss ladder stays the fallback.
-  const minimaxEnabled = e.MINIMAX_API_KEY !== undefined && e.MINIMAX_API_KEY.length > 0;
-  const commentsMinimaxClient = minimaxEnabled
-    ? new OpenRouter(http, e.MINIMAX_API_KEY ?? "", e.COMMENTS_MINIMAX_MODEL, e.MINIMAX_BASE_URL, {
-        gateway: "minimax",
-        ...(onUsage === undefined ? {} : { onUsage }),
-      })
-    : undefined;
 
   const articleFetcher = createArticleFetcher({
     http,
@@ -220,7 +206,6 @@ export function makeServices(
     http,
     openrouter,
     guardTagsClient,
-    ...(commentsMinimaxClient === undefined ? {} : { commentsMinimaxClient }),
     ...articleFetcher,
     usage,
     tpdBreaker,
