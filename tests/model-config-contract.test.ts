@@ -14,7 +14,7 @@ describe("model config contract", () => {
     expect(defaults.POST_GUARD_MODEL).toBe("openai/gpt-oss-20b");
     expect(defaults.POST_GUARD_FALLBACK_MODEL).toBe("");
     expect(defaults.COMMENTS_MODEL).toBe("openai/gpt-oss-120b");
-    expect(defaults.COMMENTS_FALLBACK_MODEL).toBe("openai/gpt-oss-20b");
+    expect(defaults.COMMENTS_FALLBACK_MODEL).toBe("");
     expect(defaults.COMMENTS_FALLBACK_MODEL_2).toBe("");
     expect(defaults.COMMENTS_OPENROUTER_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
     expect(defaults.OPENROUTER_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");

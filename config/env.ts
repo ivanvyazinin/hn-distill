@@ -114,7 +114,7 @@ const EnvironmentSchema = z.object({
   // backstops): the older tail is a manual sweep, not per-cron blob reads.
   COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(10),
   COMMENTS_COMPRESS_REPAIR_MAX_STORIES: z.coerce.number().int().min(0).max(50).default(3),
-  // Default 5: primary + fallback + OpenRouter + room for compress (and one spare)
+  // Default 5: primary + OpenRouter + room for compression and one spare
   // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
@@ -125,10 +125,10 @@ const EnvironmentSchema = z.object({
   // MAX_COMMENTS_PER_STORY-capped fetch sample.
   COMMENTS_REGEN_MIN_NEW_COMMENTS: z.coerce.number().int().min(0).max(100_000).default(100),
 
-  // Comments-v2 model chain. Groq is the free primary; the paid OpenRouter
-  // Qwen route is used only after the Groq fallbacks are exhausted.
+  // Comments-v2 model chain. Groq is the free primary; optional Groq fallback
+  // slots default empty. Paid OpenRouter Qwen is the last resort.
   COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
-  COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
+  COMMENTS_FALLBACK_MODEL: z.string().default(""),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
   // Paid cross-provider last resort. Empty disables the paid hop.
   COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),

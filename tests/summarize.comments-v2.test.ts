@@ -364,7 +364,7 @@ describe("comments-v2 request budget and validation", () => {
       usage: createUsageCollector(),
     };
 
-    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_OPENROUTER_FALLBACK_MODEL: "qwen/qwen3-next-80b-a3b-instruct" }, async () => {
+    await withEnvPatch({ SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_FALLBACK_MODEL: "", COMMENTS_FALLBACK_MODEL_2: "", COMMENTS_OPENROUTER_FALLBACK_MODEL: "qwen/qwen3-next-80b-a3b-instruct" }, async () => {
       const result = await generateValidatedCommentsSummaryV2(services, {
         story,
         comments: threeComments(story.id),
@@ -372,17 +372,18 @@ describe("comments-v2 request budget and validation", () => {
 
       expect(result?.insights).toEqual(VALID_INSIGHTS);
       expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
-      // Both Groq models were tried and 429'd before the cross-provider hop.
-      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_FALLBACK_MODEL]);
+      // The default chain skips empty Groq fallback slots.
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL]);
       expect(openRouterCalls.length).toBe(1);
       expect(openRouterCalls[0]?.options.model).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
     });
   });
 
-  test("70b HTTP 429 then 8b HTTP 413 reaches OpenRouter Qwen within 3 calls", async () => {
+  test("configured Groq fallback failure reaches OpenRouter Qwen within 3 calls", async () => {
     const story = makeStory({ id: 43, title: "Budget reaches Qwen" });
     const groqCalls: StructuredCall[] = [];
     const openRouterCalls: StructuredCall[] = [];
+    const configuredFallback = "openai/gpt-oss-20b";
     const groqClient = ({
       chat: async () => {
         throw new Error("legacy chat must not be called by comments-v2");
@@ -394,7 +395,7 @@ describe("comments-v2 request budget and validation", () => {
             cause: new HttpError("https://api.groq.com/openai/v1", 429, "tokens per day (TPD)"),
           });
         }
-        if (options.model === env.COMMENTS_FALLBACK_MODEL) {
+        if (options.model === configuredFallback) {
           if (options.responseFormat !== undefined) {
             throw new UnsupportedResponseFormatError(
               new HttpError("https://api.groq.com/openai/v1", 400, "response_format is not supported")
@@ -426,7 +427,7 @@ describe("comments-v2 request budget and validation", () => {
     const budget = new CommentsGenerationBudget({ maxCalls: 3 });
 
     await withEnvPatch(
-      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_OPENROUTER_FALLBACK_MODEL: "qwen/qwen3-next-80b-a3b-instruct" },
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_FALLBACK_MODEL: configuredFallback, COMMENTS_FALLBACK_MODEL_2: "", COMMENTS_OPENROUTER_FALLBACK_MODEL: "qwen/qwen3-next-80b-a3b-instruct" },
       async () => {
         const result = await generateValidatedCommentsSummaryV2(services, {
           story,
@@ -438,7 +439,7 @@ describe("comments-v2 request budget and validation", () => {
         expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
         expect(groqCalls.map((call) => call.options.model)).toEqual([
           env.COMMENTS_MODEL,
-          env.COMMENTS_FALLBACK_MODEL,
+          configuredFallback,
         ]);
         expect(groqCalls.length).toBe(2);
         for (const call of groqCalls) {
@@ -462,6 +463,7 @@ describe("comments-v2 request budget and validation", () => {
     const groqCalls: StructuredCall[] = [];
     const openRouterCalls: StructuredCall[] = [];
     const missingPrimary = env.COMMENTS_MODEL;
+    const configuredFallback = "test/groq-fallback";
     const groqClient = ({
       chat: async () => {
         throw new Error("legacy chat must not be called by comments-v2");
@@ -498,17 +500,17 @@ describe("comments-v2 request budget and validation", () => {
     };
 
     await withEnvPatch(
-      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "" },
+      { SUMMARY_LANG: "ru", COMMENTS_SUMMARY_MIN_CHARS: 200, COMMENTS_MAX_LLM_CALLS: 3, COMMENTS_COMPRESS_MODEL: "", COMMENTS_FALLBACK_MODEL: configuredFallback, COMMENTS_FALLBACK_MODEL_2: "" },
       async () => {
         const result = await generateValidatedCommentsSummaryV2(services, {
           story,
           comments: threeComments(story.id),
         });
         expect(result?.insights).toEqual(VALID_INSIGHTS);
-        expect(result?.modelUsed).toBe(env.COMMENTS_FALLBACK_MODEL);
+        expect(result?.modelUsed).toBe(configuredFallback);
         expect(groqCalls.map((call) => call.options.model)).toEqual([
           env.COMMENTS_MODEL,
-          env.COMMENTS_FALLBACK_MODEL,
+          configuredFallback,
         ]);
         expect(openRouterCalls.length).toBe(0);
       }

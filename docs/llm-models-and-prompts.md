@@ -12,7 +12,7 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 | Stage | Models | Provider | Оплата | Назначение и поведение |
 |---|---|---|---|---|
 | Post summary | `nvidia/nemotron-3-super-120b-a12b:free` → `nvidia/nemotron-3-super-120b-a12b` → `meta-llama/llama-3.3-70b-instruct` | OpenRouter | Первый hop — free pool; остальные — paid route | Пересказ статьи на русском. При heuristic/guard reject выполняются strict retries; для них используется `SUMMARY_CONTENT_REJECT_MODEL` (`qwen/qwen3-next-80b-a3b-instruct`) и затем fallback. |
-| Comments-v2, stage 1 | `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → optional `COMMENTS_FALLBACK_MODEL_2` → `qwen/qwen3-next-80b-a3b-instruct` | Groq → OpenRouter | Groq — free primary/fallbacks; Qwen — paid last resort | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. Groq использует balanced-object extraction; Qwen — strict JSON. |
+| Comments-v2, stage 1 | `openai/gpt-oss-120b` → `qwen/qwen3-next-80b-a3b-instruct` | Groq → OpenRouter | Groq — free primary; Qwen — paid last resort | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. Оба Groq fallback-слота по умолчанию пусты, но могут быть включены через environment. Groq использует balanced-object extraction; Qwen — strict JSON. |
 | Comments compression | `minimax/minimax-m3:free` → `qwen/qwen3-next-80b-a3b-instruct` | OpenRouter | Первый hop — free pool; второй — paid route | Второй проход: structured insights превращаются в один русский абзац. Transport и model-specific language/format rejects передаются следующему hop; `expanded` и `too_short` остаются terminal. |
 | Tags | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Извлечение до `TAGS_MAX_PER_STORY` нормализованных тегов. При полном отказе используются deterministic heuristics; второго LLM hop нет. |
 | Post guard | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Проверка post summary: статья ли это, отказ, verdict, confidence. `POST_GUARD_FALLBACK_MODEL` по умолчанию пустой; при недоступности guard summary принимается только через heuristics. |
@@ -31,7 +31,7 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 - `minimax/minimax-m3:free` — только comments compression primary. Это не official MiniMax API.
 
 Основной comments route остаётся free-first: платный Qwen вызывается только после
-исчерпания Groq-моделей или их отказа по transport/TPD/schema-причинам.
+отказа Groq primary и любых явно настроенных Groq fallback-моделей.
 
 Official MiniMax API удалён из production chain: stage-1 latency/transport были
 нестабильны, а schema enforcement не гарантировался. Исторические probe-документы
