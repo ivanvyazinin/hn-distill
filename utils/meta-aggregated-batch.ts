@@ -109,6 +109,7 @@ export type StoryRow = {
 export type PresentCommentsSummary = {
   present: true;
   summary: string;
+  provenance?: CommentsProvenance;
 };
 
 // The DB contract stores only the rendered string. Row presence is therefore
@@ -116,6 +117,29 @@ export type PresentCommentsSummary = {
 // not persist a comments summary row.
 export type SummaryMap = Map<number, { post?: string; comments?: PresentCommentsSummary }>;
 export type TagsMap = Map<number, string[]>;
+
+/** Where a persisted comments recap came from. Only 'structured' rescues post-less cards. */
+export type CommentsProvenance = "fallback" | "structured" | "unknown";
+
+export function commentsProvenanceOf(record: {
+  formatVersion?: unknown;
+  degraded?: unknown;
+  structured?: unknown;
+  compressed?: unknown;
+  summary?: unknown;
+} | undefined): CommentsProvenance {
+  if (record?.formatVersion !== 2) {
+    return "unknown";
+  }
+  if (record.degraded !== undefined) {
+    return "fallback";
+  }
+  if (record.structured !== undefined && record.structured !== null) {
+    return "structured";
+  }
+  const text = (record.compressed as { text?: unknown } | undefined)?.text;
+  return typeof text === "string" && text.trim().length > 0 ? "structured" : "unknown";
+}
 
 export function presentCommentsSummary(summary: string): PresentCommentsSummary {
   return { present: true, summary };
@@ -138,6 +162,14 @@ export function buildAggregatedItemsFromRows(
     const sum = summaries.get(story.id);
     const tags = [...new Set(tagsByStory.get(story.id) ?? [])];
     const postSummary = sanitizePostSummaryForPublish(sum?.post, { id: story.id });
+    const commentsSummary = resolveCommentsSummary(sum?.comments);
+    // Same rescue as the FS path, via the persisted provenance marker: only a
+    // 'structured' recap rescues. Degraded fallbacks and legacy rows (no marker)
+    // stay unpublished without a post body.
+    const commentsOnly =
+      (postSummary ?? "").trim().length === 0 &&
+      sum?.comments?.provenance === "structured" &&
+      (commentsSummary ?? "").trim().length > 0;
     items.push({
       id: story.id,
       title: story.title,
@@ -145,7 +177,8 @@ export function buildAggregatedItemsFromRows(
       by: story.by,
       timeISO: story.timeISO,
       postSummary,
-      commentsSummary: resolveCommentsSummary(sum?.comments),
+      commentsSummary,
+      ...(commentsOnly ? { commentsOnly: true } : {}),
       score: story.score ?? undefined,
       commentsCount: story.descendants ?? undefined,
       hnUrl: HN.itemUrl(story.id),

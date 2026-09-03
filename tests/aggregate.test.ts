@@ -11,7 +11,7 @@ import {
 } from "./helpers";
 import { writeJsonFile } from "@utils/json";
 import { log } from "@utils/log";
-import { buildAggregatedItemsFromRows } from "@utils/meta-aggregated-batch";
+import { buildAggregatedItemsFromRows, commentsProvenanceOf, presentCommentsSummary } from "@utils/meta-aggregated-batch";
 import { resetDrops } from "@utils/summary-drops";
 import type { AggregatedItem, NormalizedComment, NormalizedStory, PostSummary } from "@config/schemas";
 import { SCORE_MIN_AGGREGATE } from "@config/constants";
@@ -191,6 +191,7 @@ describe("Aggregation & grouping", () => {
       expect(item.postSummary).toBeUndefined();
       expect(item.commentsSummary).toBe(fallback.commentsSummary);
       expect(item.commentsSummary).toContain("This is a comment.");
+      expect(item.commentsOnly).toBeUndefined();
     });
   });
 
@@ -243,7 +244,7 @@ describe("Aggregation & grouping", () => {
         void 0
       );
       expect(withStructured.commentsInsights !== undefined).toBeTrue();
-      expect(withStructured.commentsInsights?.lead).toContain(structured.bottom_line.slice(0, 20));
+      expect(withStructured.commentsOnly).toBeTrue();
 
       const degraded = buildAggregatedItem(
         s,
@@ -259,6 +260,7 @@ describe("Aggregation & grouping", () => {
         void 0
       );
       expect(degraded.commentsInsights).toBeUndefined();
+      expect(degraded.commentsOnly).toBeUndefined();
 
       const legacy = buildAggregatedItem(
         s,
@@ -268,6 +270,7 @@ describe("Aggregation & grouping", () => {
         void 0
       );
       expect(legacy.commentsInsights).toBeUndefined();
+      expect(legacy.commentsOnly).toBeUndefined();
 
       const broken = buildAggregatedItem(
         s,
@@ -283,6 +286,63 @@ describe("Aggregation & grouping", () => {
         void 0
       );
       expect(broken.commentsInsights).toBeUndefined();
+      expect(broken.commentsOnly).toBeUndefined();
+    });
+  });
+
+  test("buildAggregatedItem omits commentsOnly when a post body exists", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const { buildAggregatedItem } = await import("@scripts/aggregate.mts");
+      const { makeEnCommentsInsights } = await import("./helpers/comments-insights.ts");
+
+      const s: NormalizedStory = makeStory({ id: 100, url: null, score: 120, commentIds: [] });
+      const item = buildAggregatedItem(
+        s,
+        [],
+        { summary: PUBLISHABLE_RU },
+        {
+          id: 100,
+          lang: "ru",
+          summary: "rendered markdown",
+          structured: makeEnCommentsInsights(),
+          formatVersion: 2,
+        },
+        void 0
+      );
+      expect(item.postSummary).toBe(PUBLISHABLE_RU);
+      expect(item.commentsOnly).toBeUndefined();
+    });
+  });
+
+  test("buildAggregatedItemsFromRows marks only structured-provenance comments-only cards", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const rows = [901, 902, 903, 904, 905].map((id) => ({
+        id,
+        title: `story-${id}`,
+        url: null,
+        by: "t",
+        timeISO: TEST_ISO,
+        score: 150,
+        descendants: 5,
+      }));
+      const items = buildAggregatedItemsFromRows(
+        rows,
+        new Map([
+          [901, { comments: { ...presentCommentsSummary("Разбор обсуждения."), provenance: "structured" } }],
+          [902, { post: PUBLISHABLE_RU, comments: { ...presentCommentsSummary("Разбор."), provenance: "structured" } }],
+          [903, { post: PUBLISHABLE_RU }],
+          [904, { comments: { ...presentCommentsSummary("Сырой fallback."), provenance: "fallback" } }],
+          [905, { comments: presentCommentsSummary("Старый legacy-текст.") }],
+        ]),
+        new Map()
+      );
+      expect(items.find((it) => it.id === 901)?.commentsOnly).toBeTrue();
+      expect(items.find((it) => it.id === 902)?.commentsOnly).toBeUndefined();
+      expect(items.find((it) => it.id === 903)?.commentsOnly).toBeUndefined();
+      expect(items.find((it) => it.id === 904)?.commentsOnly).toBeUndefined();
+      expect(items.find((it) => it.id === 905)?.commentsOnly).toBeUndefined();
     });
   });
 
@@ -331,6 +391,7 @@ describe("Aggregation & grouping", () => {
       expect(usable.commentsInsights).toBeUndefined();
       expect(usable.commentsSummary).toContain("Тред добавляет");
       expect(usable.commentsSummary).not.toContain("- ");
+      expect(usable.commentsOnly).toBeTrue();
 
       const rejected = buildAggregatedItem(
         s,
@@ -510,5 +571,30 @@ describe("Aggregation & grouping", () => {
       expect(fsGuarded.postSummary).toBeUndefined();
       expect(dbItems.find((it) => it.id === 903)?.postSummary).toBe(PUBLISHABLE_RU);
     });
+  });
+});
+
+describe("commentsProvenanceOf", () => {
+  test("structured v2 with insights is structured", () => {
+    expect(commentsProvenanceOf({ formatVersion: 2, structured: { lead: "x" } })).toBe("structured");
+  });
+
+  test("usable compressed paragraph is structured", () => {
+    expect(commentsProvenanceOf({ formatVersion: 2, compressed: { text: "Recap." } })).toBe("structured");
+  });
+
+  test("degraded records are fallback even with v2 shape", () => {
+    expect(commentsProvenanceOf({ formatVersion: 2, degraded: "too-few-comments", summary: "Deterministic text." })).toBe(
+      "fallback"
+    );
+    expect(commentsProvenanceOf({ formatVersion: 2, degraded: "generation-failed", summary: "Deterministic text." })).toBe(
+      "fallback"
+    );
+  });
+
+  test("legacy and missing records are unknown", () => {
+    expect(commentsProvenanceOf({ summary: "Old freeform." })).toBe("unknown");
+    expect(commentsProvenanceOf({})).toBe("unknown");
+    expect(commentsProvenanceOf({ formatVersion: 2 })).toBe("unknown");
   });
 });

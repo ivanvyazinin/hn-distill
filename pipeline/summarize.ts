@@ -49,6 +49,7 @@ import { sha256Hex } from "@utils/hash";
 import { HttpClient } from "@utils/http-client";
 import { createUsageCollector, type UsageCollector } from "@utils/llm-usage";
 import { log } from "@utils/log";
+import { commentsProvenanceOf } from "@utils/meta-aggregated-batch";
 import { createNoopMetaStore } from "@utils/noop-meta-store";
 import { readJsonSafe, readJsonSafeOrStore } from "@utils/object-store";
 import { OpenRouter, UnsupportedResponseFormatError, type ChatMessage, type JsonSchema } from "@utils/openrouter";
@@ -860,6 +861,7 @@ async function upsertCommentsSummaryMeta(meta: MetaStore | undefined, summary: C
     lang: summary.lang,
     ...(summary.model === undefined ? {} : { model: summary.model }),
     summary: metaSummaryText(summary),
+    provenance: commentsProvenanceOf(summary),
     createdAt: summary.createdISO ?? new Date().toISOString(),
   });
 }

@@ -14,6 +14,8 @@ export type SummaryRow = {
   model?: string;
   summary: string;
   createdAt: string;
+  /** Comments recap provenance ('structured' | 'fallback'); absent = legacy/unknown. */
+  provenance?: string;
 };
 
 export type RawBlobKind = "article" | "comments" | "item";

@@ -200,6 +200,18 @@ describe("site publish bar", () => {
     expect(isSitePublishable({ ...PASSING }, GATE)).toBeFalse();
   });
 
+  test("commentsOnly rescue marker publishes a post-less card with a real recap", () => {
+    expect(isSitePublishable({ ...PASSING, commentsOnly: true }, GATE)).toBeTrue();
+  });
+
+  test("rescue marker does not bypass the engagement gate", () => {
+    expect(isSitePublishable({ score: 10, commentsCount: 2, commentsOnly: true }, GATE)).toBeFalse();
+  });
+
+  test("post body plus marker still publishes", () => {
+    expect(isSitePublishable({ ...PASSING, postSummary: "Article recap.", commentsOnly: true }, GATE)).toBeTrue();
+  });
+
   test("card with a blank post body is skipped", () => {
     expect(isSitePublishable({ ...PASSING, postSummary: "   " }, GATE)).toBeFalse();
   });

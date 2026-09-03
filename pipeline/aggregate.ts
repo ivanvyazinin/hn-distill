@@ -161,6 +161,14 @@ export function buildAggregatedItem(
     }
   }
 
+  // Comments-only rescue: no post body, but the discussion recap rendered from
+  // a real v2 LLM result (structured insights or usable compressed paragraph).
+  // Degraded fallbacks, legacy freeform summaries and unparseable records never
+  // set the marker, so the 2026-08-02 flood class stays unpublished while
+  // URL-less or article-unreachable stories with a real recap get through.
+  const commentsOnly =
+    !hasPublishablePostSummary({ postSummary: cleanedPostSummary }) &&
+    (commentsInsights !== undefined || compressedCommentsSummary !== undefined);
   return {
     id: story.id,
     title: story.title,
@@ -172,6 +180,7 @@ export function buildAggregatedItem(
       compressedCommentsSummary ??
       resolveCommentsSummary(persistedCommentsSummary, fb.commentsSummary),
     ...(commentsInsights === undefined ? {} : { commentsInsights }),
+    ...(commentsOnly ? { commentsOnly: true } : {}),
     score: story.score,
     commentsCount: story.descendants ?? comments.length,
     hnUrl: HN.itemUrl(story.id),
@@ -219,9 +228,10 @@ export async function readAggregates(storyIds: number[], store: ObjectStore): Pr
 
       const { comments, postSummary, commentsSummary, tagsSummary } = await loadStoryPayload(id, store);
       const item = buildAggregatedItem(story, comments, postSummary, commentsSummary, tagsSummary);
-      // Threshold-pass but empty/guard-dropped post body must not become an empty card.
-      if (!hasPublishablePostSummary(item)) {
-        log.info("aggregate", "Skipping story without publishable postSummary", { id: story.id });
+      // Post-less cards pass only with the commentsOnly rescue marker (real LLM
+      // discussion recap, never raw fallback). See isSitePublishable.
+      if (!isSitePublishable(item, gate)) {
+        log.info("aggregate", "Skipping story without publishable postSummary or rescued comments", { id: story.id });
         return;
       }
       return item;

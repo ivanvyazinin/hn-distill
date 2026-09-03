@@ -267,6 +267,10 @@ export const AggregatedItemSchema = z.object({
     })
     .optional(),
   score: z.number().optional(),
+  // Rescue marker for comments-only cards: set when the post body is missing
+  // but the comments summary is real LLM output (never raw fallback text).
+  // Old backlog rows lack it and stay unpublished; Telegram still needs a post.
+  commentsOnly: z.boolean().optional(),
   commentsCount: z.number().optional(),
   hnUrl: z
     .string()

@@ -39,7 +39,8 @@ export function hasPublishablePostSummary(item: { postSummary?: string | undefin
 }
 
 /**
- * Full site-publish eligibility: engagement gate + a non-empty post summary.
+ * Full site-publish eligibility: engagement gate + a non-empty post summary,
+ * OR the commentsOnly rescue marker.
  *
  * Accepting a comments-only card looks right in isolation -- it would rescue
  * stories whose article was unreachable -- but it was tried on 2026-08-02 and
@@ -49,14 +50,17 @@ export function hasPublishablePostSummary(item: { postSummary?: string | undefin
  * aggregate heuristics. Relaxing the bar published 868 such cards at once,
  * mostly 2025 backlog rendering untranslated raw English snippets.
  *
- * A comments-only card therefore needs the fallback text told apart from a real
- * summary first; see docs/ops/2026-08-01/report.md.
+ * The marker fixes the ambiguity at build time: builders set `commentsOnly`
+ * only for real LLM discussion recaps (structured v2, usable compressed, or a
+ * persisted summary file/row) -- never for raw fallback text, and never for
+ * old backlog rows. So marker-less post-less cards still do not publish.
  */
 export function isSitePublishable(
   item: {
     score?: number | undefined;
     commentsCount?: number | undefined;
     postSummary?: string | undefined;
+    commentsOnly?: boolean | undefined;
   },
   thresholds: EngagementThresholds
 ): boolean {
@@ -64,6 +68,6 @@ export function isSitePublishable(
     passesEngagementGate(
       { score: item.score, comments: item.commentsCount },
       thresholds
-    ) && hasPublishablePostSummary(item)
+    ) && (hasPublishablePostSummary(item) || item.commentsOnly === true)
   );
 }

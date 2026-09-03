@@ -82,10 +82,18 @@ export function createMetaStoreOverDriver(driver: SqlDriver): MetaStore {
     async upsertSummary(row: SummaryRow): Promise<void> {
       await driver
         .prepare(
-          "INSERT INTO summaries (story_id, kind, lang, model, summary, created_at) VALUES (?, ?, ?, ?, ?, ?) " +
-            "ON CONFLICT(story_id, kind, lang) DO UPDATE SET model=excluded.model, summary=excluded.summary, created_at=excluded.created_at"
+          "INSERT INTO summaries (story_id, kind, lang, model, summary, created_at, provenance) VALUES (?, ?, ?, ?, ?, ?, ?) " +
+            "ON CONFLICT(story_id, kind, lang) DO UPDATE SET model=excluded.model, summary=excluded.summary, created_at=excluded.created_at, provenance=excluded.provenance"
         )
-        .run(row.storyId, row.kind, row.lang, row.model ?? databaseNull, row.summary, row.createdAt);
+        .run(
+          row.storyId,
+          row.kind,
+          row.lang,
+          row.model ?? databaseNull,
+          row.summary,
+          row.createdAt,
+          row.provenance ?? databaseNull
+        );
     },
 
     async replaceTags(storyId: number, tags: string[]): Promise<void> {

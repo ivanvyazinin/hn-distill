@@ -73,7 +73,7 @@ async function loadSqliteComments(
     const db = new DatabaseSync(":memory:");
     db.exec(
       "CREATE TABLE stories (id INTEGER PRIMARY KEY, title TEXT, url TEXT, by TEXT, timeISO TEXT, score INTEGER, descendants INTEGER);" +
-      "CREATE TABLE summaries (story_id INTEGER, kind TEXT, lang TEXT, summary TEXT);" +
+      "CREATE TABLE summaries (story_id INTEGER, kind TEXT, lang TEXT, summary TEXT, provenance TEXT);" +
       "CREATE TABLE tags (story_id INTEGER, tag TEXT);"
     );
     const insertStory = db.prepare(
@@ -83,10 +83,10 @@ async function loadSqliteComments(
       insertStory.run(row.id, row.title, row.url, row.by, row.timeISO, row.score, row.descendants);
     }
     const insertSummary = db.prepare(
-      "INSERT INTO summaries (story_id, kind, lang, summary) VALUES (?, ?, ?, ?)"
+      "INSERT INTO summaries (story_id, kind, lang, summary, provenance) VALUES (?, ?, ?, ?, ?)"
     );
     for (const row of summaries) {
-      insertSummary.run(row.story_id, row.kind, env.SUMMARY_LANG, row.summary);
+      insertSummary.run(row.story_id, row.kind, env.SUMMARY_LANG, row.summary, row.provenance ?? null);
     }
     const driver = createNodeSqliteDriver(db);
     const items = await getAggregatedItemsOverDriver(driver, stories.map((row) => row.id));

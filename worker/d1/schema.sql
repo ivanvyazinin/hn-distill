@@ -62,6 +62,11 @@ CREATE TABLE IF NOT EXISTS summaries (
   model TEXT,
   summary TEXT NOT NULL,
   created_at TEXT NOT NULL,
+  -- Comments recap provenance: 'structured' = real v2 LLM recap (insights or
+  -- usable compressed), 'fallback' = deterministic degraded text, NULL = legacy
+  -- rows written before provenance tracking. Only 'structured' rescues post-less
+  -- cards (commentsOnly marker) and everything else stays unpublished without a post.
+  provenance TEXT,
   PRIMARY KEY (story_id, kind, lang)
 );
 

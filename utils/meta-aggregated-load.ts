@@ -43,10 +43,10 @@ async function loadSummariesForIds(driver: SqlDriver, ids: number[]): Promise<Su
     const ph = inPlaceholders(chunk.length);
     const rows = await driver
       .prepare(
-        `SELECT story_id, kind, summary FROM summaries WHERE lang = ? AND kind IN ('post','comments') AND story_id IN (${ph})`
+        `SELECT story_id, kind, summary, provenance FROM summaries WHERE lang = ? AND kind IN ('post','comments') AND story_id IN (${ph})`
       )
       .all(env.SUMMARY_LANG, ...chunk);
-    for (const row of rows as Array<{ story_id: number; kind: string; summary: string }>) {
+    for (const row of rows as Array<{ story_id: number; kind: string; summary: string; provenance: string | null }>) {
       let entry = map.get(row.story_id);
       if (!entry) {
         entry = {};
@@ -55,7 +55,10 @@ async function loadSummariesForIds(driver: SqlDriver, ids: number[]): Promise<Su
       if (row.kind === "post") {
         entry.post = row.summary;
       } else if (row.kind === "comments") {
-        entry.comments = presentCommentsSummary(row.summary);
+        entry.comments = {
+          ...presentCommentsSummary(row.summary),
+          ...(row.provenance === "structured" || row.provenance === "fallback" ? { provenance: row.provenance } : {}),
+        };
       }
     }
   }
