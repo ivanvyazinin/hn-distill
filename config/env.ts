@@ -14,6 +14,14 @@ const EnvironmentSchema = z.object({
   TOP_N: z.coerce.number().int().min(1).max(500).default(10),
   TOP_N_MODE: z.enum(["topstories", "daily-top-by-score"]).default("topstories"),
   TOP_N_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(0),
+  // daily-top-by-score window width in days, ending at TOP_N_DAY_OFFSET.
+  // 1 = current behavior (only that UTC day). Catch-up sets 7 so late bloomers
+  // created days earlier but peaking in the target window are still found.
+  TOP_N_LOOKBACK_DAYS: z.coerce.number().int().min(1).max(30).default(1),
+  // daily-top-by-score overfetch factor: rank TOP_N * factor, then keep the top
+  // TOP_N unpublished. Hourly topstories must refresh already-published stories,
+  // so filtering applies to the daily catch-up window only.
+  TOP_N_OVERFETCH: z.coerce.number().int().min(1).max(10).default(1),
   // Daily catch-up coverage report (scripts/daily-coverage.mts): alert thresholds
   // for "did we miss yesterday" checks. Ratio is a fraction (0.5 = 50%).
   DAILY_COVERAGE_DAY_OFFSET: z.coerce.number().int().min(-30).max(0).default(-1),

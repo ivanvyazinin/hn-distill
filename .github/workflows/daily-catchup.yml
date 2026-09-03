@@ -60,18 +60,26 @@ jobs:
             fi
           fi
 
-      - name: Run yesterday catch-up pipeline
+      - name: Run day-before-yesterday catch-up pipeline
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           JINA_API_KEY: ${{ secrets.JINA_API_KEY }}
           ARTICLE_FETCH_READER_FALLBACK: ${{ vars.ARTICLE_FETCH_READER_FALLBACK || 'true' }}
-          # Catch-up selection: final score ranking for the closed UTC day.
+          # Catch-up selection: final score ranking for a fully settled UTC day.
+          # Day -2 instead of -1: at 01:33 UTC yesterday's US-evening votes are
+          # still coming in and late-evening stories are only hours old, so a
+          # day-1 ranking snapshot misranks them. Day -2 scores are final.
           # Stories already summarized by the hourly runs are skipped by the
           # staleness owner; only late bloomers get LLM work here.
           TOP_N: ${{ vars.CATCHUP_TOP_N || '20' }}
           TOP_N_MODE: daily-top-by-score
-          TOP_N_DAY_OFFSET: '-1'
+          TOP_N_DAY_OFFSET: '-2'
+          # Peak-day window: rank stories created in the last 7 days by live
+          # score so late bloomers (created days before they peak) are found.
+          TOP_N_LOOKBACK_DAYS: ${{ vars.CATCHUP_LOOKBACK_DAYS || '7' }}
+          # Rank 3x slots, keep the top TOP_N unpublished (review P1-2).
+          TOP_N_OVERFETCH: ${{ vars.CATCHUP_OVERFETCH || '3' }}
           SUMMARIZE_MIN_SCORE: ${{ vars.SUMMARIZE_MIN_SCORE || '300' }}
           SUMMARIZE_MIN_COMMENTS: ${{ vars.SUMMARIZE_MIN_COMMENTS || '100' }}
           SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
@@ -94,14 +102,15 @@ jobs:
             echo "::error::data/hn.sqlite is invalid (${bytes} bytes); refusing to overwrite the VPS backup with garbage"
             exit 1
           fi
-          rsync -az --delete --exclude 'bench/' --exclude '.DS_Store' --exclude '*.sqlite-shm' --exclude '*.sqlite-wal' data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
-
       - name: Daily coverage report and alert
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # Same engagement bar as the pipeline: the miss classifier must judge
+          # by the thresholds stories were actually selected with (review P2-4).
+          SUMMARIZE_MIN_SCORE: ${{ vars.SUMMARIZE_MIN_SCORE || '300' }}
+          SUMMARIZE_MIN_COMMENTS: ${{ vars.SUMMARIZE_MIN_COMMENTS || '100' }}
         run: bun run tsx scripts/daily-coverage.mts
-
       - name: Build site
         env:
           SITE: ${{ vars.SITE }}

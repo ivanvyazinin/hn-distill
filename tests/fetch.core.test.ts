@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { HnItemRawSchema } from "@config/schemas";
 import type { Services } from "../scripts/fetch-hn.mts";
 import { fetchItem, readTopIds } from "../scripts/fetch-hn.mts";
+import { selectUnpublishedIds } from "../pipeline/fetch-hn";
 import { makeMockHttp } from "./helpers";
 
 describe("scripts/fetch-hn core", () => {
@@ -85,6 +86,45 @@ describe("scripts/fetch-hn core", () => {
 
     const ids = await readTopIds(services, 3, { mode: "daily-top-by-score", now, concurrency: 4 });
     expect(ids).toEqual([103, 102, 101]);
+  });
+
+  test("readTopIds daily-top-by-score lookback finds late bloomers from earlier days", async () => {
+    const now = new Date("2026-03-06T15:00:00.000Z");
+    const todayStart = Math.floor(Date.parse("2026-03-06T00:00:00.000Z") / 1000);
+    const bloomerTime = Math.floor(Date.parse("2026-03-04T01:00:00.000Z") / 1000);
+    const bloomer = { id: 105, type: "story", title: "late", by: "e", time: bloomerTime, score: 900, kids: [] };
+    const fresh = { id: 106, type: "story", title: "fresh", by: "f", time: todayStart + 100, score: 100, kids: [] };
+
+    const services = makeMockHttp({
+      "/search_by_date/": {
+        hits: [
+          { objectID: "105", created_at_i: bloomerTime },
+          { objectID: "106", created_at_i: todayStart + 100 },
+        ],
+        nbPages: 1,
+        nbHits: 2,
+      },
+      "/\\/item\\/105\\.json$/": bloomer,
+      "/\\/item\\/106\\.json$/": fresh,
+    }) as unknown as Services;
+
+    const single = await readTopIds(services, 5, { mode: "daily-top-by-score", now, concurrency: 4 });
+    expect(single).toEqual([106]);
+    const wide = await readTopIds(services, 5, {
+      mode: "daily-top-by-score",
+      now,
+      concurrency: 4,
+      lookbackDays: 3,
+    });
+    expect(wide).toEqual([105, 106]);
+  });
+
+
+  test("selectUnpublishedIds keeps top-N unpublished, falls back to plain top-N", () => {
+    expect(selectUnpublishedIds([1, 2, 3, 4, 5], [1, 2], 2)).toEqual([3, 4]);
+    expect(selectUnpublishedIds([1, 2, 3], [1, 2, 3], 2)).toEqual([1, 2]);
+    expect(selectUnpublishedIds([1, 2], [1], 5)).toEqual([2]);
+    expect(selectUnpublishedIds([1, 2], [], 0)).toEqual([]);
   });
 
   test("readTopIds daily-top-by-score splits Algolia windows and deduplicates ids", async () => {

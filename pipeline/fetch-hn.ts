@@ -4,6 +4,7 @@ import { z } from "zod";
 import { env, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import {
+  AggregatedFileSchema,
   HnItemRawSchema,
   IndexSchema,
   type HnItemRaw,
@@ -59,6 +60,8 @@ type ReadTopIdsOptions = {
   mode?: Env["TOP_N_MODE"];
   now?: Date;
   dayOffset?: number;
+  /** daily-top-by-score window width in days ending at dayOffset (default 1). */
+  lookbackDays?: number;
   /** Item fetch parallelism for daily-top-by-score (defaults to env.CONCURRENCY). */
   concurrency?: number;
 };
@@ -207,14 +210,29 @@ async function readDailyTopIds(
   limit: number,
   now: Date,
   dayOffset: DayOffset = 0,
-  concurrencyOverride?: number
+  concurrencyOverride?: number,
+  lookbackDaysOverride?: number
 ): Promise<number[]> {
-  const { startUnix, endUnix } = utcDayWindow(now, dayOffset);
-  const candidateIds = await readDailyCandidateIdsForWindow(services, startUnix, endUnix);
+  const lookback =
+    lookbackDaysOverride !== undefined && Number.isFinite(lookbackDaysOverride)
+      ? Math.min(30, Math.max(1, Math.floor(lookbackDaysOverride)))
+      : 1;
+  const windows = Array.from({ length: lookback }, (_, index) =>
+    utcDayWindow(now, dayOffset - lookback + 1 + index)
+  );
+  const target = windows.at(-1);
+  if (!target) {
+    return [];
+  }
+  const candidateIdLists = await Promise.all(
+    windows.map(async (window) => readDailyCandidateIdsForWindow(services, window.startUnix, window.endUnix))
+  );
+  const candidateIds = uniqueNumbers(candidateIdLists.flat());
   if (candidateIds.length === 0) {
     return [];
   }
-
+  const windowStart = windows.at(0)?.startUnix ?? target.startUnix;
+  const targetEnd = target.endUnix;
   const configuredConcurrency = concurrencyOverride ?? env.CONCURRENCY;
   const concurrency = Number.isFinite(configuredConcurrency) ? Math.max(1, configuredConcurrency) : 8;
   const limitConcurrency = pLimit(concurrency);
@@ -228,7 +246,7 @@ async function readDailyTopIds(
           }
 
           const time = Number.isFinite(item.time) ? item.time : undefined;
-          if (time === undefined || time < startUnix || time >= endUnix) {
+          if (time === undefined || time < windowStart || time >= targetEnd) {
             return;
           }
 
@@ -246,6 +264,26 @@ async function readDailyTopIds(
   return candidates.slice(0, Math.max(0, limit)).map((candidate) => candidate.id);
 }
 
+/**
+ * Daily catch-up slot selection: keep the top `limit` ids no published card
+ * exists for yet. Hourly topstories must refresh published stories, so this
+ * applies to the daily window only. Falls back to the plain top-N when every
+ * ranked id is already published, keeping the index populated.
+ */
+export function selectUnpublishedIds(
+  rankedIds: number[],
+  publishedIds: Iterable<number>,
+  limit: number
+): number[] {
+  if (limit <= 0) {
+    return [];
+  }
+  const published = new Set(publishedIds);
+  const fresh = rankedIds.filter((id) => !published.has(id));
+  const picked = fresh.slice(0, limit);
+  return picked.length > 0 ? picked : rankedIds.slice(0, limit);
+}
+
 export async function readTopIds(
   services: Services,
   limit: number,
@@ -257,7 +295,8 @@ export async function readTopIds(
       limit,
       options.now ?? new Date(),
       options.dayOffset ?? 0,
-      options.concurrency
+      options.concurrency,
+      options.lookbackDays
     );
   }
 
@@ -535,12 +574,23 @@ export async function main(
   const previousIndex = await readJsonSafe(store, PATHS.index, IndexSchema);
   const indexExists = (await store.getText(PATHS.index)) !== null;
 
-  const topIds = await readTopIds(services, env.TOP_N, {
+  const isDailyMode = env.TOP_N_MODE === "daily-top-by-score";
+  const requestedTopN = isDailyMode ? env.TOP_N * Math.max(1, env.TOP_N_OVERFETCH) : env.TOP_N;
+  const rankedIds = await readTopIds(services, requestedTopN, {
     mode: env.TOP_N_MODE,
     now: new Date(runTimestamp),
     dayOffset: env.TOP_N_DAY_OFFSET,
+    lookbackDays: env.TOP_N_LOOKBACK_DAYS,
     concurrency: env.CONCURRENCY,
   });
+  const previousAggregated = await readJsonSafe(store, PATHS.aggregated, AggregatedFileSchema);
+  const topIds = isDailyMode
+    ? selectUnpublishedIds(
+        rankedIds,
+        (previousAggregated?.items ?? []).map((item) => item.id),
+        env.TOP_N
+      )
+    : rankedIds;
   const idsSet = new Set<number>(topIds);
 
   const concurrency = Math.max(1, env.CONCURRENCY);
