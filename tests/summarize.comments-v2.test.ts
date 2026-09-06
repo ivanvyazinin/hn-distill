@@ -1,4 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { readdir, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 
 import { COMMENTS_POLICY_VERSION, env } from "../config/env";
 import { pathFor } from "../config/paths";
@@ -26,7 +28,7 @@ import {
   type ChatMessage,
   type StructuredOutputOptions,
 } from "../utils/openrouter";
-import { comment as makeComment, story as makeStory, withEnvPatch } from "./helpers";
+import { comment as makeComment, story as makeStory, withEnvPatch, withTempDir } from "./helpers";
 
 type StructuredCall = {
   maxRetries: number;
@@ -108,6 +110,18 @@ type ChatCall = {
     requestTimeoutMs?: number;
     transportRetries?: number;
   };
+};
+type CompressRejectDiagnostic = {
+  schemaVersion: 1;
+  createdISO: string;
+  storyId: number;
+  model: string;
+  hop: number;
+  reason: string;
+  triggers: Array<{ reason: string; detail?: string }>;
+  text: string;
+  sourceHash: string;
+  sourceChars: number;
 };
 
 function structuredServices(
@@ -224,6 +238,14 @@ const COMPRESS_OFF = { COMMENTS_COMPRESS_MODEL: "" } as const;
 // ≥25 words so checkSummaryHeuristics (MIN_WORDS) accepts the compress output.
 const VALID_COMPRESSED_RU =
   "Тред добавляет практический опыт эксплуатации: перед миграцией измерьте задержки и проверьте восстановление после сбоев, зеркалируйте запросы, сравнивайте ответы между системами и включайте запись только после устранения всех найденных расхождений и согласования критериев отката.";
+const LATIN_PROSE_REJECT_RU = VALID_COMPRESSED_RU.replace(
+  "и включайте запись",
+  "а lets you compare results globally помогает и включайте запись"
+);
+const LATIN_PROSE_REJECT_RU_ALT = VALID_COMPRESSED_RU.replace(
+  "и включайте запись",
+  "а the rollout keeps rollback criteria и включайте запись"
+);
 
 function threeComments(storyId: number): NormalizedComment[] {
   return [
@@ -1570,49 +1592,121 @@ describe("comments compress model chain", () => {
     });
   });
 
-  test("language reject on the free hop advances to the paid hop", async () => {
+  test("language reject on the free hop preserves its diagnostic before paid success", async () => {
     const story = makeStory({ id: 75, title: "Compress language reject" });
     const comments = threeComments(story.id);
     const store = new MemoryStore();
     const path = pathFor.commentsSummary(story.id);
-    // Prod 2026-08-27: minimax answered English prose on RU input and the gate
-    // froze the card; the paid hop must still get its turn.
-    const englishAnswer =
-      "Participants agree that latency should be measured before the migration begins, that request mirroring is the safer rollout, and that write traffic must wait until every discrepancy is resolved and rollback criteria are agreed upon by everyone involved.";
     const { chatCalls, services } = structuredServices(
       [async () => VALID_INSIGHTS],
-      [async () => englishAnswer, async () => VALID_COMPRESSED_RU]
+      [async () => LATIN_PROSE_REJECT_RU, async () => VALID_COMPRESSED_RU]
     );
 
-    await withEnvPatch(CHAIN_ENV, async () => {
-      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
-      expect(result.status).toBe("applied");
-      const persisted = await store.getJson<CommentsSummary>(path);
-      expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
-      expect(persisted?.compressed?.model).toBe("paid/fallback");
-      expect(chatCalls.length).toBe(2);
+    await withTempDir(async (diagnosticsDir) => {
+      await withEnvPatch({ ...CHAIN_ENV, COMMENTS_COMPRESS_DIAGNOSTICS_DIR: diagnosticsDir }, async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe(VALID_COMPRESSED_RU);
+        expect(persisted?.compressed?.model).toBe("paid/fallback");
+        expect(chatCalls.length).toBe(2);
+
+        const diagnosticFiles = await readdir(diagnosticsDir);
+        expect(diagnosticFiles.length).toBe(1);
+        const diagnosticFile = diagnosticFiles[0];
+        if (diagnosticFile === undefined) {
+          throw new Error("Missing compression rejection diagnostic");
+        }
+        const diagnostic = JSON.parse(
+          await readFile(join(diagnosticsDir, diagnosticFile), "utf8")
+        ) as CompressRejectDiagnostic;
+        expect(diagnostic.schemaVersion).toBe(1);
+        expect(diagnostic.storyId).toBe(story.id);
+        expect(diagnostic.model).toBe("free/primary");
+        expect(diagnostic.hop).toBe(1);
+        expect(diagnostic.reason).toBe("latin_prose");
+        expect(diagnostic.text).toBe(LATIN_PROSE_REJECT_RU);
+        expect(persisted?.compressed?.sourceHash).toBe(diagnostic.sourceHash);
+        expect(diagnostic.triggers.find((trigger) => trigger.reason === "latin_prose")?.detail).toContain(
+          "lets you compare results globally"
+        );
+        expect(Number.isFinite(Date.parse(diagnostic.createdISO))).toBeTrue();
+      });
     });
   });
 
-  test("language reject on the last hop writes the terminal marker", async () => {
+  test("two semantic rejects retain independent hop diagnostics and terminal marker", async () => {
     const story = makeStory({ id: 76, title: "Compress language reject both hops" });
     const comments = threeComments(story.id);
     const store = new MemoryStore();
     const path = pathFor.commentsSummary(story.id);
-    const englishAnswer =
-      "Participants agree that latency should be measured before the migration begins, that request mirroring is the safer rollout, and that write traffic must wait until every discrepancy is resolved and rollback criteria are agreed upon by everyone involved.";
     const { chatCalls, services } = structuredServices(
       [async () => VALID_INSIGHTS],
-      [async () => englishAnswer, async () => englishAnswer]
+      [async () => LATIN_PROSE_REJECT_RU, async () => LATIN_PROSE_REJECT_RU_ALT]
     );
 
-    await withEnvPatch(CHAIN_ENV, async () => {
-      const result = await processCommentsSummary(services, story, comments, undefined, path, store);
-      expect(result.status).toBe("applied");
-      const persisted = await store.getJson<CommentsSummary>(path);
-      expect(persisted?.compressed?.text).toBe("");
-      expect(persisted?.compressed?.model).toBe("paid/fallback");
-      expect(chatCalls.length).toBe(2);
+    await withTempDir(async (diagnosticsDir) => {
+      await withEnvPatch({ ...CHAIN_ENV, COMMENTS_COMPRESS_DIAGNOSTICS_DIR: diagnosticsDir }, async () => {
+        const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+        expect(result.status).toBe("applied");
+        const persisted = await store.getJson<CommentsSummary>(path);
+        expect(persisted?.compressed?.text).toBe("");
+        expect(persisted?.compressed?.model).toBe("paid/fallback");
+        expect(chatCalls.length).toBe(2);
+
+        const diagnosticFiles = await readdir(diagnosticsDir);
+        expect(diagnosticFiles.length).toBe(2);
+        const diagnostics = await Promise.all(
+          diagnosticFiles.map(async (file) =>
+            JSON.parse(await readFile(join(diagnosticsDir, file), "utf8")) as CompressRejectDiagnostic
+          )
+        );
+        diagnostics.sort((left, right) => left.hop - right.hop);
+        expect(diagnostics.map((diagnostic) => diagnostic.hop)).toEqual([1, 2]);
+        expect(diagnostics.map((diagnostic) => diagnostic.model)).toEqual(["free/primary", "paid/fallback"]);
+        expect(diagnostics.map((diagnostic) => diagnostic.text)).toEqual([
+          LATIN_PROSE_REJECT_RU,
+          LATIN_PROSE_REJECT_RU_ALT,
+        ]);
+        for (const diagnostic of diagnostics) {
+          expect(diagnostic.schemaVersion).toBe(1);
+          expect(diagnostic.storyId).toBe(story.id);
+          expect(diagnostic.reason).toBe("latin_prose");
+          expect(persisted?.compressed?.sourceHash).toBe(diagnostic.sourceHash);
+          expect(diagnostic.triggers.some((trigger) => trigger.reason === "latin_prose")).toBeTrue();
+        }
+      });
+    });
+  });
+
+  test("diagnostic write failure preserves terminal rejection after both hops", async () => {
+    const story = makeStory({ id: 77, title: "Compress diagnostic write error" });
+    const comments = threeComments(story.id);
+    const store = new MemoryStore();
+    const path = pathFor.commentsSummary(story.id);
+    const { chatCalls, services } = structuredServices(
+      [async () => VALID_INSIGHTS],
+      [async () => LATIN_PROSE_REJECT_RU, async () => LATIN_PROSE_REJECT_RU_ALT]
+    );
+
+    await withTempDir(async (baseDir) => {
+      const regularFile = join(baseDir, "diagnostics-file");
+      await writeFile(regularFile, "keep this file");
+      const invalidDiagnosticsDir = join(regularFile, "nested");
+
+      await withEnvPatch(
+        { ...CHAIN_ENV, COMMENTS_COMPRESS_DIAGNOSTICS_DIR: invalidDiagnosticsDir },
+        async () => {
+          const result = await processCommentsSummary(services, story, comments, undefined, path, store);
+          expect(result.status).toBe("applied");
+          const persisted = await store.getJson<CommentsSummary>(path);
+          expect(persisted?.compressed?.text).toBe("");
+          expect(persisted?.compressed?.model).toBe("paid/fallback");
+          expect(chatCalls.map((call) => call.options.model)).toEqual(["free/primary", "paid/fallback"]);
+          expect(await readFile(regularFile, "utf8")).toBe("keep this file");
+          expect(await readdir(baseDir)).toEqual(["diagnostics-file"]);
+        }
+      );
     });
   });
 

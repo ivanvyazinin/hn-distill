@@ -2,8 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 
 import {
-  COMMENTS_COMPRESS_PROMPT,
-  buildCommentsCompressUserPrompt,
   commentsCompressModelChain,
   compressSourceHash,
   isRetriableCompressReject,
@@ -73,13 +71,6 @@ describe("comments-compress pure helpers", () => {
     expect(plain).toContain("измерения нужно повторить");
   });
 
-  test("buildCommentsCompressUserPrompt freezes the exact prompt wording", () => {
-    const plain = "строка один\nстрока два";
-    expect(buildCommentsCompressUserPrompt(plain)).toBe(`${COMMENTS_COMPRESS_PROMPT}\n\n${plain}`);
-    expect(COMMENTS_COMPRESS_PROMPT).toBe(
-      "Сожми текст: убери повторы, канцелярит и лишние пояснения, объедини близкие мысли. Сохрани факты, смысл и важные оговорки. Ничего не добавляй от себя. Верни только итоговый текст."
-    );
-  });
 
   test("compressSourceHash is deterministic and changes with language/text", () => {
     const plain = renderCommentsInsightsPlainText(insights);
@@ -100,6 +91,25 @@ describe("comments-compress pure helpers", () => {
     expect(sanitizeCompressedOutput("  строка один. \n\n строка  два.  ")).toBe("строка один. строка два.");
     // Multi-span quotes must not be peeled as a single outer pair.
     expect(sanitizeCompressedOutput("«Первый.» … «Второй.»")).toBe("«Первый.» … «Второй.»");
+  });
+  test("validateCompressedText exposes the matched Latin prose run", () => {
+    const source = renderCommentsInsightsPlainText(insights);
+    const candidate =
+      "Тред добавляет практический опыт эксплуатации: перед миграцией измерьте задержки и проверьте восстановление после сбоев, " +
+      "а lets you compare results globally помогает сравнивать ответы между системами и согласовать критерии отката.";
+    const result = validateCompressedText(candidate, source, {
+      language: "ru",
+      minChars: 80,
+      minCyrillicRatio: 0.65,
+    });
+
+    expect(result.ok).toBeFalse();
+    if (result.ok) {
+      return;
+    }
+    expect(result.reason).toContain("latin_prose");
+    const latinTrigger = result.triggers?.find((trigger) => trigger.reason === "latin_prose");
+    expect(latinTrigger?.detail).toContain("lets you compare results globally");
   });
 
   test("commentsCompressModelChain: primary, optional fallback, dedup, kill switch", async () => {

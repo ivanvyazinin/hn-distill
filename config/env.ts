@@ -113,6 +113,9 @@ const EnvironmentSchema = z.object({
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),
+  // Optional diagnostics directory for per-hop semantic compression rejects. Empty disables
+  // all diagnostic file I/O (including in Worker runtimes).
+  COMMENTS_COMPRESS_DIAGNOSTICS_DIR: z.string().default(""),
   // Compress repair pass: stories drop out of the fetch index after TOP_N rotates,
   // so a compress hop that failed at write time was never retried and the card
   // stayed on the raw bullet render forever (26.08 prod: 3/10 sampled cards). Each

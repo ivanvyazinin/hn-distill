@@ -85,7 +85,18 @@ jobs:
           SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
           AGGREGATE_FROM_DB: ${{ vars.AGGREGATE_FROM_DB || 'true' }}
           LLM_USAGE_ENABLED: ${{ vars.LLM_USAGE_ENABLED || 'false' }}
+          COMMENTS_COMPRESS_DIAGNOSTICS_DIR: ${{ runner.temp }}/comments-compress-rejections
         run: make run
+
+      - name: Upload comments compression rejection diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: comments-compress-rejections-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/comments-compress-rejections
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Backup state to VPS
         env:

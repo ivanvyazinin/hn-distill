@@ -29,6 +29,7 @@ import {
   sanitizeCompressedOutput,
   validateCompressedText,
 } from "@utils/comments-compress";
+import { writeCommentsCompressRejectDiagnostic } from "@utils/comments-compress-diagnostics";
 import {
   renderCommentsLead,
   renderCompressedParagraphMarkdown,
@@ -950,6 +951,20 @@ export async function compressCommentsSummaryIfNeeded(
         minCyrillicRatio: env.COMMENTS_MIN_CYRILLIC_RATIO,
       });
       if (!validated.ok) {
+        const hopNumber = hop + 1;
+        const diagnosticPath = await writeCommentsCompressRejectDiagnostic({
+          schemaVersion: 1,
+          createdISO: new Date().toISOString(),
+          storyId: summary.id,
+          model,
+          hop: hopNumber,
+          reason: validated.reason,
+          triggers: validated.triggers ?? [],
+          text: sanitized.trim(),
+          sourceHash,
+          sourceChars: plainText.length,
+        });
+        const diagnosticMeta = diagnosticPath === undefined ? {} : { diagnosticPath };
         const lastHop = hop === chain.length - 1;
         // A language/format reject is a verdict on this model's answer, so the next
         // hop still gets its turn; a size verdict describes the source and ends here.
@@ -957,8 +972,10 @@ export async function compressCommentsSummaryIfNeeded(
           log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject; trying next hop", {
             id: summary.id,
             reason: validated.reason,
+            triggers: validated.triggers ?? [],
+            ...diagnosticMeta,
             model,
-            hop: hop + 1,
+            hop: hopNumber,
           });
           lastPermanentModel = undefined;
           continue;
@@ -966,8 +983,10 @@ export async function compressCommentsSummaryIfNeeded(
         log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress semantic reject", {
           id: summary.id,
           reason: validated.reason,
+          triggers: validated.triggers ?? [],
+          ...diagnosticMeta,
           model,
-          hop: hop + 1,
+          hop: hopNumber,
         });
         return { status: "rejected", summary: makeCompressRejectMarker(summary, sourceHash, model) };
       }

@@ -75,12 +75,23 @@ jobs:
           SUMMARY_LANG: ${{ vars.SUMMARY_LANG || 'ru' }}
           AGGREGATE_FROM_DB: ${{ vars.AGGREGATE_FROM_DB || 'true' }}
           LLM_USAGE_ENABLED: ${{ vars.LLM_USAGE_ENABLED || 'false' }}
+          COMMENTS_COMPRESS_DIAGNOSTICS_DIR: ${{ runner.temp }}/comments-compress-rejections
           # All model IDs (OPENROUTER_*, COMMENTS_*, TAGS_*, POST_GUARD_*,
           # SUMMARY_CONTENT_REJECT_MODEL) come only from config/env.ts defaults.
           # Do not reintroduce workflow model env or repository model variables.
         run: |
           set -o pipefail
           make run 2>&1 | tee /tmp/pipeline.log
+
+      - name: Upload comments compression rejection diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: comments-compress-rejections-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/comments-compress-rejections
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Fail loudly if the OpenRouter key budget tripped
         # Project policy: routing must be free; paid spend means something is

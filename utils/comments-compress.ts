@@ -2,7 +2,7 @@ import { COMMENTS_COMPRESS_POLICY_VERSION, env } from "@config/env";
 import { COMMENTS_DEDUP_THRESHOLD, containment, dedupByContainment } from "@utils/comments-dedup";
 import { clampToClause } from "@utils/comments-render";
 import { sha256HexSync } from "@utils/hash";
-import { checkSummaryHeuristics, cyrillicRatio } from "@utils/summary-heuristics";
+import { checkSummaryHeuristics, cyrillicRatio, type HeuristicTrigger } from "@utils/summary-heuristics";
 
 import type { CommentsInsights, CommentsSummary } from "@config/schemas";
 
@@ -122,7 +122,7 @@ export function sanitizeCompressedOutput(raw: string): string {
 
 export type CompressedValidationResult =
   | { ok: true; text: string }
-  | { ok: false; reason: string };
+  | { ok: false; reason: string; triggers?: HeuristicTrigger[] };
 
 const MIN_DUP_SENTENCE_WORDS = 4;
 
@@ -221,6 +221,7 @@ export function validateCompressedText(
     return {
       ok: false,
       reason: heuristics.triggers.map((trigger) => trigger.reason).join(","),
+      triggers: heuristics.triggers,
     };
   }
   return { ok: true, text: trimmed };
