@@ -4,15 +4,47 @@ import { env } from "@config/env";
 // GoatCounter pageview analytics. Rendered only when GOATCOUNTER_CODE is set at build time
 // (see config/env.ts). Cookieless, no consent banner; counts by location.pathname so the
 // configured base path is handled automatically.
+//
+// Besides pageviews, three engagement events are counted (shown as `ev:*` paths in the dashboard):
+//   ev:original       click on the link to the source article (`<a data-ev="original">`)
+//   ev:hn             click on a link to the HN discussion (`<a data-ev="hn">`)
+//   ev:comments-fold  opening the folded part of the comments recap (`<details class="md-fold">`)
+// Listeners are delegated on `document`, so markup only needs the `data-ev` attribute.
 const code = env.GOATCOUNTER_CODE;
 ---
 
 {
   code && (
-    <script
-      data-goatcounter={`https://${code}.goatcounter.com/count`}
-      async
-      src="//gc.zgo.at/count.js"
-    />
+    <>
+      <script
+        data-goatcounter={`https://${code}.goatcounter.com/count`}
+        async
+        src="//gc.zgo.at/count.js"
+      />
+      <script is:inline>
+        (function () {
+          var count = function (name) {
+            var gc = window.goatcounter;
+            if (!gc || typeof gc.count !== "function") return;
+            try {
+              gc.count({ path: "ev:" + name, event: true });
+            } catch {}
+          };
+          document.addEventListener("click", function (e) {
+            var a = e.target && e.target.closest ? e.target.closest("a[data-ev]") : null;
+            if (a && a.dataset.ev) count(a.dataset.ev);
+          });
+          // `toggle` does not bubble; listen in the capture phase.
+          document.addEventListener(
+            "toggle",
+            function (e) {
+              var d = e.target;
+              if (d && d.tagName === "DETAILS" && d.open && d.classList.contains("md-fold")) count("comments-fold");
+            },
+            true,
+          );
+        })();
+      </script>
+    </>
   )
 }
