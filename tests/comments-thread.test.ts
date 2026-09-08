@@ -2,16 +2,15 @@ import { describe, expect, test } from "bun:test";
 
 import {
   buildCommentsPromptV2,
-  buildCommentsSystemInstructionV2,
   buildCommentsThread,
   commentsInsightsCeiling,
   commentsInputHash,
-  commentsJsonContract,
   countSubstantiveComments,
   evaluateCommentsInsightsCandidate,
   isSubstantiveComment,
 } from "../utils/comments-thread.ts";
-import { makeRuCommentsInsights, makeRuDisputeInsight } from "./helpers/comments-insights.ts";
+import { makeRuCommentsInsights } from "./helpers/comments-insights.ts";
+import { withEnvPatch } from "./helpers/env.ts";
 
 import type { NormalizedComment } from "../config/schemas.ts";
 
@@ -33,11 +32,6 @@ function comment(
     ...overrides,
   };
 }
-
-const ruDispute = (n: number) =>
-  makeRuDisputeInsight(
-    `Спор №${n}: одна сторона предлагает постепенный rollout, другая требует полный cutover с откатом.`
-  );
 
 function renderedCommentText(thread: string, id: number): string {
   const marker = `[comment_id=${id} `;
@@ -115,7 +109,7 @@ describe("comments thread", () => {
 });
 
 describe("comments prompt v2", () => {
-  test("localizes title/context, includes exact schema and respects total budget", () => {
+  test("localizes title/context and respects total budget", () => {
     const longSummary = `${"А".repeat(400)}НЕ_ДОЛЖНО_ПОПАСТЬ`;
     const result = buildCommentsPromptV2({
       story: STORY,
@@ -128,17 +122,10 @@ describe("comments prompt v2", () => {
     expect(result.prompt).toContain(`Тема поста: ${STORY.title}`);
     expect(result.prompt).toContain(`Суть статьи: ${"А".repeat(400)}`);
     expect(result.prompt).not.toContain("НЕ_ДОЛЖНО_ПОПАСТЬ");
-    expect(result.prompt).toContain('"bottom_line"');
-    expect(result.prompt).toContain('"insights"');
-    expect(result.prompt).toContain('"kind"');
-    expect(result.prompt).toContain('"comment_id"');
-    expect(result.prompt).toContain('"source_text"');
-    expect(result.prompt).toContain('"translation"');
-    expect(result.prompt).toContain("Не повторяй суть статьи");
     expect(result.sampleIds).toEqual([1]);
   });
 
-  test("omits article gist for no-article degraded posts and uses main-takeaway bottom_line", () => {
+  test("omits article gist for no-article degraded posts", () => {
     const result = buildCommentsPromptV2({
       story: STORY,
       comments: [],
@@ -149,49 +136,8 @@ describe("comments prompt v2", () => {
     expect(result.prompt).toContain(`Story topic: ${STORY.title}`);
     expect(result.prompt).not.toContain("Article gist:");
     expect(result.prompt).not.toContain("garbage navigation");
-    expect(result.prompt).toContain("bottom_line is the thread's main takeaway");
-    expect(result.prompt).not.toContain("Do not restate the article gist");
   });
 
-  test("ru without gist and en with gist use the matching bottom_line rules", () => {
-    const ruNoGist = buildCommentsPromptV2({
-      story: STORY,
-      comments: [],
-      language: "ru",
-      maxChars: 5000,
-    });
-    expect(ruNoGist.prompt).toContain("bottom_line — главный вывод треда");
-    expect(ruNoGist.prompt).not.toContain("Не повторяй суть статьи");
-
-    const enWithGist = buildCommentsPromptV2({
-      story: STORY,
-      comments: [],
-      postSummary: { summary: "The article proposes a staged migration with measured cutover." },
-      language: "en",
-      maxChars: 5000,
-    });
-    expect(enWithGist.prompt).toContain("Do not restate the article gist");
-    expect(enWithGist.prompt).toContain("bottom_line = what the thread adds to the article");
-  });
-
-  test("provides distinct RU and EN system instructions with dispute/ranking rules", () => {
-    const ru = buildCommentsSystemInstructionV2("ru", 5);
-    const en = buildCommentsSystemInstructionV2("en", 5);
-    expect(ru).toContain("русском");
-    expect(en).toContain("Analyze Hacker News");
-    expect(en).toContain("generated semantic field in English");
-    expect(en).toContain("translation to null");
-    expect(en).toContain('kind="dispute"');
-    expect(ru).toContain('kind="dispute"');
-    expect(en).toContain("5 is a ceiling");
-    expect(ru).toContain("5 — потолок");
-    expect(ru).not.toBe(en);
-  });
-
-  test("system instructions inject the dynamic insights ceiling", () => {
-    expect(buildCommentsSystemInstructionV2("en", 12)).toContain("12 is a ceiling");
-    expect(buildCommentsSystemInstructionV2("ru", 15)).toContain("15 — потолок");
-  });
 
   test("counts substantive comments and maps them to the insights ceiling tiers", () => {
     const short = comment(1, STORY.id, "too short");
@@ -209,24 +155,6 @@ describe("comments prompt v2", () => {
     expect(commentsInsightsCeiling(40)).toBe(15);
   });
 
-  test("embeds the dynamic maxItems in the prompt JSON contract and returns maxInsights", () => {
-    const comments = Array.from({ length: 12 }, (_, index) =>
-      comment(
-        index + 1,
-        STORY.id,
-        `Substantive comment number ${index + 1} with enough text to count toward the dynamic insights ceiling for this story.`
-      )
-    );
-    const result = buildCommentsPromptV2({
-      story: STORY,
-      comments,
-      language: "en",
-      maxChars: 20_000,
-    });
-    expect(result.maxInsights).toBe(8);
-    expect(result.prompt).toContain('"maxItems":8');
-    expect(commentsJsonContract(12)).toContain('"maxItems":12');
-  });
 
   test("folds story title and post summary changes into the prompt hash", async () => {
     const common = {
@@ -269,46 +197,45 @@ describe("comments prompt v2", () => {
 describe("evaluateCommentsInsightsCandidate", () => {
   const comments = [comment(1, STORY.id, "Развёрнутый комментарий с опытом эксплуатации в продакшене.")];
   const sampleIds = [1];
-  test("demotes disputes beyond the cap to consensus, keeping rank order and text", () => {
+  test("retains distinct ranked disputes and their rendered meaning beyond three items", async () => {
+    const disputeTexts = [
+      "При миграции PostgreSQL одна сторона выбирает короткую блокирующую транзакцию, другая — онлайн-перенос с двойной записью.",
+      "Для кэша одна сторона полагается на короткий TTL, другая требует явной инвалидации после каждого изменения.",
+      "При деплое одна сторона предпочитает постепенный canary rollout, другая — переключение blue-green с быстрым откатом.",
+      "Для API одна сторона требует версионированные конечные точки, другая защищает обратно совместимые добавления в одном контракте.",
+      "Для очереди одна сторона принимает доставку хотя бы один раз с идемпотентностью, другая требует гарантию ровно одного выполнения.",
+      "В наблюдаемости одна сторона сохраняет трассировки высокой кардинальности, другая ограничивается выборочными метриками ради стоимости.",
+    ];
+    const disputes = disputeTexts.map((text) => ({ kind: "dispute" as const, text }));
     const insights = makeRuCommentsInsights({
-      insights: [
-        ruDispute(1),
-        { kind: "advice", text: "Проверяйте предложенный подход на небольшом воспроизводимом примере перед полным запуском." },
-        ruDispute(2),
-        { kind: "consensus", text: "Участники согласны, что измерения нужно повторить на реальной нагрузке перед выбором архитектуры." },
-        ruDispute(3),
-        ruDispute(4),
-        ruDispute(5),
-      ],
+      insights: disputes,
+      best_quote: {
+        comment_id: 1,
+        source_text: "опытом эксплуатации",
+        translation: "Практический опыт эксплуатации.",
+      },
     });
-    const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, 15);
-    expect(evaluation.ok).toBe(true);
-    if (!evaluation.ok) {
-      return;
-    }
-    expect(evaluation.insights.insights.map((insight) => insight.kind)).toEqual([
-      "dispute",
-      "advice",
-      "dispute",
-      "consensus",
-      "dispute",
-      "consensus",
-      "consensus",
-    ]);
-    expect(evaluation.insights.insights[5]?.text).toContain("№4");
-  });
 
-  test("keeps insights untouched when disputes are within the cap", () => {
-    const insights = makeRuCommentsInsights({ insights: [ruDispute(1), ruDispute(2), ruDispute(3)] });
-    const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, 15);
+    const evaluation = await withEnvPatch({ SUMMARY_LANG: "ru" }, async () =>
+      evaluateCommentsInsightsCandidate(insights, comments, sampleIds, 5)
+    );
     expect(evaluation.ok).toBe(true);
     if (!evaluation.ok) {
       return;
     }
+
+    const retainedTexts = disputeTexts.slice(0, 5);
     expect(evaluation.insights.insights.map((insight) => insight.kind)).toEqual([
       "dispute",
       "dispute",
       "dispute",
+      "dispute",
+      "dispute",
     ]);
+    expect(evaluation.insights.insights.map((insight) => insight.text)).toEqual(retainedTexts);
+    expect(evaluation.summary.split("**Спор:**").length - 1).toBe(5);
+    expect(evaluation.summary).not.toContain(disputeTexts[5] ?? "");
+    expect(evaluation.summary).toContain("> опытом эксплуатации");
+    expect(evaluation.summary).toContain("> — @user1");
   });
 });

@@ -1,12 +1,20 @@
+import { mock } from "bun:test";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { PATHS, pathFor } from "@config/paths";
+
 export async function withTempDir<T>(fn: (dir: string) => Promise<T>): Promise<T> {
+  const pathsAtEntry = { PATHS, pathFor };
   const dir = await mkdtemp(join(tmpdir(), "hn-distill-"));
   try {
     return await fn(dir);
   } finally {
+    // Module mocks outlive individual test files unless their exports are restored.
+    if (PATHS !== pathsAtEntry.PATHS || pathFor !== pathsAtEntry.pathFor) {
+      mock.module("@config/paths", () => pathsAtEntry);
+    }
     await rm(dir, { recursive: true, force: true });
   }
 }

@@ -16,11 +16,12 @@ const SEEN_TELEGRAM_SEED = {
 // redirected PATHS into the temp dir (same pattern as tests/pipeline.idempotency.test.ts).
 
 describe("fetch seen-cache foreign namespaces", () => {
-  test("fetch preserves non-numeric keys (telegram) across runs", async () => {
+  test("writes each fresh complete comment snapshot while preserving foreign cache namespaces", async () => {
     await withTempDir(async (base) => {
-      const { PATHS } = mockPaths(base);
+      const { PATHS, pathFor } = mockPaths(base);
       const storyId = 101;
-      const commentId = 201;
+      const rootId = 201;
+      const replyId = 202;
       const story = {
         id: storyId,
         type: "story",
@@ -29,17 +30,26 @@ describe("fetch seen-cache foreign namespaces", () => {
         time: 1_700_000_000,
         url: "https://example.com/article",
         score: 100,
-        descendants: 1,
-        kids: [commentId],
+        descendants: 2,
+        kids: [rootId],
       };
-      const comment = {
-        id: commentId,
+      let root = {
+        id: rootId,
         type: "comment",
-        text: "<p>Hello</p>",
+        text: "<p>Root</p>",
         by: "bob",
         time: 1_700_000_500,
         parent: storyId,
-        kids: [],
+        kids: [replyId],
+      };
+      let reply = {
+        id: replyId,
+        type: "comment",
+        text: "<p>Original reply</p>",
+        by: "carol",
+        time: 1_700_000_600,
+        parent: rootId,
+        kids: [] as number[],
       };
 
       // Stale story entry forces seenCacheChanged=true on the first run, so the
@@ -54,11 +64,14 @@ describe("fetch seen-cache foreign namespaces", () => {
       const routes: Record<string, RouteValue> = {
         "/\\/topstories\\.json$/": [storyId],
         [`/\\/item\\/${storyId}\\.json$/`]: story,
-        [`/\\/item\\/${commentId}\\.json$/`]: comment,
+        [`/\\/item\\/${rootId}\\.json$/`]: () => root,
+        [`/\\/item\\/${replyId}\\.json$/`]: () => reply,
       };
       const services = { http: makeMockHttp(routes).http } as Services;
 
       const { main: fetchMain } = await import("@scripts/fetch-hn.mts");
+      const readSnapshot = async (): Promise<Array<{ id: number; textPlain: string }>> =>
+        JSON.parse(await readFile(pathFor.rawComments(storyId), "utf8")) as Array<{ id: number; textPlain: string }>;
 
       await withEnvPatch(
         {
@@ -69,15 +82,32 @@ describe("fetch seen-cache foreign namespaces", () => {
         } as const,
         async () => {
           await fetchMain(services);
-          const afterFirstRun = JSON.parse(await readFile(PATHS.seenCache, "utf8")) as Record<string, { seenTopLevel?: number[] } | undefined> & {
+          expect((await readSnapshot()).map(({ id }) => id)).toEqual([rootId, replyId]);
+          const afterFirstRun = JSON.parse(await readFile(PATHS.seenCache, "utf8")) as Record<
+            string,
+            { seenTopLevel?: number[] } | undefined
+          > & {
             telegram?: unknown;
           };
           expect(afterFirstRun.telegram).toEqual(SEEN_TELEGRAM_SEED);
-          expect(afterFirstRun[String(storyId)]?.seenTopLevel).toEqual([commentId]);
+          expect(afterFirstRun[String(storyId)]?.seenTopLevel).toEqual([rootId]);
 
           await fetchMain(services);
-          const afterSecondRun = await readFile(PATHS.seenCache, "utf8");
-          expect(JSON.parse(afterSecondRun)).toEqual(afterFirstRun);
+          expect((await readSnapshot()).map(({ id }) => id)).toEqual([rootId, replyId]);
+          expect(JSON.parse(await readFile(PATHS.seenCache, "utf8"))).toEqual(afterFirstRun);
+
+          reply = { ...reply, text: "<p>Edited reply</p>" };
+          await fetchMain(services);
+          expect((await readSnapshot()).find(({ id }) => id === replyId)?.textPlain).toMatch(/^Edited\s+reply$/u);
+
+          root = { ...root, kids: [] };
+          await fetchMain(services);
+          expect((await readSnapshot()).map(({ id }) => id)).toEqual([rootId]);
+          const afterDeletion = JSON.parse(await readFile(PATHS.seenCache, "utf8")) as {
+            telegram?: unknown;
+            [key: string]: unknown;
+          };
+          expect(afterDeletion.telegram).toEqual(SEEN_TELEGRAM_SEED);
         }
       );
     });

@@ -492,7 +492,6 @@ function addKidsToQueue(
   options: {
     maxDepth: number;
     maxCount: number;
-    seenByDepth: Record<string, number[]>;
   },
   visitedThisRun: Set<number>,
   currentCount: number
@@ -502,13 +501,9 @@ function addKidsToQueue(
   }
 
   const nextDepth = result.depthCurrent + 1;
-  const seenAtNextDepth = options.seenByDepth[String(nextDepth)] ?? [];
   for (const kid of result.kids) {
     if (currentCount + queue.length >= options.maxCount) {
       break;
-    }
-    if (seenAtNextDepth.includes(kid)) {
-      continue;
     }
     if (!visitedThisRun.has(kid)) {
       queue.push({ id: kid, depth: nextDepth });
@@ -523,7 +518,6 @@ export async function collectComments(
     maxDepth: number;
     maxCount: number;
     concurrency: number;
-    seenByDepth: Record<string, number[]>;
   }
 ): Promise<{ comments: NormalizedComment[]; allSeenByDepth: Record<number, number[]> }> {
   const limit = pLimit(options.concurrency);
@@ -612,8 +606,6 @@ export async function main(
         const story = normalizeStory(item);
         stories.push(story);
 
-        const entry = seenCache[story.id];
-        const seenByDepth = entry?.seenByDepth ?? {};
         const rootIds = Array.isArray(story.commentIds) ? story.commentIds : [];
 
         if (rootIds.length > 0) {
@@ -621,7 +613,6 @@ export async function main(
             maxDepth: env.MAX_DEPTH,
             maxCount: env.MAX_COMMENTS_PER_STORY,
             concurrency,
-            seenByDepth,
           });
           commentsByStory[story.id] = comments;
 

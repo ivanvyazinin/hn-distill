@@ -24,7 +24,6 @@ describe("scripts/fetch-hn collectComments", () => {
       maxDepth: 2,
       maxCount: 10,
       concurrency: 2,
-      seenByDepth: {},
     });
 
     const ids = comments.map((c) => c.id);
@@ -61,7 +60,6 @@ describe("scripts/fetch-hn collectComments", () => {
       maxDepth: 10,
       maxCount: 3,
       concurrency: 2,
-      seenByDepth: {},
     });
 
     expect(comments.length).toBe(3);
@@ -82,7 +80,6 @@ describe("scripts/fetch-hn collectComments", () => {
         maxDepth: 1,
         maxCount: 1,
         concurrency: 1,
-        seenByDepth: {},
       });
 
       expect(comments.length).toBe(1);
@@ -115,7 +112,6 @@ describe("scripts/fetch-hn collectComments", () => {
       maxDepth: 4,
       maxCount: 50,
       concurrency: 2,
-      seenByDepth: {},
     });
 
     const ids = comments.map((c) => c.id);
@@ -124,53 +120,17 @@ describe("scripts/fetch-hn collectComments", () => {
     expect(new Set(ids)).toEqual(new Set([1, 2, 3, 4]));
   });
 
-  test("respects seenByDepth across runs", async () => {
-    const now = 1_700_000_000;
-    const data = {
-      100: { id: 100, type: "comment", text: "root", time: now, parent: 0, kids: [3, 4, 5] },
-      3: { id: 3, type: "comment", text: "3", time: now, parent: 100, kids: [] },
-      4: { id: 4, type: "comment", text: "4", time: now, parent: 100, kids: [] },
-      5: { id: 5, type: "comment", text: "5", time: now, parent: 100, kids: [] },
-    };
-    const routes: Record<string, RouteValue> = {
-      "/\\/item\\/100\\.json$/": data[100],
-      "/\\/item\\/3\\.json$/": data[3],
-      "/\\/item\\/4\\.json$/": data[4],
-      "/\\/item\\/5\\.json$/": data[5],
-    };
-    const services = makeMockHttp(routes) as unknown as Services;
-
-    const { comments, allSeenByDepth } = await collectComments(services, [100], {
-      maxDepth: 2,
-      maxCount: 10,
-      concurrency: 2,
-      seenByDepth: { "2": [3, 4] }, // Kids of 100 are at depth 2.
-    });
-
-    const ids = comments.map((c) => c.id);
-    expect(ids).toContain(100);
-    expect(ids).toContain(5);
-    expect(ids).not.toContain(3);
-    expect(ids).not.toContain(4);
-
-    expect(allSeenByDepth[1]).toEqual([100]);
-    expect(allSeenByDepth[2]).toEqual([5]);
-  });
-
   test("does not record seen entries when fetch fails", async () => {
     const services = makeMockHttp({}) as unknown as Services;
-    const seenByDepth = { "2": [7] };
 
     const { comments, allSeenByDepth } = await collectComments(services, [999], {
       maxDepth: 3,
       maxCount: 5,
       concurrency: 1,
-      seenByDepth,
     });
 
     expect(comments).toEqual([]);
     expect(allSeenByDepth).toEqual({});
-    expect(seenByDepth).toEqual({ "2": [7] });
 
     const aggregated: Record<string, number[]> = {};
     for (const [depth, ids] of Object.entries(allSeenByDepth)) {

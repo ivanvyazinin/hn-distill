@@ -61,7 +61,7 @@ export function isSubstantiveComment(comment: Pick<NormalizedComment, "textPlain
   return comment.textPlain.replaceAll(/\s+/gu, " ").trim().length >= SUBSTANTIVE_COMMENT_MIN_CHARS;
 }
 
-export function countSubstantiveComments(comments: readonly Pick<NormalizedComment, "textPlain">[]): number {
+export function countSubstantiveComments(comments: ReadonlyArray<Pick<NormalizedComment, "textPlain">>): number {
   return comments.reduce((count, comment) => count + (isSubstantiveComment(comment) ? 1 : 0), 0);
 }
 
@@ -71,9 +71,9 @@ export function countSubstantiveComments(comments: readonly Pick<NormalizedComme
  * S < 3 is handled by the too-few-comments gate before prompt build.
  */
 export function commentsInsightsCeiling(substantiveCount: number): number {
-  if (substantiveCount >= 30) return COMMENTS_INSIGHTS_HARD_CEILING;
-  if (substantiveCount >= 20) return 12;
-  if (substantiveCount >= 10) return 8;
+  if (substantiveCount >= 30) {return COMMENTS_INSIGHTS_HARD_CEILING;}
+  if (substantiveCount >= 20) {return 12;}
+  if (substantiveCount >= 10) {return 8;}
   return 5;
 }
 
@@ -312,14 +312,13 @@ function promptParts(
     input.language === "ru"
       ? "best_quote — null либо объект с comment_id из обсуждения, дословным source_text и отдельным translation; для EN translation=null."
       : "best_quote is null or an object with a discussion comment_id, verbatim source_text, and translation=null for English.";
-  const deltaRule =
-    input.language === "ru"
-      ? hasGist
+  let deltaRule = input.language === "ru" ? "bottom_line — главный вывод треда." : "bottom_line is the thread's main takeaway.";
+  if (hasGist) {
+    deltaRule =
+      input.language === "ru"
         ? "Не повторяй суть статьи; извлекай только то, что тред ДОБАВЛЯЕТ (опыт эксплуатации, возражения, цифры из практики, механизмы). bottom_line — что тред добавляет к статье: подтверждает/опровергает/дополняет — и чем."
-        : "bottom_line — главный вывод треда."
-      : hasGist
-        ? "Do not restate the article gist; extract only what the thread ADDS (ops experience, objections, practice numbers, mechanisms). bottom_line = what the thread adds to the article: confirms/refutes/extends — and how."
-        : "bottom_line is the thread's main takeaway.";
+        : "Do not restate the article gist; extract only what the thread ADDS (ops experience, objections, practice numbers, mechanisms). bottom_line = what the thread adds to the article: confirms/refutes/extends — and how.";
+  }
   const suffixLines =
     input.language === "ru"
       ? [
@@ -417,30 +416,6 @@ export function evaluateCommentsInsightsCandidate(
       hardCeiling: COMMENTS_INSIGHTS_HARD_CEILING,
     });
     effective = { ...effective, insights: effective.insights.slice(0, sliceTo) };
-  }
-  // MiniMax-M3 (2026-08-26) labels most insights kind="dispute" — one card rendered
-  // 12 "Спор:" bullets out of 17 insights, which is exactly the degenerate fallback
-  // view users see while compress is pending/failed. The model ranks densest first,
-  // so keep the top ranked disputes and demote the tail to consensus: text survives,
-  // label spam does not.
-  const DISPUTE_INSIGHT_CAP = 3;
-  const disputes = effective.insights.filter((insight) => insight.kind === "dispute").length;
-  if (disputes > DISPUTE_INSIGHT_CAP) {
-    let kept = 0;
-    effective = {
-      ...effective,
-      insights: effective.insights.map((insight) => {
-        if (insight.kind !== "dispute") {
-          return insight;
-        }
-        kept += 1;
-        return kept <= DISPUTE_INSIGHT_CAP ? insight : { ...insight, kind: "consensus" };
-      }),
-    };
-    log.warn(COMMENTS_VALIDATION_LOG_NS, "Comments-v2 dispute over-cap; demoted tail to consensus", {
-      produced: disputes,
-      cap: DISPUTE_INSIGHT_CAP,
-    });
   }
 
   const heuristics = checkCommentsInsightsHeuristics(effective, {

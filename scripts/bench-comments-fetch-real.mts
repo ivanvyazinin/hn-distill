@@ -258,7 +258,6 @@ async function buildCandidate(services: FetchServices, id: number): Promise<Cand
     maxDepth: env.MAX_DEPTH,
     maxCount: env.MAX_COMMENTS_PER_STORY,
     concurrency: Math.max(1, env.CONCURRENCY),
-    seenByDepth: {},
   });
   if (comments.length < 3) {
     return undefined;
