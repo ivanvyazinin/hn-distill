@@ -8,6 +8,7 @@
 - `tests/`: Bun tests (`*.test.ts`) with helpers in `tests/helpers/`.
 - `data/`: Generated outputs kept in repo (except `data/cache/`).
 - `public/`, `dist/`: Static assets and build output.
+- `worker/`, `wrangler.toml`: Cloudflare Worker — **not in use** (not deployed; production runs only via GitHub Actions). Kept compiling and tested; never treat its limits (e.g. the 40s task timeout) as pipeline constraints.
 
 ## Build, Test, and Development Commands
 - Install: `make install` (uses Bun). Alternative: `bun install`.

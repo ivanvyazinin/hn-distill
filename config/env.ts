@@ -85,9 +85,9 @@ const EnvironmentSchema = z.object({
   // reasoning flag truncates mid-thought (finish_reason=length).
   OPENROUTER_MAX_TOKENS: z.coerce.number().int().min(128).max(32_768).default(1200),
 
-  // Comments-v2 has an independent input/output and request budget. Five
-  // seven-second calls fit under the worker's 40s task timeout with its 2s buffer
-  // (generation chain + compress after Groq 429 spill).
+  // Comments-v2 has an independent input/output and request budget. The old
+  // "5 × 7s under the worker's 40s task timeout" sizing is historical: the
+  // Cloudflare Worker is not in use (see wrangler.toml), GitHub Actions has no such cap.
   COMMENTS_SUMMARY_MIN_CHARS: z.coerce.number().int().min(40).max(1000).default(200),
   COMMENTS_MIN_CYRILLIC_RATIO: z.coerce.number().min(0).max(1).default(0.65),
   COMMENTS_PROMPT_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
@@ -119,7 +119,8 @@ const EnvironmentSchema = z.object({
   COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(10),
   COMMENTS_COMPRESS_REPAIR_MAX_STORIES: z.coerce.number().int().min(0).max(50).default(3),
   // Default 5: primary + OpenRouter + room for compression and one spare
-  // after Groq 429/TPM burn. Kept inside worker task timeout (5 × 7s ≤ 40s − 2s).
+  // after Groq 429/TPM burn. The .max(5) came from the unused Worker's 40s task
+  // timeout (5 × 7s ≤ 40s − 2s); it is not a real constraint on GitHub Actions.
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
@@ -278,7 +279,8 @@ const EnvironmentSchema = z.object({
     .transform((v) => (typeof v === "boolean" ? v : v === "true"))
     .default(true),
 
-  // Worker safety guards (serverless limits). Task budget must cover
+  // Worker safety guards (serverless limits). The Worker is NOT in use
+  // (see wrangler.toml); these only matter if it is ever deployed. Task budget must cover
   // COMMENTS_MAX_LLM_CALLS × COMMENTS_LLM_REQUEST_TIMEOUT_MS (+ buffer).
   WORKER_QUEUE_TASK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(40_000),
   WORKER_CRON_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(120_000),

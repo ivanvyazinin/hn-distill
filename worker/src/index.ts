@@ -1,3 +1,5 @@
+// NOT IN USE (2026-09-12): this Worker is not deployed. Production runs only via
+// GitHub Actions. Kept compiling and under test; do not derive pipeline limits from it.
 import { applyEnv, COMMENTS_POLICY_VERSION, parseEnv, type Env } from "@config/env";
 import { PATHS, pathFor } from "@config/paths";
 import { type AggregatedFile, type CommentsSummary, type NormalizedStory } from "@config/schemas";
