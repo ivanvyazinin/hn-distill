@@ -109,6 +109,7 @@ type ChatCall = {
     temperature?: number;
     requestTimeoutMs?: number;
     transportRetries?: number;
+    reasoningEffort?: string;
   };
 };
 type CompressRejectDiagnostic = {
@@ -1543,6 +1544,8 @@ describe("comments compress model chain", () => {
       // Provenance must name the hop that actually answered.
       expect(persisted?.compressed?.model).toBe("paid/fallback");
       expect(chatCalls.map((call) => call.options.model)).toEqual(["free/primary", "paid/fallback"]);
+      // Reasoning models burn max_tokens in their trace without the flag (12.09 probe).
+      expect(chatCalls.map((call) => call.options.reasoningEffort)).toEqual(["none", "none"]);
     });
   });
 

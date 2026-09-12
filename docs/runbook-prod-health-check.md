@@ -64,11 +64,11 @@ fallback-карточках не должно быть простыни одно
 
 ## Что уже автоматизировано (27.08.2026)
 
-- **Compress ходит по цепочке.** `COMMENTS_COMPRESS_MODEL` (minimax-m3:free) →
-  `COMMENTS_COMPRESS_FALLBACK_MODEL` (qwen, платный). Второй хоп берётся только на
-  транспортной ошибке первого (типовой случай: `HTTP 429 … rate-limited upstream` из
-  общего пула провайдера). Семантический reject терминален и второй хоп не тратит.
-  В логе смотреть `Comments compress written {model, hop}` — видно, какой хоп ответил.
+- **Compress ходит по цепочке.** `COMMENTS_COMPRESS_MODEL` (nemotron `:free` с
+  `reasoning_effort=none`) → `COMMENTS_COMPRESS_FALLBACK_MODEL` (qwen, платный).
+  До 12.09.2026 первым hop был `minimax/minimax-m3:free`, но slug исчез из живого
+  каталога OpenRouter и давал 12 ошибок на 24 попытки за шесть запусков. В логе
+  смотреть `Comments compress written {model, hop}` — видно, какой hop ответил.
 - **Compress-repair проход.** После основного цикла hourly сам добирает карточки,
   которые уже вышли из окна TOP_N: сканирует `COMMENTS_COMPRESS_REPAIR_SCAN` (10)
   самых новых comments-блобов и лечит до `COMMENTS_COMPRESS_REPAIR_MAX_STORIES` (3)
@@ -94,6 +94,12 @@ fallback-карточках не должно быть простыни одно
 ## Утренний автоматический чек (Hermes → OMP)
 
 Слои 1–3 собираются детерминированно, без LLM.
+
+На VPS оба вызова OMP в Hermes-скрипте используют подписку OpenCode Go и модель
+`opencode-go/gpt-5.6-luna` с уровнем размышления `low`. Hermes хранит ключ подписки
+как `OPENCODE_GO_API_KEY`, а OMP ожидает `OPENCODE_API_KEY`; скрипт загружает
+`~/.hermes/.env` и делает это отображение перед запуском. Ключ не дублируется в
+`hn_check.env`.
 
 ### Подготовить свежую копию базы
 

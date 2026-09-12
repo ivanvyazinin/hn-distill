@@ -942,6 +942,10 @@ export async function compressCommentsSummaryIfNeeded(
           label: "comments-compress",
           transportRetries: 0,
           requestTimeoutMs,
+          // The free primary is a reasoning model and burns max_tokens inside its
+          // thinking trace without this (12.09 probe: 2/6 OK, expanded ×2). Same
+          // flag as the post path; non-reasoning hops accept and ignore it.
+          reasoningEffort: "none",
         }
       );
       const sanitized = sanitizeCompressedOutput(raw);

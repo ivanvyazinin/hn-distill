@@ -12,8 +12,8 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 | Stage | Models | Provider | Оплата | Назначение и поведение |
 |---|---|---|---|---|
 | Post summary | `nvidia/nemotron-3-super-120b-a12b:free` → `nvidia/nemotron-3-super-120b-a12b` → `meta-llama/llama-3.3-70b-instruct` | OpenRouter | Первый hop — free pool; остальные — paid route | Пересказ статьи на русском. При heuristic/guard reject выполняются strict retries; для них используется `SUMMARY_CONTENT_REJECT_MODEL` (`qwen/qwen3-next-80b-a3b-instruct`) и затем fallback. |
-| Comments-v2, stage 1 | `openai/gpt-oss-120b` → `qwen/qwen3-next-80b-a3b-instruct` | Groq → OpenRouter | Groq — free primary; Qwen — paid last resort | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. Оба Groq fallback-слота по умолчанию пусты, но могут быть включены через environment. Groq использует balanced-object extraction; Qwen — strict JSON. |
-| Comments compression | `minimax/minimax-m3:free` → `qwen/qwen3-next-80b-a3b-instruct` | OpenRouter | Первый hop — free pool; второй — paid route | Второй проход: structured insights превращаются в один русский абзац. Transport и model-specific language/format rejects передаются следующему hop; `expanded` и `too_short` остаются terminal. |
+| Comments-v2, stage 1 | `openai/gpt-oss-120b` → `openai/gpt-oss-20b` → `qwen/qwen3-next-80b-a3b-instruct` | Groq → Groq → OpenRouter | Оба Groq — free tier (разные per-model TPM-бакеты); Qwen — paid last resort | Структурированный анализ HN-треда: `bottom_line`, `insights[]`, optional `best_quote`. Free 20b-hop поглощает TPM 429 primary (прод 11–12.09: 120b упирается в 8000 TPM на реальных тредах); второй Groq-слот остаётся пустым. Groq использует balanced-object extraction; Qwen — strict JSON. |
+| Comments compression | `nvidia/nemotron-3-super-120b-a12b:free` → `qwen/qwen3-next-80b-a3b-instruct` | OpenRouter | Первый hop — free pool; второй — paid route | Второй проход: structured insights превращаются в один русский абзац. Compress-вызов шлёт `reasoning_effort=none` (как постовой): без флага нематрон жжёт бюджет в reasoning и раздувает текст (проба 12.09: 2/6, с флагом 6/6 при ~67% ratio). ~50% вызовов упираются в 7s-таймаут и уходят на платный hop; гейт валидатора един для обоих. |
 | Tags | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Извлечение до `TAGS_MAX_PER_STORY` нормализованных тегов. При полном отказе используются deterministic heuristics; второго LLM hop нет. |
 | Post guard | `openai/gpt-oss-20b` | Groq при `GROQ_API_KEY`, иначе основной client | Ваш бесплатный Groq tier; при отсутствии ключа billing зависит от основного client | Проверка post summary: статья ли это, отказ, verdict, confidence. `POST_GUARD_FALLBACK_MODEL` по умолчанию пустой; при недоступности guard summary принимается только через heuristics. |
 | Content-reject escalation | `qwen/qwen3-next-80b-a3b-instruct` → `OPENROUTER_FALLBACK_MODEL` | OpenRouter | Зависит от конкретного model id; defaults — paid route | Strict retry для post summary после language/heuristics/guard reject. Это не отдельный stage публикации. |
@@ -25,13 +25,15 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 | OpenRouter | `OPENROUTER_API_KEY` | Slug с суффиксом `:free` — free pool. Slug без `:free` — paid route и требует credits. | Model page, credits, upstream rate limits |
 | Groq | `GROQ_API_KEY` | В текущем setup используется только бесплатный tier. `openai/gpt-oss-*` — free-tier API calls, ограниченные лимитами аккаунта. | Free-tier limits, rate limits и актуальность model id |
 
-Через OpenRouter используются два comments-маршрута:
+Через OpenRouter для comments используется `qwen/qwen3-next-80b-a3b-instruct`:
 
-- `qwen/qwen3-next-80b-a3b-instruct` — paid comments stage-1 last resort и compression fallback;
-- `minimax/minimax-m3:free` — только comments compression primary. Это не official MiniMax API.
+- paid comments stage-1 last resort;
+- paid comments compression primary.
 
-Основной comments route остаётся free-first: платный Qwen вызывается только после
-отказа Groq primary и любых явно настроенных Groq fallback-моделей.
+Основной comments stage-1 route остаётся free-first: платный Qwen вызывается
+только после отказа Groq primary (`gpt-oss-120b`) и free fallback (`gpt-oss-20b`).
+Compression с 12.09.2026 снова free-first: нематрон с `reasoning_effort=none`,
+платный Qwen — вторым hop на транспортные/таймаут-отказы free-слота.
 
 Official MiniMax API удалён из production chain: stage-1 latency/transport были
 нестабильны, а schema enforcement не гарантировался. Исторические probe-документы

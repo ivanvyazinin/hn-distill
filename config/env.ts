@@ -94,21 +94,14 @@ const EnvironmentSchema = z.object({
   // Room for up to 15 RU insights (dynamic ceiling); ~3k tokens worst case.
   COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(2500),
   // Second-pass compression of structured comments. Empty string disables.
-  // 2026-08-26: nemotron-3-super-120b-a12b:free burns the whole max_tokens inside
-  // its reasoning trace on this plain-text task (finish=length on every probe call)
-  // and expands instead of compressing — 1/6 OK on real prod inputs, matching the
-  // hourly "semantic reject expanded:N>M" / "empty content" WARN storm. Probe winner
-  // minimax-m3:free: 6/6 OK, ~55% of source, finish=stop (docs/probe-compress-models-2026-08-26.md).
-  // :free volatility is accepted: failures stay retryable-pending and the next hourly
-  // run retries; volume (~40 calls/day) fits the ≥$10-account 1000/day quota.
-  COMMENTS_COMPRESS_MODEL: z.string().default("minimax/minimax-m3:free"),
-  // Second compress hop, tried only when the primary fails at the transport level.
-  // 2026-08-27: the free minimax slot returns upstream 429 ("temporarily
-  // rate-limited upstream", shared provider pool) a few times a day; with a single
-  // hop that leaves `compressed` absent and the card renders raw bullets until some
-  // later run happens to catch the story inside the window. qwen is the paid route
-  // already used for comments spill and scored 5/6 on the same compress probe.
-  // Empty string disables the second hop.
+  // 2026-09-12: free-first again — nemotron:free with reasoning_effort=none
+  // (sent by the compress call, same as the post path) scored 6/6 OK at ~67%
+  // ratio on six real prod inputs; without the flag it is 2/6 (reasoning burn,
+  // expanded ×2 — the 26.08 failure). ~50% of calls exceed the 7s attempt
+  // timeout and spill to the paid Qwen hop; quality is gated by the validator
+  // either way. Dead MiniMax slug is gone from the chain.
+  COMMENTS_COMPRESS_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
+  // Paid second hop for free-slot transport/timeout failures. Empty disables it.
   COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
@@ -136,10 +129,13 @@ const EnvironmentSchema = z.object({
   // MAX_COMMENTS_PER_STORY-capped fetch sample.
   COMMENTS_REGEN_MIN_NEW_COMMENTS: z.coerce.number().int().min(0).max(100_000).default(100),
 
-  // Comments-v2 model chain. Groq is the free primary; optional Groq fallback
-  // slots default empty. Paid OpenRouter Qwen is the last resort.
+  // Comments-v2 model chain. Groq is the free primary; the 20b fallback absorbs
+  // the primary's per-model TPM 429s (prod 11-12.09: gpt-oss-120b TPM 8000 burns on
+  // real 24k-char threads, every run spilling to paid Qwen). Separate per-model
+  // bucket, zero extra cost; 20/20 transport-ok on the 25.08 real-thread probe.
+  // Paid OpenRouter Qwen stays the last resort.
   COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
-  COMMENTS_FALLBACK_MODEL: z.string().default(""),
+  COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
   // Paid cross-provider last resort. Empty disables the paid hop.
   COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
