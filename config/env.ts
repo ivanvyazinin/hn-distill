@@ -125,6 +125,16 @@ const EnvironmentSchema = z.object({
   // GitHub Actions has no such cap.
   COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(8).default(6),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
+  // Compress hops get a longer attempt window than stage-1 (2026-09-12): the free
+  // nemotron primary misses 7s on ~50% of calls and each miss spills to paid Qwen.
+  // No serverless cap applies (Worker unused), so give the free slot room to answer.
+  COMMENTS_COMPRESS_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(14_000),
+  // Stage-1 prompts longer than this skip the Groq primary and start on the next
+  // step. gpt-oss-120b runs on an 8000 tokens-per-minute bucket and a full 24k-char
+  // thread (~6-7k tokens + system prompt + output) is a near-certain 429 there —
+  // the call and its 7s attempt window were wasted before the fallback ran.
+  // 0 disables the pre-check.
+  COMMENTS_GROQ_PRIMARY_MAX_PROMPT_CHARS: z.coerce.number().int().min(0).max(200_000).default(18_000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the
   // last successful summary (processedDescendants). 0 disables the gate and keeps

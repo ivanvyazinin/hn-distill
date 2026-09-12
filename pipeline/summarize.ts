@@ -920,7 +920,7 @@ export async function compressCommentsSummaryIfNeeded(
   // cost the card its compressed paragraph while a working hop is still untried.
   let lastPermanentModel: string | undefined;
   for (const [hop, model] of chain.entries()) {
-    const requestTimeoutMs = budget.claimRequestTimeoutMs();
+    const requestTimeoutMs = budget.claimRequestTimeoutMs(env.COMMENTS_COMPRESS_TIMEOUT_MS);
     if (requestTimeoutMs === undefined) {
       log.warn(LOG_NAMESPACE_COMMENTS, "Comments compress skipped: budget/deadline exhausted", {
         id: summary.id,

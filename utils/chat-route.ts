@@ -702,7 +702,10 @@ type CommentsChainStep = {
   requestTimeoutMs?: number;
 };
 
-export function buildCommentsModelChain(services: RouteServices): CommentsChainStep[] {
+export function buildCommentsModelChain(
+  services: RouteServices,
+  options: { promptChars?: number } = {}
+): CommentsChainStep[] {
   // Route comments through the Groq client when one exists: it returns reliable
   // non-reasoning JSON, unlike the OpenRouter reasoning models that share the post
   // chain and emit prose instead of JSON. makeServices only builds a distinct
@@ -768,9 +771,22 @@ export function buildCommentsModelChain(services: RouteServices): CommentsChainS
   if (groqEnabled) {
     // Groq is the free comments primary. Its provider-specific models use
     // balanced-object extraction because strict response_format is unreliable.
-    pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
-      trackTpdExhaustion: true,
-    });
+    // A prompt that cannot fit the primary's per-minute token bucket skips it
+    // outright instead of burning a call on a near-certain 429.
+    const primaryLimit = env.COMMENTS_GROQ_PRIMARY_MAX_PROMPT_CHARS;
+    const promptTooLong =
+      primaryLimit > 0 && options.promptChars !== undefined && options.promptChars > primaryLimit;
+    if (promptTooLong) {
+      log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 skipping Groq primary: prompt exceeds TPM-safe size", {
+        model: env.COMMENTS_MODEL,
+        promptChars: options.promptChars,
+        limit: primaryLimit,
+      });
+    } else {
+      pushStep(services.guardTagsClient, env.COMMENTS_MODEL, groqBaseUrl, "groq", false, {
+        trackTpdExhaustion: true,
+      });
+    }
 
     for (const model of [env.COMMENTS_FALLBACK_MODEL, env.COMMENTS_FALLBACK_MODEL_2]) {
       pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
@@ -814,7 +830,7 @@ export async function callStructuredWithModelChain(
     validate: InsightsValidator;
   }
 ): Promise<{ insights: CommentsInsights; modelUsed: string; summary: string } | undefined> {
-  const steps = buildCommentsModelChain(services);
+  const steps = buildCommentsModelChain(services, { promptChars: input.prompt.length });
   // Old contract: a TPD trip must stay visible to later stories even on a
   // hand-built Services that carries neither field — seed-and-assign, like the
   // pre-Phase-3 code did. Production paths always inject tpdBreaker.
@@ -884,7 +900,12 @@ export async function callStructuredWithModelChain(
       if (validated !== undefined) {
         return { insights: validated.insights, modelUsed: model, summary: validated.summary };
       }
-      if (!strict) {
+      // A same-model strict retry costs a second physical call. On Groq that is a
+      // second hit on the per-minute token bucket that is already the bottleneck,
+      // so hand the strict prompt to the next step instead when one exists; the
+      // last step (and OpenRouter steps) keep the same-model retry.
+      const hasNextStep = steps[stepIndex + 1] !== undefined;
+      if (!strict && !(gateway === "groq" && hasNextStep)) {
         strict = true;
       } else if (!moveToFallback()) {
         return undefined;

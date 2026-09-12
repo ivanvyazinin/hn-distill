@@ -481,6 +481,75 @@ describe("comments-v2 request budget and validation", () => {
     );
   });
 
+  const GROQ_PAIR_ENV = {
+    SUMMARY_LANG: "ru" as const,
+    COMMENTS_SUMMARY_MIN_CHARS: 200,
+    COMMENTS_COMPRESS_MODEL: "",
+    COMMENTS_FALLBACK_MODEL: "openai/gpt-oss-20b",
+    COMMENTS_FALLBACK_MODEL_2: "",
+    COMMENTS_OPENROUTER_FALLBACK_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+  };
+
+  test("Groq semantic failure hands the strict prompt to the next step instead of retrying the same model", async () => {
+    const story = makeStory({ id: 44, title: "No same-model retry on Groq" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => (call.options.model === env.COMMENTS_MODEL ? INVALID_LANGUAGE_INSIGHTS : VALID_INSIGHTS),
+    });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe("openai/gpt-oss-20b");
+      // One physical call per Groq model: the TPM bucket of the primary is not hit twice.
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, "openai/gpt-oss-20b"]);
+      expect(groqCalls[0]?.messages[0]?.content).not.toContain("Строго соблюдай JSON-схему");
+      expect(groqCalls[1]?.messages[0]?.content).toContain("Строго соблюдай JSON-схему");
+      expect(openRouterCalls.length).toBe(0);
+    });
+  });
+
+  test("last Groq step still retries strictly on the same model when nothing follows", async () => {
+    const story = makeStory({ id: 45, title: "Same-model retry on the last step" });
+    let groqSeen = 0;
+    const { groqCalls, services } = groqPairServices({
+      groq: async () => {
+        groqSeen += 1;
+        return groqSeen === 1 ? INVALID_LANGUAGE_INSIGHTS : VALID_INSIGHTS;
+      },
+    });
+
+    await withEnvPatch(
+      { ...GROQ_PAIR_ENV, COMMENTS_FALLBACK_MODEL: "", COMMENTS_OPENROUTER_FALLBACK_MODEL: "" },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+        expect(result?.insights).toEqual(VALID_INSIGHTS);
+        expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_MODEL]);
+        expect(groqCalls[1]?.messages[0]?.content).toContain("Строго соблюдай JSON-схему");
+      }
+    );
+  });
+
+  test("oversized prompt skips the Groq primary and starts on the fallback", async () => {
+    const story = makeStory({ id: 46, title: "Long thread skips 120b" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({ groq: async () => VALID_INSIGHTS });
+    const comments = threeComments(story.id);
+
+    await withEnvPatch({ ...GROQ_PAIR_ENV, COMMENTS_GROQ_PRIMARY_MAX_PROMPT_CHARS: 100 }, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments });
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe("openai/gpt-oss-20b");
+      expect(groqCalls.map((call) => call.options.model)).toEqual(["openai/gpt-oss-20b"]);
+      expect(openRouterCalls.length).toBe(0);
+    });
+
+    // 0 disables the pre-check.
+    groqCalls.length = 0;
+    await withEnvPatch({ ...GROQ_PAIR_ENV, COMMENTS_GROQ_PRIMARY_MAX_PROMPT_CHARS: 0 }, async () => {
+      await generateValidatedCommentsSummaryV2(services, { story, comments });
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL]);
+    });
+  });
+
   test("Groq model_not_found advances chain without repeating the missing id", async () => {
     const story = makeStory({ id: 42, title: "Missing model" });
     const groqCalls: StructuredCall[] = [];
@@ -1546,6 +1615,8 @@ describe("comments compress model chain", () => {
       expect(chatCalls.map((call) => call.options.model)).toEqual(["free/primary", "paid/fallback"]);
       // Reasoning models burn max_tokens in their trace without the flag (12.09 probe).
       expect(chatCalls.map((call) => call.options.reasoningEffort)).toEqual(["none", "none"]);
+      // Compress hops get their own, longer attempt window than stage-1.
+      expect(chatCalls.map((call) => call.options.requestTimeoutMs)).toEqual([14_000, 14_000]);
     });
   });
 
