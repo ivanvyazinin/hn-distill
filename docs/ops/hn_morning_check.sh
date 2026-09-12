@@ -4,13 +4,25 @@
 # plain-language rewrite pass -> RU report on stdout (delivered by Hermes cron).
 set -uo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin:/usr/local/bin"
+HERMES_ENV="$HOME/.hermes/.env"
 ENV_FILE="$HOME/.hermes/scripts/hn_check.env"
 CHECKOUT="$HOME/work/projects/hn-distill"
 MSG_FILE="/tmp/hn-check-msg.md"
+OMP_MODEL="opencode-go/gpt-5.6-luna"
+
+if [ -f "$HERMES_ENV" ]; then
+  set -a
+  source "$HERMES_ENV"
+  set +a
+fi
 [ -f "$ENV_FILE" ] || { echo "нет $ENV_FILE"; exit 0; }
 set -a
 source "$ENV_FILE"
 set +a
+# Hermes names the subscription key OPENCODE_GO_API_KEY; OMP expects OPENCODE_API_KEY.
+if [ -z "${OPENCODE_API_KEY:-}" ] && [ -n "${OPENCODE_GO_API_KEY:-}" ]; then
+  export OPENCODE_API_KEY="$OPENCODE_GO_API_KEY"
+fi
 cd "$CHECKOUT" || { echo "нет чекаута $CHECKOUT"; exit 0; }
 git pull -q origin main 2>/dev/null
 
@@ -33,7 +45,7 @@ WARN_RUNS=6 SAMPLE=10 HN_DB_PATH="$DB_ARG" GH_TOKEN="$GH_TOKEN" \
 # Up to 3 attempts: upstream 429/credit blips happen intermittently; keep evidence.
 VERDICT_JSON=""
 for ATTEMPT in 1 2 3; do
-  VERDICT_JSON=$(omp -p --no-session --model "openrouter/stealth/ox-alpha:low" "@$MSG_FILE" 2>/tmp/omp_err.txt)
+  VERDICT_JSON=$(omp -p --no-session --thinking low --model "$OMP_MODEL" "@$MSG_FILE" 2>/tmp/omp_err.txt)
   printf '%s attempt=%s raw_len=%s err=%s\n' "$(date -Is)" "$ATTEMPT" "${#VERDICT_JSON}" \
     "$(tr '\n' ' ' </tmp/omp_err.txt | tail -c 200)" >> /tmp/hn-check-debug.log
   case "$VERDICT_JSON" in *'{'*) break;; esac
@@ -89,7 +101,7 @@ with open("/tmp/hn-check-rewrite.md", "w", encoding="utf-8") as handle:
     handle.write(instruction + "\n---\n\nОтчёт:\n\n" + report)
 PY
 
-SIMPLE=$(omp -p --no-session --model "openrouter/stealth/ox-alpha:low" "@/tmp/hn-check-rewrite.md" 2>>/tmp/omp_err.txt)
+SIMPLE=$(omp -p --no-session --thinking low --model "$OMP_MODEL" "@/tmp/hn-check-rewrite.md" 2>>/tmp/omp_err.txt)
 printf '%s rewrite_len=%s\n' "$(date -Is)" "${#SIMPLE}" >> /tmp/hn-check-debug.log
 if [ -n "$SIMPLE" ]; then
   printf '%s\n' "$SIMPLE"
