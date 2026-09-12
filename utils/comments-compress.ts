@@ -27,9 +27,15 @@ export function commentsCompressModelChain(): string[] {
   return fallback.length > 0 && fallback !== primary ? [primary, fallback] : [primary];
 }
 
-/** Exact compress prompt — do not rephrase; the plan freezes this wording. */
+/**
+ * Exact compress prompt — keep wording changes deliberate. 2026-09-12: added the
+ * Russian-only line (same as the post prompt) after the free nemotron hop wrote
+ * «затрагивают mainly ботов» and lost a good paragraph to the latin_prose gate;
+ * the original prompt never mentioned language at all. Changing the prompt does
+ * not recompress existing cards (see COMMENTS_COMPRESS_POLICY_VERSION).
+ */
 export const COMMENTS_COMPRESS_PROMPT =
-  "Сожми текст: убери повторы, канцелярит и лишние пояснения, объедини близкие мысли. Сохрани факты, смысл и важные оговорки. Ничего не добавляй от себя. Верни только итоговый текст.";
+  "Сожми текст: убери повторы, канцелярит и лишние пояснения, объедини близкие мысли. Сохрани факты, смысл и важные оговорки. Ничего не добавляй от себя. Пиши только по-русски: латиница допустима лишь для имён собственных, названий продуктов, терминов и кода — не вставляй английские слова в связный русский текст. Верни только итоговый текст.";
 
 const INSIGHT_KIND_PREFIX_RU: Record<CommentsInsights["insights"][number]["kind"], string> = {
   consensus: "",
