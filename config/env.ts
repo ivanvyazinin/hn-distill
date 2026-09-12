@@ -118,10 +118,12 @@ const EnvironmentSchema = z.object({
   // backstops): the older tail is a manual sweep, not per-cron blob reads.
   COMMENTS_COMPRESS_REPAIR_SCAN: z.coerce.number().int().min(0).max(1000).default(10),
   COMMENTS_COMPRESS_REPAIR_MAX_STORIES: z.coerce.number().int().min(0).max(50).default(3),
-  // Default 5: primary + OpenRouter + room for compression and one spare
-  // after Groq 429/TPM burn. The .max(5) came from the unused Worker's 40s task
-  // timeout (5 × 7s ≤ 40s − 2s); it is not a real constraint on GitHub Actions.
-  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(5).default(5),
+  // Default 6 (2026-09-12): stage-1 worst case is 4 calls (primary balanced +
+  // strict retry, free Groq 20b fallback, paid Qwen) and compress needs 2 hops
+  // (free nemotron misses the 7s timeout ~50% of the time, paid Qwen after it).
+  // The old .max(5) came from the unused Worker's 40s task timeout (5 × 7s ≤ 40s − 2s);
+  // GitHub Actions has no such cap.
+  COMMENTS_MAX_LLM_CALLS: z.coerce.number().int().min(1).max(8).default(6),
   COMMENTS_LLM_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(7000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the

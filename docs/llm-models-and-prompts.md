@@ -28,7 +28,7 @@ JSON-схемы или validation-gate. Источник runtime-значени�
 Через OpenRouter для comments используется `qwen/qwen3-next-80b-a3b-instruct`:
 
 - paid comments stage-1 last resort;
-- paid comments compression primary.
+- paid second hop for comments compression (after free nemotron).
 
 Основной comments stage-1 route остаётся free-first: платный Qwen вызывается
 только после отказа Groq primary (`gpt-oss-120b`) и free fallback (`gpt-oss-20b`).

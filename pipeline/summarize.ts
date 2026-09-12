@@ -1098,10 +1098,14 @@ export type CompressRepairStats = {
  * 429. This pass re-reads the newest comments blobs and compresses the retryable
  * ones; stage-1 is never re-run, so a repair costs at most one compress chain.
  *
- * Stops on the first story whose whole chain fails at the transport level: that is
- * a provider-wide problem right now, and the remaining candidates would only burn
- * budget for the same outcome.
+ * Stops after two consecutive stories whose whole chain fails at the transport
+ * level: that looks like a provider-wide problem, and the remaining candidates
+ * would only burn budget for the same outcome. One failed chain is not enough
+ * evidence since 2026-09-12: the free nemotron primary misses the 7s timeout on
+ * roughly half of its calls, so a single story can go pending on one paid-hop blip.
  */
+const COMPRESS_REPAIR_MAX_CONSECUTIVE_PENDING = 2;
+
 export async function runCompressRepairPass(
   services: Services,
   store: ObjectStore,
@@ -1131,6 +1135,7 @@ export async function runCompressRepairPass(
     .slice(0, scanLimit);
   stats.scanned = ids.length;
 
+  let consecutivePending = 0;
   for (const id of ids) {
     if (stats.repaired + stats.rejected >= maxStories) {
       break;
@@ -1154,9 +1159,17 @@ export async function runCompressRepairPass(
     const compressed = await compressCommentsSummaryIfNeeded(services, summary, budget);
     if (compressed.status === "pending") {
       stats.pending += 1;
-      log.warn(LOG_NAMESPACE_COMMENTS, "Compress repair pass: stopping after a fully failed chain", { id });
-      break;
+      consecutivePending += 1;
+      if (consecutivePending >= COMPRESS_REPAIR_MAX_CONSECUTIVE_PENDING) {
+        log.warn(LOG_NAMESPACE_COMMENTS, "Compress repair pass: stopping after consecutive fully failed chains", {
+          id,
+          consecutivePending,
+        });
+        break;
+      }
+      continue;
     }
+    consecutivePending = 0;
     if (compressed.status !== "usable" && compressed.status !== "rejected") {
       continue;
     }

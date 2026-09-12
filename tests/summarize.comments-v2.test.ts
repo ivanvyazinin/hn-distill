@@ -1786,7 +1786,7 @@ describe("compress repair pass", () => {
     });
   });
 
-  test("skips usable blobs, excluded ids, and stops after a fully failed chain", async () => {
+  test("skips usable blobs, excluded ids, and stops after two consecutive fully failed chains", async () => {
     const store = new MemoryStore();
     const usableBlob = structuredRepairBlob(910);
     const sourceHash = expectedCompressSourceHash(usableBlob) ?? "";
@@ -1816,13 +1816,43 @@ describe("compress repair pass", () => {
 
     await withEnvPatch(REPAIR_ENV, async () => {
       const stats = await runCompressRepairPass(services, store, undefined, { excludeIds: [940] });
-      // 940 excluded, 930 fails the whole chain → pass stops before 920.
-      expect(stats.candidates).toBe(1);
+      // 940 excluded, 930 and 920 fail the whole chain → pass stops before 910.
+      expect(stats.candidates).toBe(2);
       expect(stats.repaired).toBe(0);
-      expect(stats.pending).toBe(1);
-      expect(chatCalls.length).toBe(1);
+      expect(stats.pending).toBe(2);
+      expect(chatCalls.length).toBe(2);
       const untouched = await store.getJson<CommentsSummary>(pathFor.commentsSummary(920));
       expect(untouched?.compressed).toBeUndefined();
+    });
+  });
+
+  test("one fully failed chain does not stop the pass", async () => {
+    const store = new MemoryStore();
+    await store.putJson(pathFor.commentsSummary(960), structuredRepairBlob(960));
+    await store.putJson(pathFor.commentsSummary(970), structuredRepairBlob(970));
+    await store.putJson(pathFor.commentsSummary(980), structuredRepairBlob(980));
+    const { chatCalls, services } = structuredServices(
+      [],
+      [
+        // 980 (newest): primary times out → pending on a single-hop chain.
+        async () => {
+          throw new HttpError("https://openrouter.ai/api/v1/chat/completions", 429, "rate-limited upstream");
+        },
+        // 970: healthy again → repaired.
+        async () => VALID_COMPRESSED_RU,
+        // 960: repaired.
+        async () => VALID_COMPRESSED_RU,
+      ]
+    );
+
+    await withEnvPatch(REPAIR_ENV, async () => {
+      const stats = await runCompressRepairPass(services, store);
+      expect(stats.candidates).toBe(3);
+      expect(stats.pending).toBe(1);
+      expect(stats.repaired).toBe(2);
+      expect(chatCalls.length).toBe(3);
+      const repaired = await store.getJson<CommentsSummary>(pathFor.commentsSummary(970));
+      expect(repaired?.compressed?.text).toBe(VALID_COMPRESSED_RU);
     });
   });
 
