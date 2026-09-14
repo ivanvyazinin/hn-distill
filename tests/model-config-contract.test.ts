@@ -21,7 +21,7 @@ describe("model config contract", () => {
     expect(defaults.OPENROUTER_FALLBACK_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b");
     expect(defaults.OPENROUTER_FALLBACK_MODEL_2).toBe("meta-llama/llama-3.3-70b-instruct");
     expect(defaults.COMMENTS_COMPRESS_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
-    expect(defaults.COMMENTS_COMPRESS_FALLBACK_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+    expect(defaults.COMMENTS_COMPRESS_FALLBACK_MODEL).toBe("google/gemma-4-31b-it");
     expect(defaults.COMMENTS_COMPRESS_REPAIR_SCAN).toBe(10);
     expect(defaults.COMMENTS_COMPRESS_REPAIR_MAX_STORIES).toBe(3);
     expect(defaults.SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");

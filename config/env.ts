@@ -102,7 +102,10 @@ const EnvironmentSchema = z.object({
   // either way. Dead MiniMax slug is gone from the chain.
   COMMENTS_COMPRESS_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
   // Paid second hop for free-slot transport/timeout failures. Empty disables it.
-  COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  // 2026-09-13 bench (scripts/bench-compress-models.mts, 20 real inputs): gemma
+  // 20/20 valid + RU-pure at $0.0002/call vs qwen3-next 18/20 at $0.0006 — see
+  // docs/analysis/2026-09-13-compress-model-compare.md.
+  COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it"),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),

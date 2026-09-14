@@ -1314,6 +1314,8 @@ describe("comments compress integration", () => {
         SUMMARY_LANG: "ru",
         COMMENTS_SUMMARY_MIN_CHARS: 80,
         COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+        // Single-hop chain: these tests count calls, so the paid fallback must be off.
+        COMMENTS_COMPRESS_FALLBACK_MODEL: "",
       },
       async () => {
         const result = await processCommentsSummary(services, story, comments, undefined, path, store, meta);
@@ -1346,6 +1348,8 @@ describe("comments compress integration", () => {
         SUMMARY_LANG: "ru",
         COMMENTS_SUMMARY_MIN_CHARS: 80,
         COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+        // Single-hop chain: these tests count calls, so the paid fallback must be off.
+        COMMENTS_COMPRESS_FALLBACK_MODEL: "",
       },
       async () => {
         const first = await processCommentsSummary(services, story, comments, undefined, path, store);
@@ -1384,6 +1388,8 @@ describe("comments compress integration", () => {
         SUMMARY_LANG: "ru",
         COMMENTS_SUMMARY_MIN_CHARS: 80,
         COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+        // Single-hop chain: these tests count calls, so the paid fallback must be off.
+        COMMENTS_COMPRESS_FALLBACK_MODEL: "",
       },
       async () => {
         // Stage-1 is applied even when compress is still pending — processing_state
@@ -1501,6 +1507,8 @@ describe("comments compress integration", () => {
         SUMMARY_LANG: "ru",
         COMMENTS_SUMMARY_MIN_CHARS: 80,
         COMMENTS_COMPRESS_MODEL: "qwen/qwen3-next-80b-a3b-instruct",
+        // Single-hop chain: these tests count calls, so the paid fallback must be off.
+        COMMENTS_COMPRESS_FALLBACK_MODEL: "",
       },
       async () => {
         const result = await processCommentsSummary(services, story, comments, undefined, path, store);
