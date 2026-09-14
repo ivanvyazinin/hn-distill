@@ -121,6 +121,16 @@ jobs:
           fi
           rsync -az --delete --exclude 'bench/' --exclude '.DS_Store' --exclude '*.sqlite-shm' --exclude '*.sqlite-wal' data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"
 
+      - name: Daily coverage build summary
+        continue-on-error: true
+        env:
+          # Keep the report's miss classification aligned with the pipeline.
+          # Telegram secrets are deliberately omitted: hourly runs report only
+          # to GitHub Actions and do not repeat the daily alert.
+          SUMMARIZE_MIN_SCORE: ${{ vars.SUMMARIZE_MIN_SCORE || '300' }}
+          SUMMARIZE_MIN_COMMENTS: ${{ vars.SUMMARIZE_MIN_COMMENTS || '100' }}
+        run: bun run tsx scripts/daily-coverage.mts
+
       - name: Build site
         env:
           SITE: ${{ vars.SITE }}
