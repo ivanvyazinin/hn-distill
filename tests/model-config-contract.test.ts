@@ -52,3 +52,16 @@ describe("model config contract", () => {
     expect(workflow).toContain("GROQ_API_KEY:");
   });
 });
+
+describe("workflow state backup contract", () => {
+  test("daily catch-up persists updated state to VPS", () => {
+    const source = readFileSync(join(ROOT, ".github/workflows/daily-catchup.yml"), "utf8");
+    const workflow = Bun.YAML.parse(source) as {
+      jobs: { build: { steps: Array<{ name?: string; run?: string }> } };
+    };
+    const backup = workflow.jobs.build.steps.find((step) => step.name === "Backup state to VPS");
+
+    expect(backup?.run).toContain("rsync -az --delete");
+    expect(backup?.run).toContain('data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"');
+  });
+});
