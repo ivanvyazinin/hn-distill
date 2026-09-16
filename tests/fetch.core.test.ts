@@ -118,6 +118,38 @@ describe("scripts/fetch-hn core", () => {
     });
     expect(wide).toEqual([105, 106]);
   });
+  test("readTopIds daily-top-by-score rankAll keeps the settled-day tail visible", async () => {
+    // Sept-14 shape: the day's tail sits far below any fixed global slice
+    // across a hot lookback, with everything above it already published.
+    const now = new Date("2026-03-06T15:00:00.000Z");
+    const startUnix = Math.floor(Date.parse("2026-03-06T00:00:00.000Z") / 1000);
+    const scores = [900, 800, 700, 600, 500, 400, 350];
+    const ids = [201, 202, 203, 204, 205, 206, 207];
+    const hits = ids.map((id) => ({ objectID: String(id), created_at_i: startUnix + id }));
+    const items = Object.fromEntries(
+      ids.map((id, index) => [
+        `/\\/item\\/${id}\\.json$/`,
+        { id, type: "story", title: `s${id}`, by: "u", time: startUnix + id, score: scores[index], kids: [] },
+      ])
+    );
+    const services = makeMockHttp({
+      "/search_by_date/": { hits, nbPages: 1, nbHits: hits.length },
+      ...items,
+    }) as unknown as Services;
+
+    const sliced = await readTopIds(services, 3, { mode: "daily-top-by-score", now, concurrency: 4 });
+    expect(sliced).toEqual([201, 202, 203]);
+
+    const ranked = await readTopIds(services, 3, {
+      mode: "daily-top-by-score",
+      now,
+      concurrency: 4,
+      rankAll: true,
+    });
+    expect(ranked).toEqual([201, 202, 203, 204, 205, 206, 207]);
+
+    expect(selectUnpublishedIds(ranked, [201, 202, 203, 204, 205, 206], 2)).toEqual([207]);
+  });
 
 
   test("selectUnpublishedIds keeps top-N unpublished, falls back to plain top-N", () => {

@@ -64,6 +64,14 @@ type ReadTopIdsOptions = {
   lookbackDays?: number;
   /** Item fetch parallelism for daily-top-by-score (defaults to env.CONCURRENCY). */
   concurrency?: number;
+  /**
+   * Return the full score ranking instead of slicing to `limit`.
+   * Daily catch-up needs this: the settled day's tail sits far below the
+   * global top across a hot 7-day lookback, and any fixed slice (TOP_N x
+   * overfetch) silently drops it before unpublished filtering. Ranking is
+   * free — every candidate is already fetched and sorted.
+   */
+  rankAll?: boolean;
 };
 
 type DayOffset = NonNullable<ReadTopIdsOptions["dayOffset"]>;
@@ -211,7 +219,8 @@ async function readDailyTopIds(
   now: Date,
   dayOffset: DayOffset = 0,
   concurrencyOverride?: number,
-  lookbackDaysOverride?: number
+  lookbackDaysOverride?: number,
+  rankAll?: boolean
 ): Promise<number[]> {
   const lookback =
     lookbackDaysOverride !== undefined && Number.isFinite(lookbackDaysOverride)
@@ -259,9 +268,9 @@ async function readDailyTopIds(
       )
     )
   ).filter((candidate): candidate is DailyStoryCandidate => candidate !== undefined);
-
   candidates.sort((a, b) => b.score - a.score || b.time - a.time || b.id - a.id);
-  return candidates.slice(0, Math.max(0, limit)).map((candidate) => candidate.id);
+  const ranked = candidates.map((candidate) => candidate.id);
+  return (rankAll ?? false) ? ranked : ranked.slice(0, Math.max(0, limit));
 }
 
 /**
@@ -296,7 +305,8 @@ export async function readTopIds(
       options.now ?? new Date(),
       options.dayOffset ?? 0,
       options.concurrency,
-      options.lookbackDays
+      options.lookbackDays,
+      options.rankAll ?? false
     );
   }
 
@@ -569,13 +579,16 @@ export async function main(
   const indexExists = (await store.getText(PATHS.index)) !== null;
 
   const isDailyMode = env.TOP_N_MODE === "daily-top-by-score";
-  const requestedTopN = isDailyMode ? env.TOP_N * Math.max(1, env.TOP_N_OVERFETCH) : env.TOP_N;
-  const rankedIds = await readTopIds(services, requestedTopN, {
+  const rankedIds = await readTopIds(services, env.TOP_N, {
     mode: env.TOP_N_MODE,
     now: new Date(runTimestamp),
     dayOffset: env.TOP_N_DAY_OFFSET,
     lookbackDays: env.TOP_N_LOOKBACK_DAYS,
     concurrency: env.CONCURRENCY,
+    // Rank the whole lookback pool: the settled day's tail sits far below a
+    // fixed top-N slice across a hot week. selectUnpublishedIds keeps TOP_N
+    // unpublished from the full ranking below. Hourly topstories still slices.
+    rankAll: isDailyMode,
   });
   const previousAggregated = await readJsonSafe(store, PATHS.aggregated, AggregatedFileSchema);
   const topIds = isDailyMode
