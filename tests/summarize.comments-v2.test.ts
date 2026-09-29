@@ -18,7 +18,9 @@ import {
   runCompressRepairPass,
   type Services,
 } from "../pipeline/summarize";
+import { groqRetryAfterMs } from "../utils/chat-route";
 import { expectedCompressSourceHash } from "../utils/comments-compress";
+import { buildCommentsSystemInstructionV2 } from "../utils/comments-thread";
 import { HttpError } from "../utils/http-client";
 import { createUsageCollector } from "../utils/llm-usage";
 import type { MetaStore, SummaryRow } from "../utils/meta-store";
@@ -247,6 +249,10 @@ const LATIN_PROSE_REJECT_RU_ALT = VALID_COMPRESSED_RU.replace(
   "и включайте запись",
   "а the rollout keeps rollback criteria и включайте запись"
 );
+
+function tpm(body: string, status: number): Error {
+  return new Error("rate limited", { cause: new HttpError("https://api.groq.com", status, body) });
+}
 
 function threeComments(storyId: number): NormalizedComment[] {
   return [
@@ -548,6 +554,188 @@ describe("comments-v2 request budget and validation", () => {
       await generateValidatedCommentsSummaryV2(services, { story, comments });
       expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL]);
     });
+  });
+
+  test("ru system instruction demands Russian in every generated field", () => {
+    const instruction = buildCommentsSystemInstructionV2("ru", 5);
+    expect(instruction).toContain("Пиши все текстовые поля (bottom_line, insights[].text, best_quote.translation) только по-русски");
+    expect(buildCommentsSystemInstructionV2("en", 5)).not.toContain("по-русски");
+  });
+
+  test("a wrong-language reject adds the language reminder to the next step", async () => {
+    const story = makeStory({ id: 47, title: "English answer on the primary" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => (call.options.model === env.COMMENTS_MODEL ? INVALID_LANGUAGE_INSIGHTS : VALID_INSIGHTS),
+    });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+      expect(result?.modelUsed).toBe("openai/gpt-oss-20b");
+      // Earlier Groq steps still hand over instead of re-hitting the same TPM bucket.
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, "openai/gpt-oss-20b"]);
+      expect(groqCalls[0]?.messages[0]?.content).not.toContain("Предыдущий ответ отклонён");
+      expect(groqCalls[1]?.messages[0]?.content).toContain("Предыдущий ответ отклонён");
+      expect(openRouterCalls.length).toBe(0);
+    });
+  });
+
+  test("the last step gets exactly one same-model retry after a wrong-language reject", async () => {
+    const story = makeStory({ id: 48, title: "Every model answers in English" });
+    let openRouterSeen = 0;
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async () => INVALID_LANGUAGE_INSIGHTS,
+      openrouter: async () => {
+        openRouterSeen += 1;
+        return openRouterSeen === 1 ? INVALID_LANGUAGE_INSIGHTS : VALID_INSIGHTS;
+      },
+    });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+      expect(result?.insights).toEqual(VALID_INSIGHTS);
+      expect(result?.modelUsed).toBe(env.COMMENTS_OPENROUTER_FALLBACK_MODEL);
+      expect(groqCalls.length).toBe(2);
+      expect(openRouterCalls.map((call) => call.options.model)).toEqual([
+        env.COMMENTS_OPENROUTER_FALLBACK_MODEL,
+        env.COMMENTS_OPENROUTER_FALLBACK_MODEL,
+      ]);
+      expect(openRouterCalls[1]?.messages[0]?.content).toContain("Предыдущий ответ отклонён");
+    });
+
+    // A second English answer on the retry ends the chain: no third same-model call.
+    openRouterSeen = 0;
+    groqCalls.length = 0;
+    openRouterCalls.length = 0;
+    const always = groqPairServices({
+      groq: async () => INVALID_LANGUAGE_INSIGHTS,
+      openrouter: async () => INVALID_LANGUAGE_INSIGHTS,
+    });
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const result = await generateValidatedCommentsSummaryV2(always.services, {
+        story,
+        comments: threeComments(story.id),
+      });
+      expect(result).toBeUndefined();
+      expect(always.groqCalls.length + always.openRouterCalls.length).toBe(4);
+    });
+  });
+
+  test("without Groq the last model still gets its language retry after an earlier one", async () => {
+    const story = makeStory({ id: 52, title: "OpenRouter-only chain" });
+    const { calls, services } = structuredServices([
+      async () => INVALID_LANGUAGE_INSIGHTS,
+      async () => INVALID_LANGUAGE_INSIGHTS,
+      async () => INVALID_LANGUAGE_INSIGHTS,
+      async () => INVALID_LANGUAGE_INSIGHTS,
+      async () => VALID_INSIGHTS,
+    ]);
+
+    await withEnvPatch(
+      {
+        SUMMARY_LANG: "ru",
+        COMMENTS_SUMMARY_MIN_CHARS: 200,
+        COMMENTS_COMPRESS_MODEL: "",
+        OPENROUTER_MODEL: "first",
+        OPENROUTER_FALLBACK_MODEL: "second",
+        OPENROUTER_FALLBACK_MODEL_2: "last",
+      },
+      async () => {
+        const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+        expect(result?.modelUsed).toBe("last");
+        expect(calls.map((call) => call.options.model)).toEqual(["first", "first", "second", "last", "last"]);
+      }
+    );
+  });
+
+  test("a short Groq per-minute 429 is waited out on the same model", async () => {
+    const story = makeStory({ id: 49, title: "TPM refill" });
+    let groqSeen = 0;
+    const callTimes: number[] = [];
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async () => {
+        groqSeen += 1;
+        callTimes.push(Date.now());
+        if (groqSeen === 1) {
+          throw new Error("rate limited", {
+            cause: new HttpError(
+              "https://api.groq.com/openai/v1/chat/completions",
+              429,
+              "HTTP 429 Rate limit reached on tokens per minute (TPM): Limit 8000. Please try again in 5ms."
+            ),
+          });
+        }
+        return VALID_INSIGHTS;
+      },
+    });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+      expect(result?.modelUsed).toBe(env.COMMENTS_MODEL);
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, env.COMMENTS_MODEL]);
+      expect(openRouterCalls.length).toBe(0);
+      // 5ms hint + 250ms slack: the retry must not fire immediately.
+      expect((callTimes[1] ?? 0) - (callTimes[0] ?? 0)).toBeGreaterThanOrEqual(250);
+    });
+  });
+
+  test("a Groq 429 wait that would eat the deadline moves on instead", async () => {
+    const story = makeStory({ id: 51, title: "TPM wait near deadline" });
+    const { groqCalls, openRouterCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "HTTP 429 (TPM) Please try again in 5s."),
+          });
+        }
+        return VALID_INSIGHTS;
+      },
+    });
+    const now = 10_000;
+    const budget = new CommentsGenerationBudget({ maxCalls: 6, deadlineAt: now + 12_000, now: () => now, requestTimeoutMs: 7000 });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const started = Date.now();
+      const result = await generateValidatedCommentsSummaryV2(services, {
+        story,
+        comments: threeComments(story.id),
+        budget,
+      });
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect(result?.modelUsed).toBe("openai/gpt-oss-20b");
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, "openai/gpt-oss-20b"]);
+      expect(openRouterCalls.length).toBe(0);
+    });
+  });
+
+  test("a Groq 429 hint longer than the wait cap moves on without waiting", async () => {
+    const story = makeStory({ id: 50, title: "Long TPM wait" });
+    const { groqCalls, services } = groqPairServices({
+      groq: async (call) => {
+        if (call.options.model === env.COMMENTS_MODEL) {
+          throw new Error("rate limited", {
+            cause: new HttpError("https://api.groq.com", 429, "HTTP 429 (TPM) Please try again in 26.654999s."),
+          });
+        }
+        return VALID_INSIGHTS;
+      },
+    });
+
+    await withEnvPatch(GROQ_PAIR_ENV, async () => {
+      const started = Date.now();
+      const result = await generateValidatedCommentsSummaryV2(services, { story, comments: threeComments(story.id) });
+      expect(Date.now() - started).toBeLessThan(1000);
+      expect(result?.modelUsed).toBe("openai/gpt-oss-20b");
+      expect(groqCalls.map((call) => call.options.model)).toEqual([env.COMMENTS_MODEL, "openai/gpt-oss-20b"]);
+    });
+  });
+
+  test("groqRetryAfterMs parses Groq TPM hints and ignores TPD and non-429 errors", () => {
+    expect(groqRetryAfterMs(tpm("(TPM): Limit 8000. Please try again in 5.6025s. Need more tokens?", 429))).toBe(5603);
+    expect(groqRetryAfterMs(tpm("(TPM) Please try again in 520ms.", 429))).toBe(520);
+    expect(groqRetryAfterMs(tpm("(TPM) Please try again in 1m26.4s.", 429))).toBe(86_400);
+    expect(groqRetryAfterMs(tpm("tokens per day (TPD): Please try again in 5s.", 429))).toBeUndefined();
+    expect(groqRetryAfterMs(tpm("(TPM) slow down", 429))).toBeUndefined();
+    expect(groqRetryAfterMs(tpm("Please try again in 5s.", 503))).toBeUndefined();
   });
 
   test("Groq model_not_found advances chain without repeating the missing id", async () => {

@@ -285,6 +285,9 @@ export function buildCommentsSystemInstructionV2(language: CommentsLanguage, max
   }
   return [
     "Точно и кратко анализируй обсуждения Hacker News на русском языке.",
+    // Without an explicit per-field rule, an English thread + English JSON schema
+    // pulls every model into all-English output (prod 2026-09: cyrillic ratio 0.000).
+    "Пиши все текстовые поля (bottom_line, insights[].text, best_quote.translation) только по-русски, даже если обсуждение на английском: латиница допустима лишь для ников, имён собственных, названий продуктов, терминов и кода.",
     "Возвращай только JSON по запрошенной схеме, без Markdown-ограждений и пояснений.",
     "Сохраняй ники и технические термины; не выдумывай тезисы, консенсус, споры, советы и цитаты.",
     'kind="dispute" только при настоящем споре с содержательными аргументами обеих сторон — обе стороны внутри text.',
@@ -448,15 +451,29 @@ export function evaluateCommentsInsightsCandidate(
   return { ok: true, insights: effective, summary, quoteEmitted, quoteProvenanceOk };
 }
 
-/** Production-shaped adapter: undefined instead of a verdict object. */
+/** Production-shaped adapter: the verdict without the eval-only quote flags. */
 export function validateCommentsInsightsCandidate(
   insights: CommentsInsights,
   comments: NormalizedComment[],
   sampleIds: number[],
   maxInsights: number
-): { insights: CommentsInsights; summary: string } | undefined {
+): CommentsInsightsCandidateVerdict {
   const evaluation = evaluateCommentsInsightsCandidate(insights, comments, sampleIds, maxInsights);
-  return evaluation.ok ? { insights: evaluation.insights, summary: evaluation.summary } : undefined;
+  return evaluation.ok
+    ? { ok: true, insights: evaluation.insights, summary: evaluation.summary }
+    : { ok: false, reason: evaluation.reason };
+}
+
+/** True when a candidate was rejected for being written in the wrong language. */
+export function isCommentsLanguageReject(reason: string): boolean {
+  return reason.includes("low_cyrillic_ratio");
+}
+
+/** Extra system line for calls that follow a wrong-language reject (ru only). */
+export function commentsLanguageReminder(language: CommentsLanguage): string | undefined {
+  return language === "ru"
+    ? "Предыдущий ответ отклонён: он написан по-английски. Все текстовые поля — bottom_line, insights[].text и best_quote.translation — пиши только по-русски."
+    : undefined;
 }
 /** Canonical strict json_schema request format for comments-v2 structured calls. */
 export function commentsInsightsResponseFormat(): {

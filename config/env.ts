@@ -134,6 +134,10 @@ const EnvironmentSchema = z.object({
   // the call and its 7s attempt window were wasted before the fallback ran.
   // 0 disables the pre-check.
   COMMENTS_GROQ_PRIMARY_MAX_PROMPT_CHARS: z.coerce.number().int().min(0).max(200_000).default(18_000),
+  // A Groq per-minute (TPM) 429 whose "try again in Xs" hint is at most this long
+  // is waited out once per chain step and retried on the same model instead of
+  // spending the step. 0 disables the wait.
+  COMMENTS_GROQ_429_MAX_WAIT_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
   COMMENTS_JUDGE_THREAD_MAX_CHARS: z.coerce.number().int().min(1000).max(100_000).default(24_000),
   // Regen comments only when HN story.descendants grew by more than this since the
   // last successful summary (processedDescendants). 0 disables the gate and keeps

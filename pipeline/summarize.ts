@@ -492,6 +492,17 @@ export class CommentsGenerationBudget {
     this.used += 1;
     return Math.max(1, Math.floor(timeoutMs));
   }
+
+  /** True when a pause of waitMs still leaves a call and a full request window. */
+  canWait(waitMs: number): boolean {
+    if (this.used >= this.maxCalls) {
+      return false;
+    }
+    return (
+      this.deadlineAt === undefined ||
+      this.deadlineAt - this.now() - COMMENTS_DEADLINE_BUFFER_MS - waitMs >= this.requestTimeoutMs
+    );
+  }
 }
 
 export type PreparedCommentsPromptV2 = ReturnType<typeof buildCommentsPromptV2>;

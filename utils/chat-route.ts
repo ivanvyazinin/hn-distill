@@ -4,7 +4,12 @@ import {
   type CommentsInsights,
   type NormalizedComment,
 } from "@config/schemas";
-import { buildCommentsSystemInstructionV2, commentsInsightsResponseFormat } from "@utils/comments-thread";
+import {
+  buildCommentsSystemInstructionV2,
+  commentsInsightsResponseFormat,
+  commentsLanguageReminder,
+  isCommentsLanguageReject,
+} from "@utils/comments-thread";
 import { HttpError } from "@utils/http-client";
 import { log } from "@utils/log";
 import {
@@ -657,14 +662,21 @@ export function commentsTpdExhaustionKey(gateway: "groq" | "openrouter", model: 
   return TpdBreaker.key(gateway, model);
 }
 
-function commentsV2Messages(prompt: string, strict: boolean, maxInsights: number): ChatMessage[] {
+function commentsV2Messages(
+  prompt: string,
+  strict: boolean,
+  maxInsights: number,
+  languageReminder: boolean
+): ChatMessage[] {
   const strictInstruction =
     env.SUMMARY_LANG === "ru"
       ? "Строго соблюдай JSON-схему, не отказывайся от анализа и не добавляй вымышленных фактов."
       : "Follow the JSON schema exactly, do not refuse the analysis, and do not invent facts.";
+  const reminder = languageReminder ? commentsLanguageReminder(env.SUMMARY_LANG) : undefined;
   const system = [
     buildCommentsSystemInstructionV2(env.SUMMARY_LANG, maxInsights),
     ...(strict ? [strictInstruction] : []),
+    ...(reminder === undefined ? [] : [reminder]),
   ].join("\n");
   return [
     { role: "system", content: system },
@@ -686,6 +698,38 @@ export function isGroqTpdExhaustionError(error: unknown): boolean {
   const blob = parts.join(" ").toLowerCase();
   return blob.includes("tokens per day") || blob.includes("(tpd)") || /\btpd\b/u.test(blob);
 }
+
+/**
+ * Wait hint from a Groq per-minute 429 body ("Please try again in 5.6025s"),
+ * in ms. TPD bodies and anything without a parsable hint return undefined.
+ */
+export function groqRetryAfterMs(error: unknown): number | undefined {
+  const httpError = findHttpErrorCause(error);
+  if (httpError?.status !== 429 || isGroqTpdExhaustionError(error)) {
+    return undefined;
+  }
+  const marker = "try again in ";
+  const start = httpError.message.indexOf(marker);
+  if (start === -1) {
+    return undefined;
+  }
+  let rest = httpError.message.slice(start + marker.length);
+  let minutes = 0;
+  const minutePart = /^(?<minutes>\d+)m(?!s)/u.exec(rest);
+  if (minutePart?.groups !== undefined) {
+    minutes = Number(minutePart.groups["minutes"]);
+    rest = rest.slice(minutePart[0].length);
+  }
+  const valuePart = /^(?<value>[\d.]+)(?<unit>ms|s)\b/u.exec(rest);
+  const value = Number(valuePart?.groups?.["value"]);
+  if (valuePart?.groups === undefined || !Number.isFinite(value)) {
+    return undefined;
+  }
+  return Math.ceil(minutes * 60_000 + (valuePart.groups["unit"] === "ms" ? value : value * 1000));
+}
+
+// Slack on top of the provider hint so the retry lands after the bucket refill.
+const GROQ_RETRY_AFTER_SLACK_MS = 250;
 
 
 type CommentsChainStep = {
@@ -809,12 +853,13 @@ export type InsightsValidator = (
   comments: NormalizedComment[],
   sampleIds: number[],
   maxInsights: number
-) => { insights: CommentsInsights; summary: string } | undefined;
+) => { ok: false; reason: string } | { ok: true; insights: CommentsInsights; summary: string };
 
 export type ChainBudget = {
   callsUsed: number;
   maxCalls: number;
   claimRequestTimeoutMs: (preferredMs?: number) => number | undefined;
+  canWait: (waitMs: number) => boolean;
 };
 
 const insightsSchema = CommentsInsightsSchema as unknown as z.ZodSchema<CommentsInsights>;
@@ -846,10 +891,19 @@ export async function callStructuredWithModelChain(
   // UnsupportedResponseFormat may still flip the flag off for a same-model retry on
   // non-Groq providers that advertise schema support incorrectly.
   let useResponseFormat = steps[0]?.prefersResponseFormat ?? false;
+  // After a wrong-language reject every later call carries the reminder; the
+  // last step additionally gets one same-model retry with it (earlier Groq steps
+  // hand over instead, see below). Prod 2026-09: all three models answered a
+  // thread fully in English and the story was re-queued daily for a week.
+  let languageReminder = false;
+  let languageRetriedOnStep = false;
+  let waitedOnStep = false;
 
   const moveToFallback = (): boolean => {
     stepIndex += 1;
     strict = true;
+    languageRetriedOnStep = false;
+    waitedOnStep = false;
     const next = steps[stepIndex];
     useResponseFormat = next?.prefersResponseFormat ?? false;
     return next !== undefined;
@@ -873,7 +927,7 @@ export async function callStructuredWithModelChain(
 
     try {
       const insights = await client.chatStructured(
-        commentsV2Messages(input.prompt, strict, input.maxInsights),
+        commentsV2Messages(input.prompt, strict, input.maxInsights, languageReminder),
         {
           temperature,
           maxTokens: env.COMMENTS_SUMMARY_MAX_TOKENS,
@@ -896,10 +950,12 @@ export async function callStructuredWithModelChain(
         insightsSchema,
         1
       );
-      const validated = input.validate(insights, input.comments, input.sampleIds, input.maxInsights);
-      if (validated !== undefined) {
-        return { insights: validated.insights, modelUsed: model, summary: validated.summary };
+      const verdict = input.validate(insights, input.comments, input.sampleIds, input.maxInsights);
+      if (verdict.ok) {
+        return { insights: verdict.insights, modelUsed: model, summary: verdict.summary };
       }
+      const languageReject = isCommentsLanguageReject(verdict.reason);
+      languageReminder ||= languageReject;
       // A same-model strict retry costs a second physical call. On Groq that is a
       // second hit on the per-minute token bucket that is already the bottleneck,
       // so hand the strict prompt to the next step instead when one exists; the
@@ -907,6 +963,10 @@ export async function callStructuredWithModelChain(
       const hasNextStep = steps[stepIndex + 1] !== undefined;
       if (!strict && !(gateway === "groq" && hasNextStep)) {
         strict = true;
+        languageRetriedOnStep ||= languageReject;
+      } else if (languageReject && !hasNextStep && !languageRetriedOnStep) {
+        languageRetriedOnStep = true;
+        log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 retrying last model with a language reminder", { model });
       } else if (!moveToFallback()) {
         return undefined;
       }
@@ -917,6 +977,20 @@ export async function callStructuredWithModelChain(
         log.warn(LOG_NAMESPACE_COMMENTS, "Comments-v2 response_format unsupported; retrying without it", {
           model,
         });
+        continue;
+      }
+      // A Groq per-minute 429 names a short refill wait; paying it keeps the free
+      // model instead of burning the step (prod 2026-09: both Groq steps 429'd
+      // within 50ms and only the paid hop answered).
+      const retryAfterMs = gateway === "groq" && !waitedOnStep ? groqRetryAfterMs(error) : undefined;
+      if (
+        retryAfterMs !== undefined &&
+        retryAfterMs <= env.COMMENTS_GROQ_429_MAX_WAIT_MS &&
+        input.budget.canWait(retryAfterMs + GROQ_RETRY_AFTER_SLACK_MS)
+      ) {
+        waitedOnStep = true;
+        log.info(LOG_NAMESPACE_COMMENTS, "Comments-v2 waiting out Groq per-minute limit", { model, retryAfterMs });
+        await new Promise((resolve) => setTimeout(resolve, retryAfterMs + GROQ_RETRY_AFTER_SLACK_MS));
         continue;
       }
       if (trackTpdExhaustion && gateway === "groq" && isGroqTpdExhaustionError(error)) {
