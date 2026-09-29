@@ -56,12 +56,11 @@ describe("model config contract", () => {
 describe("workflow state backup contract", () => {
   test("daily catch-up persists updated state to VPS", () => {
     const source = readFileSync(join(ROOT, ".github/workflows/daily-catchup.yml"), "utf8");
-    const workflow = Bun.YAML.parse(source) as {
-      jobs: { build: { steps: Array<{ name?: string; run?: string }> } };
-    };
-    const backup = workflow.jobs.build.steps.find((step) => step.name === "Backup state to VPS");
+    // Plain text slice, not Bun.YAML: CI pins Bun 1.2.19, which has no YAML parser.
+    const [, afterName = ""] = source.split("- name: Backup state to VPS\n");
+    const [backup = ""] = afterName.split("\n      - name: ");
 
-    expect(backup?.run).toContain("rsync -az --delete");
-    expect(backup?.run).toContain('data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"');
+    expect(backup).toContain("rsync -az --delete");
+    expect(backup).toContain('data/ "$VPS_USER@$VPS_HOST:$VPS_PATH/"');
   });
 });
