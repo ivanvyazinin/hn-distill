@@ -515,6 +515,75 @@ describe("Aggregation & grouping", () => {
     });
   });
 
+  test("sortItemsDesc puts cards by first appearance on the site, not HN time", async () => {
+    await withTempDir(async (base) => {
+      mockPaths(base);
+      const { sortItemsDesc } = await import("@scripts/aggregate.mts");
+
+      // Old HN story published late must outrank a newer story published earlier.
+      const lateOld = aggItem({ id: 1, title: "late-old", timeISO: "2024-01-01T00:00:00Z", publishedISO: "2024-01-05T00:00:00Z" });
+      const earlyNew = aggItem({ id: 2, title: "early-new", timeISO: "2024-01-03T00:00:00Z", publishedISO: "2024-01-04T00:00:00Z" });
+      // Published before the field existed: positioned by HN time.
+      const legacy = aggItem({ id: 3, title: "legacy", timeISO: "2024-01-04T12:00:00Z" });
+      // Same run as lateOld: tie broken by HN time, newer first.
+      const sameRunNewer = aggItem({ id: 4, title: "same-run", timeISO: "2024-01-02T00:00:00Z", publishedISO: "2024-01-05T00:00:00Z" });
+
+      const sorted = [legacy, earlyNew, lateOld, sameRunNewer].sort(sortItemsDesc);
+      expect(sorted.map((it) => it.title)).toEqual(["same-run", "late-old", "legacy", "early-new"]);
+    });
+  });
+
+  test("main stamps publishedISO on new cards only and keeps it on later runs", async () => {
+    await withTempDir(async (base) => {
+      const { pathFor } = mockPaths(base);
+      const { createFsStore } = await import("@utils/fs-store");
+      const { PATHS } = await import("@config/paths");
+      const { main } = await import("../pipeline/aggregate");
+
+      const card = (id: number, timeISO: string): AggregatedItem =>
+        ({
+          id,
+          title: `card ${id}`,
+          url: null,
+          by: "a",
+          timeISO,
+          score: 400,
+          commentsCount: 200,
+          postSummary: PUBLISHABLE_RU,
+          hnUrl: `https://news.ycombinator.com/item?id=${id}`,
+        }) as AggregatedItem;
+
+      const store = createFsStore(base);
+      // 301 is already on the site (pre-field, no publishedISO) and is the newest on HN.
+      await store.putJson(PATHS.aggregated, { updatedISO: TEST_ISO, items: [card(301, "2024-03-10T00:00:00Z")] });
+      // 302 is older on HN but reaches the site only now.
+      await writeJsonFile(pathFor.rawItem(302), {
+        id: 302,
+        title: "card 302",
+        url: null,
+        by: "a",
+        timeISO: "2024-03-01T00:00:00Z",
+        score: 400,
+        descendants: 200,
+      });
+      await writeJsonFile(pathFor.postSummary(302), { id: 302, lang: "ru", summary: PUBLISHABLE_RU });
+      await store.putJson(PATHS.index, { updatedISO: TEST_ISO, storyIds: [302] });
+
+      const gateEnv = { SUMMARIZE_MIN_SCORE: 300, SUMMARIZE_MIN_COMMENTS: 100 };
+      const first = await withEnvPatch(gateEnv, async () => await main(store));
+
+      expect(first.items.map((it) => it.id)).toEqual([302, 301]);
+      const stamped = first.items[0]?.publishedISO;
+      expect(typeof stamped).toBe("string");
+      expect(first.items[1]?.publishedISO).toBeUndefined();
+
+      const second = await withEnvPatch(gateEnv, async () => await main(store));
+      expect(second.items.map((it) => it.id)).toEqual([302, 301]);
+      expect(second.items[0]?.publishedISO).toBe(stamped);
+      expect(second.updatedISO).toBe(first.updatedISO);
+    });
+  });
+
   // Fix 0.2: one canonical sanitizer must decide identically on both branches
   // (object-store files via buildAggregatedItem, DB rows via
   // buildAggregatedItemsFromRows) — otherwise AGGREGATE_FROM_DB flips the site.

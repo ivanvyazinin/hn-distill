@@ -276,21 +276,36 @@ function parseIsoSafe(iso?: string): number {
   return Number.isFinite(ts) ? ts : Number.NaN;
 }
 
-export function sortItemsDesc(a: AggregatedItem, b: AggregatedItem): number {
-  const ta = parseIsoSafe(a.timeISO);
-  const tb = parseIsoSafe(b.timeISO);
+function compareTsDesc(ta: number, tb: number): number | undefined {
   const aHas = Number.isFinite(ta);
   const bHas = Number.isFinite(tb);
   if (aHas && bHas) {
     return tb - ta; // newer first
   }
-  if (aHas && !bHas) {
+  if (aHas) {
     return -1; // valid dates before invalid
   }
-  if (!aHas && bHas) {
+  if (bHas) {
     return 1;
   }
-  return b.id - a.id; // deterministic for both invalid: by id desc
+  return undefined;
+}
+
+// Feed position: first appearance on the site; cards published before
+// publishedISO existed fall back to the HN submission time.
+function feedOrderTs(it: AggregatedItem): number {
+  const published = parseIsoSafe(it.publishedISO);
+  return Number.isFinite(published) ? published : parseIsoSafe(it.timeISO);
+}
+
+export function sortItemsDesc(a: AggregatedItem, b: AggregatedItem): number {
+  const byFeed = compareTsDesc(feedOrderTs(a), feedOrderTs(b));
+  if (byFeed !== undefined && byFeed !== 0) {
+    return byFeed;
+  }
+  // Cards published by the same run share publishedISO: newer HN story first.
+  const byHnTime = compareTsDesc(parseIsoSafe(a.timeISO), parseIsoSafe(b.timeISO));
+  return byHnTime ?? b.id - a.id; // deterministic for both invalid: by id desc
 }
 
 export async function main(store: ObjectStore, meta?: MetaStore, options?: { fromDb?: boolean }): Promise<AggregatedFile> {
@@ -311,15 +326,28 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
 
   const gate = engagementThresholdsFromEnv();
 
+  // First appearance on the site: a card already in the previous output keeps
+  // what it had (nothing for cards older than this field), a new one gets now.
+  const previousById = new Map(previous.items.map((p) => [p.id, p]));
+  const nowISO = new Date().toISOString();
+  const stampPublished = (it: AggregatedItem): AggregatedItem => {
+    if (!isSitePublishable(it, gate)) {
+      return it;
+    }
+    const prev = previousById.get(it.id);
+    const publishedISO = prev ? prev.publishedISO : nowISO;
+    return publishedISO === undefined ? it : { ...it, publishedISO };
+  };
+
   if (fromDb) {
     // Production path (AGGREGATE_FROM_DB=true): the drop bookkeeping lives here,
     // not in readAggregates, which this branch never calls.
     resetDrops();
     const storyIds = await metaStore.listStoryIdsForAggregate(SCORE_MIN_AGGREGATE);
-    const latestItems = await metaStore.getAggregatedItems(storyIds);
+    const latestItems = (await metaStore.getAggregatedItems(storyIds)).map(stampPublished);
     await reportDrops(store);
     for (const it of latestItems) {
-      const prev = previous.items.find((p) => p.id === it.id);
+      const prev = previousById.get(it.id);
       if (!prev || !jsonEqual(prev, it)) {
         changedIds.add(it.id);
       }
@@ -331,7 +359,7 @@ export async function main(store: ObjectStore, meta?: MetaStore, options?: { fro
       updatedISO: new Date(0).toISOString(),
       storyIds: [],
     });
-    const latestItems = await readAggregates(index.storyIds, store);
+    const latestItems = (await readAggregates(index.storyIds, store)).map(stampPublished);
     const byId = new Map<number, AggregatedItem>();
     for (const it of previous.items) {
       byId.set(it.id, it);

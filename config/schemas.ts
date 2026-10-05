@@ -285,6 +285,11 @@ export const AggregatedItemSchema = z.object({
     .optional(),
   domain: z.string().optional(),
   tags: z.array(z.string()).optional(), // canonical slugs, e.g. ["llm","python","openai"]
+  // When the card first appeared on the site; drives feed order. Stamped by
+  // aggregate and carried over from the previous aggregated.json. Cards
+  // published before this field existed lack it and order by timeISO.
+  // Keep last: aggregate appends it, and its change detection is key-order sensitive.
+  publishedISO: IsoString.optional(),
 });
 
 export const AggregatedFileSchema = z.object({
