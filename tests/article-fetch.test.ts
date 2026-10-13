@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import {
   buildJinaReaderUrl,
   DEFAULT_ARTICLE_READER_BASE_URL,
+  dropLinkDominatedLines,
   fetchViaJinaReader,
   isCloudflareChallengeError,
   looksLikeCloudflareChallenge,
@@ -87,6 +88,31 @@ describe("buildJinaReaderUrl", () => {
   });
 });
 
+describe("dropLinkDominatedLines", () => {
+  test("drops menus, share bars and image lines; keeps prose with inline links, code and tables", () => {
+    const prose =
+      "Researchers at [Hunan University](https://hnu.edu.cn) built a detector that finds hidden cameras by their memory emissions.";
+    const content = [
+      prose,
+      "```md",
+      "[Install the package](https://example.com/install)",
+      "```",
+      "| [example-library](https://example.com) | 1234 |",
+    ];
+    const md = [
+      "Title: Eye of Sauron",
+      "*   [Products](https://example.com/products)",
+      "[](https://facebook.com/share?u=x)[](https://x.com/intent?u=x)[](https://linkedin.com/share?u=x)",
+      "[![Image 1: logo](https://example.com/logo.svg)](https://example.com/)",
+      "![Image 2: hero](https://example.com/hero.webp)",
+      "### [Related: another story](https://example.com/related)",
+      "",
+      ...content,
+    ].join("\n");
+    expect(dropLinkDominatedLines(md)).toBe(["Title: Eye of Sauron", "", ...content].join("\n"));
+  });
+});
+
 describe("fetchViaJinaReader", () => {
   test("returns trimmed markdown and sends reader headers", async () => {
     type Call = { url: string; init?: SafeRequestInit | undefined };
@@ -110,6 +136,15 @@ describe("fetchViaJinaReader", () => {
     expect(calls[0]?.init?.headers?.["X-Respond-With"]).toBe("markdown");
     expect(calls[0]?.init?.headers?.["Authorization"]).toBe("Bearer jk_test");
     expect(calls[0]?.init?.headers?.["Accept"]).toBe("text/plain");
+  });
+
+  test("strips link-dominated lines so a long menu does not push the article out", async () => {
+    const menu = Array.from({ length: 50 }, (_, i) => `*   [Section ${i}](https://example.com/s/${i})`);
+    const article = "When the president backed away from the threat, traders who had bet minutes earlier made a fortune.";
+    const http = {
+      text: async () => [...menu, "", article].join("\n"),
+    } as unknown as HttpClient;
+    expect(await fetchViaJinaReader(http, "https://example.com/a")).toBe(article);
   });
 
   test("accepts reader markdown that mentions 'just a moment' in prose", async () => {
@@ -144,6 +179,13 @@ describe("fetchViaJinaReader", () => {
   test("rejects empty / short body", async () => {
     const http = {
       text: async () => "short",
+    } as unknown as HttpClient;
+    await expect(fetchViaJinaReader(http, "https://example.com")).rejects.toThrow(/empty\/short/iu);
+  });
+
+  test("rejects a body that is only links once cleaned", async () => {
+    const http = {
+      text: async () => `[${"Home ".repeat(MIN_READER_MD_CHARS)}](https://example.com/)`,
     } as unknown as HttpClient;
     await expect(fetchViaJinaReader(http, "https://example.com")).rejects.toThrow(/empty\/short/iu);
   });

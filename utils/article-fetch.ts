@@ -93,7 +93,8 @@ export type FetchViaJinaReaderOptions = {
 
 /**
  * Fetch article markdown via Jina Reader (`r.jina.ai`). Returns trimmed markdown
- * or throws HttpError / Error on empty / still-challenge body.
+ * without link-dominated lines, or throws HttpError / Error on empty /
+ * still-challenge body.
  *
  * Headers follow the upstream Reader docs (`X-Respond-With`; Accept text/plain).
  * @see https://github.com/jina-ai/reader
@@ -121,13 +122,50 @@ export async function fetchViaJinaReader(
     ...(options.timeoutMs === undefined ? {} : { timeoutMs: options.timeoutMs }),
   });
   const trimmed = text.trim();
-  if (trimmed.length < MIN_READER_MD_CHARS) {
-    throw new Error(`Jina reader returned empty/short body (${trimmed.length} chars) for ${targetUrl}`);
-  }
   if (looksLikeCloudflareChallenge(trimmed)) {
     throw new Error(`Jina reader still returned a Cloudflare challenge page for ${targetUrl}`);
   }
-  return trimmed;
+  const cleaned = dropLinkDominatedLines(trimmed);
+  if (cleaned.length < MIN_READER_MD_CHARS) {
+    throw new Error(`Jina reader returned empty/short body (${cleaned.length} chars) for ${targetUrl}`);
+  }
+  return cleaned;
+}
+
+// Anchor/url classes exclude their own delimiters so matching stays linear on
+// untrusted page content (no rescans across unclosed brackets).
+const MD_IMAGE = /!\[[^[\]]*\]\([^()]*\)/gu;
+// No `u` flag: in JSC it made this pattern ~5000x slower on a 60 KB inline-CSS
+// line (530 ms vs 0.1 ms); the pattern is ASCII-only, so matching is unchanged.
+// eslint-disable-next-line regexp/require-unicode-regexp, unicorn/better-regex
+const MD_LINK = /\[(?<anchor>[^[\]]*)\]\([^()]*\)/g;
+const MD_DECORATION = /[\s#*\->_`|]/gu;
+const LINK_LINE_MIN_UNLINKED_SHARE = 0.5;
+
+/**
+ * Drop lines whose visible text is mostly link anchors or images: menus, share
+ * bars, related-story cards. Reader markdown is the whole page; on sites with
+ * long menus the article sat past the post prompt's head slice and the model
+ * summarized a bare title (2026-10-13: 60 of 257 reader posts). Code blocks
+ * and table rows are content, so they are always kept.
+ */
+export function dropLinkDominatedLines(md: string): string {
+  let inFence = false;
+  const kept = md.split("\n").filter((line) => {
+    const trimmed = line.trimStart();
+    if (trimmed.startsWith("```") || trimmed.startsWith("~~~")) {
+      inFence = !inFence;
+      return true;
+    }
+    if (inFence || trimmed.startsWith("|") || !line.includes("](")) {
+      return true;
+    }
+    const noImages = line.replaceAll(MD_IMAGE, "");
+    const visible = noImages.replaceAll(MD_LINK, "$<anchor>").replaceAll(MD_DECORATION, "");
+    const unlinked = noImages.replaceAll(MD_LINK, "").replaceAll(MD_DECORATION, "");
+    return visible.length > 0 && unlinked.length >= visible.length * LINK_LINE_MIN_UNLINKED_SHARE;
+  });
+  return kept.join("\n").replaceAll(/\n{3,}/gu, "\n\n").trim();
 }
 
 export type ArticleSourceKind = "empty" | "html" | "pdf" | "reader" | "text" | "youtube";
