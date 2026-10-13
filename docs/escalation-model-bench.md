@@ -1,5 +1,7 @@
 # Ф4: валидация escalation-модели для content-reject
 
+> **Устарело 2026-10-13:** `SUMMARY_CONTENT_REJECT_MODEL` теперь `deepseek/deepseek-v4.1-flash` — qwen3-next на повторном слепом бенче выдумывал факты в 24/36 сводок. См. [`analysis/2026-10-13-qwen3-next-replacement.md`](./analysis/2026-10-13-qwen3-next-replacement.md).
+
 Дата фиксации критериев: 2026-07-14 (до запуска бенча).
 
 ## Критерии production route

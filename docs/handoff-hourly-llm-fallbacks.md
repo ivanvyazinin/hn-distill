@@ -1,5 +1,7 @@
 # Handoff: восстановить LLM fallback-и hourly pipeline
 
+> **Модели устарели 2026-10-13:** comments paid hop — `google/gemma-4-31b-it`, post primary — `apodex/apodex-1.1-mini:free`, post fallback и escalation — `deepseek/deepseek-v4.1-flash`. Актуальный список — [`llm-models-and-prompts.md`](./llm-models-and-prompts.md).
+
 **Статус:** фазы 1–2 + ship + первый prod rollout 2026-07-20. Главная цель (`model_not_found=0`) закрыта. Открыт follow-up: comments budget не всегда доходит до OpenRouter после Groq TPD/413.
 
 **Аудитория:** разработчик, который продолжит hardening comments/tags/guard после rollout.
