@@ -62,16 +62,14 @@ const EnvironmentSchema = z.object({
   // 1000 :free requests/day on OpenRouter (vs 50 on a bare account), so the
   // daily volume fits the free tier. Paid slugs stay as walk-through fallbacks
   // for upstream 429 bursts / dead free slugs (two :free deaths: 08-02, 08-24).
-  // Slug picked by live probe on 2026-08-25 (gemma/glm/minimax all 429 upstream
-  // that morning; nemotron-3-super answered with clean RU, no inline reasoning).
-  // Post fallback = the PAID twin of the primary: same style/quality when the
-  // free pool dies, 2.75x cheaper output than qwen ($0.40 vs $1.10/M).
-  // Verified with reasoning_effort=none + plain chat (post path conditions):
-  // clean RU, finish=stop. Do NOT use it for the comments spill hop — that one
-  // sends strict json_schema without reasoning_effort and nemotron burns the
-  // budget inside its reasoning trace (empty content, finish=length).
-  OPENROUTER_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
-  OPENROUTER_FALLBACK_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b"),
+  // 2026-10-13 blind judge, 12 articles (docs/analysis/2026-10-13-qwen3-next-replacement.md):
+  // apodex-1.1-mini:free overall 3.75, 0 hallucinations, 36/36 gate pass; the previous
+  // nemotron-3-super-120b:free scored 2.42 (English/CJK leaks, 26/36 gate pass). apodex is
+  // free-only on a single provider, so the paid fallback carries availability.
+  // Fallback deepseek-v4.1-flash: overall 4.50, 0 hallucinations. Reasoning model — fine
+  // here because the post path sends reasoning_effort=none.
+  OPENROUTER_MODEL: z.string().default("apodex/apodex-1.1-mini:free"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
   OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct"),
   // Post summaries need ~500 tokens. The old 8000 existed because the primary is a
   // reasoning model that burned the whole budget inside its thinking trace: avg 5246
@@ -149,12 +147,15 @@ const EnvironmentSchema = z.object({
   // the primary's per-model TPM 429s (prod 11-12.09: gpt-oss-120b TPM 8000 burns on
   // real 24k-char threads, every run spilling to paid Qwen). Separate per-model
   // bucket, zero extra cost; 20/20 transport-ok on the 25.08 real-thread probe.
-  // Paid OpenRouter Qwen stays the last resort.
+  // Paid OpenRouter gemma-4-31b is the last resort.
   COMMENTS_MODEL: z.string().default("openai/gpt-oss-120b"),
   COMMENTS_FALLBACK_MODEL: z.string().default("openai/gpt-oss-20b"),
   COMMENTS_FALLBACK_MODEL_2: z.string().default(""),
-  // Paid cross-provider last resort. Empty disables the paid hop.
-  COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  // Paid cross-provider last resort. Empty disables the paid hop. This hop sends strict
+  // json_schema without reasoning_effort, so reasoning models (deepseek-v4.1-flash: 8/20,
+  // empty content) burn the cap. gemma-4-31b replaced qwen3-next on 2026-10-13: blind judge
+  // 1/20 vs 15/20 hallucinated, 4x cheaper — docs/analysis/2026-10-13-qwen3-next-replacement.md.
+  COMMENTS_OPENROUTER_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it"),
 
   // Groq strict json_schema (when GROQ_API_KEY set). Probe winner: openai/gpt-oss-20b.
   // No second tags model — LLM fail falls back to deterministic heuristics in processTags.
@@ -214,8 +215,9 @@ const EnvironmentSchema = z.object({
     .default(true),
   // Escalation model for content-rejected summaries (heuristics/guard). Strict retry
   // attempts start from this model instead of the small primary. Empty → default chain.
-  // Paid OpenRouter route validated in docs/escalation-model-bench.md.
-  SUMMARY_CONTENT_REJECT_MODEL: z.string().default("qwen/qwen3-next-80b-a3b-instruct"),
+  // deepseek-v4.1-flash replaced qwen3-next on 2026-10-13 (qwen3-next invented facts in 24/36
+  // strict summaries) — docs/analysis/2026-10-13-qwen3-next-replacement.md.
+  SUMMARY_CONTENT_REJECT_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
 
   LOG_LEVEL: z.enum(["silent", "error", "warn", "info", "debug"]).default("info"),
 

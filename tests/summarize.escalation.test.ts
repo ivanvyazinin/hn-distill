@@ -97,8 +97,8 @@ describe("generateValidatedPostSummary escalation", () => {
   let savedGuardEnable: boolean;
   let savedLang: typeof env.SUMMARY_LANG;
 
-  test("defaults content-reject escalation to the validated paid Qwen route", () => {
-    expect(parseEnv({}).SUMMARY_CONTENT_REJECT_MODEL).toBe("qwen/qwen3-next-80b-a3b-instruct");
+  test("defaults content-reject escalation to the validated paid route", () => {
+    expect(parseEnv({}).SUMMARY_CONTENT_REJECT_MODEL).toBe("deepseek/deepseek-v4.1-flash");
   });
 
   beforeEach(() => {

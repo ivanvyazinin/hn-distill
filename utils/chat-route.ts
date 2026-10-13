@@ -836,7 +836,7 @@ export function buildCommentsModelChain(
       pushStep(services.guardTagsClient, model, groqBaseUrl, "groq", false, { trackTpdExhaustion: true });
     }
 
-    // Paid OpenRouter Qwen is the last resort after the free Groq ladder.
+    // Paid OpenRouter hop is the last resort after the free Groq ladder.
     pushStep(services.openrouter, env.COMMENTS_OPENROUTER_FALLBACK_MODEL, openRouterBaseUrl, "openrouter", true);
   } else {
     for (const model of [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2]) {

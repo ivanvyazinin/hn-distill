@@ -408,7 +408,7 @@ describe("comments-v2 request budget and validation", () => {
     });
   });
 
-  test("configured Groq fallback failure reaches OpenRouter Qwen within 3 calls", async () => {
+  test("configured Groq fallback failure reaches the OpenRouter paid hop within 3 calls", async () => {
     const story = makeStory({ id: 43, title: "Budget reaches Qwen" });
     const groqCalls: StructuredCall[] = [];
     const openRouterCalls: StructuredCall[] = [];
