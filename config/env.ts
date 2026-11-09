@@ -58,19 +58,16 @@ const EnvironmentSchema = z.object({
   HTTP_RETRIES: z.coerce.number().int().min(0).max(5).default(3),
   HTTP_BACKOFF_MS: z.coerce.number().int().min(100).max(5000).default(600),
 
-  // Free-first (2026-08-25): the account holds ≥$10 credits, which unlocks
-  // 1000 :free requests/day on OpenRouter (vs 50 on a bare account), so the
-  // daily volume fits the free tier. Paid slugs stay as walk-through fallbacks
-  // for upstream 429 bursts / dead free slugs (two :free deaths: 08-02, 08-24).
-  // 2026-10-13 blind judge, 12 articles (docs/analysis/2026-10-13-qwen3-next-replacement.md):
-  // apodex-1.1-mini:free overall 3.75, 0 hallucinations, 36/36 gate pass; the previous
-  // nemotron-3-super-120b:free scored 2.42 (English/CJK leaks, 26/36 gate pass). apodex is
-  // free-only on a single provider, so the paid fallback carries availability.
-  // Fallback deepseek-v4.1-flash: overall 4.50, 0 hallucinations. Reasoning model — fine
-  // here because the post path sends reasoning_effort=none.
-  OPENROUTER_MODEL: z.string().default("apodex/apodex-1.1-mini:free"),
-  OPENROUTER_FALLBACK_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
-  OPENROUTER_FALLBACK_MODEL_2: z.string().default("meta-llama/llama-3.3-70b-instruct"),
+  // Paid-first since 2026-11-09 (docs/analysis/2026-11-09-free-model-replacement.md):
+  // no live :free model is good enough. The last free primaries (apodex-1.1-mini,
+  // nemotron-3-super) left the OpenRouter catalog; the only live one, nemotron-3-ultra,
+  // invented facts in 15/24 posts under a blind judge, and the gate passed all of them.
+  // deepseek-v4.1-flash: overall 4.17, 1/24 hallucinated. Reasoning model — fine here
+  // because the post path sends reasoning_effort=none. gemma-4-31b (36/36 gate, 2–3/36
+  // hallucinated on 13.10) covers provider outages.
+  OPENROUTER_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
+  OPENROUTER_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it"),
+  OPENROUTER_FALLBACK_MODEL_2: z.string().default(""),
   // Post summaries need ~500 tokens. The old 8000 existed because the primary is a
   // reasoning model that burned the whole budget inside its thinking trace: avg 5246
   // completion per call, 5 calls capped at exactly 8000 and every one of those forced
@@ -88,18 +85,14 @@ const EnvironmentSchema = z.object({
   // Room for up to 15 RU insights (dynamic ceiling); ~3k tokens worst case.
   COMMENTS_SUMMARY_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(2500),
   // Second-pass compression of structured comments. Empty string disables.
-  // 2026-09-12: free-first again — nemotron:free with reasoning_effort=none
-  // (sent by the compress call, same as the post path) scored 6/6 OK at ~67%
-  // ratio on six real prod inputs; without the flag it is 2/6 (reasoning burn,
-  // expanded ×2 — the 26.08 failure). ~50% of calls exceed the 7s attempt
-  // timeout and spill to the paid Qwen hop; quality is gated by the validator
-  // either way. Dead MiniMax slug is gone from the chain.
-  COMMENTS_COMPRESS_MODEL: z.string().default("nvidia/nemotron-3-super-120b-a12b:free"),
-  // Paid second hop for free-slot transport/timeout failures. Empty disables it.
-  // 2026-09-13 bench (scripts/bench-compress-models.mts, 20 real inputs): gemma
-  // 20/20 valid + RU-pure at $0.0002/call vs qwen3-next 18/20 at $0.0006 — see
-  // docs/analysis/2026-09-13-compress-model-compare.md.
-  COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default("google/gemma-4-31b-it"),
+  // gemma-4-31b: 20/20 valid + RU-pure at $0.0002/call on 20 real inputs
+  // (docs/analysis/2026-09-13-compress-model-compare.md). The free nemotron primary
+  // is gone from the catalog (last answer 20.10); nemotron-3-ultra:free passes the validator 19/20
+  // but its faithfulness is unmeasured (docs/analysis/2026-11-09-free-model-replacement.md).
+  COMMENTS_COMPRESS_MODEL: z.string().default("google/gemma-4-31b-it"),
+  // Second hop for transport/timeout failures only (semantic rejects are terminal).
+  // Empty: a failed compress is retried by the repair pass on a later run.
+  COMMENTS_COMPRESS_FALLBACK_MODEL: z.string().default(""),
   // Changing the model does NOT invalidate existing compressed results — bump
   // COMMENTS_COMPRESS_POLICY_VERSION to force recompression after a model swap.
   COMMENTS_COMPRESS_MAX_TOKENS: z.coerce.number().int().min(128).max(4096).default(1000),

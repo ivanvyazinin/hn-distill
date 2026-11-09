@@ -363,9 +363,10 @@ async function callOpenRouterAttempt(
   }
 }
 
-/** Default production chain: primary, then the two configured fallbacks. */
+/** Default production chain: primary, then the configured fallbacks (empty slots skipped). */
 function defaultModelChain(): string[] {
-  return [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2];
+  const models = [env.OPENROUTER_MODEL, env.OPENROUTER_FALLBACK_MODEL, env.OPENROUTER_FALLBACK_MODEL_2];
+  return [...new Set(models.map((model) => model.trim()).filter((model) => model.length > 0))];
 }
 
 async function callOpenRouterWithRetry(

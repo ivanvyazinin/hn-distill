@@ -10,7 +10,7 @@ describe("comments-v2 environment", () => {
     expect(parsed.COMMENTS_MIN_CYRILLIC_RATIO).toBe(0.65);
     expect(parsed.COMMENTS_PROMPT_MAX_CHARS).toBe(24_000);
     expect(parsed.COMMENTS_SUMMARY_MAX_TOKENS).toBe(2500);
-    expect(parsed.COMMENTS_COMPRESS_MODEL).toBe("nvidia/nemotron-3-super-120b-a12b:free");
+    expect(parsed.COMMENTS_COMPRESS_MODEL).toBe("google/gemma-4-31b-it");
     expect(parsed.COMMENTS_COMPRESS_MAX_TOKENS).toBe(1000);
     expect(parsed.COMMENTS_MAX_LLM_CALLS).toBe(6);
     expect(parsed.COMMENTS_LLM_REQUEST_TIMEOUT_MS).toBe(7000);

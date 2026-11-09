@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 
 import { env } from "../config/env.ts";
 import type { Services } from "../scripts/summarize.mts";
@@ -6,6 +6,7 @@ import { RateLimitError } from "../scripts/summarize.mts";
 import { summarizeComments } from "../eval/comments-v1";
 import { HttpError } from "../utils/http-client.ts";
 import { createUsageCollector } from "../utils/llm-usage.ts";
+import { withEnvPatch } from "./helpers/env.ts";
 import type { ChatMessage } from "../utils/openrouter";
 
 type Handler = (req: { model: string; messages: ChatMessage[] }) => Promise<string>;
@@ -63,6 +64,36 @@ function makeRateLimit(scope: string, resetMs: number): HttpError {
 }
 
 describe("summarizeComments LLM handling", () => {
+  // Fallback mechanics need a full three-slot chain regardless of the shipped defaults.
+  const snapshot = { ...env };
+  beforeAll(() => {
+    Object.assign(env, { OPENROUTER_MODEL: "test/primary", OPENROUTER_FALLBACK_MODEL: "test/fallback-1", OPENROUTER_FALLBACK_MODEL_2: "test/fallback-2" });
+  });
+  afterAll(() => {
+    Object.assign(env, snapshot);
+  });
+
+  test("skips an empty fallback slot", async () => {
+    const { services, calls } = makeServices([
+      async () => {
+        throw new Error("primary outage");
+      },
+      async () => {
+        throw new Error("first fallback outage");
+      },
+      async () => {
+        throw new Error("empty slot must not be called");
+      },
+    ]);
+
+    const error = await withEnvPatch({ OPENROUTER_FALLBACK_MODEL_2: " " }, async () =>
+      await summarizeComments(services, 131, PROMPT_TEXT, []).catch((err: unknown) => err)
+    );
+
+    expect(error).toBeInstanceOf(AggregateError);
+    expect(calls.map((call) => call.model)).toEqual(["test/primary", "test/fallback-1"]);
+  });
+
   test("uses primary model when available", async () => {
     const { services, calls } = makeServices([
       async ({ model }) => {

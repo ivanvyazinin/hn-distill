@@ -884,10 +884,10 @@ describe("cloudflare infra", () => {
         restore();
       }
 
-      // Chain: 3 OpenRouter models, no Groq key in this env. Model 1 retries
-      // strict → balanced (2 physical calls); models 2-3 take one call each
-      // (strict already set) = 4 total, under the #33 budget of 5.
-      expect(llmCalls).toBe(4);
+      // Chain: 2 distinct OpenRouter models, no Groq key in this env. Model 1 retries
+      // strict → balanced (2 physical calls); model 2 takes one call
+      // (strict already set) = 3 total, under the #33 budget of 5.
+      expect(llmCalls).toBe(3);
       const fallback = await store.getJson<CommentsSummary>(pathFor.commentsSummary(storyId));
       expect(fallback?.degraded).toBe("generation-failed");
       expect(fallback?.formatVersion).toBe(2);
