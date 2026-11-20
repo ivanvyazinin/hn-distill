@@ -27,8 +27,7 @@ cd "$CHECKOUT" || { echo "нет чекаута $CHECKOUT"; exit 0; }
 git pull -q origin main 2>/dev/null
 
 DB_ARG=""
-if sudo -n cp /home/hnbackup/backup/hn-distill/hn.sqlite "$HN_DB_PATH" 2>/dev/null; then
-  sudo -n chmod 644 "$HN_DB_PATH" 2>/dev/null
+if cp /home/hnbackup/backup/hn-distill/hn.sqlite "$HN_DB_PATH" 2>/dev/null; then
   DB_ARG="$HN_DB_PATH"
 fi
 

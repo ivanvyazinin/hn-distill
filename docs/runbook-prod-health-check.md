@@ -88,8 +88,8 @@ fallback-карточках не должно быть простыни одно
 - Застрявшие карточки сами не оживут (hourly трогает только окно TOP_N):
   свип по процедуре `docs/handoff-manual-compress-72h.md`.
 - Свежесть данных на витрине: деплой = GitHub Pages из hourly; контент собирается
-  из `summaries` таблицы `hn.sqlite` (VPS-бэкап `hnbackup@188.137.253.16:
-  /home/hnbackup/backup/hn-distill/`) — JSON-правки без апдейта мета-БД на сайте невидимы.
+  из `summaries` таблицы `hn.sqlite` (VPS-бэкап на skrime:
+  `/home/hnbackup/backup/hn-distill/`) — JSON-правки без апдейта мета-БД на сайте невидимы.
 
 ## Утренний автоматический чек (Hermes → OMP)
 
@@ -104,12 +104,11 @@ fallback-карточках не должно быть простыни одно
 ### Подготовить свежую копию базы
 
 `HN_DB_PATH` — локальный путь. Collector сам не скачивает `hn.sqlite` с VPS.
-Перед запуском обновите копию. В локальном SSH-конфиге alias `vps` подключается
-как `ivan`; backup читается через `sudo`:
+Перед запуском обновите копию. Бэкап лежит на skrime (alias `skrime`, пользователь
+`ivan` состоит в группе `hnbackup`), sudo не нужен:
 
 ```sh
-ssh vps 'sudo cp /home/hnbackup/backup/hn-distill/hn.sqlite /tmp/hn-prod-health.sqlite && sudo chmod 644 /tmp/hn-prod-health.sqlite'
-rsync -az vps:/tmp/hn-prod-health.sqlite /tmp/hn.sqlite
+rsync -az skrime:/home/hnbackup/backup/hn-distill/hn.sqlite /tmp/hn.sqlite
 ```
 
 Проверьте возраст последней записи ledger. Если backup старше 24 часов, обновите
